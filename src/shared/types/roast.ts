@@ -1,9 +1,14 @@
 export type BatchTitleNumbering = 'profile' | 'total' | 'both' | 'none';
 
-import type { ExtraSensorReading, TemperatureProcessing } from './sidecar';
+import type { CommandReceipt, ExtraSensorReading, TemperatureProcessing } from './sidecar';
 
 /** Logical values acknowledged by an app control write, independent of sensor feedback. */
 export type AppliedRoastControl = Partial<Record<'heater' | 'fan' | 'drum', number>>;
+
+export type RoastControlReceipt =
+    | { kind: 'receipt'; receipt: CommandReceipt }
+    | { kind: 'gap'; session_id: string; charge_id: string; from: number; through: number }
+    | { kind: 'unavailable'; session_id: string; charge_id: string; after: number };
 
 /** Manual observations only; never sent as machine control commands. */
 export type RoastNoteControls = {
@@ -14,6 +19,7 @@ export type RoastNoteControls = {
 
 /** Live roast event log row (UI + in-memory). */
 export interface LogEntry extends RoastNoteControls {
+    controlReceipt?: RoastControlReceipt;
     appliedControl?: AppliedRoastControl;
     id?: string;
     /** Display "m:ss" (derived). */
@@ -33,6 +39,7 @@ export interface LogEntry extends RoastNoteControls {
 
 /** Persisted on roast_sessions.events jsonb. */
 export type StoredRoastEvent = RoastNoteControls & {
+    control_receipt?: RoastControlReceipt;
     applied_control?: AppliedRoastControl;
     id: string;
     type: string;

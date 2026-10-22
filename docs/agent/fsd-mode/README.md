@@ -10,10 +10,10 @@
 | 브랜치 | `feat/fsd-mode` |
 | 인수인계 HEAD | `4787aeb7d6d7db826d44a5e1eb71ed3888e7c131` |
 | FSD-01 | 구현, 검증, 로컬 커밋 완료 |
-| FSD-02 | 구현 및 독립 검토 결함 수정 완료. 최종 실행·성능·영상 검증 중, 로컬 커밋 대기 |
-| FSD-03 | 미착수 |
+| FSD-02 | 구현·실행·성능·독립 검토·로컬 커밋 완료: `00e3ba9d5c7c67bf4f6eb2c0439ffa837bfe2869` |
+| FSD-03 | 구현·실행·성능·독립 검토·로컬 커밋 완료. [최종 SHA와 동일성 기록](/Users/hanseungheon/.codex/agent-store/first-crack/docs/fsd-evidence/03-handoff-01a16342/commit-evidence.json) |
 | FSD-04 | 현재 목표 범위 밖. 물리 장비 튜닝과 활성화 금지 |
-| 현재 실행 | 같은 작업 위치에서 FSD-02 검증 중. FSD-03은 FSD-02 커밋 뒤 시작 |
+| 현재 실행 | FSD-02·FSD-03 완료. FSD-04와 publication은 수행하지 않음 |
 
 워크트리를 옮길 때 HEAD, 브랜치, 깨끗한 Git 상태와 추적 파일 1,469개의 해시가 같음을 확인했다. 위 HEAD는 이 문서를 추가하기 전 구현 기준이다. 의존성 디렉터리도 함께 이동했다. sidecar `.venv`는 원래 프로젝트의 가상환경을 가리키는 기존 링크를 유지한다.
 
@@ -49,7 +49,7 @@ FSD는 감독하에 사용하는 로스팅 화력 자동 제어다. 기록된 re
 - 최종 성능 검증은 교차 실행한 1,000개 HTTP 명령과 실제 virtual 쓰기를 확인했다. 추가 p95 20 ms 예산을 통과했다.
 - 성능 실행 후 커밋과 생산 Python 파일 26개의 해시가 같은지 확인했다. 후속 두 커밋은 검증 드라이버만 바꾼다.
 
-이 결과는 FSD-01에만 해당한다. Curve 추종, lease, receipt 저장과 실제 앱의 FSD 동작은 아직 검증하지 않았다. Virtual의 논리 명령 0은 실제 가스 차단이나 소염을 증명하지 않는다.
+이 결과는 FSD-01에만 해당한다. FSD-02의 별도 검증은 아래에 기록한다. Receipt 저장과 실제 앱의 FSD 동작은 FSD-03 검증 대상이다. Virtual의 논리 명령 0은 실제 가스 차단이나 소염을 증명하지 않는다.
 
 ## 이번 실행의 FSD-02 진행
 
@@ -58,9 +58,14 @@ FSD는 감독하에 사용하는 로스팅 화력 자동 제어다. 기록된 re
 - Frozen reference, 공통 raw filter·TP, 기존 PID의 actuator bounds, 서버 Charge, 독립 lease·reference deadline, receipt journal과 frontend Charge 전달을 구현했다.
 - 독립 pure 검토는 기존 PID 대비 120,000회, 별도 TP oracle 50,000 표본, strict reference와 최대 10,000 point를 확인했다. `review-pure.md`에 범위와 해시가 있다.
 - Session 독립 검토에서 재현된 7개 결함을 수정했다. 별도 검토자의 78개 focused 검사, 원래 재현 7개와 새 실행 probe 5개가 통과했다. `review-session-final.md`에 증거가 있다.
-- Frontend 독립 검토에서 확인한 승인 대기 표본 유실과 Drop 취소 시 원점 유실을 수정했다. 수정 후 독립 검토를 진행한다.
+- Frontend 독립 검토에서 확인한 승인 대기 표본 유실, Drop 취소 원점 유실, remount·늦은 응답·Drop 경계 결함을 수정했다. 최종 독립 검토 50개가 통과했다.
 - Root가 고정된 Python 소스에서 FSD-02 실제 HTTP 10개와 기존 FSD-01 HTTP 10개를 각각 통과했다. `final-http.json`, `final-fsd01-regression.json`이 원본 결과다.
-- 5회 교차 60초 cadence, 실제 protocol 화면 10개와 30~60초 영상, 최종 전체 gate와 로컬 커밋은 아직 완료로 표시하지 않는다.
+- 5회 교차 60초 cadence 15개, protocol 화면 10개와 별도 포화·회복 화면, 42.24초 영상이 통과했다. 전체 gate는 frontend 2,926개와 기존 skip 1개, sidecar 930개로 통과했다.
+- [FSD-02 검증 보고서](fsd02-verification.md), [커밋과 검증 파일 동일성](/Users/hanseungheon/.codex/agent-store/first-crack/docs/fsd-evidence/02-handoff-01a16342/commit-evidence.json)에 완료 근거가 있다. 훅 실행 후 52개 파일이 검증한 바이트와 같았다.
+
+## 이번 실행의 FSD-03 진행
+
+부모는 `00e3ba9d5c7c67bf4f6eb2c0439ffa837bfe2869`다. 세 담당자가 profile source, machine-control·화면 composition, receipt·저장·History를 각각 맡는다. Root는 기존 port 9999 bootstrap을 실행하지 않는 별도 Playwright 구성과 실제 virtual sidecar fixture를 맡았다. 공유 파일은 한 담당자만 수정했다. 세 범위의 독립 검토와 최종 통합 검토가 통과했고, 실제 앱 11개 시나리오와 12개 성능 시나리오가 통과했다. 전체 gate는 frontend 2,973개와 기존 skip 1개, sidecar 933개로 통과했다. [FSD-03 검증 보고서](fsd03-verification.md)와 [검토 화면·41.12초 영상](/Users/hanseungheon/.codex/agent-store/first-crack/docs/fsd-evidence/03-handoff-01a16342/evidence/review-media/README.md)에 근거와 한계가 있다. 로컬 커밋과 훅 후 해시 대조를 완료했다. 검증한 변경 파일 58개와 runtime 파일 688개가 일치한다. 최종 SHA는 [커밋 증거](/Users/hanseungheon/.codex/agent-store/first-crack/docs/fsd-evidence/03-handoff-01a16342/commit-evidence.json)에 기록하며, 문서가 자기 커밋 SHA를 포함하는 순환 참조를 만들지 않는다.
 
 ## 인수인계 당시 FSD-02 상태
 

@@ -624,3 +624,39 @@ async def test_manual_takeover_settles_terminal_obligation_without_rewriting_rea
     assert snapshot["phase"] == "terminal"
     assert snapshot["terminal_outcome"] == "completed"
     assert adapter.writes == [20]
+
+
+@pytest.mark.parametrize("reason", ["drop", "workspace_changed"])
+async def test_closing_stop_after_completed_user_stop_closes_only_current_charge(fixture, reason):
+    session, adapter, now, acquire, start, *_ = fixture
+    authority = (await session.start_curve(start()))["curve"]["authority"]
+    stopped = await session.stop_curve({"mode": "curve", "authority": authority, "reason": "user"})
+    writes = list(adapter.writes)
+    closed = await session.stop_curve({"mode": "curve", "authority": authority, "reason": reason})
+    assert closed["curve"] == stopped["curve"]
+    assert session.charge_response()["charge"]["closed_reason"] == reason
+    assert adapter.writes == writes
+    with pytest.raises(CurveError, match="charge_closed"):
+        await session.start_curve(start())
+
+
+async def test_old_terminal_closing_stop_cannot_close_newer_terminal_run_or_foreign_charge(fixture):
+    session, adapter, now, acquire, start, request, _ = fixture
+    first = (await session.start_curve(start()))["curve"]["authority"]
+    await session.stop_curve({"mode": "curve", "authority": first, "reason": "user"})
+    acquire(42)
+    second = (await session.start_curve(start()))["curve"]["authority"]
+    await session.stop_curve({"mode": "curve", "authority": first, "reason": "drop"})
+    assert session.charge_response()["charge"]["state"] == "open"
+    assert session.curve_snapshot()["authority"] == second
+    await session.stop_curve({"mode": "curve", "authority": second, "reason": "user"})
+    await session.stop_curve({"mode": "curve", "authority": first, "reason": "drop"})
+    assert session.charge_response()["charge"]["state"] == "open"
+    session.close_charge("reset")
+    session.accept_charge({**request, "session_id": "new-charge", "expected_generation": session.ticket.generation})
+    try:
+        await session.stop_curve({"mode": "curve", "authority": second, "reason": "drop"})
+    except CurveError as error:
+        assert str(error) == "stale_authority"
+    assert session.charge_response()["charge"]["session_id"] == "new-charge"
+    assert session.charge_response()["charge"]["state"] == "open"

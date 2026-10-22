@@ -30,8 +30,16 @@ import type { LogEntry } from '@shared/types/roast';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { resumePendingRoastSave } from '../lib/resumePendingRoastSave';
+import {
+    drainControlReceipts,
+    markReceiptSessionSaved,
+    receiptLogsForSave,
+    registerReceiptCollection,
+    syncSavedControlReceipts,
+} from './controlReceiptCollector';
 import type { PendingRoastSave } from './pendingRoastSave';
 import type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve } from './save-roast-types';
+import { useRoastingStore } from './status';
 
 export type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve };
 
@@ -149,6 +157,16 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
             : cachedBeans?.find((b) => b.id === resolvedBeanId)?.name) ??
         (unchangedSource ? handoffBeanName : null);
 
+    const recording = useRoastingStore.getState();
+    const charge =
+        recording.sessionId === sessionId
+            ? recording.acceptedCharge
+            : recording.completed?.snapshot.sessionId === sessionId
+              ? recording.completed.snapshot.acceptedCharge
+              : null;
+    if (charge) registerReceiptCollection(charge, userId);
+    await drainControlReceipts(sessionId);
+    const collectedLogs = receiptLogsForSave(sessionId, payloadParams.logEntries);
     const payload: RoastSessionInsert = {
         // Client session uuid as PK — save_roast_op converges retries on one row.
         // The pending coordinator durably allocates IDs even for unrecorded roasts.
@@ -178,7 +196,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         bbp_seconds: bbpSummary?.seconds ?? null,
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
-        events: [...(bbpSummary?.events ?? []), ...serializeRoastEvents(payloadParams.logEntries)].sort(
+        events: [...(bbpSummary?.events ?? []), ...serializeRoastEvents(collectedLogs)].sort(
             (a, b) => a.time_sec - b.time_sec,
         ),
         ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
@@ -223,6 +241,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     }).catch((e: unknown) => {
         throw mapServerBatchGateError(e) ?? e;
     });
+
+    markReceiptSessionSaved(sessionId);
 
     // History/dashboard refetch is awaited once in refreshCachesAfterRoastSave
     // (after optional schedule progress). Inventory marks are fire-and-forget.
@@ -300,7 +320,7 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
         async (pending: PendingRoastSave) => {
             setIsSaving(true);
             try {
-                return await resumePendingRoastSave({
+                const result = await resumePendingRoastSave({
                     pending,
                     ownerId: workspaceOwnerId,
                     saveRoast,
@@ -319,6 +339,11 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                     syncBatch: (saved) => refreshCachesAfterRoastSave(qc, saved),
                     syncRoastCurve,
                 });
+                if (pending.params.sessionId) {
+                    markReceiptSessionSaved(pending.params.sessionId);
+                    await syncSavedControlReceipts(pending.params.sessionId);
+                }
+                return result;
             } finally {
                 setIsSaving(false);
             }

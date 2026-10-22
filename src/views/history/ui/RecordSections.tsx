@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useRoastRecordSave } from '../hooks/useRoastRecordSave';
 import { toEventDrafts } from '../lib/record-edit';
 import { sessionHeatPlan } from '../lib/record-heat';
+import { ControlReceiptHistory } from './ControlReceiptHistory';
 import { RecordEventsEditor } from './RecordEventsEditor';
 import { RecordHeaterEditor } from './RecordHeaterEditor';
 
@@ -138,6 +139,8 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                     </ul>
                 )}
             </Section>
+
+            <ControlReceiptHistory events={session.events} />
 
             {open === 'events' && (
                 <RecordEventsEditor

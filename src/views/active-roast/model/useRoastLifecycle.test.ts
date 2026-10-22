@@ -48,6 +48,7 @@ const renderLifecycle = (
         disableAutoDrop?: () => void;
         triggerCharge?: () => void;
         replayActive?: boolean;
+        onFsdDrop?: () => void;
     } = {},
 ) => {
     useRoastingStore.getState().setLogState({ entries: logEntries, unwind: false });
@@ -69,6 +70,7 @@ const renderLifecycle = (
             setHoveredChartIndex: vi.fn(),
             triggerChargeRef: { current: detection.triggerCharge ?? (() => undefined) },
             replayActiveRef: { current: detection.replayActive ?? false },
+            onFsdDropRef: { current: detection.onFsdDrop ?? (() => undefined) },
         });
         return null;
     };
@@ -159,6 +161,28 @@ describe('confirmEndRoast roast metrics (#514)', () => {
         event,
         temp: '0',
         note: '',
+    });
+
+    it('dispatches bound FSD Drop before End summary reset', () => {
+        const order: string[] = [];
+        const h = renderLifecycle([log('Charge', 0)], {
+            onFsdDrop: () => {
+                order.push('fsd-drop');
+            },
+            resetAutoDetection: () => {
+                order.push('reset');
+            },
+        });
+        try {
+            act(() => {
+                h.result.confirmEndRoast(() => {
+                    order.push('summary');
+                });
+            });
+            expect(order).toEqual(['fsd-drop', 'summary', 'reset']);
+        } finally {
+            h.unmount();
+        }
     });
 
     it('summary uses Drop-first 10:00 / 2:00 (20%) and keeps End at record elapsed', () => {
@@ -289,6 +313,9 @@ describe('completeDrop → BBP (#484)', () => {
         const order: string[] = [];
         const armed = { charge: false, drop: false };
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)], {
+            onFsdDrop: () => {
+                order.push('fsd-drop');
+            },
             resetAutoDetection: () => {
                 order.push('reset');
                 armed.charge = true;
@@ -332,7 +359,7 @@ describe('completeDrop → BBP (#484)', () => {
             });
             expect(summary?.sessionId).toBe('s-a');
             expect(commitSummary).toHaveBeenCalledTimes(1);
-            expect(order).toEqual(['disable-drop', 'reset', 'disable-drop', 'hold-charge']);
+            expect(order).toEqual(['disable-drop', 'fsd-drop', 'reset', 'disable-drop', 'hold-charge']);
             expect(armed).toEqual({ charge: false, drop: false });
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);

@@ -22,6 +22,7 @@ export type FcE2eBridge = {
     };
     /** New React tree, same document. Chart-only preheat must not keep the previous curve. */
     remountRoast?: () => void;
+    failRoastView?: () => void;
     /** Saved BBP length after Charge finalize. Null until finalize runs. */
     readFinalizedBbp: () => { seconds: number | null; span: number };
 };

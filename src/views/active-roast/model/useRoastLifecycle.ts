@@ -30,6 +30,7 @@ export interface UseRoastLifecycleParams {
     setHoveredChartIndex: (index: number | null) => void;
     triggerChargeRef: React.RefObject<(bt?: number | null, origin?: number | RawTemperatureSample) => void>;
     replayActiveRef?: React.RefObject<boolean>;
+    onFsdDropRef?: React.RefObject<() => void>;
 }
 
 export interface UseRoastLifecycleReturn {
@@ -67,6 +68,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setHoveredChartIndex,
         triggerChargeRef,
         replayActiveRef,
+        onFsdDropRef,
     } = params;
     const roastSettings = useRoastSettings();
     const bbpEnabled = useFeature(FEATURE.bbp) && roastSettings.bbpEnabled;
@@ -171,12 +173,13 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     const confirmEndRoast = useCallback(
         (commitSummary?: (summary: RoastSummaryData) => void): RoastSummaryData => {
             const summary = useRoastingStore.getState().abortRoast(rawBT, unit);
+            onFsdDropRef?.current();
             commitSummary?.(summary);
             if (bbpEnabled) useBbpStore.getState().begin(Date.now());
             if (commitSummary) resetEffects();
             return summary;
         },
-        [rawBT, unit, bbpEnabled, resetEffects],
+        [rawBT, unit, bbpEnabled, resetEffects, onFsdDropRef],
     );
     const completeDrop = useCallback(
         (input: {
@@ -188,6 +191,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
                 .getState()
                 .drop({ ...input, rawBT, unit, replayActive: replayActiveRef?.current ?? false });
             if (!planned) return null;
+            onFsdDropRef?.current();
             input.commitSummary?.(planned.summary);
             if (bbpEnabled) useBbpStore.getState().begin(planned.bbpStartMs, planned.bbpSeed);
             void replaceSessionTsv(
@@ -201,7 +205,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
             });
             return planned.summary;
         },
-        [rawBT, unit, bbpEnabled, replayActiveRef],
+        [rawBT, unit, bbpEnabled, replayActiveRef, onFsdDropRef],
     );
     const finishDrop = useCallback(
         (input: {

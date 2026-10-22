@@ -50,6 +50,7 @@ export const useMachineControl = (
 ) => {
     const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
     const capability = connectionStatus?.control;
+    const [statusHealthy, setStatusHealthy] = useState(false);
     const [tracking, setTracking] = useState<{
         desired: ControlCommand;
         zeroPolls: number;
@@ -122,6 +123,7 @@ export const useMachineControl = (
         if (!sidecarConnected) {
             sender.dispose();
             setConnectionStatus(null);
+            setStatusHealthy(false);
             setTracking({ desired: {}, zeroPolls: 0, zeroRequested: false });
             return;
         }
@@ -136,6 +138,7 @@ export const useMachineControl = (
                 .then((s) => {
                     if (!cancelled && request === requestSequence) {
                         setConnectionStatus(s);
+                        setStatusHealthy(true);
                         timer = setTimeout(fetchCapability, 1000);
                     }
                 })
@@ -144,6 +147,7 @@ export const useMachineControl = (
                     // PID 안전 훅까지 언마운트됐었다(#269). 기존 값을 유지한 채
                     // 재시도한다 — 연결 자체가 끊기면 위 분기가 정리한다.
                     if (!cancelled && request === requestSequence) {
+                        setStatusHealthy(false);
                         setConnectionStatus((previous) =>
                             previous
                                 ? {
@@ -233,6 +237,7 @@ export const useMachineControl = (
     // 연결이 없으면 env로 고른 기기의 제어 화면만 채운다. 쓰기는 사이드카가 그대로 거절한다.
     const preview = sidecarConnected ? null : devRoasterControl();
     return {
+        statusHealthy,
         writable: (Boolean(capability?.writable) && sidecarConnected) || Boolean(preview?.writable),
         connectionStatus: sidecarConnected ? connectionStatus : null,
         limits: sidecarConnected ? (capability?.limits ?? EMPTY_LIMITS) : (preview?.limits ?? EMPTY_LIMITS),

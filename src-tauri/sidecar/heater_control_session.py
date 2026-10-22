@@ -825,6 +825,14 @@ class HeaterControlSession:
         authority = self._parse_authority(body["authority"])
         known = self._runs.get(authority["run_id"])
         if known is not None and known["authority"] == authority:
+            # A batch departure still closes its last stopped run, never a newer owner or Charge.
+            if (body["reason"] in ("drop", "workspace_changed") and self._operation is None
+                    and self._last_curve is not None and self._last_curve["authority"] == authority
+                    and self._charge is not None
+                    and all(self._charge[key] == authority[key] for key in
+                            ("session_id", "charge_id", "sensor_clock", "connection_epoch"))
+                    and authority["sensor_clock"] == self._sensor_clock()):
+                self.close_charge(body["reason"])
             return self._curve_reply(deepcopy(known))
         if not self.is_curve() or self._operation.mode.authority != authority:
             raise CurveError("stale_authority")

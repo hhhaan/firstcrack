@@ -17,10 +17,10 @@ export type PendingRoastSave = {
 const LEGACY_KEY = 'fc_pending_roast_save'; // gitleaks:allow -- public localStorage key
 const KEY = 'fc_pending_roast_saves_v2';
 const entryKey = (ownerId: string, sessionId: string | null) => `${ownerId}:${sessionId ?? 'legacy-null'}`;
-const persist = (entries: Record<string, PendingRoastSave>) => {
+const persist = (entries: unknown, key = KEY) => {
     const raw = JSON.stringify(entries);
-    localStorage.setItem(KEY, raw);
-    if (localStorage.getItem(KEY) !== raw) throw new Error('Pending roast could not be persisted');
+    localStorage.setItem(key, raw);
+    if (localStorage.getItem(key) !== raw) throw new Error('Pending roast could not be persisted');
     if (typeof window !== 'undefined') window.dispatchEvent(new Event('fc-pending-roast-save'));
 };
 
@@ -90,3 +90,11 @@ export const clearPendingRoastSave = (ownerId: string, sessionId: string | null)
     delete all[entryKey(ownerId, sessionId)];
     persist(all);
 };
+
+/** Receipt evidence outbox uses the same verified local checkpoint transport as roast saves. */
+const RECEIPT_KEY = 'fc_pending_control_receipts';
+export const readPendingControlReceipts = (): unknown => {
+    const raw = localStorage.getItem(RECEIPT_KEY);
+    return raw ? JSON.parse(raw) : [];
+};
+export const writePendingControlReceipts = (entries: unknown): void => persist(entries, RECEIPT_KEY);

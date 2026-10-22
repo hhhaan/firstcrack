@@ -8,6 +8,7 @@ import { parseTsv } from '@shared/lib/tsv';
 import { writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useToastStore } from '@shared/store/toast';
 import { ErrorBoundary } from '@shared/ui/ErrorBoundary';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -213,13 +214,18 @@ it('continues recording through a screen crash and restores the curve on retry',
         return null;
     };
     const caught = vi.fn();
+    const receiptClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const root = createRoot(document.createElement('div'), { onCaughtError: caught });
     const render = () =>
         root.render(
             createElement(
                 StrictMode,
                 null,
-                createElement(ActiveRoastRuntime, { isActive: true }),
+                createElement(
+                    QueryClientProvider,
+                    { client: receiptClient },
+                    createElement(ActiveRoastRuntime, { isActive: true }),
+                ),
                 createElement(ErrorBoundary, {
                     // biome-ignore lint/correctness/noChildrenProp: createElement requires the class's children prop for type checking.
                     children: createElement(Screen),

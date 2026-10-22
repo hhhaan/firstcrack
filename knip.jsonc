@@ -2,7 +2,7 @@
     "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
     // husky pre-commit이 `node scripts/...`로 직접 호출한다. husky 플러그인은 known binary만 본다.
     // CI invokes the billing schema fixture directly through tsc, outside the application import graph.
-    "entry": ["scripts/check-version-sync.mjs", "supabase/tests/polar-database-types.ts"],
+    "entry": ["scripts/check-version-sync.mjs", "supabase/tests/polar-database-types.ts", "e2e/fsd.playwright.config.ts"],
     "ignore": [
         // Deno. `deno check`(edge-check)와 vitest가 본다. `npm:` specifier는 knip이 패키지 `npm`으로 오인한다.
         "supabase/functions/**",
@@ -15,8 +15,8 @@
         // App.tsx에서 첫 실행 테마 선택은 주석으로 꺼 둔 상태.
         "src/widgets/theme-select-modal/**"
     ],
-    // types:gen의 supabase CLI. npm 패키지가 아니다.
-    "ignoreBinaries": ["supabase"],
+    // Supabase and the FSD harness's RTK are installed system CLIs.
+    "ignoreBinaries": ["supabase", "rtk"],
     // .secretlintrc.json이 로드한다. knip에 secretlint 플러그인이 없다.
     "ignoreDependencies": ["@secretlint/secretlint-rule-preset-recommend"],
     // 배럴 public API의 unused export는 이번 게이트에 넣지 않는다.

@@ -1,4 +1,5 @@
 export { type RoastProfileWithSource, roastProfileCopyInsert } from './api';
+export { buildFsdReference, type FsdReferenceBuildResult, type FsdReferenceReason } from './lib/fsd-reference';
 export { profileHeaterEvents, resolveSourceSession, type SourceSessionSnapshot } from './lib/resolve-source-session';
 export {
     type ProfileSource,
@@ -13,6 +14,7 @@ export {
     type ProfileCurveSource,
     useCreateRoastProfile,
     useDeleteRoastProfile,
+    useFsdReference,
     useProfileBeanHistory,
     useProfileConsistency,
     useProfileSourceHistory,

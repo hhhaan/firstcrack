@@ -1,6 +1,6 @@
 # Build supervised FSD heat control
 
-> Current handoff: [progress and resume order](README.md). FSD-01 is accepted at b2af3543. FSD-02 implementation and independent runtime reviews are complete; its final gate and local commit are recorded in fsd02-verification.md. The active goal covers FSD-01 through FSD-03. FSD-04 remains outside scope. Older original-program checklist items below do not override this current scope or reopen completed work.
+> Current handoff. [progress and resume order](README.md). FSD-01 is accepted at b2af3543. FSD-02 implementation and independent runtime reviews are complete; its final gate and local commit are recorded in fsd02-verification.md. The active goal covers FSD-01 through FSD-03. FSD-04 remains outside scope. Older original-program checklist items below do not override this current scope or reopen completed work.
 
 Give the operator an FSD mode that follows a recorded BT curve with automatic Gas correction.
 Keep the operator responsible for Charge, pre-TP Gas, Drop, airflow, and drum speed in v1.
@@ -186,72 +186,72 @@ Run each lane with its own virtual sidecar state and test database state at the 
 
 **Merge.**
 
-- [ ] Obtain a root clean verdict at the exact local head SHA. Include review of timing, lease ownership, output saturation, and executor barriers.
-- [ ] Commit locally as `feat: follow recorded BT curves in the sidecar`. Record the verified parent and head. Do not publish.
+- [x] Obtain a root clean verdict at the exact local head SHA. Include review of timing, lease ownership, output saturation, and executor barriers.
+- [x] Commit locally as `feat: follow recorded BT curves in the sidecar`. Record the verified parent and head. Do not publish.
 
 ## Expose FSD mode and preserve command records (FSD-03)
 
-**Depends on.** FSD-02.
+**Depends on.** FSD-02, committed as `00e3ba9d5c7c67bf4f6eb2c0439ffa837bfe2869`. Final evidence and explicit fixture/native-service limits are in [FSD-03 verification](fsd03-verification.md). Existing PID/action/global-bootstrap code is reused where no change is needed; the isolated FSD Playwright project deliberately bypasses shared global setup.
 
 **Files.**
 
-- [ ] Extend `src/features/machine-control/model/usePidControl.ts`, `useMachineControlComposition.ts`, and their tests. Put mutation wrappers in the slice's `api` segment if new wrappers are needed. Keep domain state in `model`.
-- [ ] Extend `src/features/machine-control/ui/MachineControlPanel.tsx`, `PidControlPanel.tsx`, `CollapsedControlStatus.tsx`, and the existing channel UI. Reuse their components and CSS tokens.
-- [ ] Extend `src/views/active-roast/ActiveRoast.tsx`, `ActiveRoastRuntime.tsx`, `model/useSidecarPolling.ts`, and `src/features/active-roast/model/useRoastActions.ts` for composition, lifecycle, and receipt ingestion.
-- [ ] Extend `src/features/active-roast/lib/serialize-roast-events.ts` only as needed for existing Control events. Preserve the current save and TSV contracts. Update affected fixtures and all four locale files.
-- [ ] Extend `e2e/global-setup.ts`, the app and sidecar fixtures, and the Playwright configuration. Add `e2e/tests/fsd-mode.spec.ts` with isolated virtual traffic and no access to an existing sidecar.
+- [x] Extend `src/features/machine-control/model/usePidControl.ts`, `useMachineControlComposition.ts`, and their tests. Put mutation wrappers in the slice's `api` segment if new wrappers are needed. Keep domain state in `model`.
+- [x] Extend `src/features/machine-control/ui/MachineControlPanel.tsx`, `PidControlPanel.tsx`, `CollapsedControlStatus.tsx`, and the existing channel UI. Reuse their components and CSS tokens.
+- [x] Extend `src/views/active-roast/ActiveRoast.tsx`, `ActiveRoastRuntime.tsx`, `model/useSidecarPolling.ts`, and `src/features/active-roast/model/useRoastActions.ts` for composition, lifecycle, and receipt ingestion.
+- [x] Extend `src/features/active-roast/lib/serialize-roast-events.ts` only as needed for existing Control events. Preserve the current save and TSV contracts. Update affected fixtures and all four locale files.
+- [x] Extend `e2e/global-setup.ts`, the app and sidecar fixtures, and the Playwright configuration. Add `e2e/tests/fsd-mode.spec.ts` with isolated virtual traffic and no access to an existing sidecar.
 
 **Build.**
 
-- [ ] Expose an explicit FSD mode entry when recorded reference, qualified capability, entitlement, session, and engagement conditions are valid. Show the reason when a condition fails. Do not reveal only an already-active mode as the present PID UI does.
-- [ ] Show target BT, control PV, temperature error, Gas command, operating state, and stop reason. Explain the selected reference and supervised scope in operator language. Convert units only for display.
-- [ ] Keep the sidecar runtime as the source of truth. A failed start must not look active. A remount must not reset the target, start the controller again, or hide its stop control.
-- [ ] Stop lease renewal when the operator control view is hidden, crashes, loses its session, or changes workspace. Navigation away first requests stop and confirms the disposition. A failed request remains visible and lease expiry remains independent.
-- [ ] Add explicit manual takeover. Let the operator request Gas after revocation is acknowledged. Keep fan and drum controls independent. Block simultaneous Replay, fixed PID, and FSD ownership in both the UI and the sidecar.
-- [ ] Freeze the reference for the active generation. Require stop and rearm on a reference change. A cancelled Drop, new Charge, or restored checkpoint must never automatically resume FSD.
-- [ ] Ingest acknowledged command receipts by session and sequence. Reuse `AppliedRoastControl` and existing Control-event serialization. Keep intent separate from application outcome and Heat feedback. Recover gaps once, deduplicate repeats, and discard late prior-session replies.
-- [ ] Preserve sampled `heater_set` in TSV and the existing roast-save flow. Keep the Replay event-count guard that rejects dense PID-generated heat records. Do not turn FSD output into a future manual Replay plan silently.
-- [ ] Compose `active-roast` and `machine-control` in the existing view. Do not import one feature slice into another. Reuse the existing entitlement rather than inventing a paid tier.
+- [x] Expose an explicit FSD mode entry when recorded reference, qualified capability, entitlement, session, and engagement conditions are valid. Show the reason when a condition fails. Do not reveal only an already-active mode as the present PID UI does.
+- [x] Show target BT, control PV, temperature error, Gas command, operating state, and stop reason. Explain the selected reference and supervised scope in operator language. Convert units only for display.
+- [x] Keep the sidecar runtime as the source of truth. A failed start must not look active. A remount must not reset the target, start the controller again, or hide its stop control.
+- [x] Stop lease renewal when the operator control view is hidden, crashes, loses its session, or changes workspace. Navigation away first requests stop and confirms the disposition. A failed request remains visible and lease expiry remains independent.
+- [x] Add explicit manual takeover. Let the operator request Gas after revocation is acknowledged. Keep fan and drum controls independent. Block simultaneous Replay, fixed PID, and FSD ownership in both the UI and the sidecar.
+- [x] Freeze the reference for the active generation. Require stop and rearm on a reference change. A cancelled Drop, new Charge, or restored checkpoint must never automatically resume FSD.
+- [x] Ingest acknowledged command receipts by session and sequence. Reuse `AppliedRoastControl` and existing Control-event serialization. Keep intent separate from application outcome and Heat feedback. Recover gaps once, deduplicate repeats, and discard late prior-session replies.
+- [x] Preserve sampled `heater_set` in TSV and the existing roast-save flow. Keep the Replay event-count guard that rejects dense PID-generated heat records. Do not turn FSD output into a future manual Replay plan silently.
+- [x] Compose `active-roast` and `machine-control` in the existing view. Do not import one feature slice into another. Reuse the existing entitlement rather than inventing a paid tier.
 
 **You see.**
 
-- [ ] The operator can reach FSD mode from an off state, start an eligible virtual session, observe correction, and take over Gas. The screen shows the sidecar's acknowledged state.
-- [ ] Saving and reopening that roast retains its applied command records without duplicating them or treating feedback as commands.
+- [x] The operator can reach FSD mode from an off state, start an eligible virtual session, observe correction, and take over Gas. The screen shows the sidecar's acknowledged state.
+- [x] Saving and reopening that roast retains its applied command records without duplicating them or treating feedback as commands.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Extend hook and panel tests for eligibility, failed start, ownership, hidden-view expiry, remount, reference change, unit display, failed stop, and late receipts. Run `rtk pnpm test src/features/machine-control src/views/active-roast`.
-- [ ] Extend serialization and save tests for sequence deduplication, gaps, and session boundaries. Run `rtk pnpm typecheck`, `rtk pnpm check:architecture`, and `rtk pnpm check:i18n`.
+- [x] Extend hook and panel tests for eligibility, failed start, ownership, hidden-view expiry, remount, reference change, unit display, failed stop, and late receipts. Run `rtk pnpm test src/features/machine-control src/views/active-roast`.
+- [x] Extend serialization and save tests for sequence deduplication, gaps, and session boundaries. Run `rtk pnpm typecheck`, `rtk pnpm check:architecture`, and `rtk pnpm check:i18n`.
 
-**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6-astra` at the PR head, per the boot recipe.
+**Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6.1-sol` at the PR head, with `xhigh` reasoning, is the updated review assignment. Root drives the isolated browser harness and supplies the lane evidence to that reviewer. Here the head is local; no PR is created.
 
-- [ ] Lane 1. Regression lane against trunk. Drive existing manual Gas and Replay on parent and head. Save `ui-regression.png`. Pass when both preserve those interactions and head adds a reachable FSD entry without a second writer. Record the missing parent FSD entry.
-- [ ] Lane 2. Select a compatible recorded raw reference and start eligible FSD. Save `fsd-start.png`. Pass when target, PV, Gas, and sidecar mode agree and the virtual thermal response changes with commands.
-- [ ] Lane 3. Select synthetic, download-failed, legacy, or mismatched references. Save `fsd-unavailable.png`. Pass when each blocks start with the specific reason and sends no start request.
-- [ ] Lane 4. Attempt Replay and fixed PID while FSD owns Gas. Save `ui-owner-conflict.png`. Pass when no competing writer reaches the adapter and stop remains reachable.
-- [ ] Lane 5. Take over Gas, then adjust fan and drum. Save `manual-takeover.png`. Pass when acknowledged takeover ends correction and non-heater controls remain independent.
-- [ ] Lane 6. Collapse the panel, hide the view, and induce its error boundary. Save `view-lifetime.png`. Pass when collapse preserves control, hiding or failure stops renewal, and a remount never auto-resumes.
-- [ ] Lane 7. Issue Drop, cancel Drop, then start the next batch. Save `batch-boundaries.png`. Pass when every previous FSD generation stays terminal and the next batch has a new clock and owner.
-- [ ] Lane 8. Change reference or workspace during operation. Save `reference-workspace.png`. Pass when the active generation stops and cannot accept stale updates from the previous selection.
-- [ ] Lane 9. Use keyboard controls and switch Celsius to Fahrenheit. Save `keyboard-units.png`. Pass when start, stop, and takeover are accessible and the sidecar reference remains Celsius.
-- [ ] Lane 10. Delay polling through several applied commands, save, reopen History, and repeat the final acknowledgement. Save `saved-command-history.png`. Pass when applied sequences appear once in the correct roast and feedback remains separate.
+- [x] Lane 1. Regression lane against trunk. Drive existing manual Gas and Replay on parent and head. Save `ui-regression.png`. Pass when both preserve those interactions and head adds a reachable FSD entry without a second writer. Record the missing parent FSD entry.
+- [x] Lane 2. Select a compatible recorded raw reference and start eligible FSD. Save `fsd-start.png`. Pass when target, PV, Gas, and sidecar mode agree and the virtual thermal response changes with commands.
+- [x] Lane 3. Select synthetic, download-failed, legacy, or mismatched references. Save `fsd-unavailable.png`. Pass when each blocks start with the specific reason and sends no start request.
+- [x] Lane 4. Attempt Replay and fixed PID while FSD owns Gas. Save `ui-owner-conflict.png`. Pass when no competing writer reaches the adapter and stop remains reachable.
+- [x] Lane 5. Take over Gas, then adjust fan and drum. Save `manual-takeover.png`. Pass when acknowledged takeover ends correction and non-heater controls remain independent.
+- [x] Lane 6. Collapse the panel, hide the view, and induce its error boundary. Save `view-lifetime.png`. Pass when collapse preserves control, hiding or failure stops renewal, and a remount never auto-resumes.
+- [x] Lane 7. Issue Drop, cancel Drop, then start the next batch. Save `batch-boundaries.png`. Pass when every previous FSD generation stays terminal and the next batch has a new clock and owner.
+- [x] Lane 8. Change reference or workspace during operation. Save `reference-workspace.png`. Pass when the active generation stops and cannot accept stale updates from the previous selection.
+- [x] Lane 9. Use keyboard controls and switch Celsius to Fahrenheit. Save `keyboard-units.png`. Pass when start, stop, and takeover are accessible and the sidecar reference remains Celsius.
+- [x] Lane 10. Delay polling through several applied commands, save, reopen History, and repeat the final acknowledgement. Save `saved-command-history.png`. Pass when applied sequences appear once in the correct roast and feedback remains separate.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Measure click-to-acknowledged stop display, ordinary manual-control response, and poll payload size with command-receipt recovery. Count failed requests and duplicate records.
-- [ ] Probe. Run five interleaved parent and head browser trials against the same isolated virtual sidecar with controlled 100 ms transport delay. Capture the actual rendered end state and sidecar command sequence. Probe a full bounded receipt backlog separately.
-- [ ] Baseline. Record parent manual-control click-to-state latency first. Parent lacks FSD, so isolate added receipt ingestion and measure its head end-to-end latency without a parent FSD ratio.
-- [ ] Rule. Proposed budgets are no more than 50 ms added p95 on unchanged manual interactions, stop display within one poll interval plus 250 ms after sidecar acknowledgement, and receipt ingestion below 16 ms for one bounded backlog on the qualification machine. Fail duplicate records or unmatched sidecar traffic regardless of speed.
+- [x] Metric. Measure click-to-acknowledged stop display, ordinary manual-control response, and poll payload size with command-receipt recovery. Count failed requests and duplicate records.
+- [x] Probe. Run five interleaved parent and head browser trials against the same isolated virtual sidecar with controlled 100 ms transport delay. Capture the actual rendered end state and sidecar command sequence. Probe a full bounded receipt backlog separately.
+- [x] Baseline. Record parent manual-control click-to-state latency first. Parent lacks FSD, so isolate added receipt ingestion and measure its head end-to-end latency without a parent FSD ratio.
+- [x] Rule. Proposed budgets are no more than 50 ms added p95 on unchanged manual interactions, stop display within one poll interval plus 250 ms after sidecar acknowledgement, and receipt ingestion below 16 ms for one bounded backlog on the qualification machine. Fail duplicate records or unmatched sidecar traffic regardless of speed.
 
-**Review gate.** The operator reviews the actual app interaction before acceptance.
+**Review gate.** Present the actual interaction for operator review. The operator explicitly instructed continuation without a separate approval pause; evidence presentation does not assert human approval.
 
-- [ ] Copy screenshot evidence for FSD start, unavailable references, takeover, and faults into the FSD-03 review directory.
-- [ ] Record a 30 to 60 second video through the real app showing start, correction, and manual takeover. Post screenshot and video links to the operator. Keep physical actuation disabled.
+- [x] Copy screenshot evidence for FSD start, unavailable references, takeover, and faults into the FSD-03 review directory.
+- [x] Record a 30 to 60 second video through the real app showing start, correction, and manual takeover. Post screenshot and video links to the operator. Keep physical actuation disabled.
 
 **Merge.**
 
-- [ ] Obtain the root's clean verdict at the exact local head SHA and the operator's UI review. Include actual History evidence rather than only component tests.
-- [ ] Commit locally as `feat: add supervised FSD mode controls and recording`. Record parent and head. Do not push or open a PR.
+- [x] Record the root's clean verdict at the exact local head SHA and present actual UI evidence for operator review under the standing no-approval-pause instruction. Include actual History evidence rather than only component tests.
+- [x] Commit locally as `feat: add supervised FSD mode controls and recording`. Record parent and head. Do not push or open a PR.
 
 ## Qualify one machine before enabling it (FSD-04)
 
@@ -315,8 +315,8 @@ Run each lane with its own virtual sidecar state and test database state at the 
 
 ## Close the program
 
-- [ ] Check only boxes whose evidence exists. Distinguish implemented, verified virtually, qualified physically, and published. Missing field evidence remains an open item.
-- [ ] Deliver the local commit sequence, checked plan, actual validation output, screenshots, videos, qualification scope, and remaining limitations. Stop without pushing, opening PRs, merging, or releasing.
+- [x] Check only boxes whose evidence exists. Distinguish implemented, verified virtually, qualified physically, and published. Missing field evidence remains an open item.
+- [x] Deliver the local commit sequence, checked plan, actual validation output, screenshots, videos, qualification scope, and remaining limitations. Stop without pushing, opening PRs, merging, or releasing.
 
 ## Appendix A. Prototype evidence
 

@@ -7,9 +7,9 @@ Parent is `4787aeb7d6d7db826d44a5e1eb71ed3888e7c131` on `feat/fsd-mode`. Initial
 - [x] Read the Principles section of the poteto-mode skill.
 - [x] Phase A: Frame.
 - [x] Phase B: Design the workflow.
-- [ ] Phase C: Run the loop.
-- [ ] Phase D: Keep the audit trail.
-- [ ] Phase E: Verify and hand back.
+- [x] Phase C: Run the loop.
+- [x] Phase D: Keep the audit trail.
+- [x] Phase E: Verify and hand back.
 
 Completion requires both stages to satisfy every applicable implementation, unit, live, performance, review, media, source-identity, and local-commit requirement in the saved plan and FSD-02 contract. Missing or indirect evidence remains unchecked.
 
@@ -40,4 +40,6 @@ Aside is installed and its guide and REPL guide were read. Browser inventory suc
 
 ## Current evidence
 
-Evidence is being collected under `/tmp/swarm-fsd02` and will be retained with source hashes before acceptance. No FSD-02 or FSD-03 completion is claimed yet.
+FSD-02 is committed as `00e3ba9d5c7c67bf4f6eb2c0439ffa837bfe2869`; its retained evidence and committed-source audit are linked from `fsd02-verification.md`. FSD-03 implementation, three scoped independent reviews, all real app lanes and the full gate have passed. Its final performance series and integration verdict have also passed. Evidence is retained under `03-handoff-01a16342`; local commit and post-hook identity audit are complete. Its external `commit-evidence.json` is the final SHA authority. All 58 changed files, 688 reviewed runtime files and the strict performance evidence/source check match. See `fsd03-verification.md`.
+
+The operator changed model routing during final verification: general implementation and fixes use `gpt-6.1-sol` / `medium`; complex control, design, analysis and final review use `gpt-6.1-sol` / `xhigh`. The final integration reviewer and performance analyst were replaced accordingly; completed earlier independent reviews remain retained evidence.

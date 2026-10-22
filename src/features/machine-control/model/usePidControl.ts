@@ -37,12 +37,14 @@ export const usePidControl = ({
     roastFinished,
     /** DROP 시 화력 처리 — 설정에서 온다 */
     dropBehavior,
+    curveOwned = false,
 }: {
     sidecarConnected: boolean;
     capability: PidCapability | undefined;
     runtime: PidRuntime | null;
     roastFinished: boolean;
     dropBehavior: 'hold' | 'zero';
+    curveOwned?: boolean;
 }) => {
     const [sv, setSv] = useState<number>(FALLBACK_SV_C);
     const [busy, setBusy] = useState(false);
@@ -50,12 +52,13 @@ export const usePidControl = ({
     const [offAttempt, setOffAttempt] = useState(0);
     const svAdoptedRef = useRef(false);
 
-    const state = runtime?.state ?? 'off';
+    const state = curveOwned ? 'off' : (runtime?.state ?? 'off');
     // 사이드카가 보고하는 상태가 유일한 진실 — 로컬 토글 상태를 따로 들면
     // 실패한 켜기가 UI에서는 켜진 것처럼 보인다.
     const engaged = state === 'running' || state === 'holding';
 
     const turnOn = useCallback(async () => {
+        if (curveOwned) return;
         setBusy(true);
         try {
             await sidecar.pidOn(sv);
@@ -64,22 +67,26 @@ export const usePidControl = ({
         } finally {
             setBusy(false);
         }
-    }, [sv]);
+    }, [sv, curveOwned]);
 
     /** 성공 여부를 돌려준다 — 자동 해제가 실패를 알아야 재시도할 수 있다.
      * notify=false는 재시도. 쓰기는 계속하되 토스트/Sentry는 첫 실패만. */
-    const turnOff = useCallback(async (mode: 'hold' | 'zero', notify = true) => {
-        setBusy(true);
-        try {
-            await sidecar.pidOff(mode);
-            return true;
-        } catch (err) {
-            if (notify) reportError(err, 'PID를 끄지 못했습니다.');
-            return false;
-        } finally {
-            setBusy(false);
-        }
-    }, []);
+    const turnOff = useCallback(
+        async (mode: 'hold' | 'zero', notify = true) => {
+            if (curveOwned) return false;
+            setBusy(true);
+            try {
+                await sidecar.pidOff(mode);
+                return true;
+            } catch (err) {
+                if (notify) reportError(err, 'PID를 끄지 못했습니다.');
+                return false;
+            } finally {
+                setBusy(false);
+            }
+        },
+        [curveOwned],
+    );
 
     /** 슬라이더를 끄는 동안의 화면 갱신만 — 머신에는 보내지 않는다 */
     const previewSv = useCallback((next: number) => setSv(next), []);

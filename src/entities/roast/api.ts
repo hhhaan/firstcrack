@@ -1,6 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Database, Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
-import type { BatchTitleNumbering } from '@shared/types/roast';
+import type { BatchTitleNumbering, StoredRoastEvent } from '@shared/types/roast';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
@@ -142,6 +142,56 @@ export const roastSessionApi = {
         });
         if (error) throw error;
         return data as RoastSession;
+    },
+
+    /** Append collector evidence only; CAS retries preserve concurrent History edits. No stock operation. */
+    appendControlReceipts: async (
+        ownerId: string,
+        sessionId: string,
+        receipts: StoredRoastEvent[],
+    ): Promise<boolean> => {
+        if (
+            receipts.some(
+                (event) =>
+                    event.type !== 'Control' ||
+                    !event.control_receipt ||
+                    (event.control_receipt.kind === 'receipt'
+                        ? event.control_receipt.receipt.session_id
+                        : event.control_receipt.session_id) !== sessionId,
+            )
+        )
+            throw new Error('Only control receipt evidence can be appended');
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+            const { data: row, error: readError } = await supabase
+                .from('roast_sessions')
+                .select('events')
+                .eq('id', sessionId)
+                .eq('user_id', ownerId)
+                .single();
+            if (readError) throw readError;
+            const previous = row.events;
+            if (previous !== null && !Array.isArray(previous)) throw new Error('Invalid saved events');
+            const events = previous ?? [];
+            const ids = new Set(
+                events.flatMap((event) =>
+                    event && typeof event === 'object' && !Array.isArray(event) && typeof event.id === 'string'
+                        ? [event.id]
+                        : [],
+                ),
+            );
+            const added = receipts.filter((event) => !ids.has(event.id));
+            if (!added.length) return false;
+            let update = supabase
+                .from('roast_sessions')
+                .update({ events: [...events, ...added] })
+                .eq('id', sessionId)
+                .eq('user_id', ownerId);
+            update = previous === null ? update.is('events', null) : update.eq('events', JSON.stringify(previous));
+            const { data, error } = await update.select('id');
+            if (error) throw error;
+            if (data?.length) return true;
+        }
+        throw new Error('Control receipt append conflicted with a record edit');
     },
 
     /** Lifetime completed sessions (trial 20-batch cap). */

@@ -6,6 +6,10 @@ export type SourceSessionSnapshot = {
     events?: unknown;
     /** History-edited Heat set plan; NULL = recorded TSV. */
     heater_events?: unknown;
+    machine_id?: string | null;
+    machine_name?: string | null;
+    machine_roaster_key?: string | null;
+    machine_protocol?: string | null;
 };
 
 type SourceSessionJoin = SourceSessionSnapshot | SourceSessionSnapshot[] | null | undefined;
