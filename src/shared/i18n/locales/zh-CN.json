@@ -455,6 +455,8 @@
                 "customRorTicksError": "请输入最多100个有效数字，RoR 须在 −100–300°C/min 范围内。",
                 "controlChart": "控制图表",
                 "controlChartDescription": "控制图表的显示项和轴范围。图表显示开关位于数据可见性中。",
+                "mergeControlChart": "合并到温度图表",
+                "mergeControlChartDescription": "开启后将控制曲线叠加在温度图表上，关闭后在下方单独显示。",
                 "controlDrum": "滚筒",
                 "controlDrumDescription": "控制区的滚筒 RPM 系列",
                 "controlHeat": "火力",

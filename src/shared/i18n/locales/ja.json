@@ -455,6 +455,8 @@
                 "customRorTicksError": "-100〜300°C/min の範囲で、有効な数値を100個まで入力してください。",
                 "controlChart": "コントロールチャート",
                 "controlChartDescription": "コントロールチャートの表示項目と軸範囲。チャートの表示切替はデータ表示で設定。",
+                "mergeControlChart": "温度チャートに統合",
+                "mergeControlChartDescription": "オンにすると制御曲線を温度チャートに重ねます。オフにすると下に分離します。",
                 "controlDrum": "ドラム",
                 "controlDrumDescription": "コントロールバンドのドラム RPM 系列",
                 "controlHeat": "ヒート",

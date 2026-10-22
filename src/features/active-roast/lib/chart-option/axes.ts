@@ -268,6 +268,7 @@ export interface DualGridAxesParams {
     rightMargin: number;
     topMargin: number;
     controlChartHeightPct: number;
+    mergeControlChart?: boolean;
     xMin: number;
     xMax: number;
     tempYMin: number;
@@ -290,6 +291,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         rightMargin,
         topMargin,
         controlChartHeightPct,
+        mergeControlChart = false,
         xMin,
         xMax,
         tempYMin,
@@ -308,7 +310,12 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
     const { tempGridHeight, controlGridTop } = getControlGridLayout(controlChartHeightPct);
 
     const grid = [
-        { left: leftMargin, right: rightMargin, top: topMargin, height: tempGridHeight },
+        {
+            left: leftMargin,
+            right: rightMargin,
+            top: topMargin,
+            ...(mergeControlChart ? { bottom: CONTROL_GRID_BOTTOM } : { height: tempGridHeight }),
+        },
         {
             left: leftMargin,
             right: rightMargin,
@@ -336,7 +343,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             splitNumber: 15,
         },
         {
-            gridIndex: 1,
+            gridIndex: mergeControlChart ? 0 : 1,
             type: 'value' as const,
             min: xMin,
             max: xMax,
@@ -349,7 +356,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             splitNumber: 15,
             splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
         },
-    ] as EChartsOption['xAxis'];
+    ] satisfies EChartsOption['xAxis'];
 
     const yAxis = [
         {
@@ -386,7 +393,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             interval: 20,
         },
         {
-            gridIndex: 1,
+            gridIndex: mergeControlChart ? 0 : 1,
             type: 'value',
             nameLocation: 'middle',
             nameGap: Y_AXIS_NAME_GAP,
@@ -395,13 +402,13 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisLine: { onZero: false },
             axisTick: { show: false },
             axisLabel: { show: false },
-            axisPointer: yAxisPointer,
-            splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+            axisPointer: mergeControlChart ? yAxisPointerOff : yAxisPointer,
+            splitLine: { show: !mergeControlChart, lineStyle: { color: colors.gridLine } },
             min: controlYMin,
             max: controlYMax,
         },
         {
-            gridIndex: 1,
+            gridIndex: mergeControlChart ? 0 : 1,
             type: 'value',
             nameLocation: 'middle',
             nameGap: Y_AXIS_NAME_GAP,
@@ -417,7 +424,11 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         },
     ] as EChartsOption['yAxis'];
 
-    return { grid, xAxis, yAxis };
+    return {
+        grid: mergeControlChart ? [grid[0]] : grid,
+        xAxis: mergeControlChart ? [{ ...xAxis[1], axisLine: { onZero: false } }] : xAxis,
+        yAxis,
+    };
 };
 
 export interface SingleGridAxesParams {

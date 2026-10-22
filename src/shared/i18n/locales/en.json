@@ -455,6 +455,8 @@
                 "customRorTicksError": "Enter up to 100 valid numbers within −100–300°C/min.",
                 "controlChart": "Control Chart",
                 "controlChartDescription": "Control chart series and axis range. Chart visibility is set under Data Visibility.",
+                "mergeControlChart": "Merge into temperature chart",
+                "mergeControlChartDescription": "Overlay control curves on the temperature chart. Turn off to show them separately below.",
                 "controlDrum": "Drum",
                 "controlDrumDescription": "Drum RPM series on the control band",
                 "controlHeat": "Heat",

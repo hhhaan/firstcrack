@@ -53,6 +53,7 @@ export type RoastSettings = {
     showControlFan: boolean;
     /** Control band height as % of total chart height (12–40). */
     controlChartHeightPct: number;
+    mergeControlChart: boolean;
     /** Shared control Y-axis range (Drum RPM / Heat% / Fan%). */
     controlYMin: number;
     controlYMax: number;

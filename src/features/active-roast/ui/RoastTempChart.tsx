@@ -142,6 +142,7 @@ interface Props {
     showControlHeat?: boolean;
     showControlFan?: boolean;
     controlChartHeightPct?: number;
+    mergeControlChart?: boolean;
     controlYMin?: number;
     controlYMax?: number;
     phaseSegments?: PhaseSegment[];
@@ -191,6 +192,7 @@ const chartStructureKey = (input: {
     showTargetDeltaLabel: boolean;
     showRoR: boolean;
     showRoRET: boolean;
+    mergeControlChart: boolean;
     hasControlData: boolean;
     hasHeatSet: boolean;
     showControlDrum: boolean;
@@ -228,6 +230,7 @@ const chartStructureKey = (input: {
         input.showTargetDeltaLabel,
         input.showRoR,
         input.showRoRET,
+        input.mergeControlChart,
         input.hasControlData,
         input.hasHeatSet,
         input.showControlDrum,
@@ -319,6 +322,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showControlHeat = true,
         showControlFan = true,
         controlChartHeightPct = 21,
+        mergeControlChart = false,
         controlYMin = 0,
         controlYMax = 100,
         phaseSegments = [],
@@ -464,6 +468,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 showControlHeat,
                 showControlFan,
                 controlChartHeightPct,
+                mergeControlChart,
                 controlYMin,
                 controlYMax,
                 phaseSegments,
@@ -517,6 +522,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             showControlHeat,
             showControlFan,
             controlChartHeightPct,
+            mergeControlChart,
             controlYMin,
             controlYMax,
             phaseSegments,
@@ -552,6 +558,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showTargetDeltaLabel,
         showRoR,
         showRoRET,
+        mergeControlChart,
         hasControlData: !!controlData,
         hasHeatSet: !!controlData?.heatSet?.some((value) => value != null),
         showControlDrum,

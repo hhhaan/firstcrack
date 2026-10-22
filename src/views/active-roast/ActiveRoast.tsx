@@ -1488,6 +1488,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         showControlDrum={roastSettings.showControlDrum}
                         showControlHeat={roastSettings.showControlHeat}
                         showControlFan={roastSettings.showControlFan}
+                        mergeControlChart={roastSettings.mergeControlChart}
                         controlChartHeightPct={roastSettings.controlChartHeightPct}
                         controlYMin={roastSettings.controlYMin}
                         controlYMax={roastSettings.controlYMax}

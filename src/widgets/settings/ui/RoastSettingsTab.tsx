@@ -1317,22 +1317,30 @@ export const RoastSettingsTab = () => {
             <SettingsSection group="axes">
                 <SettingsSection.Header title={tk('controlChart')} description={tk('controlChartDescription')} />
                 <SettingsSection.Body className="grid gap-3">
+                    <SettingsCheckRow
+                        checked={roastSettings.mergeControlChart}
+                        onChange={() => updateRoastSettings({ mergeControlChart: !roastSettings.mergeControlChart })}
+                        label={tk('mergeControlChart')}
+                        description={tk('mergeControlChartDescription')}
+                    />
                     <div className="grid gap-1.5">
                         <RoastCheckRows options={controlSeriesOptions} />
                     </div>
-                    <SettingsOptionRow justify="between">
-                        <div>
-                            <div className={settingsOptionLabelCls}>{tk('controlBandHeight')}</div>
-                            <div className={settingsOptionDescCls}>{tk('controlBandHeightDescription')}</div>
-                        </div>
-                        <NumberInput
-                            value={roastSettings.controlChartHeightPct}
-                            onChange={(v) => updateRoastSettings({ controlChartHeightPct: v })}
-                            min={12}
-                            max={40}
-                            suffix="%"
-                        />
-                    </SettingsOptionRow>
+                    {!roastSettings.mergeControlChart && (
+                        <SettingsOptionRow justify="between">
+                            <div>
+                                <div className={settingsOptionLabelCls}>{tk('controlBandHeight')}</div>
+                                <div className={settingsOptionDescCls}>{tk('controlBandHeightDescription')}</div>
+                            </div>
+                            <NumberInput
+                                value={roastSettings.controlChartHeightPct}
+                                onChange={(v) => updateRoastSettings({ controlChartHeightPct: v })}
+                                min={12}
+                                max={40}
+                                suffix="%"
+                            />
+                        </SettingsOptionRow>
+                    )}
                     <RangeRow
                         label={tk('controlY')}
                         minVal={roastSettings.controlYMin}

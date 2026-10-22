@@ -120,6 +120,17 @@ describe('RoastTempChart Heat set lifecycle', () => {
         });
     };
 
+    it('replaces the chart structure when merging and separating controls', () => {
+        renderChart([50, 60]);
+        expect(setOption.mock.lastCall?.[0].grid).toHaveLength(2);
+        renderChart([50, 60], { mergeControlChart: true });
+        expect(setOption.mock.lastCall?.[0].grid).toHaveLength(1);
+        expect(setOption.mock.lastCall?.[1]).toMatchObject({ notMerge: true });
+        renderChart([50, 60], { mergeControlChart: false });
+        expect(setOption.mock.lastCall?.[0].grid).toHaveLength(2);
+        expect(setOption.mock.lastCall?.[1]).toMatchObject({ notMerge: true });
+    });
+
     it('edits number spacing independently of grid spacing and preserves number lists', () => {
         const original = getRoastSettings();
         const ticks = [150, 175, 200];

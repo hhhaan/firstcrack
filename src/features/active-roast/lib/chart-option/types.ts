@@ -89,6 +89,7 @@ export interface ChartOptionParams {
     showControlHeat: boolean;
     showControlFan: boolean;
     controlChartHeightPct: number;
+    mergeControlChart?: boolean;
     controlYMin: number;
     controlYMax: number;
     phaseSegments: PhaseSegment[];

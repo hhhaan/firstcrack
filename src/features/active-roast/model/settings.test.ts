@@ -668,3 +668,20 @@ it('persists and restores both log panel states', async () => {
         );
     }
 });
+
+it('defaults to separated controls and persists the merged chart preference', () => {
+    expect(normalizeRoastSettings({}).mergeControlChart).toBe(false);
+    expect(normalizeRoastSettings({ mergeControlChart: 'true' }).mergeControlChart).toBe(false);
+    const original = getRoastSettings();
+    try {
+        updateRoastSettings({ mergeControlChart: true });
+        expect(getRoastSettings().mergeControlChart).toBe(true);
+        expect(settingsSet).toHaveBeenLastCalledWith(
+            'roast.settings',
+            expect.objectContaining({ mergeControlChart: true }),
+            { debounce: true },
+        );
+    } finally {
+        updateRoastSettings(original);
+    }
+});
