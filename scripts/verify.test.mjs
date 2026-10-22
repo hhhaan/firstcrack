@@ -1,13 +1,20 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { delimiter, dirname, isAbsolute, join } from 'node:path';
 import { test } from 'node:test';
 
 import { planPush, runVerification, verificationCommands } from './verify.mjs';
 
 const ZERO = '0'.repeat(40);
+const gitExecutable = (process.env.PATH ?? '')
+    .split(delimiter)
+    .filter(isAbsolute)
+    .map((directory) => join(directory, process.platform === 'win32' ? 'git.exe' : 'git'))
+    .find(existsSync);
+assert.ok(gitExecutable, 'Git must be available for integration fixtures');
+process.env.VERIFY_GIT_EXECUTABLE = gitExecutable;
 for (const key of execFileSync('git', ['rev-parse', '--local-env-vars'], { encoding: 'utf8' }).trim().split('\n')) {
     delete process.env[key];
 }
@@ -42,6 +49,26 @@ function repo(t) {
         input: (head, remote = base) => `refs/heads/topic ${head} refs/heads/topic ${remote}\n`,
     };
 }
+
+test('package-script PATH entries cannot replace pinned Git; missing or relative pins run every check', (t) => {
+    const r = repo(t);
+    r.write('src/features/example/a.ts');
+    const head = r.commit();
+    const shadow = mkdtempSync(join(tmpdir(), 'fc-verify-shadow-'));
+    const originalPath = process.env.PATH;
+    t.after(() => {
+        process.env.PATH = originalPath;
+        process.env.VERIFY_GIT_EXECUTABLE = gitExecutable;
+        rmSync(shadow, { recursive: true, force: true });
+    });
+    writeFileSync(join(shadow, process.platform === 'win32' ? 'git.exe' : 'git'), 'exit 99\n', { mode: 0o755 });
+    process.env.PATH = `${shadow}${delimiter}${originalPath ?? ''}`;
+    assert.equal(planPush(r.input(head), r.cwd).base, r.base);
+    for (const pin of ['', 'git']) {
+        process.env.VERIFY_GIT_EXECUTABLE = pin;
+        assert.deepEqual(planPush(r.input(head), r.cwd), { base: null, sidecar: true, actions: true, skip: false });
+    }
+});
 
 test('an existing branch checks every outgoing commit and uses related tests', (t) => {
     const r = repo(t);

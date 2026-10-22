@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import concurrently from 'concurrently';
@@ -27,8 +27,10 @@ export function planPush(input, cwd = process.cwd()) {
         return { ...FULL_PLAN };
     }
 
+    const gitExecutable = process.env.VERIFY_GIT_EXECUTABLE;
+    if (!gitExecutable || !isAbsolute(gitExecutable)) return { ...FULL_PLAN };
     const git = (args) =>
-        execFileSync('git', args, {
+        execFileSync(gitExecutable, args, {
             cwd,
             encoding: 'utf8',
             maxBuffer: 32 * 1024 * 1024,

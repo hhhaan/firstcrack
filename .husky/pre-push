@@ -4,4 +4,5 @@ if [ -n "${SKIP_VERIFY:-}" ]; then
     exit 0
 fi
 
-pnpm verify:push
+# Pin Git before pnpm prepends repository-controlled binaries to PATH.
+VERIFY_GIT_EXECUTABLE="$(command -v git)" pnpm verify:push
