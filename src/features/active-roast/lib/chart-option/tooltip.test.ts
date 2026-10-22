@@ -90,7 +90,7 @@ describe('createAxisTooltipFormatter', () => {
         expect(html).toContain(
             `border-top:2.5px dashed ${colors.rorActual};opacity:${REFERENCE_CURVE_OPACITY};flex-shrink:0`,
         );
-        expect(html).toContain(`border-top:1.8px solid ${colors.etActual}`);
+        expect(html).toContain(`border-top:2px solid ${colors.etActual}`);
     });
 
     it('hides target-only tooltip past the drawn curve', () => {

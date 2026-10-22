@@ -1,4 +1,4 @@
-import { chartFontScale, scaleChartPx } from '@features/active-roast/lib/chart-config';
+import { chartFontScale, scaleChartPx, TEMP_Y_INTERVAL } from '@features/active-roast/lib/chart-config';
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
@@ -66,6 +66,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showControlHeat,
         showControlFan,
         controlChartHeightPct,
+        mergeControlChart = false,
         controlYMin,
         controlYMax,
         phaseSegments,
@@ -86,12 +87,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
-    const { tempYMin, tempYMax } = computeTempYRange(
-        tempMinC,
-        tempMaxC,
-        temperatureUnit,
-        params.axisSettings?.tempTicksC?.length ? undefined : params.axisSettings?.tempGridInterval || undefined,
-    );
+    const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
     const rorYMinDisp = toDisplayRoR(rorYMin, temperatureUnit);
     const rorYMaxDisp = toDisplayRoR(rorYMax, temperatureUnit);
 
@@ -121,9 +117,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const xMin = xViewMin ?? xs[0] ?? 0;
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-    const reportGridInterval = params.axisSettings?.tempTicksC?.length
-        ? undefined
-        : params.axisSettings?.tempGridInterval;
+    const reportGridInterval = params.axisSettings ? TEMP_Y_INTERVAL : undefined;
     const tuneAxes = (axes: Parameters<typeof applyChartAxisSettings>[0]) => {
         if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, reportGridInterval);
         applyChartAxisSettings(axes, params.axisSettings, temperatureUnit);
@@ -184,7 +178,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             colors,
             tempYMin,
             tempYMax,
-            hasControlSeries,
+            hasControlSeries: hasControlSeries && !mergeControlChart,
             showFcBand,
             showTargetDeltaLabel,
             targetXs,
@@ -231,7 +225,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const curveLabelSeries = buildCurveLabelSeries(curveLabels, fontScale);
 
     if (hasControlSeries && controlData) {
-        // Grid: [0] Temp/RoR (+ phase overlay) · [1] Drum/Heat/Fan
+        // Controls keep their own value axes, including when sharing the temperature grid.
         // Physical feedback (Pa/Hz/RPM) is kept raw, never normalized to percent.
         const physicalUnits = [...(controlData.readUnits ?? []), ...(controlData.reference?.readUnits ?? [])].some(
             (units) => units && Object.values(units).some((unit) => unit !== '%'),
@@ -260,6 +254,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             rightMargin,
             topMargin,
             controlChartHeightPct,
+            mergeControlChart,
             xMin,
             xMax,
             tempYMin,
@@ -286,7 +281,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             showControlHeat,
             showControlFan,
             curves,
-            controlGuideMarkLines,
+            controlGuideMarkLines: mergeControlChart ? [] : controlGuideMarkLines,
             fontScale,
         });
 
@@ -296,7 +291,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             backgroundColor: 'transparent',
             animation: false,
             axisPointer: {
-                link: [{ xAxisIndex: [0, 1] }],
+                link: [{ xAxisIndex: mergeControlChart ? [0] : [0, 1] }],
                 animation: false,
                 lineStyle: crossLineStyle,
             },
@@ -313,9 +308,10 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 formatter: formatAxisTooltip,
             },
             series: [
-                ...(bbpRange ? [bbpBackground(false), bbpBackground(true)] : []),
+                ...(bbpRange ? [bbpBackground(false)] : []),
+                ...(bbpRange && !mergeControlChart ? [bbpBackground(true)] : []),
                 ...tempSeries,
-                ...controlSeries,
+                ...controlSeries.map((series) => ({ ...series, xAxisIndex: mergeControlChart ? 0 : 1 })),
                 curveLabelSeries,
                 ...(phaseSeries ? [phaseSeries] : []),
             ],

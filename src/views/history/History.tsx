@@ -1,6 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
 import {
-    sessionBeanName,
     useDeleteRoastSession,
     useRoastSessionFilterMeta,
     useRoastSessions,
@@ -8,12 +7,15 @@ import {
 } from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
-import { formatDateShort } from '@shared/lib/format';
+import { formatDateTimeShort } from '@shared/lib/format';
 import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { PillButton } from '@shared/ui/PillButton';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { DateRangeFilter } from '@widgets/date-range-filter';
 import { NewProfileModal } from '@widgets/new-profile-modal';
 import { Download, GitCompare, Search } from 'lucide-react';
@@ -257,7 +259,11 @@ export const History = () => {
 
     const renderContent = (): React.ReactNode => {
         if (isError) {
-            return <div className="rounded-lg bg-main-bg p-8 text-center text-sm text-muted">{t('history.error')}</div>;
+            return (
+                <div className="rounded-2xl border border-border bg-main-bg p-8 text-center text-sm text-muted">
+                    {t('history.error')}
+                </div>
+            );
         }
         if (isLoading) {
             return <HistorySkeleton />;
@@ -304,39 +310,36 @@ export const History = () => {
                             actions={
                                 <div className="flex items-center gap-2">
                                     {totalSessions > 1 && (
-                                        <button
-                                            type="button"
+                                        <SurfaceButton
                                             onClick={handleToggleCompareMode}
-                                            className={`inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border border-transparent px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] transition hover:-translate-y-px ${compareMode ? 'bg-primary text-white dark:bg-[#0d0d0d]' : 'bg-main-bg text-secondary hover:text-primary dark:bg-[#262b31] dark:text-[#e5e5e5]'}`}
+                                            className={
+                                                compareMode
+                                                    ? 'border-transparent bg-action text-on-action hover:bg-action hover:opacity-85'
+                                                    : undefined
+                                            }
                                         >
                                             <GitCompare size={14} strokeWidth={2} />
                                             {compareMode ? t('history.compare.cancel') : t('history.compare.button')}
-                                        </button>
+                                        </SurfaceButton>
                                     )}
                                     {compareMode && (
-                                        <button
-                                            type="button"
+                                        <PillButton
                                             onClick={() => setShowCompare(true)}
                                             disabled={compareSessions.length < 2}
-                                            className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             {t('history.compare.open', { count: compareSessions.length })}
-                                        </button>
+                                        </PillButton>
                                     )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setExportOpen(true)}
-                                        className="inline-flex cursor-pointer items-center gap-1.5 self-start rounded-full border-none bg-primary dark:bg-[#0d0d0d] px-4 py-2.25 text-[13px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px"
-                                    >
+                                    <PillButton onClick={() => setExportOpen(true)}>
                                         <Download size={14} strokeWidth={2} />
                                         {t('history.exportCsv')}
-                                    </button>
+                                    </PillButton>
                                 </div>
                             }
                         />
 
-                        <div className="mb-4 flex flex-col gap-3 rounded-lg bg-main-bg dark:border dark:border-[#585d61] p-4 lg:flex-row lg:items-center lg:gap-3 lg:px-5">
-                            <div className="flex flex-1 items-center gap-2 rounded-lg bg-surface dark:bg-surface-elevated px-3 py-2">
+                        <div className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-center">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-64 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
                                 <Search size={14} strokeWidth={2} className="text-muted" />
                                 <input
                                     className="w-full border-none bg-transparent text-[13px] tracking-[0.14px] text-primary outline-none placeholder:text-muted font-body"
@@ -388,7 +391,7 @@ export const History = () => {
                     open={deletingId !== null}
                     sessionName={
                         deletingSession
-                            ? `${sessionBeanName(deletingSession) ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
+                            ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateTimeShort(deletingSession.roasted_at)})`.trim()
                             : ''
                     }
                     isLoading={deleteSession.isPending}

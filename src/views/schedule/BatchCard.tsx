@@ -63,7 +63,7 @@ export const BatchCard = ({
           : undefined;
 
     return (
-        <div className="rounded-xl p-4 bg-main-bg dark:bg-[#262b31] transition-colors duration-150">
+        <div className="rounded-2xl border border-border p-4 bg-main-bg dark:bg-surface-elevated transition-colors duration-150">
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Package size={14} strokeWidth={1.5} color="var(--color-muted)" className="shrink-0 mt-[1px]" />
@@ -82,7 +82,7 @@ export const BatchCard = ({
                 <div className="flex items-center gap-2 shrink-0">
                     <Badge
                         tone={statusTone[status] ?? 'neutral'}
-                        className={`px-1.5 rounded-md${status === 'skipped' ? ' line-through' : ''}`}
+                        className={`px-1.5${status === 'done' ? '' : ' rounded-md'}${status === 'skipped' ? ' line-through' : ''}`}
                     >
                         {status === 'in-progress'
                             ? `In Progress ${batch.completed_sessions}/${batch.batch_count}`
@@ -92,7 +92,7 @@ export const BatchCard = ({
                         <button
                             type="button"
                             onClick={onStart}
-                            className="flex items-center gap-1 text-[12px] font-medium text-white bg-primary dark:bg-[#0d0d0d] px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
+                            className="flex items-center gap-1 text-[12px] font-medium text-on-action bg-action px-2.5 py-1 rounded-lg border-none cursor-pointer hover:opacity-90 transition-opacity"
                         >
                             <Play size={11} strokeWidth={2.5} />
                             {t('schedule.start')}

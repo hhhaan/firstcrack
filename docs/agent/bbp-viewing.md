@@ -40,6 +40,10 @@ joins saved BBP at negative time. The existing BBP finalize, local TSV,
 upload/recovery and machine-control flows remain responsible for recording and
 persistence. Replay and PID still consume the ordinary roast reference only.
 
+Live BBP events survive sample FIFO eviction and reload, including future notes.
+At Charge, finalization keeps events in the archived 15-minute BBP interval and
+excludes times after Charge. Sample polling never decides which accepted notes survive.
+
 ## Regression coverage
 
 - `chart-queries.test.tsx`: original sample timestamps, late old-workspace response,

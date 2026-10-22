@@ -38,13 +38,17 @@ export interface UseRoastProfileSelectionParams {
      */
     selectionEpoch?: string;
     workspaceOwnerId?: string | null;
+    sourceCandidates?: { beanId: string | null; blendId: string | null; name: string }[];
+    sourceCandidatesReady?: boolean;
 }
 
 export interface UseRoastProfileSelectionReturn {
     targetProfileId: string | null;
     setTargetProfileId: (id: string | null) => Promise<boolean | undefined>;
     selectedBeanId: string | null;
-    setSelectedBeanId: (id: string | null) => void;
+    selectedBlendId: string | null;
+    setSelectedBlendId: (id: string | null, name?: string | null) => void;
+    setSelectedBeanId: (id: string | null, name?: string | null) => void;
     handoffBeanName: string | null;
     setUserSelectedTarget: (id: string | null) => Promise<boolean | undefined>;
 }
@@ -66,6 +70,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     } = params;
     const selection = useRoastingStore(selectRoastSelection);
     const pendingProfileId = useRoastingStore((state) => state.pendingProfileId);
+    const pendingProfileSource = useRoastingStore((state) => state.pendingProfileSource);
     const chargedRef = useRef(charged);
     const confirmTargetChangeRef = useRef(confirmTargetChange);
     const commitApprovedTargetRef = useRef(commitApprovedTarget);
@@ -95,11 +100,13 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     );
     const applyTarget = useCallback(async (id: string | null, source: 'user' | 'handoff') => {
         const before = useRoastingStore.getState();
-        if (id === selectRoastSelection(before).profileId) return true;
+        const profileChanged = id !== selectRoastSelection(before).profileId;
+        const pendingSource = source === 'handoff' ? before.pendingProfileSource : null;
+        if (!profileChanged && !pendingSource) return true;
         const gen = ++requestGenRef.current;
         const epoch = selectionEpochRef.current;
         const gate = confirmTargetChangeRef.current;
-        if (gate && !(await gate(id))) return false;
+        if (profileChanged && gate && !(await gate(id))) return false;
         const current = useRoastingStore.getState();
         if (
             gen !== requestGenRef.current ||
@@ -109,8 +116,8 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         )
             return;
         // No await between stopping Replay and committing the approved selection.
-        commitApprovedTargetRef.current?.(id);
-        if (!current.commitProfile(id, before.sessionId, before.prepared.workspaceOwnerId)) return;
+        if (profileChanged) commitApprovedTargetRef.current?.(id);
+        if (!current.commitProfile(id, before.sessionId, before.prepared.workspaceOwnerId, pendingSource)) return;
         if (source === 'user' && !chargedRef.current && !isChargedPhase(current.phase)) {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
             saveTimerRef.current = setTimeout(() => {
@@ -152,27 +159,63 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         if (useRoastingStore.getState().pendingProfileId !== pendingProfileId) return;
         void applyTarget(pendingProfileId, 'handoff').then((result) => {
             const store = useRoastingStore.getState();
-            if (result !== undefined && store.pendingProfileId === pendingProfileId) store.setPendingProfile(null);
+            if (
+                result !== undefined &&
+                store.pendingProfileId === pendingProfileId &&
+                store.pendingProfileSource === pendingProfileSource
+            )
+                store.setPendingProfile(null);
         });
-    }, [isActive, charged, pendingProfileId, applyTarget]);
+    }, [isActive, charged, pendingProfileId, pendingProfileSource, applyTarget]);
     useEffect(() => {
         if (charged || !beansReady || !selection.beanId || selection.beanName) return;
         if (beans.some((bean) => bean.id === selection.beanId)) return;
-        useRoastingStore.getState().prepareBean(null);
+        useRoastingStore.getState().invalidatePreparedBean(selection.beanId);
         try {
             localStorage.removeItem(DEFAULT_BEAN_KEY);
         } catch (err) {
             logger.capture(err, { scope: 'roastProfileSelection.clearDefaultBean' });
         }
     }, [charged, beansReady, beans, selection.beanId, selection.beanName]);
+    useEffect(() => {
+        if (!isActive || charged || !params.sourceCandidatesReady) return;
+        const candidates = params.sourceCandidates ?? [];
+        useRoastingStore
+            .getState()
+            .applyProfileSource(candidates.length === 1 ? candidates[0] : null, candidates.length > 1);
+    }, [isActive, charged, params.sourceCandidatesReady, params.sourceCandidates]);
+    const setSelectedBlendId = useCallback(
+        (id: string | null, name: string | null = null) => {
+            const store = useRoastingStore.getState();
+            if (isChargedPhase(store.phase))
+                store.editRunningSource(
+                    { beanId: null, blendId: id, beanName: name },
+                    store.sessionId,
+                    workspaceOwnerId ?? null,
+                );
+            else store.prepareBlend(id, name);
+        },
+        [workspaceOwnerId],
+    );
     const setUserSelectedTarget = useCallback((id: string | null) => applyTarget(id, 'user'), [applyTarget]);
-    const setSelectedBeanId = useCallback((id: string | null) => {
-        const store = useRoastingStore.getState();
-        store.prepareBean(id, id ? null : store.prepared.beanName);
-    }, []);
+    const setSelectedBeanId = useCallback(
+        (id: string | null, name: string | null = null) => {
+            const store = useRoastingStore.getState();
+            if (isChargedPhase(store.phase))
+                store.editRunningSource(
+                    { beanId: id, blendId: null, beanName: name },
+                    store.sessionId,
+                    workspaceOwnerId ?? null,
+                );
+            else store.prepareBean(id, name);
+        },
+        [workspaceOwnerId],
+    );
     return {
         targetProfileId: selection.profileId,
         selectedBeanId: selection.beanId,
+        selectedBlendId: selection.blendId ?? null,
+        setSelectedBlendId,
         handoffBeanName: selection.beanName,
         setSelectedBeanId,
         setTargetProfileId: setUserSelectedTarget,

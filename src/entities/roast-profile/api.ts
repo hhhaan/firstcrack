@@ -1,8 +1,12 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Json, RoastProfile } from '@shared/types/database.types';
+import { z } from 'zod';
+import { type ProfileSource, registeredProfileSources } from './lib/source-candidates';
 
-type RoastProfileInsert = Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'>;
-type RoastProfileUpdate = { id: string } & Partial<Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
+type RoastProfileInsert = Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> & { sources?: ProfileSource[] };
+type RoastProfileUpdate = { id: string } & Partial<
+    Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>
+> & { sources?: ProfileSource[] };
 
 /** events: 소스 세션 로그 — Replay 컷오프(Drop 마크)에 쓴다 */
 type SourceSessionRow = {
@@ -14,6 +18,7 @@ type SourceSessionRow = {
 };
 
 export type RoastProfileWithSource = RoastProfile & {
+    sources?: ProfileSource[];
     source_session: SourceSessionRow | SourceSessionRow[] | null;
     default_bean: { id: string; name: string } | null;
     default_blend: { id: string; name: string } | null;
@@ -35,15 +40,15 @@ export const roastProfileCopyInsert = (profile: RoastProfileWithSource, name: st
     void _sourceSession;
     void _defaultBean;
     void _defaultBlend;
-    return { ...copy, name };
+    return { ...copy, name, ...(profile.sources && { sources: registeredProfileSources(profile) }) };
 };
 
 const SELECT_WITH_SESSION_HEATER =
-    '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+    '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 /** Same list shape when `roast_sessions.heater_events` is not on this database. */
 const SELECT_WITHOUT_SESSION_HEATER =
-    '*, source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+    '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 type ProfileListSelect = typeof SELECT_WITH_SESSION_HEATER | typeof SELECT_WITHOUT_SESSION_HEATER;
 
@@ -64,6 +69,12 @@ const listProfiles = (userId: string, select: ProfileListSelect) =>
     supabase.from('roast_profiles').select(select).eq('user_id', userId).order('created_at', { ascending: false });
 
 export const roastProfileApi = {
+    batchCounters: async (userId: string) => {
+        const { data, error } = await supabase.rpc('get_roast_batch_counters', { p_user_id: userId });
+        if (error) throw error;
+        return z.record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)).parse(data);
+    },
+
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {
         const select = omitSessionHeaterColumn ? SELECT_WITHOUT_SESSION_HEATER : SELECT_WITH_SESSION_HEATER;
         const first = await listProfiles(userId, select);
@@ -79,15 +90,25 @@ export const roastProfileApi = {
     },
 
     create: async (profile: RoastProfileInsert): Promise<RoastProfile> => {
-        const { data, error } = await supabase.from('roast_profiles').insert(profile).select().single();
+        const { sources, ...row } = profile;
+        const { data, error } = sources
+            ? await supabase.rpc('save_roast_profile_sources', {
+                  p_profile: row as Json,
+                  p_sources: sources,
+                  p_id: undefined,
+              })
+            : await supabase.from('roast_profiles').insert(row).select().single();
         if (error) throw error;
-        return data;
+        return Object.assign(data, sources ? { sources } : {});
     },
 
     update: async ({ id, ...patch }: RoastProfileUpdate): Promise<RoastProfile> => {
-        const { data, error } = await supabase.from('roast_profiles').update(patch).eq('id', id).select().single();
+        const { sources, ...row } = patch;
+        const { data, error } = sources
+            ? await supabase.rpc('save_roast_profile_sources', { p_profile: row as Json, p_sources: sources, p_id: id })
+            : await supabase.from('roast_profiles').update(row).eq('id', id).select().single();
         if (error) throw error;
-        return data;
+        return Object.assign(data, sources ? { sources } : {});
     },
 
     delete: async (id: string): Promise<void> => {
@@ -100,6 +121,24 @@ export const roastProfileApi = {
         const { data, error } = await supabase.from('roast_sessions').select('events').eq('id', sessionId).single();
         if (error) throw error;
         return data?.events ?? null;
+    },
+
+    sourceHistory: async (userId: string, profileId: string): Promise<ProfileSource[]> => {
+        const sources: ProfileSource[] = [];
+        for (let from = 0; ; from += 1000) {
+            const { data, error } = await supabase
+                .from('roast_sessions')
+                .select('bean_id, blend_id, plan_batch:roast_plan_batches!plan_batch_id(blend_id)')
+                .eq('user_id', userId)
+                .eq('profile_id', profileId)
+                .eq('status', 'completed')
+                .order('id')
+                .range(from, from + 999);
+            if (error) throw error;
+            for (const row of data ?? [])
+                sources.push({ bean_id: row.bean_id, blend_id: row.blend_id ?? row.plan_batch?.blend_id ?? null });
+            if (!data || data.length < 1000) return sources;
+        }
     },
 
     /** Sessions that name a bean, newest first. The hook groups them into counts. */

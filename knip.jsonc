@@ -1,7 +1,8 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
     // husky pre-commit이 `node scripts/...`로 직접 호출한다. husky 플러그인은 known binary만 본다.
-    "entry": ["scripts/check-version-sync.mjs"],
+    // CI invokes the billing schema fixture directly through tsc, outside the application import graph.
+    "entry": ["scripts/check-version-sync.mjs", "supabase/tests/polar-database-types.ts"],
     "ignore": [
         // Deno. `deno check`(edge-check)와 vitest가 본다. `npm:` specifier는 knip이 패키지 `npm`으로 오인한다.
         "supabase/functions/**",

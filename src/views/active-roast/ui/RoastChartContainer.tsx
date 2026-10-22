@@ -51,6 +51,7 @@ interface RoastChartContainerProps {
     showControlHeat?: boolean;
     showControlFan?: boolean;
     controlChartHeightPct?: number;
+    mergeControlChart?: boolean;
     controlYMin?: number;
     controlYMax?: number;
     tempMinC: number;
@@ -112,6 +113,7 @@ export const RoastChartContainer = ({
     showControlHeat = true,
     showControlFan = true,
     controlChartHeightPct = 21,
+    mergeControlChart = false,
     controlYMin = 0,
     controlYMax = 100,
     tempMinC,
@@ -298,6 +300,7 @@ export const RoastChartContainer = ({
                 showControlDrum={showControlDrum}
                 showControlHeat={showControlHeat}
                 showControlFan={showControlFan}
+                mergeControlChart={mergeControlChart}
                 controlChartHeightPct={controlChartHeightPct}
                 controlYMin={controlYMin}
                 controlYMax={controlYMax}

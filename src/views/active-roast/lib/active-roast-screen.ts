@@ -9,7 +9,7 @@ import type { RoastNoteControls } from '@shared/types/roast';
 type TempSample = { bt: number | null; et: number | null };
 
 const FULLSCREEN_CHART_CLASS = 'fixed inset-0 z-9999 h-screen w-screen py-[30px] pl-2.5 pr-2.5';
-const WINDOWED_CHART_CLASS = 'rounded relative z-1 pl-2.5 pr-2.5 py-[30px] flex-1 dark:border dark:border-[#585d61]';
+const WINDOWED_CHART_CLASS = 'rounded relative z-1 py-5 flex-1 dark:border dark:border-border';
 
 export const orNull = <T>(value: T | null | undefined): T | null => value ?? null;
 
@@ -18,6 +18,25 @@ export const orEmpty = (value: string | null | undefined) => value ?? '';
 export const bbpFeatureEnabled = (featureOn: boolean, settingOn: boolean) => featureOn && settingOn;
 
 export const bbpElapsedWhenEnabled = <T>(enabled: boolean, elapsed: T): T | null => (enabled ? elapsed : null);
+
+const APP_WINDOW_TITLE = 'First Crack';
+
+/** Native window title while roasting or during BBP (idle Charge-wait included). */
+export const liveWindowTitle = (input: {
+    bbpElapsed: string | null;
+    btLabel: string;
+    etLabel: string;
+    roastElapsed: string;
+    activePhase: boolean;
+}): string => {
+    if (input.bbpElapsed) {
+        return `${APP_WINDOW_TITLE} — BBP ${input.bbpElapsed} | BT ${input.btLabel} | ET ${input.etLabel}`;
+    }
+    if (input.activePhase) {
+        return `${APP_WINDOW_TITLE} — BT ${input.btLabel} | ET ${input.etLabel} | ${input.roastElapsed}`;
+    }
+    return APP_WINDOW_TITLE;
+};
 
 export const bbpChargeWaitActive = (bbpActive: boolean, bbpRecording: boolean, awaitingNextCharge: boolean) =>
     (bbpActive && bbpRecording) || awaitingNextCharge;
@@ -109,7 +128,7 @@ export const autoDropUnavailable = (phase: RoastPhase, enabled: boolean, hasRawT
 const listUnlessBbp = <T>(bbpActive: boolean, items: T[]): T[] => (bbpActive ? [] : items);
 
 const canEditChartMarkers = (charged: boolean, roastEnded: boolean, bbpActive: boolean) =>
-    charged && !roastEnded && !bbpActive;
+    !roastEnded && (bbpActive || charged);
 
 const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat || fan;
 
@@ -154,7 +173,7 @@ const chartControlData = (input: ControlFrameInput): ControlData | undefined => 
         heatPower: input.heatPower,
         fanSpeed: input.fanSpeed,
         heatSet: input.heatSet,
-        changes: input.bbpActive ? undefined : input.controlChanges,
+        changes: input.controlChanges,
         heatTarget: input.bbpActive ? undefined : input.heatTarget,
         reference:
             input.referenceXs.length > 0
@@ -215,8 +234,10 @@ export const buildChartFrame = <TTurningPoint>(input: {
     onAddEvent: (event: string, timeSec: number) => void;
     onMoveEvent: (event: string, timeSec: number) => void;
     reviewing?: boolean;
+    eventTimeOrigin?: number;
 }) => {
     const canEdit = Boolean(input.reviewing) || canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
+    const origin = input.eventTimeOrigin ?? 0;
     return {
         className: `bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
             input.isFullscreen ? FULLSCREEN_CHART_CLASS : WINDOWED_CHART_CLASS
@@ -237,9 +258,9 @@ export const buildChartFrame = <TTurningPoint>(input: {
             !!input.targetProfileId &&
             input.targetCurvePointCount > 0,
         controlData: chartControlData(input),
-        elapsed: input.bbpActive ? input.bbpNowSec : input.elapsed,
+        elapsed: input.bbpActive ? Math.max(0, input.bbpNowSec - origin) : input.elapsed,
         charged: input.charged && !input.bbpActive,
-        eventMarkers: listUnlessBbp(input.bbpActive, input.eventMarkers),
+        eventMarkers: input.eventMarkers,
         turningPoints: listUnlessBbp(input.bbpActive, input.turningPoints),
         phaseSegments: listUnlessBbp(input.bbpActive, input.phaseSegments),
         showFcBand: input.showFcBand && !input.bbpActive,
@@ -247,7 +268,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
         onEventMarkerEdit: canEdit ? input.onEventMarkerEdit : undefined,
         onEventMarkerDelete: canEdit ? input.onEventMarkerDelete : undefined,
         onAddNote: canEdit ? input.onAddNote : undefined,
-        onAddEvent: canEdit ? input.onAddEvent : undefined,
+        onAddEvent: canEdit && !input.bbpActive ? input.onAddEvent : undefined,
         onMoveEvent: input.reviewing && canEdit ? input.onMoveEvent : undefined,
     };
 };

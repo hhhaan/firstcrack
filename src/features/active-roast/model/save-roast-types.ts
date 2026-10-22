@@ -1,6 +1,6 @@
 import type { MachineSnapshot } from '@entities/machine';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
-import type { LogEntry } from '@shared/types/roast';
+import type { BatchTitleNumbering, LogEntry } from '@shared/types/roast';
 import type { FinalizedBbp } from './bbp';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
@@ -15,12 +15,14 @@ export type SyncRoastCurve = (input: {
 /** Form fields required to persist a completed roast (matches summary modal). */
 export type SaveRoastFormData = {
     notes: string;
+    batchName?: string | null;
     /** Green input, in kg — prefilled from batch size, drives stock deduction. */
     weightGrams: number;
     /** Measured roasted output, in kg. 0/undefined = not weighed. */
     outputWeightKg?: number;
     roastLevel: string | null;
     beanId: string | null;
+    blendId?: string | null;
     /**
      * Free-text bean name for sample / no-inventory roasts.
      * Stored on session.bean_label; never creates beans rows or stock events.
@@ -45,7 +47,9 @@ export interface SaveRoastParams {
     ambientTemperature?: number | null;
     ambientHumidity?: number | null;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
     targetProfileId: string | null;
+    batchTitleNumbering?: BatchTitleNumbering;
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];
     machineSnapshot?: MachineSnapshot | null;

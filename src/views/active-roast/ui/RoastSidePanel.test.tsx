@@ -250,7 +250,7 @@ describe('RoastSidePanel live readings (#358)', () => {
         act(() => yellow.click());
         expect(onMarkEvent).not.toHaveBeenCalled();
     });
-    it('opens a separate newest-first log and ignores Escape and restores focus on collapse without losing the note draft', () => {
+    it('opens a separate chronological log and ignores Escape and restores focus on collapse without losing the note draft', () => {
         const onRemoveLogEntry = vi.fn();
         const entries: LogEntry[] = [
             { id: 'charge', time: '0:00', event: 'Charge', temp: '180°C', note: '' },
@@ -269,7 +269,7 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(trigger.getAttribute('aria-controls')).toBe(log.id);
         expect(sidePanel.querySelector('[aria-expanded]')).toBeNull();
         expect(sidePanel.textContent).not.toContain('title');
-        expect((log.textContent ?? '').indexOf('aroma')).toBeLessThan((log.textContent ?? '').indexOf('0:00'));
+        expect((log.textContent ?? '').indexOf('0:00')).toBeLessThan((log.textContent ?? '').indexOf('aroma'));
         expect(document.activeElement).toBe(log.querySelector('button'));
         expect(sidePanel.querySelector('textarea')).toBe(noteInput);
         expect(noteInput?.value).toBe('draft');

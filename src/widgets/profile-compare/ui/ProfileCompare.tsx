@@ -46,7 +46,7 @@ export const ProfileCompare = ({
 
     if (compareIds.length === 0) {
         return (
-            <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-lg bg-main-bg px-8 py-7 dark:border dark:border-[#585d61]">
+            <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-main-bg px-8 py-7">
                 <GitCompare size={32} strokeWidth={1.5} color="var(--color-muted)" />
                 <p className="text-sm tracking-[0.14px] text-muted">{t('profiles.detail.selectToCompare')}</p>
             </div>
@@ -54,8 +54,8 @@ export const ProfileCompare = ({
     }
 
     return (
-        <div className="min-w-0 rounded-lg bg-main-bg dark:border dark:border-[#585d61]">
-            <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-[#585d61]">
+        <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-main-bg">
+            <div className="flex items-center justify-between border-b border-black/5 px-6 py-4 dark:border-border">
                 <div className="flex items-center gap-1.5 rounded-full bg-surface px-2.5 py-1 dark:bg-surface-elevated">
                     <GitCompare size={11} strokeWidth={2} color="var(--color-secondary)" />
                     <span className="text-[11px] font-medium tracking-[0.3px] text-secondary">
@@ -84,18 +84,18 @@ export const ProfileCompare = ({
                         <ProfileCurveChart key={chartKey} series={chartSeries} />
                     </div>
 
-                    <div className="mt-5 overflow-hidden rounded-lg border border-black/5 dark:border-[#585d61]">
+                    <div className="mt-5 overflow-hidden rounded-lg border border-black/5 dark:border-border">
                         <div
                             className="grid"
                             style={{
                                 gridTemplateColumns: `120px repeat(${compareProfiles.length}, minmax(0, 1fr))`,
                             }}
                         >
-                            <div className="border-b border-black/5 px-3 py-2.5 dark:border-[#585d61]" />
+                            <div className="border-b border-black/5 px-3 py-2.5 dark:border-border" />
                             {compareProfiles.map((p, i) => (
                                 <div
                                     key={p.id}
-                                    className="border-b border-l border-black/5 px-3 py-2.5 dark:border-[#585d61]"
+                                    className="border-b border-l border-black/5 px-3 py-2.5 dark:border-border"
                                 >
                                     <div className="flex items-center gap-1.5">
                                         <div
@@ -111,7 +111,7 @@ export const ProfileCompare = ({
                             {TABLE_ROWS.flatMap(({ label, getValue }, rowIdx) => [
                                 <div
                                     key={`lbl-${label}`}
-                                    className={`px-3 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                    className={`px-3 py-2.5 ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-border' : ''}`}
                                 >
                                     <span className="text-[11px] font-medium uppercase tracking-[0.4px] text-muted">
                                         {label}
@@ -120,7 +120,7 @@ export const ProfileCompare = ({
                                 ...compareProfiles.map((p) => (
                                     <div
                                         key={`${p.id}-${label}`}
-                                        className={`border-l border-black/5 px-3 py-2.5 dark:border-[#585d61] ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-[#585d61]' : ''}`}
+                                        className={`border-l border-black/5 px-3 py-2.5 dark:border-border ${rowIdx < TABLE_ROWS.length - 1 ? 'border-b border-black/5 dark:border-border' : ''}`}
                                     >
                                         <span className="font-mono text-[12px] font-semibold tracking-[-0.2px] text-primary tabular-nums">
                                             {getValue(p)}
@@ -132,7 +132,7 @@ export const ProfileCompare = ({
                     </div>
                 </div>
 
-                <aside className="w-[220px] shrink-0 border-l border-black/5 bg-[rgba(248,246,244,0.55)] px-3 py-4 dark:border-[#585d61] dark:bg-[rgba(24,29,33,0.65)]">
+                <aside className="w-[220px] shrink-0 border-l border-black/5 bg-[rgba(248,246,244,0.55)] px-3 py-4 dark:border-border dark:bg-[rgba(24,29,33,0.65)]">
                     <div className="mb-3 px-1 font-mono text-[13px] font-medium tracking-[0.14px] text-muted tabular-nums">
                         {t('profiles.detail.compareMode', { count: compareProfiles.length })}
                     </div>
@@ -143,7 +143,7 @@ export const ProfileCompare = ({
                             return (
                                 <div
                                     key={p.id}
-                                    className="rounded-lg border border-black/6 bg-surface px-3 py-2.5 dark:border-[#585d61] dark:bg-surface-elevated"
+                                    className="rounded-lg border border-black/6 bg-surface px-3 py-2.5 dark:border-border dark:bg-surface-elevated"
                                 >
                                     <div className="mb-2 flex items-center gap-2">
                                         <span

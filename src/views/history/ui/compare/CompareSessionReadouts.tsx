@@ -6,7 +6,7 @@ import {
 } from '@features/active-roast/lib/chart-option/compare-channels';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatDateShort, formatElapsed } from '@shared/lib/format';
-import { sessionBeanName } from '@shared/lib/sessionBeanName';
+import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { AlertCircle, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { CompareSessionItem } from './CompareSessionTable';
@@ -64,7 +64,8 @@ export const CompareSessionReadouts = ({
                 className="grid gap-4 min-[600px]:grid-cols-2 min-[900px]:grid-cols-1"
             >
                 {items.map(({ session, color, visible, hasCurve }, index) => {
-                    const name = sessionBeanName(session) ?? session.roast_profiles?.name ?? '—';
+                    const name = sessionRoastTitle(session) ?? session.roast_profiles?.name ?? '—';
+                    const batchNumbers = sessionBatchNumberLabel(session);
                     const sample = comparePointAtTime(series[index].points, cursorTime);
                     return (
                         <section
@@ -105,6 +106,11 @@ export const CompareSessionReadouts = ({
                                     <span className="mt-1 block text-xs text-secondary">
                                         {formatDateShort(session.roasted_at)}
                                     </span>
+                                    {batchNumbers && (
+                                        <span className="mt-1 block font-mono text-xs text-secondary">
+                                            {batchNumbers}
+                                        </span>
+                                    )}
                                 </span>
                                 {!hasCurve && (
                                     <span title={t('history.compare.noCurveData')}>

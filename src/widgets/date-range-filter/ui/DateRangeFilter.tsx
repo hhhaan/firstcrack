@@ -131,10 +131,10 @@ export const DateRangeFilter = ({
             <button
                 type="button"
                 onClick={() => (open ? closePanel() : setOpen(true))}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border-0 px-3 py-2 text-[13px] font-medium tracking-[0.14px] transition ${
+                className={`inline-flex items-center gap-1.5 whitespace-nowrap h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm shadow-xs font-medium tracking-[0.14px] transition ${
                     isActive
-                        ? 'bg-surface-warm-solid text-primary'
-                        : 'bg-surface dark:bg-surface-elevated text-secondary hover:-translate-y-px hover:text-primary'
+                        ? 'border-strong-border text-primary'
+                        : 'text-secondary hover:border-strong-border hover:text-primary'
                 }`}
             >
                 {triggerLabel}
@@ -155,7 +155,7 @@ export const DateRangeFilter = ({
             </button>
 
             {open && (
-                <div className="absolute border border-border-subtle dark:border-[#585d61] top-full left-0 z-50 mt-2 flex rounded-lg bg-main-bg overflow-hidden shadow-lg">
+                <div className="absolute border border-border-subtle dark:border-border top-full left-0 z-50 mt-2 flex rounded-lg bg-main-bg overflow-hidden shadow-xs">
                     {/* 프리셋 목록 */}
                     <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
                         {DATE_PRESETS.map((p) => (
@@ -174,7 +174,7 @@ export const DateRangeFilter = ({
 
                     {/* 커스텀 범위 — draft 상태로 관리, Apply 버튼으로만 반영 */}
                     {preset === 'custom' && (
-                        <div className="flex flex-col justify-center gap-3 border-l border-border-subtle dark:border-[#585d61] px-5 py-4 self-stretch">
+                        <div className="flex flex-col justify-center gap-3 border-l border-border-subtle dark:border-border px-5 py-4 self-stretch">
                             <YearMonthRangeFields
                                 fromYM={draftFrom}
                                 toYM={draftTo}
@@ -187,7 +187,7 @@ export const DateRangeFilter = ({
                                     type="button"
                                     onClick={handleApply}
                                     disabled={!canApply}
-                                    className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-[#585d61] bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="mt-1 ml-auto rounded-lg border border-[#111] dark:border-border bg-[#111] px-4 py-1.5 text-[13px] font-medium text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     {t('history.customRange.apply')}
                                 </button>

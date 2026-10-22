@@ -57,14 +57,28 @@ const isLineType = (value: unknown): value is CurveLineType =>
 const isWidth = (value: unknown): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= CURVE_WIDTH_MIN && value <= CURVE_WIDTH_MAX;
 
-const normalizeChannel = (raw: unknown, fallback: CurveChannelStyle): CurveChannelStyle => {
+/** Factory widths before the default became 2. A saved copy of those is still the default, not a user choice. */
+const PREVIOUS_FACTORY_WIDTH: Record<CurveChannel, number> = {
+    bt: 1.8,
+    et: 1.8,
+    ror: 1.8,
+    etRor: 1.8,
+    heat: 1.5,
+    fan: 1.5,
+    drum: 1.5,
+};
+
+const widthOrDefault = (channel: CurveChannel, value: unknown, fallback: number): number =>
+    isWidth(value) && value !== PREVIOUS_FACTORY_WIDTH[channel] ? value : fallback;
+
+const normalizeChannel = (channel: CurveChannel, raw: unknown, fallback: CurveChannelStyle): CurveChannelStyle => {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<keyof CurveChannelStyle, unknown>>;
     // Invalid fields use DESIGN defaults for this channel, not any previously stored value on the object.
     return {
         color: isCurveColor(value.color) ? value.color.toLowerCase() : null,
-        width: isWidth(value.width) ? value.width : fallback.width,
+        width: widthOrDefault(channel, value.width, fallback.width),
         lineType: isLineType(value.lineType) ? value.lineType : fallback.lineType,
-        backgroundWidth: isWidth(value.backgroundWidth) ? value.backgroundWidth : fallback.backgroundWidth,
+        backgroundWidth: widthOrDefault(channel, value.backgroundWidth, fallback.backgroundWidth),
         backgroundLineType: isLineType(value.backgroundLineType)
             ? value.backgroundLineType
             : fallback.backgroundLineType,
@@ -75,7 +89,10 @@ const normalizeChannel = (raw: unknown, fallback: CurveChannelStyle): CurveChann
 export const normalizeCurveStyles = (raw: unknown): CurveStyles => {
     const value = (raw && typeof raw === 'object' ? raw : {}) as Partial<Record<CurveChannel, unknown>>;
     const styles = Object.fromEntries(
-        CURVE_CHANNELS.map((channel) => [channel, normalizeChannel(value[channel], DEFAULT_CURVE_STYLES[channel])]),
+        CURVE_CHANNELS.map((channel) => [
+            channel,
+            normalizeChannel(channel, value[channel], DEFAULT_CURVE_STYLES[channel]),
+        ]),
     ) as CurveStyles;
     return styles;
 };

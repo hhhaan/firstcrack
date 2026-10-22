@@ -10,7 +10,7 @@
         "recordingHint": "请按新的组合键。按 Esc 取消。",
         "change": "修改快捷键：{{action}}",
         "fixed": "不可修改的快捷键",
-        "doubleTap": "400ms内连按两次",
+        "globalHint": "即使窗口未处于激活状态也会生效。仅在烘焙期间注册为系统级快捷键。",
         "noResults": "没有匹配的快捷键",
         "groups": {
             "app": "应用",
@@ -423,21 +423,18 @@
                 "pidDropHoldDescription": "保持燃烧器不变，下一批可从已预热的滚筒开始。故障与超温时仍会强制降为 0。",
                 "pidDropZero": "火力归零",
                 "pidDropZeroDescription": "下豆时立即关闭燃烧器",
-                "axisTicks": "坐标轴刻度",
-                "axisTicksDescription": "应用于实时和历史图表。默认温度间隔10°、每5格显示数字、时间间隔60秒。温度间隔使用当前显示单位。",
-                "tempGridInterval": "温度网格",
-                "tempLabelEvery": "温度数字显示频率",
+                "axisTicks": "刻度与网格",
+                "axisTicksDescription": "分别设置水平线间距和轴旁数字间隔。例如：网格10°C、温度数字50°C、RoR数字2°C/min。空间不足时仅省略部分数字。",
+                "tempLabelInterval": "温度数字间隔",
+                "rorLabelInterval": "RoR数字间隔",
+                "tempNumberMode": "温度数字显示",
                 "timeTickInterval": "时间刻度间隔",
                 "axisTicksCustom": "手动输入",
                 "axisTicksDefault": "{{value}} (默认)",
-                "tempLabelEveryValue": "每{{count}}格",
                 "timeTickSeconds": "{{count}}秒",
-                "tempTickMode": "输入方式",
                 "tempTickInterval": "固定间隔",
                 "tempTickList": "指定温度",
-                "axisTickSteps": "格",
                 "axisTickSeconds": "秒",
-                "customTempInterval": "温度间隔",
                 "customTempTicks": "温度刻度列表",
                 "customTempTicksDescription": "用逗号分隔，例如：100, 150, 180。仅显示坐标轴范围内的值，留空时使用默认刻度。",
                 "customTempTicksError": "请输入最多100个有效数字，温度须在0–500°C范围内。",
@@ -450,14 +447,16 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR 最小值",
                 "rorAxisMax": "RoR 最大值",
-                "rorGridInterval": "RoR 刻度间隔",
+                "horizontalGridInterval": "水平网格间隔",
+                "rorNumberMode": "RoR数字显示",
                 "rorTickList": "指定 RoR",
                 "customRorTicks": "RoR 刻度列表",
                 "customRorTicksDescription": "用逗号分隔，例如：-5, 0, 5, 10。仅显示坐标轴范围内的值，留空时使用默认刻度。",
                 "customRorTicksError": "请输入最多100个有效数字，RoR 须在 −100–300°C/min 范围内。",
-                "rorLabelEvery": "RoR 数字显示频率",
                 "controlChart": "控制图表",
                 "controlChartDescription": "控制图表的显示项和轴范围。图表显示开关位于数据可见性中。",
+                "mergeControlChart": "合并到温度图表",
+                "mergeControlChartDescription": "开启后将控制曲线叠加在温度图表底部25%的区域，关闭后在下方单独显示。",
                 "controlDrum": "滚筒",
                 "controlDrumDescription": "控制区的滚筒 RPM 系列",
                 "controlHeat": "火力",
@@ -785,6 +784,7 @@
         "enterpriseOnly": "此机型仅限 Enterprise 账户连接。",
         "sidecarStarting": "正在准备连接...",
         "linkUnstable": "设备连接不稳定。请检查线缆和网络状态。",
+        "gasOffUnconfirmed": "发送火力0指令后，尚未确认设备反馈为0。请检查实际火力，必要时直接操作设备。",
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
         "limit": {
@@ -841,6 +841,12 @@
         "phidgetDriverLink": "下载 Phidget22 驱动"
     },
     "dashboard": {
+        "comparedToLastMonth": "较上月",
+        "comparedToPreviousClose": "较前收盘价",
+        "previousClose": "前收盘价",
+        "lastSixMonths": "最近6个月",
+        "thisMonth": "本月",
+        "refresh": "刷新期货价格",
         "greeting": {
             "morning": "早上好",
             "afternoon": "下午好",
@@ -944,12 +950,19 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "批次标题编号",
+            "description": "保存烘焙记录时分配编号，同一工作区的所有设备共享编号。取消或丢弃的烘焙不占用编号。",
+            "profile": "曲线累计",
+            "total": "全部累计",
+            "both": "曲线＋全部",
+            "none": "无编号"
+        },
         "noteEntry": {
             "events": "事件",
             "eventRecorded": "已记录：{{event}}",
             "futureEventHint": "事件只能记录到当前时刻。",
             "title": "添加记录",
-            "editTitle": "编辑记录",
             "time": "时间",
             "gas": "燃气",
             "airflow": "排风",
@@ -961,6 +974,10 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "batchTitle": "烘焙标题",
+            "sourceChangeTitle": "更改烘焙原料",
+            "sourceChangeUnlinks": "更改原料会解除当前批次与生产计划的关联。",
+            "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",
             "noTarget": "无目标",
@@ -971,7 +988,9 @@
             "machineConnected": "设备已连接 · 可以开始烘焙",
             "settings": "烘焙设置",
             "openSettings": "打开烘焙设置",
-            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口"
+            "reconnecting": "正在重新连接 — 曲线已暂停。请勿刷新窗口",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "统计启用此功能后本设备的Charge，按工作区和曲线分别累计。取消或丢弃批次仍保留编号。"
         },
         "readings": {
             "beanTemp": "豆温",
@@ -987,6 +1006,13 @@
         "log": {
             "expand": "展开烘焙日志",
             "collapse": "收起烘焙日志",
+            "source": "日志来源",
+            "current": "当前",
+            "reference": "曲线",
+            "referenceLoading": "正在加载记录。",
+            "referenceError": "无法加载曲线记录。",
+            "referenceEmpty": "没有已保存的事件。",
+            "referenceLiveContinues": "查看期间当前烘焙仍持续记录。",
             "title": "烘焙记录",
             "editRangeHint": "时间请输入 m:ss 格式，温度需在实测曲线范围内。",
             "deleteNote": "删除备注"
@@ -1017,7 +1043,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
@@ -1099,7 +1125,9 @@
             "lossRateEstimated": "未称重 — 失重率将按烘焙度估算。",
             "sessionExpired": "登录会话已过期。重新登录后，此记录将自动保存。",
             "workspaceLoading": "工作区仍在加载中，请稍后重试。",
-            "batchUnavailable": "所选的排程批次已不可用。"
+            "batchUnavailable": "所选的排程批次已不可用。",
+            "bbpLive": "BBP · 当前烘焙机状态",
+            "liveUnavailable": "正在等待新的测量值"
         },
         "planBatch": {
             "title": "继续下一次烘焙？",
@@ -1207,6 +1235,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",
         "weekDateFormat": "M/d",
@@ -1368,6 +1397,7 @@
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
+        "batchNumbers": { "label": "批次编号" },
         "title": "烘焙记录",
         "subtitle": "{{count}}条记录",
         "subtitleLoading": "加载中...",
@@ -1399,6 +1429,7 @@
         },
         "expanded": {
             "origin": "产地",
+            "beanLocked": "该烘焙已记录库存，无法更改生豆。",
             "chargeTemp": "投豆温度",
             "dropTemp": "下豆温度",
             "duration": "时长",
@@ -1419,6 +1450,10 @@
             "summary": "概要",
             "colorWhole": "色值（整豆）",
             "colorGround": "色值（研磨）",
+            "colorReadingsHint": "多次测量值请用逗号分隔。",
+            "colorAverage_one": "平均 {{value}} · {{count}}次测量",
+            "colorAverage_other": "平均 {{value}} · {{count}}次测量",
+            "colorInvalidNumbers": "请输入以逗号分隔的数字。",
             "colorTooLong": "色值输入过长。",
             "keyEvents": "关键事件",
             "heatRecord": "火力记录",
@@ -1561,7 +1596,8 @@
         "recordText": {
             "title": "烘焙标题",
             "add": "添加笔记",
-            "failed": "保存失败。输入已保留，请重试。"
+            "failed": "保存失败。输入已保留，请重试。",
+            "inputName": "自由输入名称"
         }
     },
     "beanList": {
@@ -1634,6 +1670,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "关联生豆和拼配",
+        "registeredSourcesHint": "可注册多个生豆和拼配。只有一个候选时，投豆前自动选择。",
+        "searchSources": "搜索生豆和拼配",
         "editTitle": "编辑烘焙曲线",
         "fromSession": "从烘焙记录创建曲线",
         "newTitle": "新建烘焙曲线",
@@ -2037,6 +2076,7 @@
         },
         "order": {
             "newTitle": "新建订单",
+            "refresh": "刷新",
             "empty": "暂无订单。",
             "buyer": "买家",
             "lines": "商品明细",

@@ -17,7 +17,7 @@ export const InventoryTabBar = ({ active, onChange }: InventoryTabBarProps) => {
     ];
 
     return (
-        <div className="mb-6 flex gap-1 border-b border-border-subtle dark:border-[#585d61]">
+        <div className="mb-6 flex gap-1 border-b border-border-subtle dark:border-border">
             {tabs.map(({ id, label }) => {
                 const isActive = active === id;
                 return (

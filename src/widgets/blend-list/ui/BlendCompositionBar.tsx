@@ -1,12 +1,12 @@
 import type { BlendSegmentSource } from '@entities/blend/lib';
 
 export const BLEND_SEGMENT_COLORS = [
-    'var(--color-palette-blue)',
-    'var(--color-palette-teal)',
-    'var(--color-palette-purple)',
-    'var(--color-palette-lavender)',
-    'var(--color-palette-green)',
-    'var(--color-palette-yellow)',
+    'color-mix(in srgb, var(--color-palette-blue) 55%, var(--color-main-bg))',
+    'color-mix(in srgb, var(--color-palette-teal) 55%, var(--color-main-bg))',
+    'color-mix(in srgb, var(--color-palette-purple) 55%, var(--color-main-bg))',
+    'color-mix(in srgb, var(--color-palette-lavender) 55%, var(--color-main-bg))',
+    'color-mix(in srgb, var(--color-palette-green) 55%, var(--color-main-bg))',
+    'color-mix(in srgb, var(--color-palette-yellow) 55%, var(--color-main-bg))',
 ] as const;
 
 export type BlendCompositionSegment = {

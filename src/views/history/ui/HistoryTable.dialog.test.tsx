@@ -12,6 +12,9 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('./OutputWeightEditor', () => ({ OutputWeightEditor: () => null }));
 vi.mock('./SessionScorecard', () => ({ SessionScorecard: () => null }));
 vi.mock('./HistorySessionChart', () => ({ HistorySessionChart: () => null }));
+vi.mock('../hooks/useRoastStockRecorded', () => ({
+    useRoastStockRecorded: () => ({ data: false, isPending: false }),
+}));
 vi.mock('../hooks/useRoastRecordSave', () => ({
     useRoastRecordSave: () => ({
         canWrite: true,
@@ -30,7 +33,10 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
     return { ...actual, useQueryClient: () => ({}) };
 });
 vi.mock('@entities/bean', () => ({
-    useUpdateBean: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useBeans: () => ({ data: [] }),
+}));
+vi.mock('@features/update-roast-bean-origin', () => ({
+    useUpdateRoastBeanOrigin: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [] }),
@@ -43,6 +49,7 @@ vi.mock('@entities/roast', async (importOriginal) => {
         useUpdateRoastSession: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetChargeWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetOutputWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
+        useSetRoastLevel: () => ({ mutateAsync: vi.fn(), isPending: false }),
     };
 });
 
@@ -50,7 +57,7 @@ const session = (index: number): RoastSessionWithRelations =>
     ({
         id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
         user_id: 'owner',
-        roasted_at: '2026-01-15T00:00:00.000Z',
+        roasted_at: '2026-01-15T14:35:47',
         beans: { name: `Bean ${index}`, origin: 'Ethiopia', region: null, variety: null, process: null, farm: null },
         roast_profiles: null,
         weight_grams: 1000,
@@ -107,12 +114,15 @@ describe('HistorySessionDetail edit dialog', () => {
         };
 
         await render(record);
+        expect(host.querySelector('header')?.textContent).toContain('26-01-15 14:35');
         expect((host.querySelector('[data-testid="history-color-whole"]') as HTMLInputElement).value).toBe('58.4');
         expect((host.querySelector('[data-testid="history-color-ground"]') as HTMLInputElement).value).toBe('63');
         const values = () => [...host.querySelectorAll('section[aria-label="history.expanded.summary"] dd')];
         expect(values().map((el) => el.textContent)).toEqual(['10:00', '210.0°C', '2:00', '20.0%']);
         await render({ ...session(2), beans: null, bean_label: null });
-        expect(host.querySelector('h1')?.textContent).toBe('26-01-15');
+        expect(host.querySelector('h1')?.textContent).toBe('26-01-15 14:35');
+        await render({ ...session(3), beans: null, bean_label: null, batch_name: 'Named roast' });
+        expect(host.querySelector('header')?.textContent).toContain('26-01-15 14:35');
         expect(
             values()
                 .slice(2)

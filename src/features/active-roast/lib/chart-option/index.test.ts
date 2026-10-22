@@ -1,4 +1,5 @@
 import {
+    CHART_GRID_LEFT,
     CONTROL_CURVE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
@@ -51,8 +52,7 @@ describe('imported chart ticks', () => {
             axisSettings: {
                 timeTickIntervalSec: 60,
                 timeMinorTickIntervalSec: 15,
-                tempGridInterval: 10,
-                tempLabelEvery: 5,
+                tempLabelInterval: 50,
             },
         });
         const xAxes = option.xAxis as { interval: number; minorTick: { splitNumber: number } }[];
@@ -73,8 +73,7 @@ describe('imported chart ticks', () => {
             axisSettings: {
                 timeTickIntervalSec: 30,
                 timeMinorTickIntervalSec: 20,
-                tempGridInterval: 10,
-                tempLabelEvery: 5,
+                tempLabelInterval: 50,
             },
         });
         expect(option.xAxis).toMatchObject([{ minorTick: { splitNumber: 2 } }]);
@@ -91,8 +90,8 @@ describe('buildRoastChartOption font scale', () => {
                 bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
             });
             const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
-            expect(yAxis[0]?.axisLabel?.fontSize).toBe(11);
-            expect(option.grid).toMatchObject([{ left: 38, right: 32, bottom: 65 }]);
+            expect(yAxis[0]?.axisLabel?.fontSize).toBe(12);
+            expect(option.grid).toMatchObject([{ left: CHART_GRID_LEFT, right: 32, bottom: 65 }]);
             const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
             expect(bbp?.markArea?.label?.fontSize).toBe(12 * fontScale);
             expect(markerLabelFont(fontScale)).toBe(`600 ${10 * fontScale}px monospace`);
@@ -101,6 +100,180 @@ describe('buildRoastChartOption font scale', () => {
 });
 
 describe('buildRoastChartOption', () => {
+    it('covers the full supported Fahrenheit ranges with one-unit number spacing', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            temperatureUnit: 'F',
+            tempMinC: 0,
+            tempMaxC: 500,
+            rorYMin: -100,
+            rorYMax: 300,
+            axisSettings: {
+                tempLabelInterval: 1,
+                rorLabelInterval: 5 / 9,
+                horizontalGridInterval: 5,
+                timeTickIntervalSec: 60,
+            },
+        });
+        expect(option.yAxis).toMatchObject([
+            { axisLabel: { customValues: expect.arrayContaining([30, 900, 940]) } },
+            { axisLabel: { customValues: expect.arrayContaining([-180, 0, 540]) } },
+        ]);
+    });
+
+    it.each([false, true])('draws only the shared horizontal grid (controls: %s)', (controls) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            rorYMin: -10,
+            rorYMax: 20,
+            controlData: controls ? { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] } : undefined,
+            axisSettings: {
+                tempLabelInterval: 50,
+                timeTickIntervalSec: 60,
+                horizontalGridInterval: 10,
+                rorLabelInterval: 1,
+            },
+        });
+        const ror = (
+            option.yAxis as {
+                gridIndex: number;
+                position?: string;
+                interval?: number;
+                splitLine?: { show?: boolean };
+                axisLabel?: { hideOverlap?: boolean; customValues?: number[]; formatter?: (value: number) => string };
+            }[]
+        ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
+        expect(ror?.interval).toBe(1);
+        expect(ror?.splitLine?.show).toBe(false);
+        expect(ror?.axisLabel?.hideOverlap).toBe(true);
+        expect(ror?.axisLabel?.customValues).toEqual(Array.from({ length: 31 }, (_, index) => index - 10));
+        expect(ror?.axisLabel?.formatter?.(5.5)).toBe('');
+        expect(ror?.axisLabel?.formatter?.(5)).toBe('5');
+
+        const collect = (height: number) => {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 900, height });
+            try {
+                chart.setOption(option);
+                const yOf = (value: number) => chart.convertToPixel({ yAxisIndex: 0 }, value) as number;
+                const displayList = chart.getZr().storage.getDisplayList() as {
+                    type: string;
+                    style?: { text?: string };
+                    shape?: { x1?: number; x2?: number; y1?: number; y2?: number };
+                }[];
+                const top = yOf(250);
+                const bottom = yOf(50);
+                const horizontalYs = displayList.flatMap((el) => {
+                    const { y1, y2, x1, x2 } = el.shape ?? {};
+                    return y1 != null &&
+                        y2 === y1 &&
+                        x1 != null &&
+                        x2 != null &&
+                        Math.abs(x2 - x1) > 20 &&
+                        y1 > top + 1 &&
+                        y1 < bottom - 1
+                        ? [y1]
+                        : [];
+                });
+                const gridYs = Array.from({ length: 21 }, (_, index) => yOf(50 + index * 10));
+                expect(horizontalYs.length).toBeGreaterThan(0);
+                expect(
+                    horizontalYs
+                        .filter((y) => !gridYs.some((gridY) => Math.abs(gridY - y) < 1.5))
+                        .map((y) => chart.convertFromPixel({ yAxisIndex: 0 }, y)),
+                ).toEqual([]);
+                const hasHorizontalAt = (y: number) =>
+                    displayList.some((el) => {
+                        const { y1, y2, x1, x2 } = el.shape ?? {};
+                        return (
+                            y1 != null &&
+                            y2 != null &&
+                            x1 != null &&
+                            x2 != null &&
+                            Math.abs(y1 - y) < 1.5 &&
+                            Math.abs(y2 - y) < 1.5 &&
+                            Math.abs(x2 - x1) > 20
+                        );
+                    });
+                const labels = new Set(
+                    displayList.filter((el) => el.type === 'tspan' && el.style?.text).map((el) => el.style?.text),
+                );
+                return { chart, yOf, hasHorizontalAt, labels };
+            } catch (error) {
+                chart.dispose();
+                throw error;
+            }
+        };
+
+        const compact = collect(400);
+        const tall = collect(800);
+        try {
+            for (const value of [60, 70, 120, 180, 240]) {
+                expect(compact.hasHorizontalAt(compact.yOf(value))).toBe(true);
+                expect(tall.hasHorizontalAt(tall.yOf(value))).toBe(true);
+            }
+            const rorLabels = (labels: Set<string | undefined>) =>
+                [...labels].filter(
+                    (text) => text != null && /^-?\d+$/.test(text) && Number(text) <= 20 && Number(text) >= -10,
+                );
+            expect(rorLabels(compact.labels).length).toBeLessThan(rorLabels(tall.labels).length);
+            expect(
+                [...compact.labels, ...tall.labels].filter(
+                    (text) => text != null && /^-?\d+\.\d+$/.test(text) && Number(text) <= 20 && Number(text) >= -10,
+                ),
+            ).toEqual([]);
+            expect(tall.labels.has('19')).toBe(true);
+            expect(tall.labels.has('18')).toBe(true);
+            const mid = collect(520);
+            try {
+                expect(mid.labels.has('19')).toBe(true);
+                expect(mid.labels.has('18')).toBe(true);
+            } finally {
+                mid.chart.dispose();
+            }
+        } finally {
+            compact.chart.dispose();
+            tall.chart.dispose();
+        }
+    });
+
+    it.each(['C', 'F'] as const)(
+        'aligns rendered custom RoR labels with their tick coordinates in %s',
+        (temperatureUnit) => {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
+            try {
+                chart.setOption(
+                    buildRoastChartOption({
+                        ...baseParams(),
+                        temperatureUnit,
+                        axisSettings: {
+                            tempLabelInterval: 50,
+                            timeTickIntervalSec: 60,
+                            rorTicksC: [1, 3, 7],
+                        },
+                    }),
+                );
+                type TextSpan = {
+                    type: string;
+                    style?: { text?: string };
+                    getBoundingRect: () => { x: number; y: number; width: number; height: number };
+                    transformCoordToGlobal: (x: number, y: number) => number[];
+                };
+                const elements = chart.getZr().storage.getDisplayList() as unknown as TextSpan[];
+                for (const celsius of [1, 3, 7]) {
+                    const value = Number((temperatureUnit === 'F' ? celsius * 1.8 : celsius).toFixed(6));
+                    const label = elements.find((el) => el.type === 'tspan' && el.style?.text === String(value));
+                    expect(label).toBeDefined();
+                    if (!label) continue;
+                    const box = label.getBoundingRect();
+                    const center = label.transformCoordToGlobal(box.x + box.width / 2, box.y + box.height / 2);
+                    expect(center[1]).toBeCloseTo(chart.convertToPixel({ yAxisIndex: 1 }, value) as number, 1);
+                }
+            } finally {
+                chart.dispose();
+            }
+        },
+    );
+
     it('uses native custom temperature ticks and clears them when returning to a custom interval', () => {
         for (const temperatureUnit of ['C', 'F'] as const) {
             for (const controls of [false, true]) {
@@ -116,8 +289,7 @@ describe('buildRoastChartOption', () => {
                     const custom = buildRoastChartOption({
                         ...params,
                         axisSettings: {
-                            tempGridInterval: 15,
-                            tempLabelEvery: 5,
+                            tempLabelInterval: 75,
                             timeTickIntervalSec: 60,
                             tempTicksC: [100, 181.5, 210],
                         },
@@ -136,8 +308,7 @@ describe('buildRoastChartOption', () => {
                     const restored = buildRoastChartOption({
                         ...params,
                         axisSettings: {
-                            tempGridInterval: 2.5,
-                            tempLabelEvery: 1,
+                            tempLabelInterval: 2.5,
                             timeTickIntervalSec: 60,
                             tempTicksC: [],
                         },
@@ -150,9 +321,9 @@ describe('buildRoastChartOption', () => {
                             axisLabel: { customValues?: number[] };
                         }[]
                     )[0];
-                    expect(reset.interval).toBe(2.5);
+                    expect(reset.interval).toBe(10);
                     expect(reset.axisTick.customValues).toBeUndefined();
-                    expect(reset.axisLabel.customValues).toBeUndefined();
+                    expect(reset.axisLabel.customValues).toEqual(expect.arrayContaining([150, 152.5]));
                     expect(
                         (
                             restored.yAxis as { axisLabel: { formatter: (value: number) => string } }[]
@@ -165,6 +336,43 @@ describe('buildRoastChartOption', () => {
         }
     });
 
+    it.each(['C', 'F'] as const)('keeps shared grid spacing independent of number lists (%s)', (temperatureUnit) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            temperatureUnit,
+            axisSettings: {
+                tempLabelInterval: 50,
+                timeTickIntervalSec: 60,
+                horizontalGridInterval: 1,
+                rorTicksC: [-5, 0, 10],
+            },
+        });
+        expect(option.yAxis).toMatchObject([
+            { interval: temperatureUnit === 'F' ? 1.8 : 1, splitLine: { show: true } },
+            { splitLine: { show: false } },
+        ]);
+    });
+
+    it.each([
+        { showRoR: false, showRoRET: false, report: false },
+        { showRoR: false, showRoRET: true, report: false },
+        { showRoR: true, showRoRET: false, report: true },
+    ])('uses the left temperature grid for visibility and reports: %o', (presentation) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            ...presentation,
+            axisSettings: {
+                tempLabelInterval: 50,
+                timeTickIntervalSec: 60,
+                horizontalGridInterval: 1,
+            },
+        });
+        expect(option.yAxis).toMatchObject([
+            { interval: 1, splitLine: { show: true } },
+            { splitLine: { show: false } },
+        ]);
+    });
+
     it('uses a RoR tick list and restores interval labels', () => {
         const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 600, height: 400 });
         try {
@@ -172,11 +380,10 @@ describe('buildRoastChartOption', () => {
                 ...baseParams(),
                 temperatureUnit: 'F',
                 axisSettings: {
-                    tempGridInterval: 10,
-                    tempLabelEvery: 5,
+                    tempLabelInterval: 50,
                     timeTickIntervalSec: 60,
                     rorTicksC: [-5, 0, 10],
-                    rorGridInterval: 5,
+                    horizontalGridInterval: 5,
                 },
             });
             chart.setOption(listed);
@@ -186,19 +393,20 @@ describe('buildRoastChartOption', () => {
                     position?: string;
                     axisTick: { customValues?: number[] };
                     axisLabel: { formatter: (value: number) => string };
+                    splitLine?: { show?: boolean };
                 }[]
             ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
             expect(ror?.axisTick.customValues).toEqual([-9, 0, 18]);
             expect(ror?.axisLabel.formatter(18)).toBe('18');
+            expect(ror?.splitLine?.show).toBe(false);
             const restored = buildRoastChartOption({
                 ...baseParams(),
                 axisSettings: {
-                    tempGridInterval: 10,
-                    tempLabelEvery: 5,
+                    tempLabelInterval: 50,
                     timeTickIntervalSec: 60,
                     rorTicksC: [],
-                    rorGridInterval: 4,
-                    rorLabelEvery: 2,
+                    horizontalGridInterval: 4,
+                    rorLabelInterval: 8,
                 },
             });
             chart.setOption(restored);
@@ -209,9 +417,11 @@ describe('buildRoastChartOption', () => {
                     interval?: number;
                     axisTick: { customValues?: number[] };
                     axisLabel: { formatter?: (value: number) => string };
+                    splitLine?: { show?: boolean };
                 }[]
             ).find((axis) => axis.gridIndex === 0 && axis.position === 'right');
-            expect(reset?.interval).toBe(4);
+            expect(reset?.interval).toBe(8);
+            expect(reset?.splitLine?.show).toBe(false);
             expect(reset?.axisTick.customValues).toBeUndefined();
             expect(reset?.axisLabel.formatter?.(0)).toBe('0');
             expect(reset?.axisLabel.formatter?.(4)).toBe('');
@@ -220,7 +430,7 @@ describe('buildRoastChartOption', () => {
         }
     });
 
-    it('applies display-unit grid and label intervals to both layouts and report charts', () => {
+    it('changes number spacing without changing axis ranges or grid intervals', () => {
         for (const temperatureUnit of ['C', 'F'] as const) {
             for (const controls of [false, true]) {
                 for (const report of [false, true]) {
@@ -241,7 +451,7 @@ describe('buildRoastChartOption', () => {
                     };
                     const configured = buildRoastChartOption({
                         ...params,
-                        axisSettings: { tempGridInterval: 25, tempLabelEvery: 2, timeTickIntervalSec: 30 },
+                        axisSettings: { tempLabelInterval: 50, timeTickIntervalSec: 30 },
                     });
                     expect(configured.xAxis).toEqual(
                         expect.arrayContaining([expect.objectContaining({ interval: 30 })]),
@@ -255,13 +465,18 @@ describe('buildRoastChartOption', () => {
                             axisLabel: { formatter: (value: number) => string; hideOverlap: boolean };
                         }[]
                     )[0];
-                    expect(axis.interval).toBe(25);
-                    expect(axis.min % 25).toBe(0);
-                    expect(axis.max % 25).toBe(0);
+                    const baseline = buildRoastChartOption({
+                        ...params,
+                        axisSettings: { tempLabelInterval: 25, timeTickIntervalSec: 60 },
+                    }).yAxis as { interval: number; min: number; max: number }[];
+                    expect([axis.min, axis.max, axis.interval]).toEqual([
+                        baseline[0].min,
+                        baseline[0].max,
+                        baseline[0].interval,
+                    ]);
                     expect(axis.axisLabel.formatter(100)).toBe('100');
                     expect(axis.axisLabel.formatter(125)).toBe('');
                     expect(axis.axisLabel.hideOverlap).toBe(true);
-                    expect([axis.min, axis.max]).toEqual(temperatureUnit === 'C' ? [125, 250] : [250, 475]);
                     const coord = vi.fn(() => [50, 10]);
                     const labels = (
                         configured.series as { id?: string; renderItem?: (params: unknown, api: unknown) => unknown }[]
@@ -273,9 +488,9 @@ describe('buildRoastChartOption', () => {
                     expect(coord).toHaveBeenCalledWith([30, axis.max]);
                     const defaults = buildRoastChartOption({
                         ...params,
-                        axisSettings: { tempGridInterval: 10, tempLabelEvery: 5, timeTickIntervalSec: 60 },
+                        axisSettings: { tempLabelInterval: 50, timeTickIntervalSec: 60 },
                     });
-                    expect((defaults.yAxis as { interval: number }[])[0].interval).toBe(10);
+                    expect((defaults.yAxis as { interval: number }[])[0].interval).toBe(axis.interval);
                     expect((defaults.xAxis as { interval: number }[])[0].interval).toBe(60);
                     const labelsDefault = (
                         defaults.yAxis as { axisLabel: { formatter: (value: number) => string } }[]
@@ -329,7 +544,11 @@ describe('buildRoastChartOption', () => {
                 expect(report.yAxis).toEqual(
                     expect.arrayContaining([
                         expect.objectContaining({ interval: 50, splitLine: expect.objectContaining({ show: true }) }),
-                        expect.objectContaining({ position: 'right', interval: temperatureUnit === 'F' ? 10 : 5 }),
+                        expect.objectContaining({
+                            position: 'right',
+                            interval: temperatureUnit === 'F' ? 10 : 5,
+                            splitLine: expect.objectContaining({ show: false }),
+                        }),
                     ]),
                 );
                 const tempAxis = (report.yAxis as { min: number; max: number }[])[0];
@@ -1024,6 +1243,85 @@ describe('buildRoastChartOption', () => {
         expect(byName['Heat set']).not.toHaveProperty('markPoint');
     });
 
+    it.each([1, 1.5, 2])('keeps current control values above their own lines at scale %s', (fontScale) => {
+        const byName = seriesByName({
+            ...baseParams(),
+            fontScale,
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [28, 38],
+                heatPower: [38, 28],
+                fanSpeed: [100, 100],
+            },
+        });
+        for (const name of ['Drum', 'Heat', 'Fan']) {
+            const marks = (
+                byName[name] as {
+                    markPoint: { data: { label: { position: string; distance: number; align: string } }[] };
+                }
+            ).markPoint.data;
+            const tail = marks[marks.length - 1];
+            expect(tail?.label.position).toBe('top');
+            expect(tail?.label.distance).toBe(2);
+            expect(tail?.label.align).toBe('right');
+        }
+    });
+
+    it.each([1, 1.5, 2])(
+        'renders legible tail labels above the control lines, including the upper boundary (%s)',
+        (fontScale) => {
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            chart.setOption(
+                buildRoastChartOption({
+                    ...baseParams(),
+                    fontScale,
+                    currentTimeSec: 60,
+                    controlData: { xs: [0, 60], drumTemp: [28, 28], heatPower: [38, 38], fanSpeed: [100, 100] },
+                }) as echarts.EChartsOption,
+            );
+            const display = chart.getZr().storage.getDisplayList();
+            for (const [name, value, axis, color] of [
+                ['Drum', 28, 2, mockColors.controlDrum],
+                ['Heat', 38, 3, mockColors.controlHeat],
+                ['Fan', 100, 3, mockColors.controlFan],
+            ] as const) {
+                const label = display.find((item) => {
+                    const style = item.style as { text?: string; fill?: string };
+                    return style.text === String(value) && style.fill === color;
+                });
+                expect(label, name).toBeDefined();
+                if (!label) continue;
+                const box = label.getBoundingRect().clone();
+                if (label.transform) box.applyTransform(label.transform);
+                const point = chart.convertToPixel({ xAxisIndex: 1, yAxisIndex: axis }, [60, value]);
+                expect(box.y + box.height).toBeLessThan(point[1] - 1);
+                expect(box.y).toBeGreaterThan(0);
+                expect(box.x + box.width).toBeLessThanOrEqual(chart.getWidth());
+            }
+            chart.dispose();
+        },
+    );
+
+    it('holds a change label until 5s after the write', () => {
+        const heatMarks = (tailSec: number) => {
+            const byName = seriesByName({
+                ...baseParams(),
+                controlData: {
+                    xs: [0, tailSec],
+                    drumTemp: [40, 40],
+                    heatPower: [70, 70],
+                    fanSpeed: [30, 30],
+                    changes: [{ timeSec: 60, values: { heater: 70 } }],
+                },
+            });
+            return (
+                byName.Heat as { markPoint?: { data: { coord: number[]; label: { formatter: string } }[] } }
+            ).markPoint?.data.map((mark) => mark.coord[0]);
+        };
+        expect(heatMarks(64.9)).toEqual([64.9]);
+        expect(heatMarks(65)).toEqual([60, 65]);
+    });
+
     it('does not label a heater write that repeats the previous setpoint', () => {
         const byName = seriesByName({
             ...baseParams(),
@@ -1163,21 +1461,141 @@ describe('buildRoastChartOption', () => {
     });
 });
 
-it('keeps raw Pa/Hz feedback visible outside percent chart bounds', () => {
-    const option = buildRoastChartOption({
-        ...baseParams(),
-        controlData: {
-            xs: [0],
-            heatPower: [42.25],
-            fanSpeed: [1234.56],
-            drumTemp: [31.25],
-            readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+it.each([false, true])(
+    'keeps raw Pa/Hz feedback visible outside percent chart bounds (merged: %s)',
+    (mergeControlChart) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            mergeControlChart,
+            controlData: {
+                xs: [0],
+                heatPower: [42.25],
+                fanSpeed: [1234.56],
+                drumTemp: [31.25],
+                readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+            },
+        });
+        const axes = option.yAxis as { min: number; max: number }[];
+        expect(axes[2].max).toBeGreaterThanOrEqual(1234.56);
+        expect(axes[3].max).toBeGreaterThanOrEqual(1234.56);
+        expect(option.series).toEqual(
+            expect.arrayContaining([expect.objectContaining({ name: 'Fan', data: [[0, 1234.56]] })]),
+        );
+    },
+);
+
+describe('merged control chart', () => {
+    it.each([
+        [0, 100],
+        [-20, 80],
+        [20, 80],
+    ])(
+        'fits control range %s–%s in the bottom quarter without changing temperature or RoR axes',
+        (controlYMin, controlYMax) => {
+            const params = {
+                ...baseParams(),
+                controlYMin,
+                controlYMax,
+                controlData: { xs: [0], drumTemp: [controlYMin], heatPower: [controlYMax], fanSpeed: [50] },
+            };
+            const merged = buildRoastChartOption({ ...params, mergeControlChart: true });
+            expect(merged.yAxis).toMatchObject([
+                { min: 50, max: 250 },
+                { min: -5, max: 20 },
+                { min: controlYMin },
+                { min: controlYMin },
+            ]);
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            try {
+                chart.setOption(merged);
+                const bottom = chart.convertToPixel({ yAxisIndex: 0 }, 50);
+                const height = bottom - chart.convertToPixel({ yAxisIndex: 0 }, 250);
+                for (const yAxisIndex of [2, 3]) {
+                    expect(chart.convertToPixel({ yAxisIndex }, controlYMin)).toBeCloseTo(bottom);
+                    expect(chart.convertToPixel({ yAxisIndex }, controlYMax)).toBeCloseTo(bottom - height * 0.25);
+                }
+            } finally {
+                chart.dispose();
+            }
         },
-    });
-    const axes = option.yAxis as { min: number; max: number }[];
-    expect(axes[2].max).toBeGreaterThanOrEqual(1234.56);
-    expect(axes[3].max).toBeGreaterThanOrEqual(1234.56);
-    expect(option.series).toEqual(
-        expect.arrayContaining([expect.objectContaining({ name: 'Fan', data: [[0, 1234.56]] })]),
     );
+
+    it.each(['C', 'F'] as const)(
+        'renders all control curves on a shared time axis with independent values (%s)',
+        (temperatureUnit) => {
+            const params: ChartOptionParams = {
+                ...baseParams(),
+                temperatureUnit,
+                mergeControlChart: true,
+                charged: true,
+                currentTimeSec: 60,
+                xs: [0, 60],
+                btActual: [180, 190],
+                controlYMin: 0,
+                controlYMax: 100,
+                bbpRange: { start: 0, end: 30 },
+                controlData: {
+                    xs: [0, 60],
+                    drumTemp: [40, 50],
+                    heatPower: [60, 70],
+                    fanSpeed: [20, 30],
+                    heatSet: [60, 70],
+                    heatTarget: { xs: [0, 60], values: [65, 75] },
+                    reference: { xs: [0, 60], drum: [40, 50], heater: [60, 70], fan: [20, 30] },
+                },
+            };
+            const option = buildRoastChartOption(params);
+            expect(option.grid).toHaveLength(1);
+            expect(option.xAxis).toMatchObject([{ gridIndex: 0, axisLine: { onZero: false } }]);
+            expect(option.yAxis).toMatchObject([
+                { gridIndex: 0 },
+                { gridIndex: 0 },
+                { gridIndex: 0, min: 0, max: 400, splitLine: { show: false } },
+                { gridIndex: 0, min: 0, max: 400, splitLine: { show: false } },
+            ]);
+            expect(option.series).toEqual(
+                expect.arrayContaining(
+                    [
+                        'Drum',
+                        'Heat',
+                        'Fan',
+                        'Heat set',
+                        'Heat target',
+                        'Drum Target',
+                        'Heater Target',
+                        'Fan Target',
+                    ].map((name) => expect.objectContaining({ name, xAxisIndex: 0 })),
+                ),
+            );
+            expect(option.series).not.toEqual(
+                expect.arrayContaining([expect.objectContaining({ id: 'bbp-control-background' })]),
+            );
+            expect(option.series).not.toEqual(
+                expect.arrayContaining([expect.objectContaining({ name: 'Drum', markLine: expect.anything() })]),
+            );
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            try {
+                chart.setOption(option);
+                expect(chart.renderToSVGString()).toContain('<path');
+                expect(chart.convertToPixel({ yAxisIndex: 2 }, 50)).toBeCloseTo(
+                    chart.convertToPixel({ yAxisIndex: 3 }, 50),
+                );
+            } finally {
+                chart.dispose();
+            }
+        },
+    );
+
+    it('keeps a single temperature grid when all controls are hidden', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            mergeControlChart: true,
+            showControlDrum: false,
+            showControlHeat: false,
+            showControlFan: false,
+            controlData: { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] },
+        });
+        expect(option.grid).toHaveLength(1);
+        expect(option.yAxis).toHaveLength(2);
+    });
 });

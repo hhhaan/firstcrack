@@ -25,6 +25,9 @@ DECLARE
   boundary text;
   bare jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"n","type":"Note","time_sec":30,"note":"keep","extra":1},{"id":"d","type":"Drop","time_sec":600,"temp_c":210},{"id":"e","type":"End","time_sec":640}]';
   with_fc jsonb := '[{"id":"c","type":"Charge","time_sec":0,"temp_c":200},{"id":"n","type":"Note","time_sec":30,"note":"keep","extra":1},{"id":"y-new","type":"Yellow","time_sec":250,"temp_c":160},{"id":"f-new","type":"FC Start","time_sec":480,"temp_c":196},{"id":"d","type":"Drop","time_sec":600,"temp_c":212},{"id":"e","type":"End","time_sec":640}]';
+  bbp_id uuid := gen_random_uuid();
+  bbp_events jsonb := '[{"id":"bn","type":"Note","time_sec":-180,"note":"soak"},{"id":"bh","type":"Heater","time_sec":-120,"note":"70%"},{"id":"bc","type":"Control","time_sec":-60,"applied_control":{"fan":40}},{"id":"c","type":"Charge","time_sec":0},{"id":"f","type":"FC Start","time_sec":480},{"id":"d","type":"Drop","time_sec":600}]';
+  bbp_next jsonb;
 BEGIN
   UPDATE profiles SET plan = 'team' WHERE id = owner_id;
   INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, drop_temp_celsius, events)
@@ -39,9 +42,12 @@ BEGIN
     VALUES(open_id, owner_id, 1000, 'in_progress', now(), 640, bare);
   INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, drop_temp_celsius, events)
     VALUES(session_heat, owner_id, 1000, 'completed', now(), 600, 210, heat_events);
+  INSERT INTO roast_sessions(id, user_id, weight_grams, status, roasted_at, duration_seconds, events)
+    VALUES(bbp_id, owner_id, 1000, 'completed', now(), 600, bbp_events);
   SELECT (SELECT count(*) FROM bean_stock_events) + (SELECT count(*) FROM roasted_stock_events) INTO stock_before;
 
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
 
@@ -51,6 +57,24 @@ BEGIN
   ASSERT saved.heater_events = heater, 'heater saved';
   ASSERT saved.drop_temp_celsius = 212, 'drop summary saved';
 
+  -- Unchanged negative BBP rows must not block FC or Heat set edits.
+  bbp_next := jsonb_set(bbp_events, '{4,time_sec}', '470');
+  heat_saved := update_roast_session_record(bbp_id, bbp_events, NULL, bbp_next, heater, 210, 600, NULL);
+  ASSERT heat_saved.events = bbp_next AND heat_saved.heater_events = heater, 'BBP survives FC and heat edits';
+  bbp_events := bbp_next;
+  bbp_next := jsonb_set(bbp_events, '{0,time_sec}', '-150');
+  bbp_next := jsonb_set(bbp_next, '{1,time_sec}', '-110');
+  bbp_next := jsonb_set(bbp_next, '{2,time_sec}', '-50');
+  bbp_next := bbp_next || '[{"id":"new-bbp-note","type":"Note","time_sec":-30,"note":"check"}]'::jsonb;
+  heat_saved := update_roast_session_record(bbp_id, bbp_events, heater, bbp_next, heater, 210, 600, NULL);
+  ASSERT heat_saved.events = bbp_next, 'BBP note, heat, control times and new note saved';
+  BEGIN
+    PERFORM update_roast_session_record(bbp_id, bbp_next, heater,
+      jsonb_set(bbp_next, '{4,time_sec}', '-1'), heater, 210, 600, NULL);
+    RAISE EXCEPTION 'negative FC with BBP not rejected';
+  EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
+  END;
+
   -- stale expected events → conflict, nothing written
   BEGIN
     PERFORM update_roast_session_record(session_id, old_events, NULL, new_events, NULL, 212, 640, NULL);
@@ -58,9 +82,9 @@ BEGIN
   EXCEPTION WHEN SQLSTATE 'PT409' THEN NULL;
   END;
 
-  -- dropping/adding/renaming events is rejected
+  -- Protected boundaries cannot be removed; unknown fields cannot be rewritten.
   BEGIN
-    PERFORM update_roast_session_record(session_id, new_events, heater, new_events - 1, heater, 212, 640, NULL);
+    PERFORM update_roast_session_record(session_id, new_events, heater, new_events - 0, heater, 212, 640, NULL);
     RAISE EXCEPTION 'delete not rejected';
   EXCEPTION WHEN SQLSTATE 'PT422' THEN NULL;
   END;
@@ -276,8 +300,10 @@ BEGIN
   RESET ROLE;
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM set_config('request.jwt.claim.sub', '', true);
+  PERFORM set_config('request.jwt.claim.role', '', true);
   UPDATE profiles SET plan = 'read_only' WHERE id = owner_id;
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
   BEGIN

@@ -34,13 +34,17 @@ type SourcePanelProps = {
 };
 
 const segmentedBtn = (active: boolean) =>
-    `px-4 py-1.5 rounded-full text-[13px] font-medium tracking-[0.14px] cursor-pointer transition-colors ${
-        active ? 'bg-main-bg text-primary shadow-(--shadow-inset)' : 'text-muted hover:text-secondary bg-transparent'
+    `px-3 py-1.5 rounded-full text-xs leading-4 font-medium tracking-[0.14px] cursor-pointer transition-colors ${
+        active
+            ? 'bg-main-bg text-action shadow-selected dark:bg-surface'
+            : 'text-muted hover:text-secondary bg-transparent'
     }`;
 
 const subSegmentedBtn = (active: boolean) =>
     `px-3 py-1 rounded-full text-[12px] font-medium tracking-[0.14px] cursor-pointer transition-colors ${
-        active ? 'bg-surface-warm-solid text-primary' : 'text-muted hover:text-secondary bg-transparent'
+        active
+            ? 'bg-main-bg text-action shadow-selected dark:bg-surface'
+            : 'text-muted hover:text-secondary bg-transparent'
     }`;
 
 export const SourcePanel = ({
@@ -87,7 +91,7 @@ export const SourcePanel = ({
 
     return (
         <PricingSection step="01" title={t('pricing.source.title')}>
-            <div className="inline-flex p-1 rounded-full bg-surface dark:bg-surface-elevated mb-6">
+            <div className="inline-flex p-1 rounded-full bg-surface-elevated mb-6">
                 {(['single', 'blend'] as const).map((m) => (
                     <button key={m} type="button" onClick={() => onModeChange(m)} className={segmentedBtn(mode === m)}>
                         {t(`pricing.source.mode.${m}`)}
@@ -145,7 +149,7 @@ export const SourcePanel = ({
                 </div>
             ) : (
                 <div className="flex flex-col gap-4">
-                    <div className="inline-flex p-0.5 rounded-full bg-surface/80 dark:bg-surface-elevated self-start">
+                    <div className="inline-flex p-1 rounded-full bg-surface-elevated self-start">
                         {(['saved', 'custom'] as const).map((m) => (
                             <button
                                 key={m}

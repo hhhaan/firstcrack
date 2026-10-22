@@ -30,7 +30,7 @@ export const Calendar = ({ className, classNames, showOutsideDays = true, ...pro
                     'w-9 h-9 rounded-lg text-[13px] font-medium text-secondary border-none bg-transparent cursor-pointer transition-colors hover:bg-surface hover:text-primary',
                 today: '[&>button]:text-primary [&>button]:font-semibold',
                 selected:
-                    '[&>button]:bg-primary [&>button]:text-white dark:[&>button]:text-[#181d21] [&>button]:hover:bg-primary [&>button]:hover:text-white dark:[&>button]:hover:text-[#181d21]',
+                    '[&>button]:bg-action [&>button]:text-on-action [&>button]:hover:bg-action [&>button]:hover:text-on-action',
                 outside: '[&>button]:text-muted [&>button]:opacity-40',
                 disabled: '[&>button]:opacity-25 [&>button]:cursor-not-allowed',
                 hidden: 'invisible',

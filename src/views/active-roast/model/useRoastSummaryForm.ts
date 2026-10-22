@@ -25,11 +25,13 @@ export const useRoastSummaryForm = ({
     open,
     summaryData,
     selectedBeanId,
+    selectedBlendId = null,
     planBatchHandoff,
 }: {
     open: boolean;
     summaryData: RoastSummaryData | null;
     selectedBeanId: string | null;
+    selectedBlendId?: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
 }) => {
     const { t } = useTranslation();
@@ -59,7 +61,8 @@ export const useRoastSummaryForm = ({
             deductStock: hasHandoff || selectedBeanId != null,
         },
     });
-    const { watch, setValue, reset } = form;
+    const { watch, setValue, reset, getFieldState } = form;
+    const openedSessionRef = useRef<string | null | undefined>(undefined);
 
     const linkMode = watch('linkMode');
     const formPlanBatchId = watch('planBatchId');
@@ -68,17 +71,23 @@ export const useRoastSummaryForm = ({
     const [beanFieldEpoch, setBeanFieldEpoch] = useState(0);
 
     const selectedBeanIdRef = useRef(selectedBeanId);
+    const selectedBlendIdRef = useRef(selectedBlendId);
     const handoffRef = useRef(planBatchHandoff);
     const lastAdhoc = useRoastingStore((s) => s.lastAdhocSave);
     const lastAdhocRef = useRef(lastAdhoc);
-    const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null }>({ weightGrams: 0, beanId: null });
+    const openedBaseRef = useRef<{ weightGrams: number; beanId: string | null; blendId: string | null }>({
+        weightGrams: 0,
+        beanId: null,
+        blendId: null,
+    });
     const prevLinkRef = useRef<{ mode: 'schedule' | 'none'; batchId: string | null }>({
         mode: 'none',
         batchId: null,
     });
     useEffect(() => {
         selectedBeanIdRef.current = selectedBeanId;
-    }, [selectedBeanId]);
+        selectedBlendIdRef.current = selectedBlendId;
+    }, [selectedBeanId, selectedBlendId]);
     useEffect(() => {
         handoffRef.current = planBatchHandoff;
     }, [planBatchHandoff]);
@@ -88,17 +97,29 @@ export const useRoastSummaryForm = ({
 
     useEffect(() => {
         if (open && summaryData) {
+            const key = summaryData.sessionId ?? null;
+            if (openedSessionRef.current === key) {
+                if (!getFieldState('batchName').isDirty && summaryData.batchName != null)
+                    setValue('batchName', summaryData.batchName);
+                return;
+            }
+            openedSessionRef.current = key;
             const initial = summaryFormInitialValues(
                 handoffRef.current,
                 lastAdhocRef.current,
                 selectedBeanIdRef.current,
+                selectedBlendIdRef.current,
             );
-            openedBaseRef.current = { weightGrams: initial.weightGrams, beanId: initial.beanId };
+            openedBaseRef.current = {
+                weightGrams: initial.weightGrams,
+                beanId: initial.beanId,
+                blendId: initial.blendId ?? null,
+            };
             prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
-            reset(initial);
+            reset({ ...initial, batchName: summaryData.batchName ?? '', blendId: initial.blendId ?? null });
             setBeanFieldEpoch((k) => k + 1);
-        }
-    }, [open, summaryData, reset]);
+        } else if (!open) openedSessionRef.current = undefined;
+    }, [open, summaryData, reset, getFieldState, setValue]);
 
     const linkedBatch = useMemo(() => {
         if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;
@@ -124,6 +145,7 @@ export const useRoastSummaryForm = ({
         prevLinkRef.current = { mode: linkMode, batchId: linkMode === 'schedule' ? linkedBatchId : null };
         if (!patch) return;
         setValue('weightGrams', patch.weightGrams, { shouldDirty: true, shouldValidate: true });
+        setValue('blendId', linkMode === 'none' ? openedBaseRef.current.blendId : null);
         setValue('beanId', patch.beanId, { shouldDirty: true, shouldValidate: true });
         setValue('beanLabel', '', { shouldDirty: true });
         setBeanFieldEpoch((k) => k + 1);

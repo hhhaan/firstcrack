@@ -1,5 +1,6 @@
 import {
     AXIS_LABEL_FONT,
+    AXIS_LABEL_MARGIN,
     AXIS_MINOR_SPLIT_NUMBER,
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT,
@@ -7,13 +8,14 @@ import {
     CHART_GRID_TOP,
     CONTROL_GRID_BOTTOM,
     getControlGridLayout,
+    MERGED_CONTROL_HEIGHT_RATIO,
     SINGLE_GRID_BOTTOM,
     TEMP_Y_INTERVAL,
     TEMP_Y_LABEL_INTERVAL,
     TIME_X_INTERVAL_SEC,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
-import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { toDisplayRoR, toDisplayTemp, toDisplayTempDelta } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
@@ -45,9 +47,10 @@ export const buildAxisStyles = (colors: ResolvedChartColors) => {
     const axisLabelStyle = {
         ...AXIS_LABEL_FONT,
         color: colors.axisLabel,
+        margin: AXIS_LABEL_MARGIN,
     };
     const axisNameStyle = { color: colors.axisLabel };
-    const rightYAxisLabel = { ...axisLabelStyle, margin: 4 };
+    const rightYAxisLabel = { ...axisLabelStyle };
     return { axisLabelStyle, axisNameStyle, rightYAxisLabel };
 };
 
@@ -57,11 +60,20 @@ export const buildCrossLineStyle = (colors: ResolvedChartColors) => ({
     type: 'solid' as const,
 });
 
+// Hover copies the tooltip label onto every axis and drops these per-axis formatters.
+type PointerLabelParam = { value: unknown; axisDimension?: string };
+
+const formatPointerLabel = (p: PointerLabelParam) => {
+    const n = Number(p.value);
+    if (!Number.isFinite(n)) return '';
+    return p.axisDimension === 'y' ? n.toFixed(1) : fmtSec(n);
+};
+
 export const buildTooltipCrossPointer = (crossLineStyle: ReturnType<typeof buildCrossLineStyle>) => ({
     type: 'cross' as const,
     snap: false,
     animation: false,
-    label: { show: true },
+    label: { show: true, formatter: formatPointerLabel },
     lineStyle: crossLineStyle,
     crossStyle: crossLineStyle,
 });
@@ -74,7 +86,7 @@ export const buildXAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
     snap: false,
     label: {
         show: true,
-        formatter: (p: { value: unknown }) => fmtSec(Number(p.value)),
+        formatter: (p: { value: unknown }) => formatPointerLabel({ ...p, axisDimension: 'x' }),
     },
     lineStyle: crossLineStyle,
 });
@@ -85,10 +97,7 @@ export const buildYAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
     animation: false,
     label: {
         show: true,
-        formatter: (p: { value: unknown }) => {
-            const n = Number(p.value);
-            return Number.isFinite(n) ? n.toFixed(1) : '';
-        },
+        formatter: (p: { value: unknown }) => formatPointerLabel({ ...p, axisDimension: 'y' }),
     },
     lineStyle: crossLineStyle,
 });
@@ -99,6 +108,18 @@ const formatTick = (value: number): string => String(Number(value.toFixed(6)));
 
 const matchesTick = (value: number, interval: number): boolean =>
     Math.abs(value / interval - Math.round(value / interval)) < 1e-6;
+
+const ticksFromInterval = (min: number, max: number, interval: number): number[] => {
+    if (!(interval > 0) || !Number.isFinite(min) || !Number.isFinite(max) || max < min) return [];
+    const start = Math.ceil(min / interval - 1e-9) * interval;
+    const ticks: number[] = [];
+    for (let i = 0; i < 1000; i += 1) {
+        const value = Number((start + i * interval).toFixed(6));
+        if (value > max + 1e-9) break;
+        ticks.push(value);
+    }
+    return ticks;
+};
 
 const reportTimeIntervalSec = (durationSec: number): number => {
     if (durationSec <= 60) return 5;
@@ -122,18 +143,41 @@ export const applyChartAxisSettings = (
     const rorAxis = (Array.isArray(axes.yAxis) ? axes.yAxis : []).find(
         (axis) => axis.gridIndex === 0 && axis.position === 'right',
     );
+    const gridInterval = settings.horizontalGridInterval
+        ? toDisplayTempDelta(settings.horizontalGridInterval, temperatureUnit)
+        : 0;
     if (rorAxis?.type === 'value') {
+        const numberInterval = toDisplayRoR(settings.rorLabelInterval ?? 5, temperatureUnit);
+        rorAxis.splitLine = { ...rorAxis.splitLine, show: false };
+        if (numberInterval > 0) {
+            rorAxis.interval = numberInterval;
+            rorAxis.minInterval = numberInterval;
+            rorAxis.maxInterval = numberInterval;
+            const pointer = rorAxis.axisPointer;
+            if (pointer && typeof pointer === 'object') {
+                pointer.label = {
+                    ...pointer.label,
+                    formatter: (p: { value: unknown }) => {
+                        const n = Number(p.value);
+                        if (!Number.isFinite(n)) return '';
+                        return formatTick(Math.round(n / numberInterval) * numberInterval);
+                    },
+                };
+            }
+        }
         const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
         const customValues = ticks?.length ? ticks : undefined;
-        rorAxis.axisTick = { ...rorAxis.axisTick, customValues };
-        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true };
+        rorAxis.axisTick = { ...rorAxis.axisTick, customValues, show: Boolean(customValues) };
+        rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
         if (customValues) {
             rorAxis.axisLabel.formatter = formatTick;
-        } else if (settings.rorGridInterval && settings.rorGridInterval > 0) {
-            rorAxis.interval = toDisplayRoR(settings.rorGridInterval, temperatureUnit);
-            const step = Number(rorAxis.interval) * (settings.rorLabelEvery || 1);
+        } else if (numberInterval > 0) {
+            const step = numberInterval;
             rorAxis.axisLabel = {
                 ...rorAxis.axisLabel,
+                customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
+                hideOverlap: true,
+                verticalAlign: 'middle',
                 formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
             };
         }
@@ -157,24 +201,25 @@ export const applyChartAxisSettings = (
         (axis) => axis.gridIndex === 0 && axis.position !== 'right',
     );
     if (temperatureAxis?.type !== 'value') return;
+    temperatureAxis.splitLine = { ...temperatureAxis.splitLine, show: true };
+    if (gridInterval > 0) {
+        temperatureAxis.interval = gridInterval;
+        temperatureAxis.minInterval = gridInterval;
+        temperatureAxis.maxInterval = gridInterval;
+    }
     const ticks = settings.tempTicksC?.map((value) => toDisplayTemp(value, temperatureUnit));
-    const customValues = ticks?.length ? ticks : undefined;
-    temperatureAxis.axisTick = { ...temperatureAxis.axisTick, customValues };
-    temperatureAxis.axisLabel = { ...temperatureAxis.axisLabel, customValues, hideOverlap: true };
-    if (customValues) {
-        temperatureAxis.axisLabel.formatter = formatTick;
-        return;
-    }
-    if (settings.tempGridInterval > 0) {
-        temperatureAxis.interval = settings.tempGridInterval;
-    }
-    if (settings.tempLabelEvery > 0 || settings.tempGridInterval > 0) {
-        const interval = Number(temperatureAxis.interval) * (settings.tempLabelEvery || 1);
-        temperatureAxis.axisLabel = {
-            ...temperatureAxis.axisLabel,
-            formatter: (value: number) => (matchesTick(value, interval) ? formatTick(value) : ''),
-        };
-    }
+    const customValues = ticks?.length
+        ? ticks
+        : ticksFromInterval(Number(temperatureAxis.min), Number(temperatureAxis.max), settings.tempLabelInterval);
+    temperatureAxis.axisTick = { ...temperatureAxis.axisTick, customValues: ticks?.length ? ticks : undefined };
+    temperatureAxis.axisLabel = {
+        ...temperatureAxis.axisLabel,
+        customValues,
+        hideOverlap: true,
+        verticalAlign: 'middle',
+        formatter: (value: number) =>
+            ticks?.length || matchesTick(value, settings.tempLabelInterval) ? formatTick(value) : '',
+    };
 };
 
 export const applyReportAxes = (
@@ -182,7 +227,7 @@ export const applyReportAxes = (
     colors: ResolvedChartColors,
     durationSec: number,
     temperatureUnit: TemperatureUnit,
-    tempGridInterval = 0,
+    tempIntervalOverride = 0,
 ) => {
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
         axis.axisLine = { show: false };
@@ -203,7 +248,7 @@ export const applyReportAxes = (
             axis.interval = axis.position === 'right' && axis.gridIndex === 0 ? (temperatureUnit === 'F' ? 10 : 5) : 50;
             if (axis.gridIndex === 0 && axis.position !== 'right') {
                 const span = Number(axis.max) - Number(axis.min);
-                axis.interval = reportTempInterval(span, tempGridInterval);
+                axis.interval = reportTempInterval(span, tempIntervalOverride);
                 axis.min = Math.floor(Number(axis.min) / axis.interval) * axis.interval;
                 axis.max = Math.ceil(Number(axis.max) / axis.interval) * axis.interval;
                 axis.axisLabel = { ...axis.axisLabel, formatter: (value: number) => String(Math.round(value)) };
@@ -224,6 +269,7 @@ export interface DualGridAxesParams {
     rightMargin: number;
     topMargin: number;
     controlChartHeightPct: number;
+    mergeControlChart?: boolean;
     xMin: number;
     xMax: number;
     tempYMin: number;
@@ -246,6 +292,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         rightMargin,
         topMargin,
         controlChartHeightPct,
+        mergeControlChart = false,
         xMin,
         xMax,
         tempYMin,
@@ -262,9 +309,18 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         yAxisPointer,
     } = params;
     const { tempGridHeight, controlGridTop } = getControlGridLayout(controlChartHeightPct);
+    // Expand the hidden axis so unchanged control values occupy only the bottom band.
+    const controlAxisMax = mergeControlChart
+        ? controlYMin + (controlYMax - controlYMin) / MERGED_CONTROL_HEIGHT_RATIO
+        : controlYMax;
 
     const grid = [
-        { left: leftMargin, right: rightMargin, top: topMargin, height: tempGridHeight },
+        {
+            left: leftMargin,
+            right: rightMargin,
+            top: topMargin,
+            ...(mergeControlChart ? { bottom: CONTROL_GRID_BOTTOM } : { height: tempGridHeight }),
+        },
         {
             left: leftMargin,
             right: rightMargin,
@@ -292,7 +348,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             splitNumber: 15,
         },
         {
-            gridIndex: 1,
+            gridIndex: mergeControlChart ? 0 : 1,
             type: 'value' as const,
             min: xMin,
             max: xMax,
@@ -305,7 +361,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             splitNumber: 15,
             splitLine: { show: true, lineStyle: { color: colors.gridLine, width: 0.5 } },
         },
-    ] as EChartsOption['xAxis'];
+    ] satisfies EChartsOption['xAxis'];
 
     const yAxis = [
         {
@@ -336,13 +392,13 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisTick: { show: false },
             axisLabel: rightYAxisLabel,
             axisPointer: yAxisPointer,
-            splitLine: { show: false },
+            splitLine: { show: false, lineStyle: { color: colors.gridLine, width: 0.5 } },
             min: rorYMin,
             max: rorYMax,
             interval: 20,
         },
         {
-            gridIndex: 1,
+            gridIndex: mergeControlChart ? 0 : 1,
             type: 'value',
             nameLocation: 'middle',
             nameGap: Y_AXIS_NAME_GAP,
@@ -351,13 +407,13 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisLine: { onZero: false },
             axisTick: { show: false },
             axisLabel: { show: false },
-            axisPointer: yAxisPointer,
-            splitLine: { show: true, lineStyle: { color: colors.gridLine } },
+            axisPointer: mergeControlChart ? yAxisPointerOff : yAxisPointer,
+            splitLine: { show: !mergeControlChart, lineStyle: { color: colors.gridLine } },
             min: controlYMin,
-            max: controlYMax,
+            max: controlAxisMax,
         },
         {
-            gridIndex: 1,
+            gridIndex: mergeControlChart ? 0 : 1,
             type: 'value',
             nameLocation: 'middle',
             nameGap: Y_AXIS_NAME_GAP,
@@ -369,11 +425,15 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisPointer: yAxisPointerOff,
             splitLine: { show: false },
             min: controlYMin,
-            max: controlYMax,
+            max: controlAxisMax,
         },
     ] as EChartsOption['yAxis'];
 
-    return { grid, xAxis, yAxis };
+    return {
+        grid: mergeControlChart ? [grid[0]] : grid,
+        xAxis: mergeControlChart ? [{ ...xAxis[1], axisLine: { onZero: false } }] : xAxis,
+        yAxis,
+    };
 };
 
 export interface SingleGridAxesParams {
@@ -432,6 +492,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             min: xMin,
             max: xMax,
             axisLabel: { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
+            axisLine: { onZero: false },
             axisPointer: xAxisPointer,
             interval: TIME_X_INTERVAL_SEC,
             minorTick: { show: false, splitNumber: AXIS_MINOR_SPLIT_NUMBER },
@@ -470,7 +531,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             axisTick: { show: false },
             axisLabel: rightYAxisLabel,
             axisPointer: yAxisPointer,
-            splitLine: { show: false },
+            splitLine: { show: false, lineStyle: { color: colors.gridLine } },
             min: rorYMin,
             max: rorYMax,
             interval: 20,

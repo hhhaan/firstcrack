@@ -10,7 +10,7 @@
         "recordingHint": "Press a new key combination. Escape cancels.",
         "change": "Change shortcut: {{action}}",
         "fixed": "Fixed shortcut",
-        "doubleTap": "Press twice within 400 ms",
+        "globalHint": "Works even when the window is not focused. Held system-wide while roasting.",
         "noResults": "No matching shortcuts",
         "groups": {
             "app": "App",
@@ -423,21 +423,18 @@
                 "pidDropHoldDescription": "Keeps the burner where it is, so the next batch starts from a hot drum. Faults and over-temp still force heat to zero.",
                 "pidDropZero": "Cut heat to zero",
                 "pidDropZeroDescription": "Turns the burner off immediately at drop",
-                "axisTicks": "Axis ticks",
-                "axisTicksDescription": "Applies to live and history charts. Defaults: 10° temperature spacing, labels every 5 steps, and 60-second time spacing. Temperature spacing uses the displayed unit.",
-                "tempGridInterval": "Temperature grid",
-                "tempLabelEvery": "Temperature label frequency",
+                "axisTicks": "Ticks and grid",
+                "axisTicksDescription": "Set horizontal line spacing and axis number spacing separately. For example: grid 10°C, temperature numbers 50°C, RoR numbers 2°C/min. Some numbers are hidden when space is limited.",
+                "tempLabelInterval": "Temperature number interval",
+                "rorLabelInterval": "RoR number interval",
+                "tempNumberMode": "Temperature numbers",
                 "timeTickInterval": "Time tick interval",
                 "axisTicksCustom": "Custom",
                 "axisTicksDefault": "{{value}} (default)",
-                "tempLabelEveryValue": "{{count}}-step interval",
                 "timeTickSeconds": "{{count}} seconds",
-                "tempTickMode": "Input method",
                 "tempTickInterval": "Regular spacing",
                 "tempTickList": "Specific temperatures",
-                "axisTickSteps": "steps",
                 "axisTickSeconds": "sec",
-                "customTempInterval": "Temperature spacing",
                 "customTempTicks": "Temperature tick list",
                 "customTempTicksDescription": "Separate values with commas, e.g. 100, 150, 180. Only values within the axis range appear. Leave empty to use default ticks.",
                 "customTempTicksError": "Enter up to 100 valid numbers within 0–500°C.",
@@ -450,14 +447,16 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR minimum",
                 "rorAxisMax": "RoR maximum",
-                "rorGridInterval": "RoR tick interval",
+                "horizontalGridInterval": "Horizontal grid interval",
+                "rorNumberMode": "RoR labels",
                 "rorTickList": "Specific RoR values",
                 "customRorTicks": "RoR tick list",
                 "customRorTicksDescription": "Separate values with commas, e.g. -5, 0, 5, 10. Only values within the axis range appear. Leave empty to use default ticks.",
                 "customRorTicksError": "Enter up to 100 valid numbers within −100–300°C/min.",
-                "rorLabelEvery": "RoR label frequency",
                 "controlChart": "Control Chart",
                 "controlChartDescription": "Control chart series and axis range. Chart visibility is set under Data Visibility.",
+                "mergeControlChart": "Merge into temperature chart",
+                "mergeControlChartDescription": "Overlay control curves in the bottom 25% of the temperature chart. Turn off to show them separately below.",
                 "controlDrum": "Drum",
                 "controlDrumDescription": "Drum RPM series on the control band",
                 "controlHeat": "Heat",
@@ -785,6 +784,7 @@
         "enterpriseOnly": "This model can only be connected from an Enterprise account.",
         "sidecarStarting": "Preparing to connect...",
         "linkUnstable": "Machine connection is unstable. Check the cable and network.",
+        "gasOffUnconfirmed": "Zero heat feedback has not been confirmed after the gas-off command. Check the actual heat and use the machine controls if needed.",
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
         "limit": {
@@ -841,6 +841,12 @@
         "phidgetDriverLink": "Download Phidget22 driver"
     },
     "dashboard": {
+        "comparedToLastMonth": "vs. last month",
+        "comparedToPreviousClose": "vs. previous close",
+        "previousClose": "Previous close",
+        "lastSixMonths": "Last 6 months",
+        "thisMonth": "This month",
+        "refresh": "Refresh futures price",
         "greeting": {
             "morning": "Good morning",
             "afternoon": "Good afternoon",
@@ -944,12 +950,19 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "Batch title numbering",
+            "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",
+            "profile": "Profile total",
+            "total": "Overall total",
+            "both": "Profile + overall",
+            "none": "No number"
+        },
         "noteEntry": {
             "events": "Events",
             "eventRecorded": "Recorded: {{event}}",
             "futureEventHint": "Events can only be recorded up to the current time.",
             "title": "Add record",
-            "editTitle": "Edit record",
             "time": "Time",
             "gas": "Gas",
             "airflow": "Airflow",
@@ -961,6 +974,10 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "batchTitle": "Roast title",
+            "sourceChangeTitle": "Change roast source",
+            "sourceChangeUnlinks": "Changing the source unlinks this batch from its schedule.",
+            "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",
             "noTarget": "No Target",
@@ -971,7 +988,9 @@
             "machineConnected": "Machine connected · Ready to roast",
             "settings": "Roast settings",
             "openSettings": "Open roast settings",
-            "reconnecting": "Reconnecting — curve paused. Do not reload the window"
+            "reconnecting": "Reconnecting — curve paused. Do not reload the window",
+            "batchNumber": "#{{number}}",
+            "batchNumberHint": "Counts Charges on this device since this feature was enabled, separately by workspace and profile. Canceled/discarded batches retain their number."
         },
         "readings": {
             "beanTemp": "Bean Temp",
@@ -987,6 +1006,13 @@
         "log": {
             "expand": "Expand roast log",
             "collapse": "Collapse roast log",
+            "source": "Log source",
+            "current": "Current",
+            "reference": "Profile",
+            "referenceLoading": "Loading recorded events.",
+            "referenceError": "Could not load profile records.",
+            "referenceEmpty": "No recorded events.",
+            "referenceLiveContinues": "The live roast continues recording while you view this log.",
             "title": "Roast Log",
             "editRangeHint": "Enter time as m:ss and temperature within the measured curve range.",
             "deleteNote": "Delete note"
@@ -1017,7 +1043,7 @@
             "yellow": "⌘1",
             "fcStart": "⌘2",
             "fcEnd": "⌘3",
-            "markDrop": "⌘DD"
+            "markDrop": "⌘⇧D"
         },
         "sidebar": {
             "bt": "BT",
@@ -1099,7 +1125,9 @@
             "lossRateEstimated": "Not weighed — loss rate is estimated from the roast level.",
             "sessionExpired": "Your login session has expired. Sign in again and this roast will be saved automatically.",
             "workspaceLoading": "Workspace is still loading. Please try again in a moment.",
-            "batchUnavailable": "The selected schedule batch is no longer available."
+            "batchUnavailable": "The selected schedule batch is no longer available.",
+            "bbpLive": "BBP · Current roaster readings",
+            "liveUnavailable": "Waiting for fresh readings"
         },
         "planBatch": {
             "title": "Continue with the next roast?",
@@ -1207,6 +1235,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "MMM d, yyyy (eee)",
         "monthFormat": "MMMM yyyy",
         "weekDateFormat": "M/d",
@@ -1368,6 +1397,7 @@
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
+        "batchNumbers": { "label": "Batch numbers" },
         "title": "Roast History",
         "subtitle": "{{count}} sessions recorded",
         "subtitleLoading": "Loading...",
@@ -1399,6 +1429,7 @@
         },
         "expanded": {
             "origin": "Origin",
+            "beanLocked": "Stock is already recorded for this roast, so the green bean cannot be changed.",
             "chargeTemp": "Charge Temp",
             "dropTemp": "Drop Temp",
             "duration": "Duration",
@@ -1419,6 +1450,10 @@
             "summary": "Summary",
             "colorWhole": "Color (whole)",
             "colorGround": "Color (ground)",
+            "colorReadingsHint": "Separate multiple readings with commas.",
+            "colorAverage_one": "Average {{value}} · {{count}} reading",
+            "colorAverage_other": "Average {{value}} · {{count}} readings",
+            "colorInvalidNumbers": "Enter numbers separated by commas.",
             "colorTooLong": "Color text is too long.",
             "keyEvents": "Key events",
             "heatRecord": "Heat record",
@@ -1561,7 +1596,8 @@
         "recordText": {
             "title": "Roast title",
             "add": "Add note",
-            "failed": "Could not save. Your changes are kept; please retry."
+            "failed": "Could not save. Your changes are kept; please retry.",
+            "inputName": "Free-text name"
         }
     },
     "profiles": {
@@ -1622,6 +1658,9 @@
         }
     },
     "newProfileModal": {
+        "registeredSources": "Linked beans and blends",
+        "registeredSourcesHint": "Register multiple beans and blends. A single candidate is selected automatically before Charge.",
+        "searchSources": "Search beans and blends",
         "editTitle": "Edit Roast Profile",
         "fromSession": "Profile from Session",
         "newTitle": "New Roast Profile",
@@ -2037,6 +2076,7 @@
         },
         "order": {
             "newTitle": "New order",
+            "refresh": "Refresh",
             "empty": "No orders yet.",
             "buyer": "Buyer",
             "lines": "Items",

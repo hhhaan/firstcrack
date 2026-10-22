@@ -35,7 +35,7 @@ export const ConfirmStepFooter = ({
             {testState !== 'idle' && (
                 <div
                     className={cn(
-                        'px-7 py-2.5 flex items-center gap-2 text-[13px] border-b border-black/4 dark:border-[#585d61]',
+                        'px-7 py-2.5 flex items-center gap-2 text-[13px] border-b border-black/4 dark:border-border',
                         testState === 'success' &&
                             'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-500/10',
                         testState === 'failed' && 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10',
@@ -106,7 +106,7 @@ export const ConfirmStepFooter = ({
                                 'px-5 py-2.5 rounded-xl text-[13px] font-semibold transition-opacity',
                                 !canCommit
                                     ? 'border-none bg-surface dark:bg-surface-elevated text-muted cursor-default shadow-(--shadow-inset)'
-                                    : 'border border-transparent bg-primary dark:bg-black text-white cursor-pointer shadow-(--shadow-card)',
+                                    : 'border border-transparent bg-action text-on-action cursor-pointer shadow-(--shadow-card)',
                                 saving && 'opacity-70',
                             )}
                         >

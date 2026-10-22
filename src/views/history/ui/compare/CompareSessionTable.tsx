@@ -1,8 +1,9 @@
 import { formatTemp, type PhaseSegment, useRoastSettings } from '@features/active-roast';
+import { roastColorDisplay } from '@features/active-roast/lib/roastColorText';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatDateShort, formatDuration, formatElapsed } from '@shared/lib/format';
 import type { RoastMetrics } from '@shared/lib/roast-delta';
-import { sessionBeanName } from '@shared/lib/sessionBeanName';
+import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
 import { useTranslation } from 'react-i18next';
@@ -90,8 +91,24 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                                             </span>
                                             <div className="min-w-0">
                                                 <div className="text-sm font-semibold text-primary">
-                                                    {sessionBeanName(session) ?? '—'}
+                                                    {sessionRoastTitle(session) ?? '—'}
                                                 </div>
+                                                {sessionBatchNumberLabel(session) && (
+                                                    <div className="mt-1 font-mono text-xs text-secondary">
+                                                        {sessionBatchNumberLabel(session)}
+                                                    </div>
+                                                )}
+                                                <dl className="mt-1 flex flex-wrap gap-x-3 text-xs text-secondary">
+                                                    {[
+                                                        ['colorWhole', session.color_whole],
+                                                        ['colorGround', session.color_ground],
+                                                    ].map(([key, color]) => (
+                                                        <div key={key} className="flex gap-1">
+                                                            <dt>{t(`history.expanded.${key}`)}</dt>
+                                                            <dd className="font-mono">{roastColorDisplay(color)}</dd>
+                                                        </div>
+                                                    ))}
+                                                </dl>
                                                 <div className="mt-1 text-xs text-secondary">
                                                     {formatDateShort(session.roasted_at)}
                                                     {session.roast_profiles?.name &&

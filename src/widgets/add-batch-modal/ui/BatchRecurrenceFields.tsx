@@ -30,8 +30,8 @@ export const BatchRecurrenceFields = ({
                     className={cn(
                         'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
                         recurringInterval === null
-                            ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
-                            : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
+                            ? 'bg-action text-on-action dark:bg-transparent dark:text-secondary dark:border-border border-primary shadow-sm dark:shadow-none'
+                            : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-border hover:border-black/15',
                     )}
                 >
                     {t('addBatchModal.none')}
@@ -44,8 +44,8 @@ export const BatchRecurrenceFields = ({
                         className={cn(
                             'px-3 py-2 rounded-xl text-[13px] font-medium transition-all border',
                             recurringInterval === value
-                                ? 'bg-primary text-white dark:bg-transparent dark:text-secondary dark:border-[#585d61] border-primary shadow-sm dark:shadow-none'
-                                : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-[#585d61] hover:border-black/15',
+                                ? 'bg-action text-on-action dark:bg-transparent dark:text-secondary dark:border-border border-primary shadow-sm dark:shadow-none'
+                                : 'bg-surface dark:bg-surface-elevated text-secondary border-border dark:border-border hover:border-black/15',
                         )}
                     >
                         {t(`schedule.recurrence.${value}`)}

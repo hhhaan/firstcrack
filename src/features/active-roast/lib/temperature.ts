@@ -50,3 +50,4 @@ export const parseRorTicks = (input: string, unit: TemperatureUnit): number[] | 
 
 /** Drop-temp Δ / SD — same °C→°F scale as RoR (not absolute toDisplayTemp). */
 export const toDisplayTempDelta = toDisplayRoR;
+export const fromDisplayTempDelta = fromDisplayRoR;

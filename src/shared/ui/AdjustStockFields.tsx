@@ -55,7 +55,7 @@ export const AdjustStockFields = ({
 
     return (
         <div className="flex flex-col gap-5">
-            <div className="rounded-2xl border border-border-subtle bg-surface/60 px-4 py-3.5 dark:border-[#585d61] dark:bg-surface-elevated/40">
+            <div className="rounded-2xl border border-border-subtle bg-surface/60 px-4 py-3.5 dark:border-border dark:bg-surface-elevated/40">
                 <p className="text-[15px] font-semibold tracking-[0.14px] text-primary">{name}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                     {kindLabel ? (
@@ -105,7 +105,7 @@ export const AdjustStockFields = ({
                     </label>
                     <div className="flex items-stretch gap-3">
                         {type === 'adjustment' && (
-                            <div className="flex shrink-0 overflow-hidden rounded-xl border border-black/8 dark:border-[#585d61]">
+                            <div className="flex shrink-0 overflow-hidden rounded-xl border border-black/8 dark:border-border">
                                 {(['+', '-'] as const).map((s) => (
                                     <button
                                         key={s}
@@ -113,7 +113,7 @@ export const AdjustStockFields = ({
                                         onClick={() => onSignChange(s)}
                                         className={`w-11 text-lg font-semibold transition-all duration-150 ${
                                             sign === s
-                                                ? 'bg-primary text-white dark:bg-black'
+                                                ? 'bg-action text-on-action'
                                                 : 'bg-white/80 text-muted dark:bg-surface-elevated'
                                         }`}
                                     >

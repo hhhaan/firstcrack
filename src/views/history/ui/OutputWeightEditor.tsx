@@ -1,6 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useSetOutputWeight } from '@entities/roast';
-import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { isDecimalDraft } from '@features/machine-control/lib/heater-events';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -56,16 +55,9 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         if (next === (session.output_weight_grams ?? null)) return;
         if (!isWorkspaceReady || !workspaceOwnerId) return;
         try {
-            const inbound = buildRoastedInbound({
-                greenGrams: charge,
-                outputWeightGrams: next,
-                roastLevel: session.roast_level,
-            });
             await setOutputWeight({
                 sessionId: session.id,
                 outputGrams: next,
-                inboundGrams: inbound?.grams ?? 0,
-                inboundIsEstimate: inbound?.isEstimate ?? false,
             });
         } catch {
             setDraft(session.output_weight_grams != null ? String(session.output_weight_grams) : '');
@@ -76,7 +68,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
         <div>
             <label
                 htmlFor={`history-output-weight-${session.id}`}
-                className="mb-2 block text-[11px] font-medium tracking-[0.3px] text-muted"
+                className="mb-1 block text-[11px] font-medium tracking-[0.3px] text-muted"
             >
                 {t('history.expanded.outputWeight')}
             </label>

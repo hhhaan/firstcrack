@@ -4,18 +4,6 @@ import { formatShortcut, type ShortcutId, useShortcutStore } from '@shared/store
 import { useThemeStore } from '@shared/store/theme';
 import type { LogEntry } from '@shared/types/roast';
 
-/** Drop is a double tap. Repeat the key while preserving modifiers (`⌘D` → `⌘DD`). */
-function formatDoubleTapShortcut(keys: readonly string[]): string {
-    return formatShortcut(keys)
-        .split(' / ')
-        .map((label) => {
-            const tail = label.split('+').pop() ?? label;
-            const key = tail.replace(/^[⌘⌥⇧]+/, '');
-            return key.length === 1 ? label + key : label;
-        })
-        .join(' / ');
-}
-
 export type EventButtonDef = {
     label: string;
     event: string | null;
@@ -180,17 +168,16 @@ export const EventButtons = ({
                                     style={{
                                         display: 'inline-flex',
                                         alignItems: 'center',
-                                        gap: 1,
-                                        fontSize: isSidebar ? 11 : 11,
+                                        maxWidth: '100%',
+                                        fontSize: 10,
+                                        lineHeight: 1,
                                         color: shortcutColor,
-                                        fontFamily: 'var(--font-mono)',
                                         letterSpacing: 'normal',
+                                        whiteSpace: 'nowrap',
                                         transition: 'color 0.15s',
                                     }}
                                 >
-                                    <span>
-                                        {shortcutId === 'drop' ? formatDoubleTapShortcut(keys) : formatShortcut(keys)}
-                                    </span>
+                                    {formatShortcut(keys)}
                                 </span>
                             ) : null}
                         </button>

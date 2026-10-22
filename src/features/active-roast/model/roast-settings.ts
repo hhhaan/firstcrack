@@ -1,3 +1,4 @@
+import type { BatchTitleNumbering } from '@shared/types/roast';
 import type { AlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
 import type { CurveStyles } from '../lib/curve-style';
@@ -20,6 +21,7 @@ export type PidDropBehavior = 'hold' | 'zero';
 
 /** Stored roast-screen settings. Persistence and normalization live in `settings.ts`. */
 export type RoastSettings = {
+    batchTitleNumbering: BatchTitleNumbering;
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     /** Display smoothing strength, 0–100. 0 shows the sensor sample. */
@@ -53,6 +55,7 @@ export type RoastSettings = {
     showControlFan: boolean;
     /** Control band height as % of total chart height (12–40). */
     controlChartHeightPct: number;
+    mergeControlChart: boolean;
     /** Shared control Y-axis range (Drum RPM / Heat% / Fan%). */
     controlYMin: number;
     controlYMax: number;
@@ -67,17 +70,12 @@ export type RoastSettings = {
     curveStyles: CurveStyles;
     tempMinC: number;
     tempMaxC: number;
-    /** Intervals use the displayed unit. */
-    tempGridInterval: number;
-    tempGridPresetInterval: number;
-    tempLabelPresetEvery: number;
+    /** Numeric label spacing in the displayed temperature unit. */
+    tempLabelInterval: number;
     timeTickPresetSec: number;
-    tempAxisMode: 'preset' | 'list';
     tempTickMode: 'interval' | 'list';
-    tempLabelCustom: boolean;
     timeTickCustom: boolean;
     tempTicksC: number[];
-    tempLabelEvery: number;
     timeTickIntervalSec: number;
     /** Null keeps the default subdivisions of the major time ticks. */
     timeMinorTickIntervalSec: number | null;
@@ -85,16 +83,14 @@ export type RoastSettings = {
     timeRangePresetMin: number;
     timeRangeCustom: boolean;
     timeRangeMin: number;
-    /** Stored °C/min. A multiple of 5 in the active unit. Preset mode uses `rorGridPresetInterval` instead. */
-    rorGridInterval: number;
-    rorGridPresetInterval: number;
-    /** `list` is the custom block, same naming as the temperature axis. */
-    rorAxisMode: 'preset' | 'list';
+    /** Left temperature-axis grid spacing, stored as a °C delta; an integer in the displayed unit. */
+    horizontalGridInterval: number;
+    horizontalGridPresetInterval: number;
+    horizontalGridMode: 'preset' | 'custom';
     rorTickMode: 'interval' | 'list';
     rorTicksC: number[];
-    rorLabelEvery: number;
-    rorLabelPresetEvery: number;
-    rorLabelCustom: boolean;
+    /** Numeric label spacing, stored in °C/min independently of the horizontal grid. */
+    rorLabelInterval: number;
     rorYMin: number;
     rorYMax: number;
     yellowTempC: number;

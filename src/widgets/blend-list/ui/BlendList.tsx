@@ -21,7 +21,7 @@ export const BlendList = ({ hasBeans, onAddOpen, onNeedBeans, onEditOpen }: Blen
     const leftPanel = (
         <div className="flex flex-col gap-2">
             {isLoading ? (
-                <div className="flex items-center justify-center py-12 text-sm text-muted dark:text-[#e5e5e5]">
+                <div className="flex items-center justify-center py-12 text-sm text-muted dark:text-primary">
                     {t('beans.loading')}
                 </div>
             ) : (

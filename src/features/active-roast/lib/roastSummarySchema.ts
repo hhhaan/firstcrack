@@ -9,6 +9,7 @@ export const MAX_BATCH_WEIGHT_KG = 500;
 
 /** Shape only — the live schema comes from {@link buildRoastSummarySchema} (needs `t`). */
 const roastSummaryShape = z.object({
+    batchName: z.string().trim().max(120).optional(),
     notes: z.string().max(2000, 'Notes are too long'),
     /**
      * Green charge weight in **kg** despite the `Grams` name — `saveRoastCore`
@@ -20,6 +21,7 @@ const roastSummaryShape = z.object({
     outputWeightKg: z.union([z.number(), z.nan()]).optional(),
     roastLevel: z.string().nullable(),
     beanId: z.string().nullable(),
+    blendId: z.string().nullable().optional(),
     /** Free-text when no inventory bean selected (sample / no-stock). */
     beanLabel: z.string().max(120),
     /** ad-hoc only: link to today's schedule batch, or none */
@@ -78,7 +80,7 @@ export const buildRoastSummarySchema = ({ t, hasHandoff }: BuildRoastSummarySche
             }
             // Weight set → inventory bean or free-text label (history needs a name).
             if (data.weightGrams <= 0) return;
-            if (data.beanId) return;
+            if (data.beanId || data.blendId) return;
             if (!data.beanLabel.trim()) {
                 ctx.addIssue({
                     code: 'custom',

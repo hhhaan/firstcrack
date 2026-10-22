@@ -56,7 +56,7 @@ export const CuppingSampleSummary = ({
 
     if (samples.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-[#585d61]">
+            <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-border-subtle bg-main-bg px-6 py-16 text-center dark:border-border">
                 <p className="max-w-md text-[13px] leading-relaxed text-muted tracking-[0.14px]">
                     {readOnly ? t('cupping.noSamplesEnded') : t('cupping.noSamples')}
                 </p>
@@ -91,10 +91,10 @@ export const CuppingSampleSummary = ({
     };
 
     return (
-        <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-[#585d61]">
+        <div className="overflow-x-auto rounded-xl border border-border-subtle bg-main-bg dark:border-border">
             <table className="w-full min-w-[640px] border-collapse text-left">
                 <thead>
-                    <tr className="border-b border-border-subtle dark:border-[#585d61]">
+                    <tr className="border-b border-border-subtle dark:border-border">
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">#</th>
                         <th className="px-4 py-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                             {t('cupping.colLabel')}
@@ -132,7 +132,7 @@ export const CuppingSampleSummary = ({
                                     aria-expanded={open}
                                     onClick={() => toggleExpanded(s.id)}
                                     onKeyDown={(e) => onRowKeyDown(e, s.id)}
-                                    className="cursor-pointer border-b border-border-subtle transition-colors last:border-0 hover:bg-surface/50 dark:border-[#585d61]"
+                                    className="cursor-pointer border-b border-border-subtle transition-colors last:border-0 hover:bg-surface/50 dark:border-border"
                                 >
                                     <td className="px-4 py-3 font-mono text-[12px] text-muted">{i + 1}</td>
                                     <td className="px-4 py-3 text-[13px] font-medium text-primary">{s.label}</td>
@@ -216,9 +216,9 @@ export const CuppingSampleSummary = ({
                                     ) : null}
                                 </tr>
                                 {open ? (
-                                    <tr className="border-b border-border-subtle bg-surface/30 dark:border-[#585d61] dark:bg-[#1c1f22]">
+                                    <tr className="border-b border-border-subtle bg-surface/30 dark:border-border dark:bg-[#1c1f22]">
                                         <td colSpan={colSpan} className="p-0">
-                                            <div className="border-t border-border-subtle dark:border-[#585d61]">
+                                            <div className="border-t border-border-subtle dark:border-border">
                                                 <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-[0.5px] text-muted">
                                                     {t('cupping.scoreDetail')}
                                                 </div>

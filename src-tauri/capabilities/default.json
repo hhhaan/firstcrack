@@ -28,6 +28,8 @@
     "fs:allow-write-text-file",
     "fs:allow-remove",
     "notification:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
     "os:default"
   ]
 }

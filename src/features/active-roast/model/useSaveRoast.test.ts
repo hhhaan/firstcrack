@@ -99,6 +99,52 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
 }
 
 describe('saveRoastCore', () => {
+    it('persists an independent batch title without changing the inventory/profile links', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            targetProfileId: 'profile-a',
+            batchTitleNumbering: 'none',
+            formData: { ...baseParams.formData, batchName: '  Batch C  ' },
+        });
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                session: expect.objectContaining({
+                    batch_name: 'Batch C',
+                    bean_id: 'bean-1',
+                    bean_label: null,
+                    profile_id: 'profile-a',
+                    batch_title_numbering: 'none',
+                }),
+            }),
+        );
+    });
+
+    it('stores the green bean name as the title when the form has no title', async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        qc.setQueryData(['beans', 'user-1'], [{ id: 'bean-1', name: 'Aricha' }]);
+        const deps = makeDeps({ qc });
+        await saveRoastCore(deps, baseParams);
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        // Snapshot once — a later bean relink in History must not rename the roast.
+        expect(arg.session.batch_name).toBe('Aricha');
+        expect(arg.session.bean_id).toBe('bean-1');
+        expect(arg.session).not.toHaveProperty('profile_batch_number');
+        expect(arg.session).not.toHaveProperty('total_batch_number');
+    });
+
+    it('snapshots a free-text bean label as the title', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            selectedBeanId: null,
+            formData: { ...baseParams.formData, beanId: null, beanLabel: 'Sample bag' },
+        });
+        const arg = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0];
+        expect(arg.session.batch_name).toBe('Sample bag');
+        expect(arg.session.bean_label).toBe('Sample bag');
+    });
+
     beforeEach(() => vi.clearAllMocks());
 
     it('월 배치 캡 도달 → BatchLimitError, saveOp 없음', async () => {
@@ -284,6 +330,22 @@ describe('saveRoastCore', () => {
             expect(useBbpStore.getState().finalized).toBe(liveBbp);
         },
     );
+
+    it('prefixes Charge-relative BBP notes onto the saved event log', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            bbpSummary: {
+                sessionId: '11111111-1111-4111-8111-111111111111',
+                seconds: 240,
+                chargeTemp: 200,
+                events: [{ id: 'bbp-note', type: 'Note', time_sec: -180, note: 'soak', gas: '70' }],
+            },
+        });
+        const events = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0].session.events;
+        expect(events[0]).toMatchObject({ id: 'bbp-note', type: 'Note', time_sec: -180, gas: '70' });
+        expect(events.map((event: { type: string }) => event.type)).toEqual(['Note', 'Charge', 'First Crack', 'Drop']);
+    });
 
     it('멱등키: 로컬 sessionId를 session.id로 전달', async () => {
         const deps = makeDeps();
@@ -597,4 +659,47 @@ describe('useSaveRoast workspace owner boundary', () => {
         expect(hookMocks.saveOp).toHaveBeenCalledTimes(1);
         act(() => root.unmount());
     });
+});
+
+it('saves an ad-hoc blend with no bean FK or fake schedule and sends inventory work atomically', async () => {
+    const deps = makeDeps();
+    const result = await saveRoastCore(deps, {
+        ...baseParams,
+        selectedBeanId: null,
+        selectedBlendId: 'blend-1',
+        handoffBeanName: 'Modern',
+        formData: { ...baseParams.formData, beanId: null, blendId: 'blend-1' },
+    });
+    expect(deps.saveOp).toHaveBeenCalledWith(
+        expect.objectContaining({
+            session: expect.objectContaining({
+                bean_id: null,
+                blend_id: 'blend-1',
+                plan_batch_id: null,
+                batch_name: 'Modern',
+            }),
+            deduct: true,
+            deductionGrams: 5000,
+            inboundGrams: 4200,
+        }),
+    );
+    expect(result.shouldOpenContinue).toBe(false);
+});
+
+it('a form single or free-text override clears the frozen blend identity', async () => {
+    for (const form of [
+        { beanId: 'other', blendId: null },
+        { beanId: null, beanLabel: 'Sample', blendId: null },
+    ]) {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            selectedBeanId: null,
+            selectedBlendId: 'blend-1',
+            formData: { ...baseParams.formData, ...form },
+        });
+        expect(deps.saveOp).toHaveBeenCalledWith(
+            expect.objectContaining({ session: expect.objectContaining({ blend_id: null }) }),
+        );
+    }
 });

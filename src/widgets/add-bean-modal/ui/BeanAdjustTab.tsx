@@ -73,7 +73,7 @@ export const BeanAdjustTab = ({
                     </label>
                     <div className="flex items-center gap-3">
                         {adjustType === 'adjustment' && (
-                            <div className="flex rounded-xl overflow-hidden border border-black/8 dark:border-[#585d61] shrink-0">
+                            <div className="flex rounded-xl overflow-hidden border border-black/8 dark:border-border shrink-0">
                                 {(['+', '-'] as const).map((sign) => (
                                     <button
                                         key={sign}
@@ -81,7 +81,7 @@ export const BeanAdjustTab = ({
                                         onClick={() => onAdjustSignChange(sign)}
                                         className={`w-11 h-full text-lg font-semibold transition-all duration-150 ${
                                             adjustSign === sign
-                                                ? 'bg-primary text-white dark:bg-black'
+                                                ? 'bg-action text-on-action'
                                                 : 'bg-white/80 dark:bg-surface-elevated text-muted'
                                         }`}
                                     >

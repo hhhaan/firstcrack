@@ -8,7 +8,6 @@ import {
 } from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
-import { useRoastingStore } from '@features/active-roast/model/status';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
 import { useCsvFileExport } from '@features/export-csv';
 import { profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
@@ -31,9 +30,11 @@ import {
 } from '../lib/export-profile-csv';
 import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
+import { ProfileStartButton } from './ProfileStartButton';
 
 interface ProfileDetailProps {
     selected: RoastProfileWithSource;
+    batchNumber?: number;
     selectedRealCurve: TsvPoint[];
     selectedHasReal: boolean;
     defaultId: string | null;
@@ -47,6 +48,7 @@ interface ProfileDetailProps {
 
 export const ProfileDetail = ({
     selected,
+    batchNumber,
     selectedRealCurve,
     selectedHasReal,
     defaultId,
@@ -109,11 +111,20 @@ export const ProfileDetail = ({
         'flex w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-2.5 py-2 text-left text-[13px] tracking-[0.14px]';
 
     return (
-        <div className="min-w-0 bg-main-bg rounded-lg px-8 py-7 dark:border dark:border-[#585d61]">
+        <div className="min-w-0 rounded-2xl border border-border bg-main-bg px-8 py-7">
             <div className="mb-5 flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                    <h2 className="mb-1 break-words font-display text-[26px] font-light leading-[1.2] tracking-[-0.3px] text-primary">
+                    <h2 className="mb-1 break-words font-display text-2xl font-medium leading-[1.2] tracking-[0.24px] text-primary">
                         {selected.name}
+                        {batchNumber !== undefined && (
+                            <Badge
+                                className="ml-2 align-middle font-body tabular-nums"
+                                title={t('history.batchNumbers.label')}
+                                data-testid="profile-detail-batch-number"
+                            >
+                                #{batchNumber}
+                            </Badge>
+                        )}
                     </h2>
                     {selected.description && (
                         <p className="break-words text-sm leading-normal tracking-[0.14px] text-secondary">
@@ -269,7 +280,7 @@ export const ProfileDetail = ({
                         {beanHistory.map((item) => (
                             <div
                                 key={item.name}
-                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-[#585d61] last:border-0"
+                                className="flex justify-between items-center text-xs py-1 border-b border-black/4 dark:border-border last:border-0"
                             >
                                 <span className="text-primary font-medium">{item.name}</span>
                                 <span className="text-muted">
@@ -284,16 +295,7 @@ export const ProfileDetail = ({
             )}
 
             <div className="flex gap-2.5">
-                <button
-                    type="button"
-                    onClick={() => {
-                        useRoastingStore.getState().setPendingProfile(selected.id);
-                        onNavigate('roast');
-                    }}
-                    className="flex-1 py-2.5 rounded-full border-none dark:border-white bg-primary dark:bg-[#0d0d0d] text-white text-sm font-medium cursor-pointer tracking-[0.14px] "
-                >
-                    {t('profiles.detail.startWith')}
-                </button>
+                <ProfileStartButton profile={selected} onNavigate={onNavigate} />
                 <button
                     type="button"
                     onClick={() => onDelete(selected.id)}

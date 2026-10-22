@@ -46,92 +46,98 @@ export const RoastLog = ({
                     Roast Log
                 </h3>
             )}
-            {entries.map((entry, i, arr) => {
-                const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
-                const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
-                const canRemove = deletableEvent(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
-                const deleteLocked =
-                    entry.event === 'TP' && deletableEvent !== isRemovableLogEvent && !deletableEvent(entry.event);
-                const canEdit = !!editOptions && !!entry.id && !entry.current && editableEvent(entry.event);
-                const deleteLabel = `Delete ${roastEventLabel(entry.event).toLowerCase()}`;
-                const editor =
-                    canEdit && editingId === entry.id ? (
-                        <RoastLogEntryEditor
-                            entry={entry}
-                            options={editOptions}
-                            onClose={() => {
-                                setEditingId(null);
-                                editTriggerRef.current?.focus();
+            <div role="list">
+                {entries.map((entry, i, arr) => {
+                    const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
+                    const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
+                    const canRemove = deletableEvent(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
+                    const deleteLocked =
+                        entry.event === 'TP' && deletableEvent !== isRemovableLogEvent && !deletableEvent(entry.event);
+                    const canEdit = !!editOptions && !!entry.id && !entry.current && editableEvent(entry.event);
+                    const deleteLabel = `Delete ${roastEventLabel(entry.event).toLowerCase()}`;
+                    const editor =
+                        canEdit && editingId === entry.id ? (
+                            <RoastLogEntryEditor
+                                entry={entry}
+                                options={editOptions}
+                                onClose={() => {
+                                    setEditingId(null);
+                                    editTriggerRef.current?.focus();
+                                }}
+                                onDelete={
+                                    canRemove
+                                        ? () => {
+                                              if (entry.id) onRemoveEntry?.(entry.id);
+                                          }
+                                        : undefined
+                                }
+                                deleteDisabled={deleteLocked}
+                                deleteLabel={deleteLabel}
+                            />
+                        ) : null;
+                    const editButton = canEdit ? (
+                        <button
+                            type="button"
+                            aria-label={`${t('common.edit')} ${roastEventLabel(entry.event)}`}
+                            aria-expanded={editingId === entry.id}
+                            onClick={(event) => {
+                                editTriggerRef.current = event.currentTarget;
+                                setEditingId(editingId === entry.id ? null : (entry.id ?? null));
                             }}
-                            onDelete={
-                                canRemove
-                                    ? () => {
-                                          if (entry.id) onRemoveEntry?.(entry.id);
-                                      }
-                                    : undefined
-                            }
-                            deleteDisabled={deleteLocked}
-                            deleteLabel={deleteLabel}
-                        />
+                            className="flex size-6 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
+                        >
+                            <Pencil size={14} />
+                        </button>
                     ) : null;
-                const editButton = canEdit ? (
-                    <button
-                        type="button"
-                        aria-label={`${t('common.edit')} ${roastEventLabel(entry.event)}`}
-                        aria-expanded={editingId === entry.id}
-                        onClick={(event) => {
-                            editTriggerRef.current = event.currentTarget;
-                            setEditingId(editingId === entry.id ? null : (entry.id ?? null));
-                        }}
-                        className="flex size-6 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted hover:text-primary hover:bg-surface cursor-pointer"
-                    >
-                        <Pencil size={14} />
-                    </button>
-                ) : null;
-                const showRemove = (canRemove || deleteLocked) && !canEdit;
-                const reserveSlot = variant === 'main';
-                const removeButton = showRemove ? (
-                    <button
-                        type="button"
-                        disabled={deleteLocked}
-                        onClick={() => {
-                            if (deleteLocked || !entry.id) return;
-                            onRemoveEntry?.(entry.id);
-                        }}
-                        aria-label={deleteLabel}
-                        className="shrink-0 border-none bg-transparent px-1 text-[11px] text-muted hover:text-primary cursor-pointer disabled:cursor-default disabled:opacity-40"
-                    >
-                        {t('common.delete')}
-                    </button>
-                ) : reserveSlot ? (
-                    <span aria-hidden="true" className="size-6" />
-                ) : null;
-                const actions = (
-                    <div
-                        className={
-                            !reserveSlot && !editButton && !showRemove ? 'hidden' : 'flex h-6 shrink-0 items-center'
-                        }
-                    >
-                        {reserveSlot ? (
-                            <>
-                                {editButton ?? <span aria-hidden="true" className="size-6" />}
-                                {removeButton}
-                            </>
-                        ) : (
-                            <>
-                                {removeButton}
-                                {editButton}
-                            </>
-                        )}
-                    </div>
-                );
-                const categoryTextColor = entry.current
-                    ? STATUS_COLORS.active
-                    : isControlEvent(entry.event)
-                      ? 'var(--color-event-control)'
-                      : 'var(--color-primary)';
-
-                if (variant !== 'main') {
+                    const showRemove = (canRemove || deleteLocked) && !canEdit;
+                    const reserveSlot = variant === 'main';
+                    const removeButton = showRemove ? (
+                        <button
+                            type="button"
+                            disabled={deleteLocked}
+                            onClick={() => {
+                                if (deleteLocked || !entry.id) return;
+                                onRemoveEntry?.(entry.id);
+                            }}
+                            aria-label={deleteLabel}
+                            className="shrink-0 border-none bg-transparent px-1 text-[11px] text-muted hover:text-primary cursor-pointer disabled:cursor-default disabled:opacity-40"
+                        >
+                            {t('common.delete')}
+                        </button>
+                    ) : reserveSlot ? (
+                        <span aria-hidden="true" className="size-6" />
+                    ) : null;
+                    const actions = (
+                        <div
+                            className={
+                                !reserveSlot && !editButton && !showRemove ? 'hidden' : 'flex h-6 shrink-0 items-center'
+                            }
+                        >
+                            {reserveSlot ? (
+                                <>
+                                    {editButton ?? <span aria-hidden="true" className="size-6" />}
+                                    {removeButton}
+                                </>
+                            ) : (
+                                <>
+                                    {removeButton}
+                                    {editButton}
+                                </>
+                            )}
+                        </div>
+                    );
+                    const categoryTextColor = entry.current
+                        ? STATUS_COLORS.active
+                        : isControlEvent(entry.event)
+                          ? 'var(--color-event-control)'
+                          : 'var(--color-primary)';
+                    const payloadTitle =
+                        entry.event === 'Note'
+                            ? note
+                            : isControlEvent(entry.event) || entry.event === 'Fan' || entry.event === 'Drum'
+                              ? entry.note
+                              : '';
+                    const compactTitle = payloadTitle || roastEventLabel(entry.event);
                     return (
                         <div
                             key={key}
@@ -140,7 +146,13 @@ export const RoastLog = ({
                                 borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : undefined,
                             }}
                         >
-                            <div className="flex items-center gap-1.5">
+                            <div
+                                role="listitem"
+                                className="group relative flex min-w-0 items-center gap-1 overflow-hidden"
+                                aria-label={[roastEventLabel(entry.event), payloadTitle, entry.time, entry.temp]
+                                    .filter(Boolean)
+                                    .join(' ')}
+                            >
                                 <span
                                     className="size-1.5 shrink-0 rounded-full"
                                     style={{
@@ -150,123 +162,36 @@ export const RoastLog = ({
                                     }}
                                 />
                                 <span
-                                    className="min-w-0 flex-1 break-keep text-[13px] font-medium leading-5"
+                                    title={compactTitle}
+                                    className="min-w-0 shrink truncate whitespace-nowrap text-[13px] font-medium leading-5"
                                     style={{ color: categoryTextColor }}
                                 >
-                                    {roastEventLabel(entry.event)}
+                                    {compactTitle}
                                 </span>
-                                {actions}
+                                <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted">
+                                    {entry.time}
+                                </span>
+                                {entry.temp ? (
+                                    <span className="@container flex min-w-0 flex-1 items-center">
+                                        <span className="hidden whitespace-nowrap font-mono text-[11px] text-muted @[2.75rem]:inline">
+                                            <span aria-hidden="true"> · </span>
+                                            {entry.temp}
+                                        </span>
+                                    </span>
+                                ) : null}
+                                {reserveSlot ? (
+                                    <div className="ml-auto shrink-0">{actions}</div>
+                                ) : (
+                                    <div className="absolute top-1/2 right-0 hidden -translate-y-1/2 bg-roast-bg pl-1 group-focus-within:block group-hover:block">
+                                        {actions}
+                                    </div>
+                                )}
                             </div>
-                            <div className="font-mono text-[11px] text-muted">
-                                <span>{entry.time}</span>
-                                <span aria-hidden="true"> · </span>
-                                <span className="whitespace-nowrap">{entry.temp}</span>
-                            </div>
-                            {note && (
-                                <div
-                                    className="break-keep text-[11px] leading-4"
-                                    style={{
-                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
-                                    }}
-                                >
-                                    {note}
-                                </div>
-                            )}
                             {editor}
                         </div>
                     );
-                }
-
-                return (
-                    <div
-                        key={key}
-                        style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            alignItems: 'flex-start',
-                            gap: 12,
-                            padding: '10px 0',
-                            borderBottom: i < arr.length - 1 ? '1px solid var(--color-border-subtle)' : 'none',
-                        }}
-                    >
-                        <div
-                            style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 12,
-                                color: 'var(--color-muted)',
-                                width: 36,
-                                flexShrink: 0,
-                                paddingTop: 1,
-                            }}
-                        >
-                            {entry.time}
-                        </div>
-                        <div
-                            style={{
-                                width: 6,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                paddingTop: 4,
-                                flexShrink: 0,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    width: 7,
-                                    height: 7,
-                                    borderRadius: '50%',
-                                    background: entry.current ? STATUS_COLORS.active : eventMarkerCssColor(entry.event),
-                                    boxShadow: entry.current ? `0 0 0 3px ${STATUS_COLORS.activeGlow}` : 'none',
-                                }}
-                            />
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    flexWrap: 'wrap',
-                                    alignItems: 'center',
-                                    gap: 8,
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        fontSize: 13,
-                                        fontWeight: 500,
-                                        color: categoryTextColor,
-                                        letterSpacing: '0.14px',
-                                    }}
-                                >
-                                    {roastEventLabel(entry.event)}
-                                </span>
-                                <span
-                                    style={{
-                                        fontFamily: 'var(--font-mono)',
-                                        fontSize: 12,
-                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
-                                    }}
-                                >
-                                    {entry.temp}
-                                </span>
-                            </div>
-                            {note && (
-                                <div
-                                    style={{
-                                        fontSize: 12,
-                                        color: isControlEvent(entry.event) ? categoryTextColor : 'var(--color-muted)',
-                                        letterSpacing: '0.14px',
-                                    }}
-                                >
-                                    {note}
-                                </div>
-                            )}
-                        </div>
-                        {actions}
-                        {editor && <div className="w-full">{editor}</div>}
-                    </div>
-                );
-            })}
+                })}
+            </div>
         </div>
     );
 };

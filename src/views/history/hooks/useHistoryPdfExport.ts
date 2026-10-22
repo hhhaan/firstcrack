@@ -2,7 +2,8 @@ import { sessionBeanName } from '@entities/roast';
 import { formatTemp, type TemperatureUnit } from '@features/active-roast';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
-import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
+import { sessionBatchNumberLabel, sessionDistinctTitle, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { type RefObject, useCallback, useState } from 'react';
@@ -31,18 +32,25 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
         }
         setExporting(true);
         try {
+            const beanName = sessionBeanName(session)?.trim() || '—';
+            const distinctTitle = sessionDistinctTitle(session);
+            const batchNumbers = sessionBatchNumberLabel(session);
             await exportPdf({
                 title: t('history.title'),
-                filename: historyPdfFilename(sessionBeanName(session), session.roasted_at),
+                filename: historyPdfFilename(sessionRoastTitle(session), session.roasted_at),
                 chartDataUrl,
                 header: {
-                    bean: sessionBeanName(session) ?? '—',
-                    date: formatDateShort(session.roasted_at),
+                    bean: beanName,
+                    ...(distinctTitle ? { roastTitle: distinctTitle } : {}),
+                    ...(batchNumbers ? { batchNumbers } : {}),
+                    date: formatDateTimeShort(session.roasted_at),
                     duration: formatDuration(session.duration_seconds),
                     charge: formatTemp(session.charge_temp_celsius, unit),
                     drop: formatTemp(session.drop_temp_celsius, unit),
                     labels: {
                         bean: t('history.table.bean'),
+                        ...(distinctTitle ? { roastTitle: t('history.recordText.title') } : {}),
+                        ...(batchNumbers ? { batchNumbers: t('history.batchNumbers.label') } : {}),
                         date: t('history.table.date'),
                         duration: t('history.table.duration'),
                         charge: t('history.compare.charge'),

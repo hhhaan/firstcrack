@@ -83,7 +83,7 @@ export const MarginSlider = ({ id, label, value, min = 0, max = 80, step = 0.01,
                         onClick={() => onChange(p)}
                         className={`px-2.5 py-1 rounded-full text-[11px] font-medium tabular-nums cursor-pointer transition-colors border-none ${
                             Math.abs(value - p) < 0.5
-                                ? 'bg-primary text-white dark:bg-white dark:text-primary'
+                                ? 'bg-action text-on-action'
                                 : 'bg-surface dark:bg-surface-elevated text-muted hover:text-secondary'
                         }`}
                     >

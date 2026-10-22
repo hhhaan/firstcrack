@@ -1,5 +1,7 @@
 import { beanKeys } from '@entities/bean/queries';
 import { stockEventKeys } from '@entities/bean-stock-event';
+import type { BlendWithComponents } from '@entities/blend';
+import { blendKeys } from '@entities/blend/queries';
 import { copyMachineSnapshot, EMPTY_MACHINE_SNAPSHOT } from '@entities/machine';
 import { useActiveWorkspace } from '@entities/organization';
 import { invalidateScheduledBatchQueries, planBatchApi } from '@entities/plan';
@@ -111,11 +113,17 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     // Linked / handoff batch supplies bean/blend; else form selection.
     // Free-text label (form beanLabel) wins over header selectedBeanId — typing a
     // custom name must not be overwritten by a pre-charge inventory pick.
-    const blendId = effectiveBatch?.blendId ?? null;
+    const blendId = effectiveBatch
+        ? effectiveBatch.blendId
+        : formData.blendId !== undefined
+          ? formData.blendId
+          : formData.beanId || formData.beanLabel?.trim()
+            ? null
+            : (params.selectedBlendId ?? null);
     const beanLabelRaw = formData.beanLabel?.trim() || null;
     const inventoryBeanId =
         effectiveBatch?.beanId ?? formData.beanId ?? (beanLabelRaw ? null : payloadParams.selectedBeanId);
-    const resolvedBeanId = inventoryBeanId ?? null;
+    const resolvedBeanId = blendId ? null : (inventoryBeanId ?? null);
     const beanLabel = resolvedBeanId || blendId ? null : beanLabelRaw;
 
     if (weightGrams > 0 && !resolvedBeanId && !blendId && !beanLabel) {
@@ -128,6 +136,18 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
     const pendingBbp = params.bbpSummary;
     const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
+
+    // Green bean (or free-text label) name — the roast title snapshot written at save.
+    const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
+    const cachedBlends = qc.getQueryData<BlendWithComponents[]>(blendKeys.all(userId));
+    const unchangedSource = blendId ? blendId === params.selectedBlendId : resolvedBeanId === params.selectedBeanId;
+    const resolvedBeanName =
+        effectiveBatch?.beanName ??
+        beanLabel ??
+        (blendId
+            ? cachedBlends?.find((b) => b.id === blendId)?.name
+            : cachedBeans?.find((b) => b.id === resolvedBeanId)?.name) ??
+        (unchangedSource ? handoffBeanName : null);
 
     const payload: RoastSessionInsert = {
         // Client session uuid as PK — save_roast_op converges retries on one row.
@@ -147,14 +167,20 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         ambient_temp_celsius: payloadParams.ambientTemperature ?? null,
         ambient_humidity_pct: payloadParams.ambientHumidity ?? null,
         bean_id: resolvedBeanId,
+        blend_id: blendId,
         bean_label: beanLabel,
+        // Title is a snapshot of the bean name, then edited in History. Never re-derived from the bean.
+        batch_name: formData.batchName?.trim() || resolvedBeanName,
         profile_id: payloadParams.targetProfileId,
+        batch_title_numbering: payloadParams.batchTitleNumbering ?? 'none',
         tsv_path: null,
         bbp_tsv_path: null,
         bbp_seconds: bbpSummary?.seconds ?? null,
         charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
-        events: serializeRoastEvents(payloadParams.logEntries),
+        events: [...(bbpSummary?.events ?? []), ...serializeRoastEvents(payloadParams.logEntries)].sort(
+            (a, b) => a.time_sec - b.time_sec,
+        ),
         ...copyMachineSnapshot(payloadParams.machineSnapshot ?? EMPTY_MACHINE_SNAPSHOT),
     };
 
@@ -168,19 +194,13 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
           })
         : null;
 
-    const cachedBeans = userId ? qc.getQueryData<Bean[]>(beanKeys.all(userId)) : undefined;
-    const resolvedBeanName =
-        effectiveBatch?.beanName ??
-        handoffBeanName ??
-        beanLabel ??
-        (resolvedBeanId ? (cachedBeans?.find((b) => b.id === resolvedBeanId)?.name ?? null) : null);
-
     // provisional plan for grams/canDeduct — reference filled after save
     const provisionalPlan = canTouchStock
         ? determineStockDeduction({
               planBatchHandoff: effectiveBatch,
               saveWeight: weightGrams,
               selectedBeanId: resolvedBeanId,
+              selectedBlendId: blendId,
               referenceId: 'pending',
               handoffBeanName: resolvedBeanName,
           })

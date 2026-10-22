@@ -32,7 +32,7 @@ afterEach(() => {
     vi.unstubAllGlobals();
 });
 
-it('loads bundled fonts, wraps a long Korean name, and keeps metadata, chart, legend and footer inside A4', async () => {
+it.each([false, true])('wraps the heading and keeps A4 bounds with an independent roast title=%s', async (hasTitle) => {
     const ctx = {
         fillRect: vi.fn(),
         fillText: vi.fn(),
@@ -62,23 +62,38 @@ it('loads bundled fonts, wraps a long Korean name, and keeps metadata, chart, le
     const bean = '에티오피아 예가체프 내추럴 스페셜티 '.repeat(10);
     const result = await composeHistoryPdfJpeg({
         header: {
-            bean,
+            bean: hasTitle ? 'Green B' : bean,
+            ...(hasTitle ? { roastTitle: bean } : {}),
+            batchNumbers: '#9 · Σ#13',
             date: '2026-09-21',
             duration: '10:42',
             charge: '195°C',
             drop: '208°C',
-            labels: { bean: '원두', date: '날짜', duration: '로스팅 시간', charge: '투입 온도', drop: '배출 온도' },
+            labels: {
+                bean: '원두',
+                roastTitle: hasTitle ? '배치명' : undefined,
+                batchNumbers: '배치 번호',
+                date: '날짜',
+                duration: '로스팅 시간',
+                charge: '투입 온도',
+                drop: '배출 온도',
+            },
         },
         chartDataUrl: 'data:image/png;base64,AA==',
         legend: [{ label: 'BT (°C)', color: '#009d4c' }],
     });
     expect(load).toHaveBeenCalledTimes(4);
+    expect(ctx.fillText).toHaveBeenCalledWith('배치 번호: #9 · Σ#13', expect.any(Number), expect.any(Number));
     expect(result).toMatchObject(HISTORY_PDF_PAGE_PX);
     const titleLines = ctx.fillText.mock.calls.filter(
         ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 113 || y === HISTORY_PDF_MARGIN_PX + 177,
     );
     expect(titleLines).toHaveLength(2);
     expect(titleLines[1][0]).toMatch(/…$/);
+    if (hasTitle) {
+        expect(ctx.fillText).toHaveBeenCalledWith('배치명', expect.any(Number), expect.any(Number));
+        expect(ctx.fillText).toHaveBeenCalledWith('Green B', expect.any(Number), expect.any(Number));
+    }
     for (const [text, x, y] of ctx.fillText.mock.calls) {
         expect(x).toBeGreaterThanOrEqual(HISTORY_PDF_MARGIN_PX);
         expect(y).toBeLessThan(HISTORY_PDF_PAGE_PX.height - HISTORY_PDF_MARGIN_PX);

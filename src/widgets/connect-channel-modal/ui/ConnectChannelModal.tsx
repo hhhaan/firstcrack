@@ -142,7 +142,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
 
     return (
         <ModalShell onClose={onClose} labelledBy="connect-channel-title" contentClassName={modalPanel.formSm}>
-            <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-[#585d61] dark:bg-[#1a1e23]">
+            <div className="shrink-0 border-b border-black/4 bg-white/60 dark:border-border dark:bg-main-bg">
                 <ModalHeader
                     titleId="connect-channel-title"
                     title={t(`orders.channel.connect.${platform}`)}
@@ -285,7 +285,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 rounded-full border-none bg-surface py-3 text-[14px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition-colors hover:bg-surface-elevated cursor-pointer dark:bg-surface-elevated dark:text-[#e5e5e5]"
+                        className="flex-1 rounded-full border-none bg-surface py-3 text-[14px] font-medium tracking-[0.14px] text-secondary shadow-(--shadow-inset) transition-colors hover:bg-surface-elevated cursor-pointer dark:bg-surface-elevated dark:text-primary"
                     >
                         {t('common.cancel')}
                     </button>
@@ -293,7 +293,7 @@ export const ConnectChannelModal = ({ open, platform, onClose }: Props) => {
                         type="button"
                         disabled={pending}
                         onClick={() => void submit()}
-                        className="flex-1 rounded-full border border-transparent bg-primary py-3 text-[14px] font-medium tracking-[0.14px] text-white transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 dark:border-white dark:bg-[#0d0d0d] cursor-pointer"
+                        className="flex-1 rounded-full border border-transparent bg-action py-3 text-[14px] font-medium tracking-[0.14px] text-on-action transition hover:opacity-85 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50 cursor-pointer"
                     >
                         {ctaLabel}
                     </button>

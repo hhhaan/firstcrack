@@ -1,5 +1,5 @@
 import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
-import { sessionBeanName, useHistoryCharts } from '@entities/roast';
+import { useHistoryCharts } from '@entities/roast';
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { computePhaseSegments, useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
@@ -7,6 +7,7 @@ import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@featur
 import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateShort } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
+import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -79,7 +80,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 const heaterUnit = profileHeaterBounds(s, machines, ROASTER_REGISTRY).unit;
                 return {
                     id: s.id,
-                    label: `${String(i + 1).padStart(2, '0')} · ${sessionBeanName(s) ?? formatDateShort(s.roasted_at)}`,
+                    label: `${String(i + 1).padStart(2, '0')} · ${sessionRoastTitle(s) ?? formatDateShort(s.roasted_at)}`,
                     color: COMPARE_COLORS[i % COMPARE_COLORS.length],
                     points: points.map((point, index) => ({
                         ...point,

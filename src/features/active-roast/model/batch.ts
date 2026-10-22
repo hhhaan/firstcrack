@@ -2,6 +2,7 @@ import type { MachineSnapshot } from '@entities/machine';
 import { formatElapsed } from '@shared/lib/format';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
+import { automaticBatchTitle, type RoastBatchIdentity } from '../lib/batch-title';
 import { buildDropSummary, type DropOnset, planDropTransition } from '../lib/drop-transition';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -10,6 +11,8 @@ export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended
 export const isChargedPhase = (phase: RoastPhase): boolean => phase === 'roasting' || phase === 'ended';
 
 export interface RoastSelection {
+    identity?: RoastBatchIdentity;
+    blendId?: string | null;
     beanId: string | null;
     beanName: string | null;
     profileId: string | null;
@@ -17,6 +20,7 @@ export interface RoastSelection {
 }
 export interface PreparedRoast extends RoastSelection {
     workspaceOwnerId: string | null;
+    sourceOrigin?: 'default' | 'profile' | 'user' | 'handoff';
     beanInitialized: boolean;
     profileInitialized: boolean;
     profileUserSelected: boolean;
@@ -27,6 +31,7 @@ export interface LastAdhocSave {
     roastLevel: string | null;
 }
 export interface RoastSummaryData {
+    batchName?: string;
     totalTime: string;
     development: string;
     finalBt: string;
@@ -34,6 +39,7 @@ export interface RoastSummaryData {
     sessionId?: string | null;
     elapsedSec?: number;
     selectedBeanId?: string | null;
+    selectedBlendId?: string | null;
     planBatchHandoff?: PlanBatchHandoff | null;
     handoffBeanName?: string | null;
 }
@@ -81,6 +87,7 @@ export interface BatchState {
     pendingBeanId: string | null;
     pendingBeanName: string | null;
     pendingProfileId: string | null;
+    pendingProfileSource: { beanId: string | null; blendId: string | null; name: string } | null;
     prepared: PreparedRoast;
     activeSelection: RoastSelection | null;
     completed: CompletedRoast | null;
@@ -88,6 +95,7 @@ export interface BatchState {
     reviewSessionId: string | null;
 }
 export const emptySelection: RoastSelection = {
+    blendId: null,
     beanId: null,
     beanName: null,
     profileId: null,
@@ -124,10 +132,12 @@ export const selectDropCancelable = (state: BatchState): boolean => {
 };
 const copySelection = (selection: RoastSelection): RoastSelection =>
     structuredClone({
+        blendId: selection.blendId ?? null,
         beanId: selection.beanId,
         beanName: selection.beanName,
         profileId: selection.profileId,
         planBatchHandoff: selection.planBatchHandoff,
+        ...(selection.identity && { identity: selection.identity }),
     });
 const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: number | null): CompletedRoastSnapshot => ({
     sessionId: summary.sessionId ?? state.sessionId ?? crypto.randomUUID(),
@@ -138,6 +148,7 @@ const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: numb
     rawBT,
     selection: copySelection({
         ...selectRoastSelection(state),
+        ...(summary.selectedBlendId !== undefined && { blendId: summary.selectedBlendId }),
         ...(summary.selectedBeanId !== undefined && { beanId: summary.selectedBeanId }),
         ...(summary.handoffBeanName !== undefined && { beanName: summary.handoffBeanName }),
         ...(summary.planBatchHandoff !== undefined && { planBatchHandoff: summary.planBatchHandoff }),
@@ -150,9 +161,11 @@ const summaryForSnapshot = (summary: RoastSummaryData, snapshot: CompletedRoastS
     ...summary,
     sessionId: snapshot.sessionId,
     logEntries: snapshot.logEntries,
+    selectedBlendId: snapshot.selection.blendId ?? null,
     selectedBeanId: snapshot.selection.beanId,
     planBatchHandoff: snapshot.selection.planBatchHandoff,
     handoffBeanName: snapshot.selection.beanName,
+    ...(snapshot.selection.identity?.title && { batchName: snapshot.selection.identity.title }),
 });
 export type BatchActions = ReturnType<typeof createBatchActions>;
 /** All actions below change memory only. Callers perform I/O using returned snapshots. */
@@ -174,34 +187,141 @@ export const createBatchActions = (
                 pendingBeanId: null,
                 pendingBeanName: null,
                 pendingProfileId: null,
+                pendingProfileSource: null,
             }),
         });
     },
     initializeBean: (beanId: string | null) => {
         const prepared = get().prepared;
         if (prepared.beanInitialized) return;
-        set({ prepared: { ...prepared, beanId, beanInitialized: true } });
+        set({ prepared: { ...prepared, beanId, sourceOrigin: 'default', beanInitialized: true } });
     },
     initializeProfile: (profileId: string | null) => {
         const state = get();
         if (isChargedPhase(state.phase) || state.prepared.profileUserSelected) return;
         if (state.prepared.profileInitialized && state.prepared.profileId === profileId) return;
-        set({ prepared: { ...state.prepared, profileId, profileInitialized: true } });
+        set({
+            prepared: {
+                ...state.prepared,
+                profileId,
+                profileInitialized: true,
+            },
+        });
     },
     prepareBean: (beanId: string | null, beanName: string | null = null) => {
-        set({ prepared: { ...get().prepared, beanId, beanName, beanInitialized: true } });
+        const state = get();
+        set({
+            prepared: {
+                ...state.prepared,
+                beanId,
+                blendId: null,
+                beanName,
+                sourceOrigin: 'user',
+                beanInitialized: true,
+            },
+        });
+    },
+    invalidatePreparedBean: (expectedBeanId: string) => {
+        const state = get();
+        if (state.activeSelection || state.prepared.beanId !== expectedBeanId) return;
+        set({ prepared: { ...state.prepared, beanId: null, beanName: null } });
+    },
+    prepareBlend: (blendId: string | null, beanName: string | null = null) => {
+        const state = get();
+        if (isChargedPhase(state.phase)) return;
+        set({
+            prepared: {
+                ...state.prepared,
+                beanId: null,
+                blendId,
+                beanName,
+                sourceOrigin: 'user',
+                beanInitialized: true,
+            },
+        });
+    },
+    /** Explicit correction of the running batch; future preparation stays independent. */
+    editRunningSource: (
+        source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>,
+        expectedSessionId: string | null,
+        expectedOwnerId: string | null,
+    ) => {
+        const state = get();
+        if (
+            state.phase !== 'roasting' ||
+            !state.activeSelection ||
+            !expectedSessionId ||
+            state.sessionId !== expectedSessionId ||
+            state.sessionOwnerId !== expectedOwnerId
+        )
+            return false;
+        const current = state.activeSelection;
+        const changed = current.beanId !== source.beanId || (current.blendId ?? null) !== (source.blendId ?? null);
+        const identity = current.identity ? { ...current.identity, name: source.beanName } : undefined;
+        if (identity && !identity.edited) identity.title = automaticBatchTitle(identity);
+        set({
+            activeSelection: {
+                ...current,
+                ...source,
+                blendId: source.blendId ?? null,
+                identity,
+                ...(changed && { planBatchHandoff: null }),
+            },
+        });
+        return true;
+    },
+    applyProfileSource: (
+        source: { beanId: string | null; blendId: string | null; name: string } | null,
+        requiresChoice = false,
+    ) => {
+        const state = get();
+        const prepared = state.prepared;
+        if (isChargedPhase(state.phase) || prepared.planBatchHandoff || prepared.sourceOrigin === 'user') return;
+        if (!source && !requiresChoice && prepared.sourceOrigin !== 'profile') return;
+        set({
+            prepared: {
+                ...prepared,
+                beanId: source?.beanId ?? null,
+                blendId: source?.blendId ?? null,
+                beanName: source?.name ?? null,
+                sourceOrigin: 'profile',
+                beanInitialized: true,
+            },
+        });
     },
     commitProfile: (
         profileId: string | null,
         expectedSessionId: string | null,
         expectedWorkspaceOwnerId: string | null,
+        source: BatchState['pendingProfileSource'] = null,
     ) => {
         const state = get();
         if (state.sessionId !== expectedSessionId || state.prepared.workspaceOwnerId !== expectedWorkspaceOwnerId)
             return false;
+        const activeSelection = state.activeSelection ? { ...state.activeSelection, profileId } : null;
         set({
-            prepared: { ...state.prepared, profileId, profileInitialized: true, profileUserSelected: true },
-            ...(state.activeSelection && { activeSelection: { ...state.activeSelection, profileId } }),
+            prepared: {
+                ...state.prepared,
+                profileId,
+                profileInitialized: true,
+                profileUserSelected: true,
+                ...(!isChargedPhase(state.phase) &&
+                state.prepared.sourceOrigin === 'profile' &&
+                !state.prepared.planBatchHandoff
+                    ? { beanId: null, blendId: null, beanName: null }
+                    : {}),
+                ...(!isChargedPhase(state.phase) && source
+                    ? {
+                          beanId: source.beanId,
+                          blendId: source.blendId,
+                          beanName: source.name,
+                          sourceOrigin: 'user',
+                          beanInitialized: true,
+                          planBatchHandoff: null,
+                      }
+                    : {}),
+            },
+            ...(activeSelection && { activeSelection }),
         });
         return true;
     },
@@ -209,6 +329,8 @@ export const createBatchActions = (
         set({
             prepared: {
                 ...get().prepared,
+                blendId: handoff.blendId ?? null,
+                sourceOrigin: 'handoff',
                 beanId: handoff.beanId ?? null,
                 beanName: handoff.beanName || null,
                 planBatchHandoff: structuredClone(handoff),
@@ -217,10 +339,49 @@ export const createBatchActions = (
             pendingBeanId: null,
             pendingBeanName: null,
             pendingProfileId: handoff.profileId ?? null,
+            pendingProfileSource: null,
         });
     },
-    completeBatch: () => set({ prepared: { ...get().prepared, planBatchHandoff: null }, pendingProfileId: null }),
+    completeBatch: () =>
+        set({
+            prepared: { ...get().prepared, planBatchHandoff: null },
+            pendingProfileId: null,
+            pendingProfileSource: null,
+        }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
+    setSourceDisplayName: (source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>, ownerId: string) => {
+        if (!source.beanName) return;
+        const state = get();
+        const patch: Partial<BatchState> = {};
+        const matchesSource = (selection: RoastSelection) =>
+            selection.beanId === source.beanId && (selection.blendId ?? null) === (source.blendId ?? null);
+        if (
+            state.prepared.workspaceOwnerId === ownerId &&
+            matchesSource(state.prepared) &&
+            state.prepared.beanName !== source.beanName
+        )
+            patch.prepared = { ...state.prepared, beanName: source.beanName };
+        const selection = state.activeSelection;
+        if (
+            state.sessionOwnerId === ownerId &&
+            selection?.identity &&
+            matchesSource(selection) &&
+            selection.identity.name !== source.beanName
+        ) {
+            const identity = { ...selection.identity, name: source.beanName };
+            if (!identity.edited) identity.title = automaticBatchTitle(identity);
+            patch.activeSelection = { ...selection, beanName: source.beanName, identity };
+        }
+        if (Object.keys(patch).length) set(patch);
+    },
+    setRunningBatchTitle: (sessionId: string, title: string) => {
+        const state = get();
+        const selection = state.activeSelection;
+        if (state.phase !== 'roasting' || state.sessionId !== sessionId || !selection?.identity) return;
+        const identity = { ...selection.identity, edited: Boolean(title.trim()) };
+        identity.title = title.trim().slice(0, 120) || automaticBatchTitle(identity);
+        set({ activeSelection: { ...selection, identity } });
+    },
     startCharge: (originMs?: number, ownerId?: string, charge?: { bt: number | null; unit: TemperatureUnit }) => {
         const state = get();
         if (isChargedPhase(state.phase)) return null;
@@ -236,7 +397,13 @@ export const createBatchActions = (
             elapsed: Math.floor((now - origin) / 1000),
             awaitingNextCharge: false,
             heatHoldAfterDrop: false,
-            activeSelection: copySelection(state.prepared),
+            activeSelection: {
+                ...copySelection(state.prepared),
+                identity: {
+                    name: state.prepared.beanName,
+                    title: automaticBatchTitle({ name: state.prepared.beanName }),
+                },
+            },
             livePoints: [],
             ...(charge && {
                 logState: {
@@ -401,6 +568,24 @@ export const createBatchActions = (
         return true;
     },
     dismissCompletedReview: () => set({ reviewSessionId: null }),
+    replaceReviewTitle: (sessionId: string, ownerId: string | null, title: string) => {
+        const completed = get().completed;
+        if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)
+            return;
+        const selection = completed.snapshot.selection;
+        const identity = selection.identity ?? {
+            name: selection.beanName,
+        };
+        set({
+            completed: {
+                ...completed,
+                snapshot: {
+                    ...completed.snapshot,
+                    selection: { ...selection, identity: { ...identity, title, edited: true } },
+                },
+            },
+        });
+    },
     replaceReviewLog: (entries: LogEntry[]) => {
         const completed = get().completed;
         if (!get().reviewSessionId || !completed) return;

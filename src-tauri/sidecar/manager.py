@@ -262,9 +262,17 @@ def _merge_connect_params(
     default_heater = (defaults.get("write_map") or {}).get("heater", {})
     saved_map = params.get("write_map")
     if default_heater.get("value_offset") == 1 and isinstance(saved_map, dict):
-        legacy_heater = {k: v for k, v in default_heater.items() if k != "value_offset"}
+        current_heater = {k: v for k, v in default_heater.items() if k != "verify_readback"}
+        legacy_heater = {k: v for k, v in current_heater.items() if k != "value_offset"}
         legacy_heater["min"] = 1
-        if saved_map.get("heater") == legacy_heater:
+        saved_heater = saved_map.get("heater")
+        saved_without_verification = (
+            {k: v for k, v in saved_heater.items() if k != "verify_readback"}
+            if isinstance(saved_heater, dict) else None
+        )
+        if saved_without_verification == legacy_heater or (
+            saved_heater == current_heater and default_heater.get("verify_readback") is True
+        ):
             merged["write_map"] = {**saved_map, "heater": dict(default_heater)}
         if merged.get("write_map") == {"heater": default_heater}:
             merged["write_map"] = dict(defaults["write_map"])
@@ -392,6 +400,9 @@ class RoasterManager:
         # heater_set 출처. 수동·Replay·PID 쓰기가 전부 control()을 지나므로 여기서 잡힌다.
         # 본체 조작반에서 돌린 값은 모른다 — 세트포인트 셀 readback이 붙기 전까지.
         self._last_applied: dict[str, float] = {}
+        self._heater_command_version = 0
+        self._heater_request: tuple[int, float] | None = None
+        self._heater_retry_count = 0
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
         self._pid: PidRunner | None = None
         self._pid_task: asyncio.Task[None] | None = None
@@ -712,8 +723,9 @@ class RoasterManager:
                 await self._adapter.control(heater=0.0)
                 # control()을 우회하는 쓰기 — heater_set도 같이 맞춘다 (어댑터와 같은 클램프)
                 self._last_applied.update(clamp_command({"heater": 0.0}, self.write_limits()))
-        except Exception:
-            pass
+                self._hw_alerts_sent.discard("reconnect_safe_off_failed")
+        except Exception as exc:
+            self._capture_hardware_error(exc, "reconnect_safe_off_failed", once=True)
 
     def _reconnecting(self) -> bool:
         return self._reconnect_task is not None and not self._reconnect_task.done()
@@ -938,8 +950,13 @@ class RoasterManager:
         heater: float | None = None,
         fan: float | None = None,
         drum: float | None = None,
+        *,
+        retry_epoch: int | None = None,
     ) -> dict[str, float]:
-        """제어 명령을 어댑터로 전달하고 **실제 적용된 값**을 돌려준다.
+        """어댑터 제어 완료 후 클램프한 논리 명령값을 돌려준다.
+
+        설정값 읽기 검증은 어댑터의 verify_readback 맵을 따른다. 실측 화력이나
+        버너 동작을 확인한 응답은 아니다.
 
         미연결/쓰기 미지원이면 ControlUnavailable을 던진다. 조용히 성공을
         반환하면 UI가 명령이 먹은 것으로 오해한다 — 화력 제어에서는 치명적이다.
@@ -969,14 +986,45 @@ class RoasterManager:
 
         applied = clamp_command({k: float(v) for k, v in requested.items()}, write_map)
         epoch = self._connection_epoch
+        if retry_epoch is not None:
+            if (
+                retry_epoch != epoch or set(applied) != {"heater"}
+                or self._heater_request != (epoch, applied["heater"])
+                or self._heater_retry_count >= 2
+                or (self._pid is not None and self._pid.state().get("state") != "off")
+            ):
+                raise ControlUnavailable("재시도할 화력 명령의 연결 또는 제어권이 변경되었습니다.")
+            self._heater_retry_count += 1
+        elif "heater" in applied:
+            self._heater_command_version += 1
+            self._heater_request = (epoch, applied["heater"])
+            self._heater_retry_count = 0
+        if retry_epoch is None:
+            self._hw_alerts_sent.discard("control_write_failed")
+        command_version = self._heater_command_version
+
+        def retry_is_current() -> bool:
+            return (
+                self._adapter is adapter and self._connected and not self._resetting
+                and self._connection_epoch == epoch
+                and self._heater_command_version == command_version
+                and (self._pid is None or self._pid.state().get("state") == "off")
+            )
+
         try:
-            await adapter.control(**applied)
+            retry_control = getattr(adapter, "retry_control", None)
+            if retry_epoch is not None and callable(retry_control):
+                await retry_control(applied["heater"], retry_is_current)
+            else:
+                await adapter.control(**applied)
         except Exception:
             if self._adapter is not adapter:
                 return {}
             self._control_breadcrumb(applied, ok=False)
             raise
         if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
+            return {}
+        if retry_epoch is not None and not retry_is_current():
             return {}
         self._control_breadcrumb(applied, ok=True)
         self._last_applied.update(applied)
@@ -1048,6 +1096,8 @@ class RoasterManager:
                 f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
             )
 
+        self._heater_command_version += 1
+        self._heater_request = None
         gains_cfg = ROASTER_REGISTRY[self._roaster_key]["pid"]
         if self._pid is None:
             self._pid = PidRunner(

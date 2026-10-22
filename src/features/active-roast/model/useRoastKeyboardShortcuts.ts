@@ -1,5 +1,6 @@
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
+import { useGlobalDropShortcut } from '@features/active-roast/model/useGlobalDropShortcut';
 import { i18n } from '@shared/i18n';
 import {
     eventToShortcut,
@@ -11,8 +12,11 @@ import {
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { message } from '@tauri-apps/plugin-dialog';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+
+/** One physical press can reach both the OS hotkey and the webview. Collapse that pair. */
+const DROP_SHORTCUT_DEDUPE_MS = 100;
 
 interface UseRoastKeyboardShortcutsParams {
     isActive: boolean;
@@ -65,21 +69,6 @@ export function isRoastEventMarkEnabled(phase: string): boolean {
     return phase === 'roasting';
 }
 
-/** Second mod+D inside this window marks Drop. A held key does not. */
-export const DROP_DOUBLE_TAP_MS = 400;
-
-export function nextDropDoubleTap(
-    armedAt: number | null,
-    now: number,
-    repeat: boolean,
-): { armedAt: number | null; fire: boolean } {
-    if (repeat) return { armedAt, fire: false };
-    if (armedAt != null && now - armedAt <= DROP_DOUBLE_TAP_MS) {
-        return { armedAt: null, fire: true };
-    }
-    return { armedAt: now, fire: false };
-}
-
 /** In-memory roast that a webview reload would drop. Preheat and standby stay refreshable. */
 export function isRoastRefreshBlocked(phase: string, awaitingNextCharge: boolean): boolean {
     return phase === 'roasting' || phase === 'ended' || awaitingNextCharge;
@@ -126,6 +115,18 @@ export const useRoastKeyboardShortcuts = ({
     const fcEndKeys = useShortcutKeys('fcEnd');
     const dropKeys = useShortcutKeys('drop');
     const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const dropEnabledOnFormTags = dropKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const onMarkDropRef = useRef(onMarkDrop);
+    const lastDropShortcutAt = useRef(0);
+    useEffect(() => {
+        onMarkDropRef.current = onMarkDrop;
+    });
+    const markDropFromShortcut = useCallback(() => {
+        const now = Date.now();
+        if (now - lastDropShortcutAt.current < DROP_SHORTCUT_DEDUPE_MS) return;
+        lastDropShortcutAt.current = now;
+        onMarkDropRef.current();
+    }, []);
     const shortcutsEnabled = !recording && !dialogOpen;
     const enabled =
         shortcutsEnabled &&
@@ -153,11 +154,9 @@ export const useRoastKeyboardShortcuts = ({
         });
     const canMark = shortcutBase && isRoastEventMarkEnabled(phase);
     const canMarkEvents = canMark || (markWhileReviewing && shortcutBase);
-    const dropArmRef = useRef<number | null>(null);
-
-    useEffect(() => {
-        if (!canMark) dropArmRef.current = null;
-    }, [canMark]);
+    // OS-level Drop still covers an unfocused window. The webview hotkey stays on so a focused
+    // window records Drop when the OS callback does not.
+    useGlobalDropShortcut({ enabled: canMark, keys: dropKeys, onFire: markDropFromShortcut });
 
     useEffect(() => {
         // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
@@ -254,17 +253,21 @@ export const useRoastKeyboardShortcuts = ({
         [canMarkEvents, onMarkEvent],
     );
 
-    // Ctrl/Meta + D, D → Mark Drop. One tap arms; the second tap inside the window fires.
+    // Ctrl/Meta + Shift + D → Mark Drop. Stays on while the OS hotkey is held; the shared
+    // dedupe drops the second delivery of the same press.
     useHotkeys(
         shortcutHotkeys(dropKeys),
         (e) => {
             e.preventDefault();
-            const next = nextDropDoubleTap(dropArmRef.current, Date.now(), e.repeat);
-            dropArmRef.current = next.armedAt;
-            if (next.fire) onMarkDrop();
+            if (e.repeat) return;
+            markDropFromShortcut();
         },
-        { enabled: canMark && dropKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMark, onMarkDrop],
+        {
+            enabled: canMark && dropKeys.length > 0,
+            enableOnFormTags: dropEnabledOnFormTags,
+            ...SHORTCUT_HOTKEY_OPTIONS,
+        },
+        [canMark, markDropFromShortcut],
     );
 
     const customEvents = useRoastSettings().eventButtons.custom;

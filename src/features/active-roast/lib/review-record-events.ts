@@ -1,5 +1,6 @@
 import type { Json } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
+import { isBbpAllowedEvent } from './bbp-events';
 import { isToggleableLogEvent } from './constants';
 import { isCustomRoastEvent } from './event-buttons';
 import { getFcDualStage } from './fc-dual-mark';
@@ -52,7 +53,7 @@ const storedTime = (event: RawEvent): number =>
 /** New and edited times must fit the record RPC. An unchanged stored time is left alone. */
 const editedTime = (entry: LogEntry): number | null => {
     const time = logEntryTimeSec(entry);
-    if (time == null || !Number.isFinite(time) || time < 0) return null;
+    if (time == null || !Number.isFinite(time) || (time < 0 && !isBbpAllowedEvent(entry.event))) return null;
     return Math.min(time, 5999);
 };
 

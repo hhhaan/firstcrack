@@ -1,6 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useUpdateRoastSession } from '@entities/roast';
-import { formatDateShort } from '@shared/lib/format';
+import { formatDateTimeShort } from '@shared/lib/format';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,15 +8,16 @@ import { useTranslation } from 'react-i18next';
 const titleCls =
     'm-0 w-full min-w-0 break-words border-0 bg-transparent p-0 text-left font-(--font-display) text-[24px] leading-tight tracking-[-0.5px] text-primary outline-none placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--color-primary)';
 
-/** Session display title (`bean_label`). Does not rename the inventory bean. */
+/** Session display title (`batch_name`). Does not rename the inventory bean. */
 export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync, isPending } = useUpdateRoastSession(workspaceOwnerId);
     const inventoryName = session.beans?.name?.trim() || null;
-    const stored = session.bean_label?.trim() || null;
-    const dateLabel = formatDateShort(session.roasted_at);
-    const displayed = stored || inventoryName || dateLabel;
+    const stored = session.batch_name?.trim() || null;
+    const dateLabel = formatDateTimeShort(session.roasted_at);
+    const fallback = session.bean_label?.trim() || inventoryName || dateLabel;
+    const displayed = stored || fallback;
     const canWrite = isWorkspaceReady && !!workspaceOwnerId && session.user_id === workspaceOwnerId;
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(displayed);
@@ -38,8 +39,9 @@ export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelati
         }
         if (!canWrite || isPending || saving.current) return;
         const next = draft.trim();
-        const nextLabel = !next || (inventoryName !== null && next === inventoryName) ? null : next;
-        const unchanged = nextLabel === stored || (stored === null && !inventoryName && nextLabel === dateLabel);
+        // Title is an independent field: store the typed value verbatim (empty clears it).
+        const nextLabel = next || null;
+        const unchanged = nextLabel === stored || (stored === null && next === fallback);
         if (unchanged) {
             setError(false);
             setEditing(false);
@@ -48,7 +50,7 @@ export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelati
         setError(false);
         saving.current = true;
         try {
-            await mutateAsync({ id: session.id, bean_label: nextLabel });
+            await mutateAsync({ id: session.id, batch_name: nextLabel });
             setEditing(false);
         } catch {
             setError(true);
@@ -69,6 +71,7 @@ export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelati
             data-testid="history-record-title"
             aria-label={t('history.recordText.title')}
             value={draft}
+            maxLength={120}
             placeholder={inventoryName || dateLabel}
             disabled={isPending}
             autoFocus
@@ -107,6 +110,7 @@ export const RecordTitleEditor = ({ session }: { session: RoastSessionWithRelati
 
     return (
         <div className="min-w-0">
+            <p className="m-0 mb-1 text-[11px] font-medium text-muted">{t('history.recordText.title')}</p>
             <h1 className="m-0">{title}</h1>
             {error && (
                 <p role="alert" className="mt-1 text-xs text-error">

@@ -88,7 +88,7 @@ describe('DESIGN.md ↔ App.css design tokens', () => {
         expect(dark['--color-sensor-bt-target']).toBe('rgba(75, 224, 140, 0.65)');
         expect(light['--color-phase-danger']).toBe('#dc2626');
         expect(dark['--color-phase-danger']).toBe('#ffffff');
-        expect(dark['--color-divider']).toBe('#585d61');
+        expect(dark['--color-divider']).toBe('#212121');
         expect(light['--color-palette-yellow']).toBe('oklch(0.78 0.18 88)');
         expect(light['--color-event-mark']).toBe('oklch(0.55 0 0)');
         expect(dark['--color-event-control']).toBe('oklch(0.72 0.17 25)');

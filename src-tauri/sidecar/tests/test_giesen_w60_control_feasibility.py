@@ -334,3 +334,26 @@ def test_giesen_clamp_keeps_logical_zero(key: str) -> None:
 
     write_map = ROASTER_REGISTRY[key]["default_params"]["write_map"]
     assert clamp_command({"heater": 0.0}, write_map) == {"heater": 0.0}
+
+
+@pytest.mark.parametrize("key", GIESEN_DB2_KEYS)
+@pytest.mark.parametrize("legacy", [False, True])
+def test_saved_default_giesen_maps_enable_setting_verification(key: str, legacy: bool) -> None:
+    from copy import deepcopy
+    from manager import _merge_connect_params
+
+    defaults = ROASTER_REGISTRY[key]["default_params"]
+    assert defaults["write_map"]["heater"]["verify_readback"] is True
+    saved = deepcopy(defaults["write_map"])
+    saved["heater"].pop("verify_readback")
+    if legacy:
+        saved["heater"].pop("value_offset")
+        saved["heater"]["min"] = 1
+    original = deepcopy(saved)
+    merged = _merge_connect_params(defaults, {"write_map": saved})
+    assert merged["write_map"] == defaults["write_map"]
+    assert saved == original
+
+    custom = deepcopy(original)
+    custom["heater"]["offset"] = 16
+    assert _merge_connect_params(defaults, {"write_map": custom})["write_map"] == custom

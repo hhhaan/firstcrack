@@ -120,65 +120,87 @@ describe('RoastTempChart Heat set lifecycle', () => {
         });
     };
 
-    it('applies the selected tick mode while preserving the inactive list', () => {
+    it('replaces the chart structure when merging and separating controls', () => {
+        renderChart([50, 60]);
+        expect(setOption.mock.lastCall?.[0].grid).toHaveLength(2);
+        renderChart([50, 60], { mergeControlChart: true });
+        expect(setOption.mock.lastCall?.[0].grid).toHaveLength(1);
+        expect(setOption.mock.lastCall?.[1]).toMatchObject({ notMerge: true });
+        renderChart([50, 60], { mergeControlChart: false });
+        expect(setOption.mock.lastCall?.[0].grid).toHaveLength(2);
+        expect(setOption.mock.lastCall?.[1]).toMatchObject({ notMerge: true });
+    });
+
+    it('edits number spacing independently of grid spacing and preserves number lists', () => {
         const original = getRoastSettings();
         const ticks = [150, 175, 200];
         try {
             act(() =>
                 updateRoastSettings({
-                    tempAxisMode: 'preset',
-                    tempTickMode: 'list',
-                    tempGridInterval: 10,
-                    tempTicksC: ticks,
-                }),
-            );
-            renderChart([null, null]);
-            for (const mode of ['preset', 'list', 'preset'] as const) {
-                act(() => updateRoastSettings({ tempAxisMode: mode }));
-                const option = setOption.mock.lastCall?.[0] as {
-                    yAxis: { interval: number; axisTick: { customValues?: number[] } }[];
-                };
-                expect(option.yAxis[0].axisTick.customValues).toEqual(mode === 'list' ? ticks : undefined);
-                if (mode !== 'list') expect(option.yAxis[0].interval).toBe(10);
-                expect(getRoastSettings().tempTicksC).toEqual(ticks);
-            }
-            act(() =>
-                updateRoastSettings({
-                    tempAxisMode: 'list',
+                    temperatureUnit: 'C',
+                    tempLabelInterval: 50,
                     tempTickMode: 'interval',
-                    tempGridInterval: 30,
-                    tempLabelCustom: true,
-                    tempLabelEvery: 3,
+                    tempTicksC: ticks,
+                    horizontalGridMode: 'custom',
+                    horizontalGridInterval: 1,
+                    rorLabelInterval: 2,
                     timeTickCustom: true,
                     timeTickIntervalSec: 45,
                 }),
             );
-            const customOption = setOption.mock.lastCall?.[0] as {
-                yAxis: { interval: number; axisTick: { customValues?: number[] } }[];
-                xAxis: { interval: number }[];
-            };
-            expect(customOption.yAxis[0].interval).toBe(30);
-            expect(customOption.yAxis[0].axisTick.customValues).toBeUndefined();
-            expect(customOption.xAxis[0].interval).toBe(45);
+            renderChart([null, null]);
+            const initial = setOption.mock.lastCall?.[0];
+            const range = [initial.yAxis[0].min, initial.yAxis[0].max];
+            expect(initial.yAxis[0].axisLabel.customValues).toContain(150);
+            expect(initial.yAxis[0].axisLabel.customValues).not.toContain(175);
+            expect(initial.yAxis[0].interval).toBe(1);
+            expect(initial.yAxis[1].interval).toBe(2);
+            expect(initial.xAxis[0].interval).toBe(45);
+            act(() => updateRoastSettings({ tempTickMode: 'list' }));
+            expect(setOption.mock.lastCall?.[0].yAxis[0].axisLabel.customValues).toEqual(ticks);
+            act(() => updateRoastSettings({ tempTickMode: 'interval', tempLabelInterval: 25, rorLabelInterval: 3 }));
+            const updated = setOption.mock.lastCall?.[0];
+            expect(updated.yAxis[0].axisLabel.customValues).toContain(175);
+            expect([updated.yAxis[0].min, updated.yAxis[0].max]).toEqual(range);
+            expect(updated.yAxis[0].interval).toBe(1);
+            expect(updated.yAxis[1].interval).toBe(3);
+            expect(updated.yAxis[1].axisLabel.customValues).toContain(3);
+            expect(updated.yAxis[1].axisLabel.customValues).not.toContain(2);
             expect(getRoastSettings().tempTicksC).toEqual(ticks);
-            act(() => updateRoastSettings({ tempAxisMode: 'preset', timeTickCustom: false }));
-            const defaultOption = setOption.mock.lastCall?.[0] as typeof customOption;
-            expect(defaultOption.yAxis[0].interval).toBe(10);
-            expect(defaultOption.xAxis[0].interval).toBe(60);
+            act(() => updateRoastSettings({ timeTickCustom: false, timeTickPresetSec: 90 }));
+            expect(setOption.mock.lastCall?.[0].xAxis[0].interval).toBe(90);
             expect(getRoastSettings().timeTickIntervalSec).toBe(45);
+        } finally {
+            act(() => updateRoastSettings(original));
+        }
+    });
+
+    it('changes shared grid spacing independently of RoR number lists', () => {
+        const original = getRoastSettings();
+        try {
             act(() =>
                 updateRoastSettings({
-                    tempGridPresetInterval: 20,
-                    tempLabelCustom: false,
-                    tempLabelPresetEvery: 2,
-                    timeTickPresetSec: 90,
+                    temperatureUnit: 'C',
+                    horizontalGridMode: 'custom',
+                    horizontalGridInterval: 1,
+                    horizontalGridPresetInterval: 10,
+                    rorTickMode: 'list',
+                    rorTicksC: [-5, 0, 5],
                 }),
             );
-            const presetOption = setOption.mock.lastCall?.[0] as typeof customOption;
-            expect(presetOption.yAxis[0].interval).toBe(20);
-            expect(presetOption.xAxis[0].interval).toBe(90);
-            expect(getRoastSettings().tempGridInterval).toBe(30);
-            expect(getRoastSettings().tempLabelEvery).toBe(3);
+            renderChart([null, null], { showRoR: true });
+            const check = (interval: number) => {
+                const option = setOption.mock.lastCall?.[0];
+                expect(option.yAxis[0].splitLine.show).toBe(true);
+                expect(option.yAxis[1].splitLine.show).toBe(false);
+                expect(option.yAxis[0].interval).toBe(interval);
+                expect(option.yAxis[1].axisLabel.customValues).toEqual([-5, 0, 5]);
+            };
+            check(1);
+            act(() => updateRoastSettings({ horizontalGridMode: 'preset' }));
+            check(10);
+            act(() => updateRoastSettings({ horizontalGridMode: 'custom' }));
+            check(1);
         } finally {
             act(() => updateRoastSettings(original));
         }
@@ -290,7 +312,9 @@ describe('RoastTempChart interactions', () => {
             expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
             act(() => expect(ref.current?.openMarkerEdit(point)).toBe(true));
             expect(ref.current?.beginMarkerDrag({ ...point, button: 0, pointerId: 7 })).toBe(true);
-            expect(ref.current?.moveMarkerDrag({ clientX: 80, clientY: point.clientY, pointerId: 7 })).toBe(true);
+            expect(
+                ref.current?.moveMarkerDrag({ clientX: point.clientX + 30, clientY: point.clientY, pointerId: 7 }),
+            ).toBe(true);
             expect(onEventMarkerDrag).toHaveBeenCalledWith('yellow-1', 8);
             expect(ref.current?.endMarkerDrag(7)).toBe(true);
         } finally {
@@ -326,6 +350,29 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDrag).toHaveBeenCalledWith('note-1', 8);
         expect(convertToPixel.mock.calls.every(([, value]) => !Array.isArray(value))).toBe(true);
         expect(convertFromPixel.mock.calls.every(([, value]) => !Array.isArray(value))).toBe(true);
+    });
+
+    it('moves a marker by the pointer delta when the grab is not on the anchor', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 5, 8],
+                    eventMarkerStyle: 'line',
+                    eventMarkers: [
+                        { logId: 'note-1', event: 'Note', timeSec: 5, timeStr: '0:05', temp: '180°C', color: '#888' },
+                    ],
+                    onEventMarkerDrag,
+                }),
+            );
+        });
+
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 59, clientY: 20, pointerId: 11 })).toBe(true);
+        expect(ref.current?.moveMarkerDrag({ clientX: 69, clientY: 20, pointerId: 11 })).toBe(true);
+        expect(onEventMarkerDrag).toHaveBeenCalledWith('note-1', 6);
     });
 
     it('drags the turning-point mark', () => {
@@ -607,7 +654,7 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-note-form]')).toBeNull();
     });
 
-    it('restores each field in the editor and clears a field without changing the others', () => {
+    it('edits a note mark with time only', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
         act(() =>
@@ -638,26 +685,19 @@ describe('RoastTempChart interactions', () => {
         act(() => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
-        const gas = container.querySelector('#chart-marker-gas') as HTMLInputElement;
-        expect(gas.value).toBe('0');
-        expect((container.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
-        expect((container.querySelector('#chart-marker-drum') as HTMLInputElement).value).toBe('55');
-        const comment = container.querySelector('#chart-marker-note') as HTMLTextAreaElement;
-        expect(comment.value).toBe('color');
-        act(() => {
-            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(gas, '');
-            gas.dispatchEvent(new Event('input', { bubbles: true }));
-        });
-        act(() => comment.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));
+        const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
+        expect(form.textContent).toContain('Gas 0');
+        expect(form.querySelector('#chart-marker-gas')).toBeNull();
+        expect(form.querySelector('#chart-marker-airflow')).toBeNull();
+        expect(form.querySelector('#chart-marker-drum')).toBeNull();
+        expect(form.querySelector('#chart-marker-note')).toBeNull();
+        expect(form.querySelectorAll('input')).toHaveLength(1);
+        const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
+        act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));
         expect(onEventMarkerEdit).not.toHaveBeenCalled();
-        act(() => comment.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', {
-            timeSec: 5,
-            note: 'color',
-            gas: '',
-            airflow: '50%',
-            drum: '55',
-        });
+        act(() => replaceMarkerTime(time, '0:08'));
+        act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', { timeSec: 8 });
     });
 
     it('opens a marker editor on click and saves Heater time but not heat value', () => {
@@ -690,12 +730,11 @@ describe('RoastTempChart interactions', () => {
         act(() => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
-        const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
-        const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
+        const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
+        const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
         expect(time.value).toBe('0:05');
-        expect(heat.value).toBe('50');
-        expect(heat.disabled).toBe(true);
-        expect(heat.readOnly).toBe(true);
+        expect(form.querySelector('#chart-marker-heat')).toBeNull();
+        expect(form.querySelectorAll('input')).toHaveLength(1);
 
         act(() => replaceMarkerTime(time, '0:08'));
         act(() =>
@@ -739,22 +778,14 @@ describe('RoastTempChart interactions', () => {
         act(() => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
-        const heat = container.querySelector('#chart-marker-heat') as HTMLInputElement;
-        expect(heat.disabled).toBe(false);
-        expect(heat.readOnly).toBe(false);
-        expect(container.querySelector('[data-chart-marker-delete]')).not.toBeNull();
-        act(() => {
-            const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-            setter?.call(heat, '70');
-            heat.dispatchEvent(new Event('input', { bubbles: true }));
-            heat.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        act(() =>
-            container
-                .querySelector('[data-chart-marker-edit]')
-                ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
-        );
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', expect.objectContaining({ note: '70%' }));
+        const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
+        expect(form.querySelector('#chart-marker-heat')).toBeNull();
+        expect(form.querySelectorAll('input')).toHaveLength(1);
+        expect(form.querySelector('[data-chart-marker-delete]')).not.toBeNull();
+        const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
+        act(() => replaceMarkerTime(time, '0:08'));
+        act(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8 });
     });
 
     it('keeps marker time to digits and seconds 0–60', () => {

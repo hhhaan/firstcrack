@@ -22,12 +22,26 @@ export const roastProfileKeys = {
     consistency: (profileId: string) => [...consistencyRoot, profileId] as const,
 };
 
-export const useRoastProfiles = (userId: string) =>
+export const useProfileSourceHistory = (userId: string, profileId: string | null) =>
     useQuery({
+        queryKey: [...beanHistoryRoot, userId, 'source-history', profileId],
+        queryFn: () => roastProfileApi.sourceHistory(userId, profileId ?? ''),
+        enabled: !!userId && !!profileId,
+    });
+
+export const useRoastProfiles = (userId: string) => {
+    const { data: batchCounters } = useQuery({
+        queryKey: [...roastProfileKeys.all(userId), 'batch_counters'],
+        queryFn: () => roastProfileApi.batchCounters(userId),
+        enabled: !!userId,
+    });
+    const profiles = useQuery({
         queryKey: roastProfileKeys.all(userId),
         queryFn: () => roastProfileApi.list(userId),
         enabled: !!userId,
     });
+    return { ...profiles, batchCounters };
+};
 
 /** List is the SSoT for count/cards/detail — patch it immediately, then invalidate for joins. */
 const toListRow = (created: RoastProfile): RoastProfileWithSource => ({
@@ -51,7 +65,6 @@ export const applyUpdatedRoastProfileCache = (qc: QueryClient, userId: string, u
     qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old) =>
         old?.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)),
     );
-    qc.setQueryData<RoastProfile>(roastProfileKeys.detail(updated.id), updated);
     void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
 };
 

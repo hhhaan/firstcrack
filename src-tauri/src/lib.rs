@@ -2,6 +2,8 @@ mod app_nap;
 #[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
+#[cfg(any(target_os = "windows", test))]
+mod window_chrome;
 // Local import locations are supported on macOS; keep parsers compiled for portable tests.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 mod roasting_import;
@@ -270,6 +272,7 @@ fn configure_main_window(app: &tauri::App) {
     // Windows: conf 기본값(1260×810)이 DPI 스케일에서 체감상 큼 → 시작 크기만 축소
     #[cfg(target_os = "windows")]
     {
+        window_chrome::match_shell(&window);
         let _ = window.set_size(Size::Logical(LogicalSize::new(1100.0, 720.0)));
         let _ = window.center();
     }
@@ -512,6 +515,7 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_notification::init());
 
     // Sentry가 꺼진 debug 빌드에서는 플러그인(webview JS 주입 포함)도 붙이지 않는다.

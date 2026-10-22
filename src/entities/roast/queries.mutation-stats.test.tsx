@@ -115,16 +115,12 @@ describe('roast mutations refresh profile stats', () => {
             latest.weight.mutateAsync({
                 sessionId: 's1',
                 outputGrams: 850,
-                inboundGrams: 850,
-                inboundIsEstimate: false,
             }),
         );
         await run(() =>
             latest.charge.mutateAsync({
                 sessionId: 's1',
                 weightGrams: 900,
-                inboundGrams: 740,
-                inboundIsEstimate: true,
             }),
         );
         await run(() =>
@@ -171,10 +167,6 @@ describe('roast mutations refresh profile stats', () => {
 
     it('patches the history page before the server answers', async () => {
         qc.setQueryData(pageKey, { data: [row], total: 1 });
-        qc.setQueryData(
-            [...roastProfileQueryRoots.profiles, uid],
-            [{ id: 'p1', name: 'Washed', target_level: 'Light' }],
-        );
         let release: (() => void) | undefined;
         const gate = () =>
             new Promise<void>((resolve) => {
@@ -190,12 +182,12 @@ describe('roast mutations refresh profile stats', () => {
 
         let pending: Promise<unknown> = Promise.resolve();
         await act(async () => {
-            pending = latest.update.mutateAsync({ id: 's1', notes: 'next', profile_id: 'p1' });
+            pending = latest.update.mutateAsync({ id: 's1', notes: 'next' });
         });
         for (let i = 0; i < 20 && pageRow().notes !== 'next'; i++) await flush();
         expect(pageRow().notes).toBe('next');
-        expect(pageRow().profile_id).toBe('p1');
-        expect(pageRow().roast_profiles).toEqual({ name: 'Washed', target_level: 'Light' });
+        expect(pageRow().profile_id).toBe(row.profile_id);
+        expect(pageRow().roast_profiles).toEqual(row.roast_profiles);
 
         await act(async () => {
             release?.();
@@ -235,8 +227,6 @@ describe('roast mutations refresh profile stats', () => {
             pending = latest.weight.mutateAsync({
                 sessionId: 's1',
                 outputGrams: 850,
-                inboundGrams: 850,
-                inboundIsEstimate: false,
             });
         });
         for (let i = 0; i < 20 && pageRow().output_weight_grams !== 850; i++) await flush();
@@ -252,8 +242,6 @@ describe('roast mutations refresh profile stats', () => {
             pending = latest.charge.mutateAsync({
                 sessionId: 's1',
                 weightGrams: 900,
-                inboundGrams: 740,
-                inboundIsEstimate: true,
             });
         });
         for (let i = 0; i < 20 && pageRow().weight_grams !== 900; i++) await flush();
@@ -289,16 +277,12 @@ describe('roast mutations refresh profile stats', () => {
         expect(pageRow().drop_temp_celsius).toBe(180);
 
         await act(async () => {
-            await latest.weight
-                .mutateAsync({ sessionId: 's1', outputGrams: 850, inboundGrams: 850, inboundIsEstimate: false })
-                .catch(() => undefined);
+            await latest.weight.mutateAsync({ sessionId: 's1', outputGrams: 850 }).catch(() => undefined);
         });
         expect(pageRow().output_weight_grams).toBeNull();
 
         await act(async () => {
-            await latest.charge
-                .mutateAsync({ sessionId: 's1', weightGrams: 900, inboundGrams: 740, inboundIsEstimate: true })
-                .catch(() => undefined);
+            await latest.charge.mutateAsync({ sessionId: 's1', weightGrams: 900 }).catch(() => undefined);
         });
         expect(pageRow().weight_grams).toBe(1000);
     });
