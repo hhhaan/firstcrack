@@ -80,7 +80,7 @@ describe('history compare chart raw polyline', () => {
         {
             id: 'session-a',
             label: 'Batch A',
-            color: '#111',
+            batchIndex: 0,
             points: [
                 { t: 0, bt: 200, et: 210, ror: 10 },
                 { t: 60, bt: 180, et: 195, ror: 8 },
@@ -89,7 +89,7 @@ describe('history compare chart raw polyline', () => {
         {
             id: 'session-b',
             label: 'Batch B',
-            color: '#222',
+            batchIndex: 1,
             points: [
                 { t: 0, bt: 195, et: 205, ror: 9 },
                 { t: 90, bt: 170, et: 188, ror: 7 },

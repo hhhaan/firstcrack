@@ -81,7 +81,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                 return {
                     id: s.id,
                     label: `${String(i + 1).padStart(2, '0')} · ${sessionRoastTitle(s) ?? formatDateShort(s.roasted_at)}`,
-                    color: COMPARE_COLORS[i % COMPARE_COLORS.length],
+                    batchIndex: i,
                     points: points.map((point, index) => ({
                         ...point,
                         heaterSet: heatSet ? heatSet[index] : (point.heaterSet ?? null),

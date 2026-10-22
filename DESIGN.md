@@ -94,7 +94,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 ### Compare colors
 
-비교 화면의 배치 색은 선택 목록·범례·곡선·수치표에서 동일하게 사용한다. 센서와 페이즈 색을 배치 구분에 재사용하지 않는다.
+History 비교는 채널 하나씩 표시하며, 곡선과 채널 표시에는 사용자의 채널 색상을 사용한다. 배치는 01–05 번호와 공통 마커 모양으로 구분하고 숨겨도 번호와 모양을 유지한다. 수치 표는 같은 채널을 같은 열에 표시하며 글자는 기본 텍스트 색으로 읽기 쉽게 유지한다. 아래 배치 팔레트는 선택 목록과 배치별 결과에 사용한다.
 
 | Token | Light | Dark |
 |---|---|---|
@@ -102,6 +102,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-compare-orange` | `oklch(0.58 0.15 50)` | `oklch(0.78 0.13 50)` |
 | `--color-compare-purple` | `oklch(0.53 0.17 300)` | `oklch(0.78 0.13 300)` |
 | `--color-compare-teal` | `oklch(0.52 0.09 175)` | `oklch(0.78 0.11 175)` |
+| `--color-compare-rose` | `oklch(0.52 0.17 355)` | `oklch(0.78 0.12 355)` |
 
 ### Sensor colors
 

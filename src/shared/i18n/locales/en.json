@@ -1477,7 +1477,6 @@
             "noCurves": "No curve data in selected sessions",
             "noCurveData": "No curve data",
             "events": "Events",
-            "tempAndRor": "Temp & RoR",
             "phases": "Phases",
             "phaseDrying": "Drying",
             "phaseMaillard": "Maillard",
@@ -1495,12 +1494,12 @@
             "weight": "Weight",
             "workspaceHint": "Compare roast curves and batch results in one place.",
             "chartHint": "Move cursor · Scroll to zoom · Hover a batch to highlight",
+            "chartKeyboardHint": "Use Left and Right arrows to move through time and inspect the table. Home moves to the start, End to the end.",
             "metrics": "Batch comparison",
             "batch": "Roast batch",
             "sensors": "Sensors",
             "temperatures": "Temperature",
             "resetZoom": "Reset zoom",
-            "cursorTime": "Cursor time",
             "noSelectedSensorData": "No recorded values for this sensor in the visible batches."
         },
         "cupping": {

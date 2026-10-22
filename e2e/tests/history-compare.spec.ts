@@ -1,8 +1,9 @@
 import { expect, goNav, test } from '../fixtures/app';
 import { E2E_USER } from '../fixtures/constants';
 import type { MockDb } from '../fixtures/mock-db';
+import { installPersistentStore } from '../fixtures/persistent-store';
 
-const BATCHES = ['Ethiopia Guji', 'Colombia Huila', 'Kenya Kirinyaga', 'Brazil Cerrado'];
+const BATCHES = ['Ethiopia Guji', 'Colombia Huila', 'Kenya Kirinyaga', 'Brazil Cerrado', 'Guatemala Antigua'];
 
 function seedCompare(db: MockDb, withCurves = true) {
     BATCHES.forEach((name, index) => {
@@ -38,6 +39,10 @@ function seedCompare(db: MockDb, withCurves = true) {
             tsv_path: withCurves ? key : null,
             duration_seconds: duration + 60,
             weight_grams: 1200,
+            profile_batch_number: index + 1,
+            total_batch_number: 251 + index,
+            color_whole: index === 0 ? '64.2' : null,
+            color_ground: index === 0 ? '65.1' : null,
             heater_events:
                 index === 0
                     ? [
@@ -59,146 +64,130 @@ function seedCompare(db: MockDb, withCurves = true) {
     });
 }
 
-test('history compare: batch visibility, recorded sensors, zoom and responsive themes', async ({
+test('history compare: five batches, user colors, channel tabs and responsive themes', async ({
     authedPage: page,
     db,
 }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
+    await installPersistentStore(page);
+    await page.evaluate(() =>
+        localStorage.setItem(
+            'e2e:tauri-store:settings.json',
+            JSON.stringify({
+                'roast.settings': { curveStyles: { bt: { color: '#873d72' }, et: { color: '#1466a3' } } },
+            }),
+        ),
+    );
+    await page.reload();
+    await expect(page.getByTestId('app-sidebar')).toBeVisible();
     seedCompare(db);
+    db.seedCompletedSession({
+        beans: { name: 'Sixth batch', origin: null, region: null, variety: null, process: null, farm: null },
+    });
     await goNav(page, 'history');
     await page.getByRole('button', { name: 'Compare', exact: true }).click();
     for (const name of BATCHES) await page.getByText(name, { exact: true }).first().click();
-    await page.getByRole('button', { name: 'Compare (4)' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Compare Sessions (4)' });
-    await expect(dialog.locator('canvas').first()).toBeVisible();
-    await expect(dialog.locator('fieldset svg line[stroke-dasharray]')).toHaveCount(0);
-    await expect(dialog.getByTestId('compare-shared-cursor')).toHaveCSS('border-left-style', 'solid');
+    await page.getByText('Sixth batch', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Compare (5)' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Compare Sessions (5)' });
+    const bt = dialog.getByRole('tab', { name: 'BT °C', exact: true });
+    const mainPlot = dialog.getByRole('region', { name: 'BT °C', exact: true });
+    await expect(mainPlot.locator('canvas')).toBeVisible();
+    await expect(dialog.locator('canvas')).toHaveCount(1);
+    await expect(dialog.getByRole('tab')).toHaveCount(7);
+    await expect(bt).toHaveAttribute('aria-selected', 'true');
+    await expect(dialog.getByRole('slider')).toHaveCount(0);
+    await expect(dialog.getByTestId('compare-shared-cursor')).toHaveCount(0);
+    await expect(dialog.getByTestId('compare-cursor-time')).toHaveCount(0);
+    await expect(dialog.getByText('Sixth batch', { exact: true })).toHaveCount(0);
+    await expect(bt.locator('span').first()).toHaveCSS('background-color', 'rgb(135, 61, 114)');
+    await expect
+        .poll(() =>
+            mainPlot.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+                const context = canvas.getContext('2d');
+                if (!context) return 0;
+                const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+                let matches = 0;
+                for (let i = 0; i < data.length; i += 4)
+                    if (data[i] === 135 && data[i + 1] === 61 && data[i + 2] === 114) matches++;
+                return matches;
+            }),
+        )
+        .toBeGreaterThan(100);
 
-    const row = dialog.getByRole('row').filter({ hasText: 'Ethiopia Guji' });
-    await expect(row).toContainText('10:00');
-    await expect(row).toContainText('207.0°C');
-    await expect(row).toContainText('20.0%');
-    await expect(row).toContainText('16.7%');
-    await expect(dialog.getByRole('checkbox')).toHaveCount(7);
-    const bt = dialog.getByRole('checkbox', { name: 'BT °C', exact: true });
-    await expect(bt).toBeChecked();
-    for (const name of ['ET °C', 'BT RoR °C/min', 'ET RoR °C/min', 'Gas %']) {
-        await expect(dialog.getByRole('checkbox', { name, exact: true })).toBeChecked();
-    }
-    for (const name of ['Inlet °C', 'Pressure Pa']) {
-        await expect(dialog.getByRole('checkbox', { name, exact: true })).not.toBeChecked();
-    }
-    const mainPlot = dialog.getByRole('region', { name: 'Temp & RoR', exact: true });
-    const gasPlot = dialog.getByRole('region', { name: 'Gas %', exact: true });
+    const metrics = dialog.getByRole('table').last();
+    const row = metrics.getByRole('row').filter({ hasText: 'Ethiopia Guji' });
+    for (const text of ['10:00', '207.0°C', '20.0%', '16.7%', '#1 · Σ#251', '64.2', '65.1'])
+        await expect(row).toContainText(text);
     const readout = dialog.getByTestId('compare-batch-readout').filter({ hasText: 'Ethiopia Guji' });
-    const gasValue = readout.locator('dl > div').filter({ hasText: 'Gas' }).locator('dd');
-    const mainBox = await mainPlot.boundingBox();
-    if (!mainBox) throw new Error('Temperature chart is missing');
-    const plotX = (ratio: number) => mainBox.x + 38 + (mainBox.width - 38 - 32) * ratio;
-    await page.mouse.move(plotX(0.25), mainBox.y + 120);
-    await expect(gasValue).toHaveText('70.0');
-    const cursor = dialog.getByTestId('compare-cursor-time');
-    const time = await cursor.textContent();
-    await gasPlot.scrollIntoViewIfNeeded();
-    const gasBox = await gasPlot.boundingBox();
-    if (!gasBox) throw new Error('Gas chart is missing');
-    await page.mouse.move(plotX(0.25), gasBox.y + 60);
-    await expect(cursor).toHaveText(time ?? '');
-    await page.mouse.move(plotX(0.7), gasBox.y + 60);
-    await expect(gasValue).toHaveText('45.0');
-    const timeSlider = dialog.getByRole('slider', { name: 'Cursor time' });
-    await timeSlider.focus();
+    await expect(readout).toContainText('#1 · Σ#251');
+    const gasValue = readout.locator('td').nth(4);
+    await expect(gasValue).toHaveText('—');
+    const panel = dialog.getByRole('tabpanel');
+    await panel.focus();
     await page.keyboard.press('Home');
-    await expect(cursor).toHaveText('00:00');
-    await page.keyboard.press('ArrowRight');
-    await expect(cursor).toHaveText('00:01');
-    await timeSlider.evaluate((element) => element.blur());
-    await mainPlot.hover();
-    const ratios = await dialog
-        .getByRole('group', { name: '4 selected' })
-        .getByTestId('compare-batch-readout')
-        .evaluateAll((buttons) => {
-            const canvas = document.createElement('canvas');
-            canvas.width = canvas.height = 1;
-            const context = canvas.getContext('2d');
-            if (!context) throw new Error('Canvas is unavailable');
-            const luminance = (color: string) => {
-                context.fillStyle = color;
-                context.fillRect(0, 0, 1, 1);
-                const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
-                const linear = [r, g, b].map((value) => {
-                    const channel = value / 255;
-                    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-                });
-                return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
-            };
-            const background = luminance(
-                getComputedStyle(document.documentElement).getPropertyValue('--color-main-bg'),
-            );
-            return buttons.map((button) => {
-                const foreground = luminance(getComputedStyle(button).borderLeftColor);
-                return (Math.max(background, foreground) + 0.05) / (Math.min(background, foreground) + 0.05);
-            });
-        });
-    expect(ratios).toHaveLength(4);
-    for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
-    await page.screenshot({ path: testInfo.outputPath('compare-light.png'), animations: 'disabled' });
+    await expect(gasValue).toHaveText('70.0');
+    for (let step = 0; step < 5; step++) await page.keyboard.press('ArrowRight');
+    await expect(readout.locator('td').first()).toHaveText('188.2');
+    await expect(gasValue).toHaveText('70.0');
+    await page.keyboard.press('End');
+    await expect(gasValue).toHaveText('—');
 
-    const inlet = dialog.getByRole('checkbox', { name: 'Inlet °C', exact: true });
-    await inlet.focus();
-    await page.keyboard.press('Space');
-    await expect(inlet).toBeChecked();
-    await expect(bt).toBeChecked();
-    const pressure = dialog.getByRole('checkbox', { name: 'Pressure Pa', exact: true });
-    await pressure.focus();
-    await page.keyboard.press('Space');
+    const moveTo = async (plot: typeof mainPlot, ratio: number) => {
+        await plot.scrollIntoViewIfNeeded();
+        const box = await plot.boundingBox();
+        if (!box) throw new Error('Comparison chart is missing');
+        await page.mouse.move(box.x + 32 + (box.width - 64) * ratio, box.y + 120);
+    };
+    await moveTo(mainPlot, 0.25);
+    await expect(gasValue).toHaveText('70.0');
+    await dialog.getByRole('tab', { name: 'Gas %', exact: true }).click();
+    const gasPlot = dialog.getByRole('region', { name: 'Gas %', exact: true });
+    await moveTo(gasPlot, 0.25);
+    await expect(gasValue).toHaveText('70.0');
+    await moveTo(gasPlot, 0.7);
+    await expect(gasValue).toHaveText('45.0');
+    await bt.click();
+    await bt.focus();
+    await page.keyboard.press('ArrowRight');
+    const et = dialog.getByRole('tab', { name: 'ET °C', exact: true });
+    await expect(et).toBeFocused();
+    await expect(et).toHaveAttribute('aria-selected', 'true');
+    await expect(et.locator('span').first()).toHaveCSS('background-color', 'rgb(20, 102, 163)');
+    await page.keyboard.press('End');
+    await expect(dialog.getByRole('tab', { name: 'Pressure Pa', exact: true })).toHaveAttribute(
+        'aria-selected',
+        'true',
+    );
+    await page.keyboard.press('Home');
+    await expect(bt).toBeFocused();
+    await page.keyboard.press('ArrowLeft');
+    await expect(dialog.getByRole('tab', { name: 'Pressure Pa', exact: true })).toBeFocused();
     await expect(dialog.getByRole('region', { name: 'Pressure Pa' })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('compare-pressure.png'), animations: 'disabled' });
 
     const first = dialog.getByRole('button', { name: /^Ethiopia Guji/ });
-    const second = dialog.getByRole('button', { name: /^Colombia Huila/ });
-    const third = dialog.getByRole('button', { name: /^Kenya Kirinyaga/ });
     const fourth = dialog.getByRole('button', { name: /^Brazil Cerrado/ });
-    await first.focus();
-    await page.screenshot({ path: testInfo.outputPath('compare-focus.png'), animations: 'disabled' });
-    await pressure.focus();
-    await first.click();
-    await second.click();
-    await third.click();
+    const hidden = ['Ethiopia Guji', 'Colombia Huila', 'Kenya Kirinyaga', 'Guatemala Antigua'];
+    for (const name of hidden) await dialog.getByRole('button', { name: new RegExp(`^${name}`) }).click();
     await expect(first).toHaveAttribute('aria-pressed', 'false');
     await expect(fourth).toBeDisabled();
-    await expect(dialog.getByRole('status')).toContainText('No recorded values for this sensor');
-    await first.click();
-    await second.click();
-    await third.click();
-    await inlet.uncheck();
-    await pressure.uncheck();
-
-    await mainPlot.hover();
+    await expect(dialog.getByRole('status')).toHaveText('No recorded values for this sensor in the visible batches.');
+    await expect(dialog.getByRole('tab')).toHaveCount(7);
+    for (const name of hidden) await dialog.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+    await bt.click();
+    await moveTo(mainPlot, 0.5);
     await page.mouse.wheel(0, -100);
     await dialog.getByRole('button', { name: 'Reset zoom' }).click();
     await expect(dialog.getByRole('button', { name: 'Reset zoom' })).toHaveCount(0);
-
-    for (const name of ['ET °C', 'BT RoR °C/min', 'ET RoR °C/min', 'Gas %']) {
-        await dialog.getByRole('checkbox', { name, exact: true }).uncheck();
-    }
-    await expect(bt).toBeDisabled();
-    await bt.focus();
-    await page.keyboard.press('Space');
-    await expect(bt).toBeChecked();
-    for (const name of ['ET °C', 'BT RoR °C/min', 'ET RoR °C/min', 'Gas %']) {
-        await dialog.getByRole('checkbox', { name, exact: true }).check();
-    }
-
+    await moveTo(mainPlot, 0.5);
+    await page.screenshot({ path: testInfo.outputPath('compare-light.png'), animations: 'disabled' });
+    await first.focus();
+    await page.screenshot({ path: testInfo.outputPath('compare-focus.png'), animations: 'disabled' });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
-    await inlet.focus();
-    await page.keyboard.press('Space');
-    await expect(inlet).toBeChecked();
-    await inlet.uncheck();
-    const gas = dialog.getByRole('checkbox', { name: 'Gas %', exact: true });
-    await gas.uncheck();
-    await gas.check();
-    await gas.evaluate((element) => element.blur());
+    await et.click();
+    await bt.click();
+    await moveTo(mainPlot, 0.5);
     await page.screenshot({ path: testInfo.outputPath('compare-dark.png'), animations: 'disabled' });
     for (const viewport of [
         { width: 1024, height: 680 },
@@ -208,10 +197,10 @@ test('history compare: batch visibility, recorded sensors, zoom and responsive t
         await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
         expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     }
-    await page.screenshot({ path: testInfo.outputPath('compare-small.png'), animations: 'disabled' });
     await readout.scrollIntoViewIfNeeded();
+    await gasValue.scrollIntoViewIfNeeded();
     await expect(gasValue).toBeInViewport();
-    await page.screenshot({ path: testInfo.outputPath('compare-small-readouts.png'), animations: 'disabled' });
+    await page.screenshot({ path: testInfo.outputPath('compare-small.png'), animations: 'disabled' });
     await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await expect(dialog).toBeHidden();
 });

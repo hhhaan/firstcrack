@@ -2,10 +2,13 @@ import type { CompareChartSeries } from '@features/active-roast/lib/chart-option
 import {
     type CompareChannel,
     compareChannelValue,
+    compareCurveStyle,
     comparePointAtTime,
 } from '@features/active-roast/lib/chart-option/compare-channels';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
-import { formatDateShort, formatElapsed } from '@shared/lib/format';
+import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
+import { COMPARE_MARKERS } from '@shared/lib/compare-style';
+import { formatDateTimeShort } from '@shared/lib/format';
 import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { AlertCircle, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -15,10 +18,10 @@ interface CompareSessionReadoutsProps {
     items: CompareSessionItem[];
     series: CompareChartSeries[];
     channels: CompareChannel[];
+    selectedKey: string | null;
+    focusedSessionId: string | null;
     temperatureUnit: TemperatureUnit;
-    cursorTime: number;
-    xView: { start: number; end: number };
-    onCursorChange: (time: number) => void;
+    cursorTime: number | null;
     onToggle: (id: string) => void;
     onFocusSession: (id: string | null) => void;
 }
@@ -27,130 +30,133 @@ export const CompareSessionReadouts = ({
     items,
     series,
     channels,
+    selectedKey,
+    focusedSessionId,
     temperatureUnit,
     cursorTime,
-    xView,
-    onCursorChange,
     onToggle,
     onFocusSession,
 }: CompareSessionReadoutsProps) => {
     const { t } = useTranslation();
+    const curves = useCurveStyles();
     const visibleCount = items.filter((item) => item.visible).length;
-    const cursorLabel = formatElapsed(cursorTime).padStart(5, '0');
     return (
-        <aside className="border-t border-border p-4 min-[900px]:w-60 min-[900px]:shrink-0 min-[900px]:border-t-0 min-[900px]:border-l">
-            <div className="mb-4 flex items-center gap-4 min-[900px]:block">
-                <div>
-                    <p className="text-xs text-secondary">{t('history.compare.cursorTime')}</p>
-                    <span data-testid="compare-cursor-time" className="font-mono text-2xl font-semibold text-primary">
-                        {cursorLabel}
-                    </span>
-                </div>
-                <input
-                    type="range"
-                    min={Math.ceil(xView.start)}
-                    max={Math.floor(xView.end)}
-                    step={1}
-                    value={cursorTime}
-                    aria-label={t('history.compare.cursorTime')}
-                    aria-valuetext={cursorLabel}
-                    onChange={(event) => onCursorChange(Number(event.target.value))}
-                    className="h-4 w-full accent-primary min-[900px]:mt-2"
-                />
-            </div>
-            <div
-                role="group"
-                aria-label={t('history.compare.sidebarTitle', { count: items.length })}
-                className="grid gap-4 min-[600px]:grid-cols-2 min-[900px]:grid-cols-1"
-            >
-                {items.map(({ session, color, visible, hasCurve }, index) => {
-                    const name = sessionRoastTitle(session) ?? session.roast_profiles?.name ?? '—';
-                    const batchNumbers = sessionBatchNumberLabel(session);
-                    const sample = comparePointAtTime(series[index].points, cursorTime);
-                    return (
-                        <section
-                            key={session.id}
-                            data-testid="compare-batch-readout"
-                            className="min-w-0 border-l-2 pl-3"
-                            style={{ borderColor: color }}
-                        >
-                            <button
-                                type="button"
-                                aria-pressed={visible}
-                                aria-label={`${name} · ${formatDateShort(session.roasted_at)}`}
-                                aria-disabled={visible && visibleCount === 1}
-                                onClick={() => {
-                                    onToggle(session.id);
-                                    onFocusSession(null);
-                                }}
+        <div
+            role="group"
+            aria-label={t('history.compare.sidebarTitle', { count: items.length })}
+            className="overflow-x-auto border-t border-border"
+        >
+            <table className="w-full min-w-[760px] border-collapse text-left">
+                <thead className="border-b border-border bg-surface/45">
+                    <tr>
+                        <th scope="col" className="min-w-64 px-4 py-3 text-xs font-medium text-secondary">
+                            {t('history.compare.batch')}
+                        </th>
+                        {channels.map((channel) => (
+                            <th
+                                key={channel.key}
+                                scope="col"
+                                className={`whitespace-nowrap px-3 py-3 text-xs font-medium text-secondary ${channel.key === selectedKey ? 'bg-surface' : ''}`}
+                            >
+                                <span className="flex items-center gap-1.5">
+                                    <span
+                                        aria-hidden="true"
+                                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                        style={{ backgroundColor: compareCurveStyle(channel, curves).color }}
+                                    />
+                                    {channel.label}
+                                </span>
+                                <span className="mt-0.5 block text-[11px] font-normal">{channel.unit}</span>
+                            </th>
+                        ))}
+                    </tr>
+                </thead>
+                <tbody>
+                    {items.map(({ session, visible, hasCurve }, index) => {
+                        const name = sessionRoastTitle(session) ?? session.roast_profiles?.name ?? '—';
+                        const batchNumbers = sessionBatchNumberLabel(session);
+                        const sample =
+                            cursorTime === null ? undefined : comparePointAtTime(series[index].points, cursorTime);
+                        return (
+                            <tr
+                                key={session.id}
+                                data-testid="compare-batch-readout"
                                 onMouseEnter={() => onFocusSession(visible ? session.id : null)}
                                 onMouseLeave={() => onFocusSession(null)}
-                                onFocus={() => onFocusSession(visible ? session.id : null)}
-                                onBlur={() => onFocusSession(null)}
-                                className="flex w-full items-start gap-2 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                                className={`border-b border-border-subtle last:border-b-0 ${
+                                    focusedSessionId === session.id ? 'bg-surface-warm' : ''
+                                } ${visible ? '' : 'opacity-45'}`}
                             >
-                                <span
-                                    aria-hidden="true"
-                                    className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border text-main-bg"
-                                    style={{ borderColor: color, backgroundColor: visible ? color : undefined }}
-                                >
-                                    {visible && <Check size={12} strokeWidth={2.5} />}
-                                </span>
-                                <span className="min-w-0">
-                                    <span className="block break-words text-sm font-semibold text-primary">
-                                        <span className="mr-1.5 font-mono text-xs text-secondary">
-                                            {String(index + 1).padStart(2, '0')}
+                                <th scope="row" className="px-4 py-3 font-normal">
+                                    <button
+                                        type="button"
+                                        aria-pressed={visible}
+                                        aria-label={`${name} · ${formatDateTimeShort(session.roasted_at)}`}
+                                        aria-disabled={visible && visibleCount === 1}
+                                        onClick={() => {
+                                            onToggle(session.id);
+                                            onFocusSession(null);
+                                        }}
+                                        onFocus={() => onFocusSession(visible ? session.id : null)}
+                                        onBlur={() => onFocusSession(null)}
+                                        className="flex w-full items-center gap-3 text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+                                    >
+                                        <span
+                                            aria-hidden="true"
+                                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-primary ${visible ? 'bg-primary text-main-bg' : ''}`}
+                                        >
+                                            {visible && <Check size={12} strokeWidth={2.5} />}
                                         </span>
-                                        {name}
-                                    </span>
-                                    <span className="mt-1 block text-xs text-secondary">
-                                        {formatDateShort(session.roasted_at)}
-                                    </span>
-                                    {batchNumbers && (
-                                        <span className="mt-1 block font-mono text-xs text-secondary">
-                                            {batchNumbers}
+                                        <span className="flex shrink-0 items-center gap-1.5 text-secondary">
+                                            <svg
+                                                width="14"
+                                                height="14"
+                                                viewBox="-6 -6 12 12"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="1.4"
+                                                aria-hidden="true"
+                                            >
+                                                <path d={COMPARE_MARKERS[index % COMPARE_MARKERS.length]} />
+                                            </svg>
+                                            <span className="font-mono text-xs">
+                                                {String(index + 1).padStart(2, '0')}
+                                            </span>
                                         </span>
-                                    )}
-                                </span>
-                                {!hasCurve && (
-                                    <span title={t('history.compare.noCurveData')}>
-                                        <AlertCircle size={13} className="text-secondary" />
-                                    </span>
-                                )}
-                            </button>
-                            <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                                        <span className="min-w-0">
+                                            <span className="block text-xs font-semibold text-primary">{name}</span>
+                                            <span className="mt-1 block text-[11px] text-secondary">
+                                                {formatDateTimeShort(session.roasted_at)}
+                                                {batchNumbers && ` · ${batchNumbers}`}
+                                            </span>
+                                        </span>
+                                        {!hasCurve && (
+                                            <span title={t('history.compare.noCurveData')}>
+                                                <AlertCircle size={13} className="text-secondary" />
+                                            </span>
+                                        )}
+                                    </button>
+                                </th>
                                 {channels.map((channel) => {
                                     const value =
                                         sample && visible
                                             ? compareChannelValue(sample, channel, temperatureUnit)
                                             : null;
                                     return (
-                                        <div
+                                        <td
                                             key={channel.key}
-                                            className={
-                                                channel.kind === 'other'
-                                                    ? 'col-span-2 flex items-baseline justify-between gap-2'
-                                                    : ''
-                                            }
+                                            data-channel={channel.key}
+                                            className={`px-3 py-3 font-mono text-sm tabular-nums text-primary ${channel.key === selectedKey ? 'bg-surface font-semibold' : ''}`}
                                         >
-                                            <dt className="text-xs font-medium text-secondary">
-                                                {channel.label}
-                                                <span className="ml-1 text-[11px] font-normal">{channel.unit}</span>
-                                            </dt>
-                                            <dd
-                                                className="font-mono text-lg leading-6 font-medium tabular-nums"
-                                                style={{ color: visible ? color : undefined }}
-                                            >
-                                                {value == null ? '—' : value.toFixed(1)}
-                                            </dd>
-                                        </div>
+                                            {value == null ? '—' : value.toFixed(1)}
+                                        </td>
                                     );
                                 })}
-                            </dl>
-                        </section>
-                    );
-                })}
-            </div>
-        </aside>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
     );
 };

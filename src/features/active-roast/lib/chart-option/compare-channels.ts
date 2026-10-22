@@ -1,5 +1,6 @@
 import type { ExtraSensorReading } from '@shared/types/sidecar';
 import type { TemperatureUnit } from '../../model/settings';
+import type { CurveChannel, CurveLineStyle, ResolvedCurveStyles } from '../curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR, toDisplayTemp } from '../temperature';
 
 export type ComparePoint = {
@@ -21,6 +22,21 @@ export type CompareChannel = {
     source: 'bt' | 'et' | 'ror' | 'rorEt' | 'heaterSet' | 'extra';
     sensorId?: string;
     sensorUnit?: string;
+};
+
+const CURVE_CHANNEL: Record<Exclude<CompareChannel['source'], 'extra'>, CurveChannel> = {
+    bt: 'bt',
+    et: 'et',
+    ror: 'ror',
+    rorEt: 'etRor',
+    heaterSet: 'heat',
+};
+
+export const compareCurveStyle = (channel: CompareChannel, curves: ResolvedCurveStyles): CurveLineStyle => {
+    if (channel.source === 'extra') {
+        return curves[channel.kind === 'temperature' ? 'et' : channel.kind === 'ror' ? 'ror' : 'heat'].current;
+    }
+    return curves[CURVE_CHANNEL[channel.source]].current;
 };
 
 const finite = (value: number | null | undefined): value is number => value != null && Number.isFinite(value);

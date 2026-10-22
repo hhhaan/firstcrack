@@ -1,5 +1,7 @@
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
+import { COMPARE_MARKERS } from '@shared/lib/compare-style';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { DEFAULT_CURVE_STYLES } from '../curve-style';
 import { buildCompareChartOption, type CompareChartSeries } from './compare';
 import { compareChannels } from './compare-channels';
 
@@ -7,7 +9,7 @@ const series: CompareChartSeries[] = [
     {
         id: 'a',
         label: 'A',
-        color: '#000',
+        batchIndex: 0,
         points: [{ t: 0, bt: 200, et: 210, ror: 10 }],
     },
 ];
@@ -17,6 +19,40 @@ afterEach(() => {
 });
 
 describe('buildCompareChartOption display unit', () => {
+    it('keeps user colors and stable batch markers when other batches are hidden', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
+        const batches = Array.from({ length: 5 }, (_, batchIndex) => ({
+            ...series[0],
+            id: `batch-${batchIndex}`,
+            batchIndex,
+        }));
+        const curveStyles = {
+            ...DEFAULT_CURVE_STYLES,
+            bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#873d72' },
+        };
+        const option = buildCompareChartOption(batches, {
+            xView: { start: 0, end: 60 },
+            channelKeys: ['bt'],
+            curveStyles,
+        });
+        const curves = option.series as { symbol: string }[];
+        expect(new Set(curves.map((curve) => curve.symbol)).size).toBe(5);
+        const hidden = buildCompareChartOption([batches[1], batches[3]], {
+            xView: { start: 0, end: 60 },
+            channelKeys: ['bt'],
+            curveStyles,
+        });
+        expect(hidden.series).toMatchObject(
+            [1, 3].map((index) => ({
+                symbol: `path://${COMPARE_MARKERS[index]}`,
+                lineStyle: { color: '#873d72', type: 'solid' },
+                endLabel: { formatter: String(index + 1).padStart(2, '0') },
+                data: [[0, 200]],
+            })),
+        );
+    });
+
     it('compares recorded ET, ET RoR and extra sensors with separate units and gaps', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
@@ -114,11 +150,14 @@ describe('buildCompareChartOption display unit', () => {
         });
         expect(rorOption.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
         expect(rorOption.yAxis).toHaveLength(1);
+        const rateAxis = Array.isArray(rorOption.yAxis) ? rorOption.yAxis[0] : rorOption.yAxis;
+        expect(rateAxis?.min).toBeUndefined();
+        expect(rateAxis?.max).toBeUndefined();
         expect(rorOption.series).toMatchObject([
             {
                 name: 'ror|a',
                 yAxisIndex: 0,
-                lineStyle: { width: 3, type: 'solid', opacity: 1 },
+                lineStyle: { width: 2, type: 'solid', opacity: 1 },
                 data: [[0, toDisplayRoR(10, 'F')]],
             },
         ]);
@@ -168,7 +207,7 @@ describe('buildCompareChartOption display unit', () => {
             channelKeys: ['ror', 'rorEt'],
         });
         expect(option.yAxis).toHaveLength(1);
-        expect(option.grid).toMatchObject([{ right: 8 }]);
+        expect(option.grid).toMatchObject([{ right: 32 }]);
         expect(option.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
         expect(option.series).toMatchObject([
             { name: 'ror|a', yAxisIndex: 0, lineStyle: { type: 'solid' }, data: [[0, 18]] },
@@ -179,7 +218,7 @@ describe('buildCompareChartOption display unit', () => {
     it('brings the focused batch above overlapping curves without changing their data', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
-        const input = [series[0], { ...series[0], id: 'b' }];
+        const input = [series[0], { ...series[0], id: 'b', batchIndex: 1 }];
         const option = buildCompareChartOption(input, {
             xView: { start: 0, end: 60 },
             channelKeys: ['bt'],
@@ -187,7 +226,7 @@ describe('buildCompareChartOption display unit', () => {
         });
         expect(option.series).toMatchObject([
             { z: 5, lineStyle: { width: 4, opacity: 1 }, data: [[0, 200]] },
-            { z: 2, lineStyle: { width: 3, opacity: 0.15 }, data: [[0, 200]] },
+            { z: 2, lineStyle: { width: 2, opacity: 0.15 }, data: [[0, 200]] },
         ]);
     });
 
@@ -209,7 +248,7 @@ describe('buildCompareChartOption display unit', () => {
         }
     });
 
-    it('keeps session curve colors while resolving read-only marker categories', () => {
+    it('keeps channel colors while resolving read-only marker categories', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({
             getPropertyValue: (token: string) =>
@@ -232,7 +271,7 @@ describe('buildCompareChartOption display unit', () => {
             lineStyle: { color: string };
             markPoint: { data: { itemStyle: { color: string } }[] };
         }[];
-        expect(bt.lineStyle.color).toBe('#000');
+        expect(bt.lineStyle.color).toBe('#009d4c');
         expect(bt.markPoint.data.map((marker) => marker.itemStyle.color)).toEqual(['#gray', '#red']);
     });
 });

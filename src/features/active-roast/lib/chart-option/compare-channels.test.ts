@@ -1,5 +1,12 @@
 import { assert, describe, expect, it } from 'vitest';
-import { type ComparePoint, compareChannels, compareChannelValue, comparePointAtTime } from './compare-channels';
+import { CSS_CURVE_TOKENS, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
+import {
+    type ComparePoint,
+    compareChannels,
+    compareChannelValue,
+    compareCurveStyle,
+    comparePointAtTime,
+} from './compare-channels';
 
 const point = (label: string, unit: string, value: number): ComparePoint => ({
     t: 0,
@@ -10,6 +17,51 @@ const point = (label: string, unit: string, value: number): ComparePoint => ({
 });
 
 describe('recorded Gas commands and cursor', () => {
+    it('uses configured channel colors, including ET RoR, Gas and extra sensor units', () => {
+        const curves = resolveCurveStyles(
+            {
+                ...DEFAULT_CURVE_STYLES,
+                bt: { ...DEFAULT_CURVE_STYLES.bt, color: '#873d72' },
+                et: { ...DEFAULT_CURVE_STYLES.et, color: '#1466a3' },
+                etRor: { ...DEFAULT_CURVE_STYLES.etRor, color: '#7856a8' },
+                heat: { ...DEFAULT_CURVE_STYLES.heat, color: '#926300' },
+            },
+            CSS_CURVE_TOKENS,
+        );
+        const channels = compareChannels(
+            [
+                {
+                    points: [
+                        {
+                            t: 0,
+                            bt: 180,
+                            et: 210,
+                            ror: 10,
+                            rorEt: 5,
+                            heaterSet: 0,
+                            extraReadings: [
+                                { id: 'inlet', label: 'Inlet', unit: 'C', value: 220 },
+                                { id: 'rate', label: 'Rate', unit: 'C/min', value: 4 },
+                                { id: 'pressure', label: 'Pressure', unit: 'Pa', value: 80 },
+                            ],
+                        },
+                    ],
+                },
+            ],
+            'C',
+        );
+        expect(channels.map((channel) => compareCurveStyle(channel, curves).color)).toEqual([
+            '#873d72',
+            '#1466a3',
+            'var(--color-sensor-ror)',
+            '#7856a8',
+            '#926300',
+            '#1466a3',
+            'var(--color-sensor-ror)',
+            '#926300',
+        ]);
+    });
+
     it('keeps command units separate, including zero, without using heater feedback', () => {
         const percent = { ...point('Inlet', 'C', 100), heaterSet: 0, heaterUnit: '%' };
         const pressure = { ...percent, heaterSet: 12, heaterUnit: 'Pa' };

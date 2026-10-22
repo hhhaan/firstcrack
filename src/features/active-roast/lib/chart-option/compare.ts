@@ -3,12 +3,18 @@ import {
     getResolvedEventColor,
     ROR_Y_MAX,
     ROR_Y_MIN,
-    TEMP_CURVE_WIDTH,
     TEMP_Y_INTERVAL,
     TEMP_Y_LABEL_INTERVAL,
 } from '@features/active-roast/lib/chart-config';
+import {
+    type CurveStyles,
+    canvasCurveTokens,
+    DEFAULT_CURVE_STYLES,
+    resolveCurveStyles,
+} from '@features/active-roast/lib/curve-style';
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
+import { COMPARE_MARKERS } from '@shared/lib/compare-style';
 import type { EChartsOption } from 'echarts';
 import {
     buildAxisStyles,
@@ -25,6 +31,7 @@ import {
     type ComparePoint,
     compareChannels,
     compareChannelValue,
+    compareCurveStyle,
     compareExtraAxisWidth,
     compareOtherUnits,
 } from './compare-channels';
@@ -33,17 +40,10 @@ import { lineSeriesBase } from './series';
 export type CompareChartSeries = {
     id: string;
     label: string;
-    /** raw color or CSS var(--…) — resolved here for canvas */
-    color: string;
+    batchIndex: number;
     points: ComparePoint[];
     markers?: { timeSec: number; event: string }[];
     visible?: boolean;
-};
-
-const resolveCssColor = (color: string): string => {
-    if (!color.startsWith('var(')) return color;
-    const name = color.slice(4, -1).trim();
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#171717';
 };
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -53,7 +53,7 @@ export const compareChartXMax = (active: CompareChartSeries[]): number =>
     Math.ceil(Math.max(60, ...active.flatMap((s) => s.points.map((p) => p.t))) / 30) * 30;
 
 const compareSingleAxisChannel = (channels: CompareChannel[]): CompareChannel | undefined => {
-    const first = channels[0];
+    const first = channels.length > 0 ? channels[0] : undefined;
     return first && channels.every((channel) => channel.kind === first.kind && channel.unit === first.unit)
         ? first
         : undefined;
@@ -62,7 +62,7 @@ const compareSingleAxisChannel = (channels: CompareChannel[]): CompareChannel | 
 /** Shared with zoom and the aligned phase/control plots. */
 export const compareChartRightMargin = (channels: CompareChannel[]): number =>
     compareSingleAxisChannel(channels)
-        ? computeGridMargins(false).rightMargin
+        ? computeGridMargins(false).rightMargin + 24
         : computeGridMargins(channels.some((channel) => channel.kind === 'ror')).rightMargin +
           compareExtraAxisWidth(channels);
 
@@ -75,15 +75,18 @@ export const buildCompareChartOption = (
         channelKeys,
         focusedSessionId = null,
         rightMargin: sharedRightMargin,
+        curveStyles = DEFAULT_CURVE_STYLES,
     }: {
         xView: { start: number; end: number };
         temperatureUnit?: TemperatureUnit;
         channelKeys?: string[];
         focusedSessionId?: string | null;
         rightMargin?: number;
+        curveStyles?: CurveStyles;
     },
 ): EChartsOption => {
     const colors = getResolvedChartColors();
+    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const crossLineStyle = buildCrossLineStyle(colors);
     const selectedKeys = channelKeys ? new Set(channelKeys) : null;
@@ -107,7 +110,6 @@ export const buildCompareChartOption = (
         ),
     );
     const defaultMin = toDisplayTemp(100, temperatureUnit);
-    const defaultMax = toDisplayTemp(220, temperatureUnit);
     const allRoR = plotSeries.flatMap((s) =>
         s.points.flatMap((point) =>
             channels
@@ -117,10 +119,10 @@ export const buildCompareChartOption = (
         ),
     );
     const tempYMin = allBt.length
-        ? Math.min(defaultMin, Math.floor((Math.min(...allBt) - 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
+        ? Math.floor((Math.min(...allBt) - 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL
         : defaultMin;
     const tempYMax = allBt.length
-        ? Math.max(defaultMax, Math.ceil((Math.max(...allBt) + 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL)
+        ? Math.ceil((Math.max(...allBt) + 10) / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL
         : toDisplayTemp(250, temperatureUnit);
 
     const { grid, xAxis, yAxis } = buildSingleGridLayout({
@@ -148,7 +150,7 @@ export const buildCompareChartOption = (
         const candidate = baseAxes.find((axis) =>
             singleAxisChannel.kind === 'ror' ? axis.position === 'right' : axis.position !== 'right',
         );
-        const base = singleAxisChannel.kind !== 'other' && candidate?.type === 'value' ? candidate : {};
+        const base = singleAxisChannel.kind === 'temperature' && candidate?.type === 'value' ? candidate : {};
         plotAxes.splice(0, plotAxes.length, {
             ...base,
             type: 'value',
@@ -195,14 +197,16 @@ export const buildCompareChartOption = (
     for (const axis of plotAxes) {
         axis.axisLabel = { ...axis.axisLabel, fontSize: 12 };
     }
-    const resolved = new Map(plotSeries.map((s) => [s.id, resolveCssColor(s.color)]));
     const series: object[] = [];
     const legend = new Map<string, { session: CompareChartSeries; channel: CompareChannel }>();
 
     for (const s of plotSeries) {
-        const color = resolved.get(s.id) as string;
         const dimmed = focusedSessionId !== null && focusedSessionId !== s.id;
+        const visiblePoints = s.points.filter((point) => point.t >= xView.start && point.t <= xView.end).length;
+        const markerInterval = Math.max(1, Math.ceil(visiblePoints / 6));
         for (const channel of channels) {
+            const curve = compareCurveStyle(channel, curves);
+            const color = curve.color;
             const data = s.points.map((p) => [p.t, compareChannelValue(p, channel, temperatureUnit)]);
             if (!data.some((point) => point[1] !== null)) continue;
             const name = `${channel.key}|${s.id}`;
@@ -223,12 +227,30 @@ export const buildCompareChartOption = (
                 step: channel.source === 'heaterSet' ? 'end' : false,
                 lineStyle: {
                     color,
-                    width: focusedSessionId === s.id ? 4 : singleAxisChannel ? 3 : TEMP_CURVE_WIDTH,
+                    width: focusedSessionId === s.id ? Math.max(4, curve.width + 1) : Math.max(2, curve.width),
                     type: 'solid',
                     opacity: dimmed ? 0.15 : 1,
                 },
-                itemStyle: { color },
                 ...lineSeriesBase,
+                showSymbol: true,
+                symbol: `path://${COMPARE_MARKERS[s.batchIndex % COMPARE_MARKERS.length]}`,
+                symbolSize: (_value: unknown, params: { dataIndex: number }) =>
+                    params.dataIndex % markerInterval === 0 ? 8 : 0,
+                itemStyle: {
+                    color: colors.tooltipBg,
+                    borderColor: color,
+                    borderWidth: 1.5,
+                    opacity: dimmed ? 0.15 : 1,
+                },
+                endLabel: {
+                    show: true,
+                    formatter: String(s.batchIndex + 1).padStart(2, '0'),
+                    color,
+                    fontSize: 12,
+                    fontFamily: 'monospace',
+                    opacity: dimmed ? 0.15 : 1,
+                },
+                labelLayout: { moveOverlap: 'shiftY' },
                 markPoint:
                     channel.source === 'bt' && s.markers?.length
                         ? {
@@ -272,7 +294,7 @@ export const buildCompareChartOption = (
             const value = Array.isArray(p.value) ? p.value[1] : p.value;
             if (!item || value == null || !Number.isFinite(value)) continue;
             html += `<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                <span style="width:16px;height:3px;border-radius:2px;background:${resolved.get(item.session.id)}"></span>
+                <span style="width:16px;height:3px;border-radius:2px;background:${compareCurveStyle(item.channel, curves).color}"></span>
                 <span style="color:${colors.markerLabelColor}">${escapeHtml(item.session.label)} · ${escapeHtml(item.channel.label)}</span>
                 <span style="font-weight:600">${value.toFixed(1)}${escapeHtml(item.channel.unit)}</span>
             </div>`;

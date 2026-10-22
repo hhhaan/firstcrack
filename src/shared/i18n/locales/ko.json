@@ -1133,7 +1133,6 @@
             "noCurves": "선택한 세션에 곡선 데이터가 없습니다",
             "noCurveData": "No curve data",
             "events": "Events",
-            "tempAndRor": "Temp & RoR",
             "phases": "Phases",
             "phaseDrying": "Drying",
             "phaseMaillard": "Maillard",
@@ -1151,12 +1150,12 @@
             "weight": "Weight",
             "workspaceHint": "로스팅 곡선과 배치별 결과를 한눈에 비교하세요.",
             "chartHint": "커서로 값 확인 · 스크롤로 확대 · 배치에 마우스를 올려 강조",
+            "chartKeyboardHint": "좌우 방향키로 시점을 이동하고 표에서 값을 확인하세요. Home은 처음, End는 마지막 시점입니다.",
             "metrics": "배치별 비교",
             "batch": "로스팅 배치",
             "sensors": "표시할 센서",
             "temperatures": "온도",
             "resetZoom": "전체 보기",
-            "cursorTime": "커서 시점",
             "noSelectedSensorData": "표시 중인 배치에 해당 센서 기록이 없습니다."
         },
         "cupping": {
