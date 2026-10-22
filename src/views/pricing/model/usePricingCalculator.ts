@@ -12,8 +12,7 @@ import {
     sumOverheadPerKg,
     totalCostPerKg,
 } from '@shared/lib/cost-calc';
-import { logger } from '@shared/lib/logger';
-import { pricingStore } from '@shared/lib/pricingStore';
+import { getFixedOverheads, setFixedOverheads, useFixedOverheads } from '@shared/lib/pricingStore';
 import { normalizePct } from '@widgets/cost-calculator/lib/format';
 import type {
     BlendComponentCost,
@@ -21,11 +20,10 @@ import type {
     FixedOverheadItem,
     SourceMode,
 } from '@widgets/cost-calculator/lib/types';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const newRowId = () => crypto.randomUUID();
-const SAVE_DEBOUNCE_MS = 200;
 
 const emptyRow = (): BlendComponentCost => ({
     id: newRowId(),
@@ -74,8 +72,7 @@ export const usePricingCalculator = () => {
     const [greenCostOverride, setGreenCostOverride] = useState<number | null>(null);
     const [blendDraft, setBlendDraft] = useState<BlendDraft>({ source: 'saved', id: null, costs: {} });
     const [yieldPct, setYieldPct] = useState(DEFAULT_YIELD_PCT);
-    const [fixedOverheads, setFixedOverheads] = useState<FixedOverheadItem[]>([]);
-    const [overheadsReady, setOverheadsReady] = useState(false);
+    const fixedOverheads = useFixedOverheads();
     const [marginPct, setMarginPct] = useState(40);
     const [sellingPriceOverride, setSellingPriceOverride] = useState<number | null>(null);
 
@@ -94,37 +91,9 @@ export const usePricingCalculator = () => {
         );
     }, [beans, blends]);
 
-    const persistReadyRef = useRef(false);
-
-    useEffect(() => {
-        let cancelled = false;
-        void pricingStore.getFixedOverheads().then((items) => {
-            if (cancelled) return;
-            setFixedOverheads(items);
-            setOverheadsReady(true);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!overheadsReady) return;
-        if (!persistReadyRef.current) {
-            persistReadyRef.current = true;
-            return;
-        }
-        const id = setTimeout(() => {
-            pricingStore.setFixedOverheads(fixedOverheads).catch((err) => {
-                logger.capture(err, { context: 'pricing.fixedOverheads.persist' });
-            });
-        }, SAVE_DEBOUNCE_MS);
-        return () => clearTimeout(id);
-    }, [fixedOverheads, overheadsReady]);
-
     const updateOverheads = useCallback(
         (next: FixedOverheadItem[] | ((prev: FixedOverheadItem[]) => FixedOverheadItem[])) => {
-            setFixedOverheads((prev) => (typeof next === 'function' ? next(prev) : next));
+            setFixedOverheads(typeof next === 'function' ? next(getFixedOverheads()) : next);
             setSellingPriceOverride(null);
         },
         [],

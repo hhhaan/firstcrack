@@ -58,7 +58,13 @@ describe('NewProfileModal closed prefetch', () => {
         });
     };
 
-    const renderModal = async (props: { open: boolean; initialSessionId?: string | null; editing?: boolean }) => {
+    const renderModal = async (props: {
+        open: boolean;
+        initialSessionId?: string | null;
+        editing?: boolean;
+        profileId?: string;
+        profileName?: string;
+    }) => {
         await act(async () => {
             root.render(
                 <QueryClientProvider client={qc}>
@@ -68,8 +74,8 @@ describe('NewProfileModal closed prefetch', () => {
                         editingProfile={
                             props.editing
                                 ? ({
-                                      id: 'p1',
-                                      name: 'Edit me',
+                                      id: props.profileId ?? 'p1',
+                                      name: props.profileName ?? 'Edit me',
                                       source_session_id: 's1',
                                       source_session: { tsv_path: 'curves/s1.tsv', events: null },
                                       heater_events: null,
@@ -134,5 +140,36 @@ describe('NewProfileModal closed prefetch', () => {
 
         const name = document.body.querySelector('input');
         expect(name?.value).toBe('Ethiopia 2026-09-01');
+    });
+
+    const editName = (value: string) => {
+        const input = document.body.querySelector('input');
+        if (!input) throw new Error('Profile name input missing');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    it('keeps a draft through same-profile refreshes and resets when the editing target changes', async () => {
+        await renderModal({ open: true, editing: true });
+        act(() => editName('Unsaved draft'));
+        await renderModal({ open: true, editing: true, profileName: 'Server refresh' });
+        expect(document.body.querySelector('input')?.value).toBe('Unsaved draft');
+
+        await renderModal({ open: true, editing: true, profileId: 'p2', profileName: 'Other profile' });
+        expect(document.body.querySelector('input')?.value).toBe('Other profile');
+    });
+
+    it('discards an edit on close and reopens with a clean create picker or saved edit', async () => {
+        await renderModal({ open: true, editing: true });
+        act(() => editName('Unsaved draft'));
+        await renderModal({ open: false, editing: true });
+        expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+
+        await renderModal({ open: true });
+        expect(document.body.textContent).toContain('newProfileModal.selectSession');
+        expect(document.body.querySelector('input')).toBeNull();
+        await renderModal({ open: false });
+        await renderModal({ open: true, editing: true });
+        expect(document.body.querySelector('input')?.value).toBe('Edit me');
     });
 });

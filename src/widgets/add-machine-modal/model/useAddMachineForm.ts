@@ -18,11 +18,11 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { useFormEscape } from '@shared/lib/useFormEscape';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import type { AddMachineFormArgs, MachineModalTab, TestState } from './types';
+import type { AddMachineFormArgs, ConnectionTest, MachineModalTab } from './types';
 import { useAddMachineFormSync } from './useAddMachineFormSync';
 import { useMachineFormActions } from './useMachineFormActions';
 
-export type { CommitAction, MachineModalTab, TestState } from './types';
+export type { CommitAction, MachineModalTab } from './types';
 
 export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: AddMachineFormArgs) => {
     const isEdit = !!editing;
@@ -35,13 +35,11 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
     const [customName, setCustomName] = useState('');
     const [customBrand, setCustomBrand] = useState('');
     const [customProtocol, setCustomProtocol] = useState('');
-    const [testState, setTestState] = useState<TestState>('idle');
-    const [testMessage, setTestMessage] = useState('');
+    const [connectionTest, setConnectionTest] = useState<ConnectionTest>({ status: 'idle' });
     const testConnectedRef = useRef(false);
     const [serialPorts, setSerialPorts] = useState<SerialPort[]>([]);
-    const [networkHosts, setNetworkHosts] = useState<NetworkHost[]>([]);
+    const [networkHosts, setNetworkHosts] = useState<NetworkHost[] | null>(null);
     const [scanningNetwork, setScanningNetwork] = useState(false);
-    const [scannedNetworkOnce, setScannedNetworkOnce] = useState(false);
 
     /** Re-fetch serial ports on demand (USB plugged in while the modal is open). */
     const refreshSerialPorts = useCallback(() => {
@@ -57,11 +55,8 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         setScanningNetwork(true);
         void sidecar
             .scanNetwork(scanKey)
-            .catch(() => [] as NetworkHost[])
-            .then((hosts) => {
-                setNetworkHosts(hosts);
-                setScannedNetworkOnce(true);
-            })
+            .catch(() => [])
+            .then(setNetworkHosts)
             .finally(() => setScanningNetwork(false));
     }, []);
 
@@ -76,8 +71,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         isCustom,
         customProtocol,
         setError,
-        setTestState,
-        setTestMessage,
+        setConnectionTest,
         testConnectedRef,
         setSerialPorts,
         setTab,
@@ -92,8 +86,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         if (next === tab) return;
         setTab(next);
         setError('');
-        setTestState('idle');
-        setTestMessage('');
+        setConnectionTest({ status: 'idle' });
         setParams({});
         if (next === 'supported') {
             setSelectedKey('');
@@ -152,20 +145,18 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
 
     const setParam = useCallback((key: string, value: string) => {
         setParams((p) => ({ ...p, [key]: value }));
-        setTestState('idle');
-        setTestMessage('');
+        setConnectionTest({ status: 'idle' });
     }, []);
 
     const selectRoaster = useCallback((key: string) => {
         setSelectedKey(key);
-        setTestState('idle');
-        setTestMessage('');
+        setConnectionTest({ status: 'idle' });
         setError('');
     }, []);
 
     const selectCustomProtocol = useCallback((protocol: string) => {
         setCustomProtocol(protocol);
-        setTestState('idle');
+        setConnectionTest({ status: 'idle' });
         setError('');
     }, []);
 
@@ -186,8 +177,7 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         testConnectedRef,
         setSaving,
         setError,
-        setTestState,
-        setTestMessage,
+        setConnectionTest,
     });
 
     return {
@@ -206,13 +196,12 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         setCustomBrand,
         customProtocol,
         selectCustomProtocol,
-        testState,
-        testMessage,
+        connectionTest,
         serialPorts,
         refreshSerialPorts,
-        networkHosts,
+        networkHosts: networkHosts ?? [],
         scanningNetwork,
-        scannedNetworkOnce,
+        scannedNetworkOnce: networkHosts !== null,
         scanNetworkHosts,
         isCustom,
         selectedDef,

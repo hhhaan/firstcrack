@@ -2,12 +2,11 @@ import { cn } from '@shared/lib/cn';
 import { Loader, Wifi, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { primaryConnectBtnCls, secondaryBtnCls } from '../lib/styles';
-import type { CommitAction, SuccessActions, TestState } from '../model/types';
+import type { CommitAction, ConnectionTest, SuccessActions } from '../model/types';
 
 type Props = {
     isEdit: boolean;
-    testState: TestState;
-    testMessage: string;
+    connectionTest: ConnectionTest;
     canCommit: boolean;
     saving: boolean;
     successActions: SuccessActions;
@@ -18,8 +17,7 @@ type Props = {
 
 export const ConfirmStepFooter = ({
     isEdit,
-    testState,
-    testMessage,
+    connectionTest,
     canCommit,
     saving,
     successActions,
@@ -28,6 +26,8 @@ export const ConfirmStepFooter = ({
     onCommit,
 }: Props) => {
     const { t } = useTranslation();
+    const testState = connectionTest.status;
+    const testMessage = 'message' in connectionTest ? connectionTest.message : '';
 
     return (
         <div className="shrink-0 border-t border-border-subtle bg-main-bg">

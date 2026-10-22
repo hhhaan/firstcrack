@@ -99,8 +99,7 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
 
             <ConfirmStepFooter
                 isEdit={form.isEdit}
-                testState={form.testState}
-                testMessage={form.testMessage}
+                connectionTest={form.connectionTest}
                 canCommit={form.canCommit}
                 saving={form.saving}
                 successActions={form.successActions}

@@ -2,7 +2,7 @@ import type { Machine, RoasterDef } from '@entities/machine';
 
 export type CommitAction = 'add' | 'addAndConnect' | 'save' | 'saveAndConnect';
 export type MachineModalTab = 'supported' | 'custom';
-export type TestState = 'idle' | 'testing' | 'success' | 'failed';
+export type ConnectionTest = { status: 'idle' | 'testing' } | { status: 'success' | 'failed'; message: string };
 
 export type AddMachineFormArgs = {
     open: boolean;

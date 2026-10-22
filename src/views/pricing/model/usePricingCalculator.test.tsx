@@ -21,7 +21,9 @@ vi.mock('@entities/bean/queries', () => ({ useBeans: () => ({ data: data.beans }
 vi.mock('@entities/blend/queries', () => ({ useBlends: () => ({ data: data.blends }) }));
 vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }) }));
 vi.mock('@shared/lib/pricingStore', () => ({
-    pricingStore: { getFixedOverheads: async () => [], setFixedOverheads: vi.fn(async () => {}) },
+    getFixedOverheads: () => [],
+    useFixedOverheads: () => [],
+    setFixedOverheads: vi.fn(),
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: 'ko' } }) }));
 
