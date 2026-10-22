@@ -112,9 +112,10 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [defaultId, setDefaultId] = useState<string | null>(null);
-    const [compareMode, setCompareMode] = useState(false);
-    const [compareIds, setCompareIds] = useState<string[]>([]);
+    const defaultId = userProfile?.default_roast_profile_id ?? null;
+    const [comparison, setComparison] = useState<string[] | null>(null);
+    const compareMode = comparison !== null;
+    const compareIds = comparison ?? [];
     const [profileModal, setProfileModal] = useState<'new' | 'edit' | null>(null);
     const [search, setSearch] = useState('');
     const [showHidden, setShowHidden] = useState(false);
@@ -126,13 +127,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             setSelectedId(profiles[0].id);
         }
     }, [profiles.length, selectedId]);
-
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
-    useEffect(() => {
-        if (userProfile !== undefined) {
-            setDefaultId(userProfile?.default_roast_profile_id ?? null);
-        }
-    }, [userProfile?.default_roast_profile_id]);
 
     const sortedProfiles = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -166,35 +160,22 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const selectedHasReal = selectedRealCurve.length > 0;
 
     const setDefault = (id: string | null) => {
-        const previous = defaultId;
-        setDefaultId(id);
-        updateProfile(
-            { default_roast_profile_id: id },
-            {
-                onError: (err) => {
-                    setDefaultId(previous);
-                    logger.capture(err instanceof Error ? err : new Error('Failed to update default profile'), {
-                        profileId: id,
-                    });
-                },
-            },
-        );
+        updateProfile({ default_roast_profile_id: id });
     };
 
     const enterCompareMode = () => {
-        setCompareMode(true);
-        if (selectedVisibleId) setCompareIds([selectedVisibleId]);
+        setComparison(selectedVisibleId ? [selectedVisibleId] : []);
     };
 
     const exitCompareMode = () => {
-        setCompareMode(false);
-        setCompareIds([]);
+        setComparison(null);
     };
 
     const toggleCompareId = (id: string) => {
-        setCompareIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id],
-        );
+        setComparison((prev) => {
+            if (prev === null) return null;
+            return prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id];
+        });
     };
 
     const handleProfileClick = (id: string, shiftKey: boolean) => {
@@ -203,8 +184,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             return;
         }
         if (shiftKey && id !== selectedVisibleId) {
-            setCompareMode(true);
-            setCompareIds([selectedVisibleId ?? id, id]);
+            setComparison([selectedVisibleId ?? id, id]);
             return;
         }
         setSelectedId(id);
@@ -234,7 +214,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const handleDelete = (id: string) => {
         deleteProfile(id);
         if (id === defaultId) {
-            setDefaultId(null);
             updateProfile({ default_roast_profile_id: null });
         }
         if (selectedVisibleId === id) setSelectedId(sortedProfiles.find((p) => p.id !== id)?.id ?? null);

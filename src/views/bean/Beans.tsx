@@ -69,8 +69,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     const [activeTab, setActiveTab] = useState<InventoryTab>('green');
     const [blendModalOpen, setBlendModalOpen] = useState(false);
     const [blendForm, setBlendForm] = useState<BlendWithComponents | 'new' | null>(null);
-    const [productAddOpen, setProductAddOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [productForm, setProductForm] = useState<Product | 'new' | null>(null);
 
     const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
@@ -103,8 +102,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
     };
 
     const openProductAdd = () => {
-        setEditingProduct(null);
-        setProductAddOpen(true);
+        setProductForm('new');
     };
 
     const selected = visibleBeans.find((b) => b.id === selectedId) ?? visibleBeans[0] ?? null;
@@ -298,12 +296,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
             {activeTab === 'products' &&
                 (canProducts ? (
-                    <ProductsTable
-                        addOpen={productAddOpen}
-                        onAddOpenChange={setProductAddOpen}
-                        editing={editingProduct}
-                        onEditingChange={setEditingProduct}
-                    />
+                    <ProductsTable form={productForm} onFormChange={setProductForm} />
                 ) : (
                     <InventoryLocked tab="products" onUpgrade={onUpgrade} />
                 ))}

@@ -34,13 +34,11 @@ const skeletonCols = [
 ];
 
 type Props = {
-    addOpen: boolean;
-    onAddOpenChange: (open: boolean) => void;
-    editing: Product | null;
-    onEditingChange: (product: Product | null) => void;
+    form: Product | 'new' | null;
+    onFormChange: (form: Product | 'new' | null) => void;
 };
 
-export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChange }: Props) => {
+export const ProductsTable = ({ form, onFormChange }: Props) => {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: products = [], isLoading } = useProducts(userId);
@@ -58,13 +56,11 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const openNew = () => {
-        onEditingChange(null);
-        onAddOpenChange(true);
+        onFormChange('new');
     };
 
     const openEdit = (p: Product) => {
-        onEditingChange(p);
-        onAddOpenChange(true);
+        onFormChange(p);
     };
 
     const resolveSource = (p: Product) => {
@@ -267,12 +263,9 @@ export const ProductsTable = ({ addOpen, onAddOpenChange, editing, onEditingChan
             <MapChannelProductModal product={mapProduct} onClose={() => setMapProduct(null)} />
 
             <AddProductModal
-                open={addOpen}
-                onClose={() => {
-                    onAddOpenChange(false);
-                    onEditingChange(null);
-                }}
-                editing={editing}
+                open={form !== null}
+                onClose={() => onFormChange(null)}
+                editing={form === 'new' ? null : form}
             />
         </div>
     );
