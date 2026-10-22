@@ -12,7 +12,7 @@ interface ChartZoomSurfaceProps {
     idleCursorClassName?: string;
     /** wins over grab/idle — marker hover/drag uses pointer */
     cursorOverrideClassName?: string;
-    onPointerLeave?: () => void;
+    onPointerLeave?: (event: PointerEvent<HTMLDivElement>) => void;
     style?: CSSProperties;
     /** set → wraps in role="region" for AT; keep accurate to the surface's actual keys */
     ariaLabel?: string;
