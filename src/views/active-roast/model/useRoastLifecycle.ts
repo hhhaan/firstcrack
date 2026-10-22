@@ -1,3 +1,4 @@
+import type { RawTemperatureSample } from '@features/active-roast/lib/autoCharge';
 import type { DropOnset } from '@features/active-roast/lib/drop-transition';
 import type { RoastSummaryData } from '@features/active-roast/model/batch';
 import { BBP_INPROGRESS_ID, hydrateLiveBbp, useBbpStore } from '@features/active-roast/model/bbp';
@@ -27,7 +28,7 @@ export interface UseRoastLifecycleParams {
     rearmAutoChargeRef: React.RefObject<() => void>;
     setZoomRange: (range: { start: number; end: number } | null) => void;
     setHoveredChartIndex: (index: number | null) => void;
-    triggerChargeRef: React.RefObject<(bt?: number | null, chargeTimeMs?: number) => void>;
+    triggerChargeRef: React.RefObject<(bt?: number | null, origin?: number | RawTemperatureSample) => void>;
     replayActiveRef?: React.RefObject<boolean>;
 }
 

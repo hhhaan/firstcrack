@@ -72,10 +72,12 @@ class FakeAdapter:
             return r
         raise RuntimeError("no more readings")
 
-    async def control(self, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False) -> None:
+    async def control(self, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None) -> None:
         if _is_current is not None and not _is_current():
             raise ConnectionError("Ownership changed")
         self.control_calls.append({"heater": heater, "fan": fan, "drum": drum})
+        if heater is not None and _heater_observer is not None:
+            _heater_observer("virtual_applied", heater)
 
 
 @pytest.fixture(autouse=True)

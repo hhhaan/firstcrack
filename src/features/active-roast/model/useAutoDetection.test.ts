@@ -5,12 +5,24 @@ import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { RawTemperatureSample } from '../lib/autoCharge';
 import { useRoastingStore } from './status';
 import { useAutoDetection } from './useAutoDetection';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 type Point = { time: number; bt: number; btRaw?: number | null };
+
+const processing = {
+    algorithm_version: 'ema-least-squares-v1',
+    temperature_unit: 'C',
+    ror_unit: 'C/min',
+    timestamp_clock: 'sidecar-monotonic-seconds',
+    display_ema_alpha: 0.4,
+    ror_ema_alpha: 0.3,
+    ror_window_sec: 30,
+    ror_warmup_reads: 3,
+} as const;
 
 type Props = {
     livePoints: Point[];
@@ -28,7 +40,7 @@ type Props = {
     autoDropMode?: 'standard' | 'sensitive';
     autoDropStartMin?: number;
     pollIntervalMs?: 500 | 1000;
-    onAutoCharge?: (bt: number, timeMs?: number) => void;
+    onAutoCharge?: (bt: number, sample?: RawTemperatureSample) => void;
     onAutoDrop?: (onset?: { timeSec: number; bt: number }) => void;
     onTurningPoint?: (tp: { timeSec: number; temp: number; fallback?: boolean }) => void;
 };
@@ -348,14 +360,17 @@ describe('useAutoDetection — raw BT for TP and Yellow', () => {
 
 describe('useAutoDetection — raw BT slope breaks (#448)', () => {
     const origin = 1_800_000_000_000;
+    const rawSample = (t: number, bt: number) => ({
+        bt,
+        timestamp: t,
+        sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+        receivedAtMs: origin + t * 1000,
+        processing,
+    });
     const sample = (t: number, btRaw: number | null, stale = false) => {
-        act(() =>
-            useRoastingStore
-                .getState()
-                .updateRawTemperature(
-                    stale || btRaw == null ? null : { bt: btRaw, timestamp: t, receivedAtMs: origin + t * 1000 },
-                ),
-        );
+        const value = stale || btRaw == null ? null : rawSample(t, btRaw);
+        act(() => useRoastingStore.getState().updateRawTemperature(value));
+        return value;
     };
     const setup = (
         phase: 'standby' | 'roasting' | 'preheating' = 'standby',
@@ -381,9 +396,9 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
                 sample(t, 200 - rate * Math.max(0, t - 4 * interval));
             }
             expect(h.onAutoCharge).toHaveBeenCalledTimes(1);
-            const [bt, time] = h.onAutoCharge.mock.calls[0];
+            const [bt, onset] = h.onAutoCharge.mock.calls[0];
             expect(bt).toBe(200);
-            expect(time).toBeCloseTo(origin + 4 * interval * 1000, 0);
+            expect(onset).toEqual(rawSample(4 * interval, 200));
             act(() => {
                 for (const root of roots.splice(0)) root.unmount();
             });
@@ -498,7 +513,7 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         sample(3, 198);
         sample(3.5, 197);
         sample(4, 196);
-        expect(callback).toHaveBeenCalledExactlyOnceWith(200, origin + 2000);
+        expect(callback).toHaveBeenCalledExactlyOnceWith(200, rawSample(2, 200));
     });
 
     it('resets on settings changes, preserves the fired latch and permits a new batch', () => {

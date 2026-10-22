@@ -14,7 +14,8 @@ from adapters import WRITABLE_PROTOCOLS, make_adapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PvSample
-from heater_control_session import HeaterControlSession, ControlUncertain
+from heater_control_session import HeaterControlSession, ControlUncertain, CurveError
+from roast_target import MachineIdentity
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
@@ -405,7 +406,9 @@ class RoasterManager:
             epoch=lambda: self._connection_epoch, adapter=lambda: self._adapter,
             available=lambda: self._connected and not self._resetting and self._adapter is not None,
             read_pv=self._pv_snapshot, read_feedback=self._heater_feedback,
-            limits=self.write_limits,
+            limits=self.write_limits, machine=self.machine_identity,
+            sensor_clock=lambda: f"{self._sensor_clock_id}:{self._connection_epoch}",
+            curve_capability=self.curve_capability, read_raw=self._raw_pv_snapshot,
             applied=lambda values: self._last_applied.update(clamp_command(values, self.write_limits())),
         )
         # reset_roast 구간. control/PID write만 막는다 — PID 루프 전체를
@@ -588,6 +591,10 @@ class RoasterManager:
                 self._capture_hardware_error(exc, "connect_failed")
 
     async def disconnect(self) -> None:
+        if self._heat.is_curve():
+            self._heat._begin_curve_end("disconnected")
+        else:
+            self._heat.close_charge("disconnected")
         # 락을 잡기 **전에** 취소한다. connect/재연결이 핸드셰이크 내내 같은 락을
         # 쥐고 있어(Kaleido 15s, Phidget 10s), 락을 먼저 기다리면 프론트 요청이
         # 타임아웃돼 "해제 버튼이 안 먹는다"가 된다. async with는 CancelledError
@@ -656,6 +663,7 @@ class RoasterManager:
                         return
                     try:
                         _log.info("자동 재연결 시도 (%d): %s", attempt, self._roaster_key)
+                        self._heat.close_charge("disconnected")
                         self._heat.revoke()
                         await self._heat.drain()
                         self._connection_epoch += 1
@@ -886,6 +894,7 @@ class RoasterManager:
         extra_readings = _serialize_extra_readings(reading.extra_readings)
         if extra_readings:
             payload["extra_readings"] = extra_readings
+        self._heat.observe_raw(payload)
         self._last_good = payload
         self._last_good_ts = reading.timestamp
         return payload
@@ -1014,6 +1023,33 @@ class RoasterManager:
 
     # ── 소프트웨어 PID ─────────────────────────────────────────────────────
 
+    def machine_identity(self) -> MachineIdentity | None:
+        if not self._machine_id:
+            return None
+        return MachineIdentity(self._machine_id, self._roaster_key, self._protocol)
+
+    def curve_capability(self) -> dict[str, Any]:
+        heater = self.write_limits().get("heater", {})
+        if self._protocol != "virtual":
+            reason = "physical_unqualified"
+        elif self._merged_params.get("sim") != "thermal" or getattr(self._adapter, "_sim", None) != "thermal":
+            reason = "scripted_virtual"
+        elif self.machine_identity() is None:
+            reason = "machine_identity_missing"
+        elif (heater.get("unit") != "%" or heater.get("min") != 0 or heater.get("max") != 100
+              or not self._control_writable()):
+            reason = "heater_unavailable"
+        else:
+            reason = "ready"
+        return {"supported": reason == "ready", "reason": reason,
+                "config_id": "virtual-v1" if reason == "ready" else None}
+
+    async def _raw_pv_snapshot(self) -> PvSample:
+        payload = await self.read_temperatures(max_age=config.READING_MAX_AGE_S)
+        return PvSample(bt=payload.get("bt_raw"), ts=payload["timestamp"],
+                        stale=bool(payload.get("stale")), connected=self._connected,
+                        sample_id=(payload.get("sensor_clock", ""), payload["timestamp"]))
+
     def pid_capability(self) -> dict[str, Any]:
         """PID 지원 여부(정적). 게인 + heater 쓰기 + 실제 쓰기 프로토콜."""
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
@@ -1027,6 +1063,7 @@ class RoasterManager:
             "supported": supported,
             "sv_min": config.PID_SV_MIN_C,
             "sv_max": config.PID_SV_MAX_C,
+            "curve": self.curve_capability(),
         }
 
     def pid_state(self) -> dict[str, Any] | None:
@@ -1074,6 +1111,8 @@ class RoasterManager:
         return result
 
     async def pid_set_sv(self, sv: float) -> dict[str, Any]:
+        if self._heat.is_curve():
+            raise CurveError("stale_authority", "A curve target is immutable")
         cap = self.pid_capability()
         runner = self._heat.runner
         if runner is None:
@@ -1097,16 +1136,31 @@ class RoasterManager:
             ):
                 await self._adapter.enter_standby()
 
-    async def start_roast(self) -> None:
-        """UI의 Charge 버튼과 연동. 어댑터가 지원하면 타이머를 리셋하고, RoR 윈도우를 초기화."""
-        async with self._lock:
-            self._reset_probe_filters()
-            self._ror_warmup = config.ROR_WARMUP_READS
-            if self._adapter is not None and hasattr(self._adapter, "start_roast"):
-                await self._adapter.start_roast()
+    async def start_roast(self, request: dict[str, Any] | None = None) -> dict[str, Any]:
+        if request is not None:
+            response, notify = self._heat.accept_charge(request)
+            if not notify:
+                return response
+        elif self._heat._charge is not None and self._heat._charge["state"] == "open":
+            raise CurveError("charge_conflict", "Legacy start cannot retime an accepted Charge")
+        try:
+            async with self._lock:
+                self._reset_probe_filters()
+                self._ror_warmup = config.ROR_WARMUP_READS
+                if self._adapter is not None and hasattr(self._adapter, "start_roast"):
+                    await self._adapter.start_roast()
+        except Exception:
+            if request is not None:
+                self._heat.charge_notification_failed()
+            raise
+        return self._heat.charge_response() if request is not None else {"ok": True, "charge": None, "curve_eligible": False}
 
     async def reset_roast(self) -> None:
         """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
+        if self._heat.is_curve():
+            self._heat._begin_curve_end("reset")
+        else:
+            self._heat.close_charge("reset")
         async with self._lock:
             self._reset_probe_filters()
             self._ror_warmup = config.ROR_WARMUP_READS
@@ -1178,6 +1232,7 @@ class RoasterManager:
             "machine_id": self._machine_id,
             "connection_epoch": self._connection_epoch,
             "heater_control": self._heat.state(),
+            **self._heat.status_fields(),
             "reconnecting": reconnecting,
             "reconnect_attempt": self._reconnect_attempt,
             "roaster": self._roaster_key,

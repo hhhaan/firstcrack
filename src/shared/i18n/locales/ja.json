@@ -1165,6 +1165,7 @@
             "cancel": "キャンセル",
             "machineRequiredTitle": "マシン接続が必要",
             "machineRequiredMsg": "マシンが接続されていません。接続してから再試行してください。",
+            "chargeRecordingPending": "投入時点の記録を確定しています。焙煎データは保持されています。しばらくしてから保存を再試行してください。",
             "saveFailedTitle": "保存失敗",
             "saveFailedMsg": "ローストセッションの保存に失敗しました。\n\n{{error}}",
             "beanDeletedTitle": "生豆が見つかりません",

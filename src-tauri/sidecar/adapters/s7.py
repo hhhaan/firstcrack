@@ -452,6 +452,7 @@ class S7Adapter:
     def _write_channel_sync(
         self, role: str, spec: dict[str, Any], value: float, plc: Any,
         *, confirm_first: bool = False, check_current: Callable[[], None] | None = None,
+        heater_observer: Callable[[str, float], None] | None = None,
     ) -> int | float:
         """스레드에서 실행. clamp → div 역스케일 → value_offset → 인코딩 → db_write.
 
@@ -504,6 +505,8 @@ class S7Adapter:
                 # A fresh mismatch permits one resend; read failures do not.
                 pass
             else:
+                if role == "heater" and heater_observer is not None:
+                    heater_observer("register_readback", value)
                 return raw
         if check_current is not None:
             check_current()
@@ -516,8 +519,12 @@ class S7Adapter:
         if check_current is not None:
             check_current()
         plc.db_write(db, offset, command_payload)
+        if role == "heater" and heater_observer is not None:
+            heater_observer("register_written", value)
         if spec.get("verify_readback") is True:
             self._confirm_command_bytes(role, spec, command_payload, plc)
+            if role == "heater" and heater_observer is not None:
+                heater_observer("register_readback", value)
         return raw
 
     async def control(
@@ -528,6 +535,7 @@ class S7Adapter:
         *,
         _confirm_first: bool = False,
         _is_current: Callable[[], bool] | None = None,
+        _heater_observer: Callable[[str, float], None] | None = None,
     ) -> None:
         """write_map에 매핑된 role만 PLC에 쓴다.
 
@@ -564,12 +572,15 @@ class S7Adapter:
                     self._write_channel_sync(
                         role, spec, value, plc,
                         confirm_first=_confirm_first, check_current=_check_session,
+                        heater_observer=observe if _heater_observer is not None else None,
                     )
                     _check_session()
             finally:
                 self._io_lock.release()
 
         loop = asyncio.get_running_loop()
+        def observe(evidence: str, acknowledged: float) -> None:
+            loop.call_soon_threadsafe(_heater_observer, evidence, acknowledged)
         future = loop.run_in_executor(None, _write_all)
         # Cancellation of the HTTP waiter cannot cancel the synchronous driver.
         try:

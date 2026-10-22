@@ -1,10 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { createAutoChargeDetector, createAutoDropDetector, type RawTemperatureSample } from './autoCharge';
 
+const processing = {
+    algorithm_version: 'ema-least-squares-v1',
+    temperature_unit: 'C',
+    ror_unit: 'C/min',
+    timestamp_clock: 'sidecar-monotonic-seconds',
+    display_ema_alpha: 0.4,
+    ror_ema_alpha: 0.3,
+    ror_window_sec: 30,
+    ror_warmup_reads: 3,
+} as const;
 const sample = (timestamp: number, bt: number): RawTemperatureSample => ({
     timestamp,
+    sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
     bt,
     receivedAtMs: 1_000_000 + timestamp * 1000,
+    processing,
 });
 
 describe('automatic Charge', () => {

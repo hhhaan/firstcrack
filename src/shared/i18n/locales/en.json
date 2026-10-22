@@ -1165,6 +1165,7 @@
             "cancel": "Cancel",
             "machineRequiredTitle": "Connect a machine",
             "machineRequiredMsg": "No machine is connected. Connect one and try again.",
+            "chargeRecordingPending": "Charge recording is still being finalized. Your roast is kept; please retry saving shortly.",
             "saveFailedTitle": "Save Failed",
             "saveFailedMsg": "Failed to save the roast session.\n\n{{error}}",
             "beanDeletedTitle": "Bean not found",

@@ -9,7 +9,48 @@ import { useRoastActions } from './useRoastActions';
 
 vi.mock('@shared/lib/sidecar', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
-    return { ...actual, sidecar: { ...actual.sidecar, startRoast: vi.fn().mockResolvedValue(undefined) } };
+    return {
+        ...actual,
+        sidecar: {
+            ...actual.sidecar,
+            getStatus: vi.fn().mockResolvedValue({
+                connected: true,
+                sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+                connection_epoch: 1,
+                heater_control: { generation: 7 },
+            }),
+            startRoast: vi
+                .fn()
+                .mockImplementation(
+                    async (request?: {
+                        session_id: string;
+                        origin:
+                            | { kind: 'now' }
+                            | { kind: 'sample'; sample: { sensor_clock: string; acquired_at: number } };
+                    }) =>
+                        request
+                            ? {
+                                  ok: true,
+                                  charge: {
+                                      session_id: request.session_id,
+                                      charge_id: 'charge-1',
+                                      machine: { machine_id: 'machine-1', roaster_key: 'virtual', protocol: 'virtual' },
+                                      sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+                                      connection_epoch: 1,
+                                      acquired_at: 100,
+                                      anchor: request.origin.kind === 'sample' ? request.origin.sample : null,
+                                      origin_kind: request.origin.kind,
+                                      accepted_at: 100,
+                                      state: 'open',
+                                      closed_reason: null,
+                                  },
+                                  server_time: 100,
+                                  elapsed_sec: 0,
+                              }
+                            : { ok: true, charge: null, curve_eligible: false },
+                ),
+        },
+    };
 });
 
 vi.mock('@entities/organization', () => ({
@@ -46,6 +87,7 @@ const renderActions = () => {
 };
 
 const resetStore = () => {
+    useRoastingStore.getState().reset();
     useRoastingStore.setState({
         phase: 'standby',
         sessionId: null,
@@ -97,6 +139,106 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         }
     });
 
+    it('sends the detected sample key and stores the accepted server Charge', async () => {
+        const h = renderActions();
+        const sample = {
+            timestamp: 95,
+            sensorClock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+            receivedAtMs: Date.now() - 5_000,
+            bt: 190,
+            processing: {
+                algorithm_version: 'ema-least-squares-v1',
+                temperature_unit: 'C',
+                ror_unit: 'C/min',
+                timestamp_clock: 'sidecar-monotonic-seconds',
+                display_ema_alpha: 0.4,
+                ror_ema_alpha: 0.3,
+                ror_window_sec: 30,
+                ror_warmup_reads: 3,
+            },
+        } as const;
+
+        act(() => h.result.triggerCharge(190, sample));
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        const state = useRoastingStore.getState();
+        expect(sidecar.startRoast).toHaveBeenLastCalledWith({
+            session_id: state.sessionId,
+            sensor_clock: sample.sensorClock,
+            connection_epoch: 1,
+            expected_generation: 7,
+            origin: {
+                kind: 'sample',
+                sample: { sensor_clock: sample.sensorClock, acquired_at: sample.timestamp },
+            },
+        });
+        expect(state.chargeRequestPending).toBe(false);
+        expect(state.chargeSample).toBe(sample);
+        expect(state.acceptedCharge).toMatchObject({
+            session_id: state.sessionId,
+            anchor: { sensor_clock: sample.sensorClock, acquired_at: sample.timestamp },
+            origin_kind: 'sample',
+        });
+    });
+
+    it('keeps the legacy start path when modern status metadata is unavailable', async () => {
+        vi.mocked(sidecar.getStatus).mockRejectedValueOnce(new Error('old sidecar'));
+        vi.mocked(sidecar.startRoast).mockClear();
+        const h = renderActions();
+
+        act(() => h.result.triggerCharge(200));
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(sidecar.startRoast).toHaveBeenCalledExactlyOnceWith();
+        expect(useRoastingStore.getState()).toMatchObject({
+            phase: 'roasting',
+            acceptedCharge: null,
+            chargeRequestPending: false,
+        });
+    });
+
+    it('does not open an obsolete Charge after the local session resets during status lookup', async () => {
+        let resolveStatus!: (status: Awaited<ReturnType<typeof sidecar.getStatus>>) => void;
+        vi.mocked(sidecar.getStatus).mockReturnValueOnce(
+            new Promise((resolve) => {
+                resolveStatus = resolve;
+            }),
+        );
+        vi.mocked(sidecar.startRoast).mockClear();
+        const h = renderActions();
+
+        act(() => h.result.triggerCharge(200));
+        act(() => useRoastingStore.getState().reset());
+        await act(async () =>
+            resolveStatus({
+                connected: true,
+                sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+                connection_epoch: 1,
+                heater_control: {
+                    connection_epoch: 1,
+                    generation: 7,
+                    origin: 'manual',
+                    pending_writes: 0,
+                    uncertain: false,
+                },
+                roaster: 'virtual',
+                display_name: 'Virtual',
+                brand: 'First Crack',
+                capabilities: [],
+                uptime: 1,
+                error: null,
+            }),
+        );
+
+        expect(sidecar.startRoast).not.toHaveBeenCalled();
+    });
+
     it('startRoast passes SidecarHttpError through so skip rules apply', async () => {
         const { SidecarHttpError } = await import('@shared/lib/sidecar');
         const sentry = await import('@shared/lib/sentry');
@@ -116,6 +258,7 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         const h = renderActions();
         await act(async () => {
             h.result.triggerCharge(200);
+            await Promise.resolve();
             await Promise.resolve();
         });
         expect(captureSpy).toHaveBeenCalledWith(err, { context: 'roast start' });

@@ -28,6 +28,7 @@ import sentry_sdk  # init 전/비활성이면 전부 no-op — 주입 없이 그
 
 import config
 from pid import PidGains, SoftwarePid
+from roast_target import CurveConfig, RoastTarget, ControlFilter
 
 _log = logging.getLogger(__name__)
 
@@ -52,6 +53,15 @@ class PvSample:
     sample_id: tuple[str, float] | None = None
 
 
+@dataclass(frozen=True)
+class CurveRuntime:
+    target: RoastTarget
+    config: CurveConfig
+    charge_at: float
+    filtered: Callable[[], ControlFilter | None]
+    terminate: Callable[[str], Awaitable[None]]
+
+
 class PidRunner:
     def __init__(
         self,
@@ -63,9 +73,13 @@ class PidRunner:
         read_feedback: Callable[[], Awaitable[float | None]] | None = None,
         gains: PidGains,
         clock: Callable[[], float] = time.monotonic,
+        curve: CurveRuntime | None = None,
         duty_deadband: float = config.PID_DUTY_DEADBAND,
         resend_every_n_ticks: int = config.PID_RESEND_EVERY_N_TICKS,
     ) -> None:
+        self.curve = curve
+        self._last_command_at = 0.0
+        self._last_command = 0.0
         self._read_pv = read_pv
         self._write_duty = write_duty
         self._write_final = write_final or write_duty
@@ -139,6 +153,21 @@ class PidRunner:
         self._hold_since = None
         _log.info("PID 시작: SV=%.1f°C seed=%s", sv, seed)
 
+    def start_curve(self, seed: float, seed_at: float) -> None:
+        assert self.curve is not None
+        self._revision += 1
+        self._pid.reset()
+        self._pid.set_target(self.curve.target.at(self._clock() - self.curve.charge_at))
+        self._pid.engage(self._clock(), seed_output=seed)
+        self._last_command, self._last_command_at = seed, seed_at
+        self._last_duty = seed
+        self._state = RUNNING
+        self._error = None
+
+    @property
+    def requested_output(self) -> float | None:
+        return self._pid.requested_output if self.curve is not None else self._last_duty
+
     def invalidate(self, error: str | None = None) -> None:
         self._revision += 1
         self._pid.release()
@@ -199,6 +228,10 @@ class PidRunner:
         if self._state not in (RUNNING, HOLDING):
             return
 
+        if self.curve is not None:
+            await self._tick_curve()
+            return
+
         revision = self._revision
         try:
             pv = await self._read_pv()
@@ -248,6 +281,76 @@ class PidRunner:
             return
         self._last_duty = duty
         await self._emit(duty)
+
+    async def _tick_curve(self) -> None:
+        curve = self.curve
+        assert curve is not None
+        if self._clock() - curve.charge_at >= curve.target.end_sec:
+            await curve.terminate("reference_exhausted")
+            return
+        revision = self._revision
+        try:
+            pv = await self._read_pv()
+        except Exception:
+            if revision == self._revision and self._is_current():
+                await self._curve_hold()
+            return
+        if revision != self._revision or not self._is_current():
+            return
+        now = self._clock()
+        if not pv.connected:
+            await curve.terminate("disconnected")
+            return
+        if now - curve.charge_at >= curve.target.end_sec:
+            await curve.terminate("reference_exhausted")
+            return
+        filtered = curve.filtered()
+        if pv.bt is not None and math.isfinite(pv.bt) and pv.bt > config.SAFETY_MAX_BT_C:
+            await curve.terminate("temperature_limit")
+            return
+        if (filtered is None or filtered.warmup_remaining_sec > 0 or pv.stale
+                or pv.bt is None or not math.isfinite(pv.bt) or pv.bt < 0
+                or not math.isfinite(pv.ts) or not 0 <= now - pv.ts <= 3
+                or filtered.sample.acquired_at != pv.ts):
+            await self._curve_hold()
+            return
+        if self._sample_ts == pv.ts:
+            return
+        if self._state == HOLDING:
+            if self._hold_since is not None and now - self._hold_since >= 5:
+                await curve.terminate("sample_fault")
+                return
+            self._pid.resume(pv.ts)
+            self._state, self._hold_since = RUNNING, None
+        self._sample_ts = pv.ts
+        self._sample_id = pv.sample_id
+        self._last_pv = filtered.value
+        self._pid.set_target(curve.target.at(now - curve.charge_at))
+        radius = curve.config.slew_per_sec * max(0.0, now - self._last_command_at)
+        bounds = (max(curve.config.out_min, self._last_command - radius),
+                  min(curve.config.out_max, self._last_command + radius))
+        duty = self._pid.update(filtered.value, pv.ts, output_bounds=bounds)
+        if duty is None:
+            return
+        self._last_duty = duty
+        try:
+            await self._write_duty(duty)
+        except Exception:
+            if revision == self._revision and self._is_current():
+                await curve.terminate("write_fault")
+            return
+        if revision == self._revision and self._is_current():
+            self._last_command, self._last_command_at = duty, self._clock()
+            self._last_sent = duty
+
+    async def _curve_hold(self) -> None:
+        assert self.curve is not None
+        now = self._clock()
+        if self._hold_since is None:
+            self._hold_since = now
+            self._state = HOLDING
+        elif now - self._hold_since >= 5:
+            await self.curve.terminate("sample_fault")
 
     # ── 내부 ───────────────────────────────────────────────────────────────
 

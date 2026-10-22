@@ -8,12 +8,12 @@
 | --- | --- |
 | 작업 디렉터리 | `/Users/hanseungheon/han/first-crack-proj/first-crack-fsd-handoff` |
 | 브랜치 | `feat/fsd-mode` |
-| 구현 기준 HEAD | `b2af35430f2d9e31ffbc0d4f2612f9b959af482a` |
+| 인수인계 HEAD | `4787aeb7d6d7db826d44a5e1eb71ed3888e7c131` |
 | FSD-01 | 구현, 검증, 로컬 커밋 완료 |
-| FSD-02 | 구현 계약 확정, 소스 조사와 담당 범위 합의까지 완료. 구현 코드 없음 |
+| FSD-02 | 구현 및 독립 검토 결함 수정 완료. 최종 실행·성능·영상 검증 중, 로컬 커밋 대기 |
 | FSD-03 | 미착수 |
 | FSD-04 | 현재 목표 범위 밖. 물리 장비 튜닝과 활성화 금지 |
-| 중단 시점 | 워크트리 이동 요청으로 FSD-02 담당 에이전트 3개를 중지함 |
+| 현재 실행 | 같은 작업 위치에서 FSD-02 검증 중. FSD-03은 FSD-02 커밋 뒤 시작 |
 
 워크트리를 옮길 때 HEAD, 브랜치, 깨끗한 Git 상태와 추적 파일 1,469개의 해시가 같음을 확인했다. 위 HEAD는 이 문서를 추가하기 전 구현 기준이다. 의존성 디렉터리도 함께 이동했다. sidecar `.venv`는 원래 프로젝트의 가상환경을 가리키는 기존 링크를 유지한다.
 
@@ -51,7 +51,18 @@ FSD는 감독하에 사용하는 로스팅 화력 자동 제어다. 기록된 re
 
 이 결과는 FSD-01에만 해당한다. Curve 추종, lease, receipt 저장과 실제 앱의 FSD 동작은 아직 검증하지 않았다. Virtual의 논리 명령 0은 실제 가스 차단이나 소염을 증명하지 않는다.
 
-## 중단 직전 진행하던 FSD-02
+## 이번 실행의 FSD-02 진행
+
+[실행 순서와 완료 기준](execution-2026-10-22.md), [결정 기록](decisions-2026-10-22.tsv)을 갱신한다. 현재 증거는 `/tmp/swarm-fsd02`에 있다. 완료 전 durable artifact 위치에 보관하고 소스·커밋 해시와 연결한다.
+
+- Frozen reference, 공통 raw filter·TP, 기존 PID의 actuator bounds, 서버 Charge, 독립 lease·reference deadline, receipt journal과 frontend Charge 전달을 구현했다.
+- 독립 pure 검토는 기존 PID 대비 120,000회, 별도 TP oracle 50,000 표본, strict reference와 최대 10,000 point를 확인했다. `review-pure.md`에 범위와 해시가 있다.
+- Session 독립 검토에서 재현된 7개 결함을 수정했다. 별도 검토자의 78개 focused 검사, 원래 재현 7개와 새 실행 probe 5개가 통과했다. `review-session-final.md`에 증거가 있다.
+- Frontend 독립 검토에서 확인한 승인 대기 표본 유실과 Drop 취소 시 원점 유실을 수정했다. 수정 후 독립 검토를 진행한다.
+- Root가 고정된 Python 소스에서 FSD-02 실제 HTTP 10개와 기존 FSD-01 HTTP 10개를 각각 통과했다. `final-http.json`, `final-fsd01-regression.json`이 원본 결과다.
+- 5회 교차 60초 cadence, 실제 protocol 화면 10개와 30~60초 영상, 최종 전체 gate와 로컬 커밋은 아직 완료로 표시하지 않는다.
+
+## 인수인계 당시 FSD-02 상태
 
 세 담당자가 아래 범위로 조사와 API 합의를 진행했다. 워크트리 이동 직전 Git이 깨끗했으므로 복구할 미커밋 구현은 없다. 다음 세션에서는 새 경로로 담당자를 배정한다. 이전 경로를 가진 에이전트를 그대로 재개하지 않는다.
 
@@ -94,7 +105,7 @@ Session 담당자는 기존 `PidOperation`을 fixed와 curve의 구분 가능한
 
 기존 E2E bootstrap은 port 충돌 시 9999 서비스를 재사용할 수 있고, `pnpm dev`의 predev는 9999를 종료한다. FSD 전용 격리 fixture는 이 경로를 사용하지 않는다.
 
-## 남은 단계
+## 단계별 완료 기준
 
 | 단계 | 구현 | 완료에 필요한 검증 |
 | --- | --- | --- |

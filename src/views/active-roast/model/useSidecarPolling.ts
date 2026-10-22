@@ -1,6 +1,7 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
 import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
+import type { UnalignedRoastPoint } from '@features/active-roast/model/batch';
 import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import {
@@ -140,13 +141,16 @@ export const useSidecarPolling = ({
 }: Params) => {
     const livePoints = useRoastingStore((s) => s.livePoints);
     const setLivePoints = useRoastingStore((s) => s.setLivePoints);
+    const acceptedCharge = useRoastingStore((s) => s.acceptedCharge);
+    const chargeSample = useRoastingStore((s) => s.chargeSample);
+    const chargeRequestPending = useRoastingStore((s) => s.chargeRequestPending);
+    const unalignedChargePoints = useRoastingStore((s) => s.unalignedChargePoints);
+    const completed = useRoastingStore((s) => s.completed);
     const [sidecarReady, setSidecarReady] = useState(false);
     // standby 첫 폴링 시각 — livePoints 실시간 표시용 세션 기준점
     const preChargeStartRef = useRef<number>(0);
     const lastPreChargeAbsRef = useRef(0);
     const prevPhaseRef = useRef(phase);
-    /** Session that owns the roast curve. Kept across Drop; the next Charge replaces it. */
-    const curveSessionRef = useRef<string | null>(null);
     // BT 이상치 필터 — 스파이크/0값이 자동감지(charge·TP·FC·drop) 윈도우에 들어가는 것을 차단
     const btFilterRef = useRef<ReturnType<typeof createBtFilter> | null>(null);
     const rawBtFilterRef = useRef<ReturnType<typeof createBtFilter> | null>(null);
@@ -161,14 +165,12 @@ export const useSidecarPolling = ({
         void initSessionTsv(sessionId).catch(() => {});
     }, [sessionId]);
 
-    // phase → 'roasting' 전환 감지:
-    // BBP finalize + 차트 00:00 (#433). 음수 lookback 없음.
-    // Drop 취소는 같은 세션으로 돌아오므로 Charge 시드·BBP finalize를 하지 않는다 (#638).
+    // Charge transition finalizes BBP immediately. A modern Charge waits for the
+    // accepted server origin before writing its first archive row.
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
             const store = useRoastingStore.getState();
-            const sameBatchResume = store.sessionId != null && curveSessionRef.current === store.sessionId;
-            if (!sameBatchResume) {
+            if (store.unalignedChargePoints !== null) {
                 const { sessionId: bbpSessionId, roastStartMs } = store;
                 const chargeTime = roastStartMs;
                 const bbpResult = bbpSessionId
@@ -184,56 +186,105 @@ export const useSidecarPolling = ({
                             });
                         });
                 }
-                // 대기 커브는 지우되 Charge 로그와 같은 00:00 시작점은 보존한다 (#452).
-                const lastPoint = livePoints.length > 0 ? livePoints[livePoints.length - 1] : null;
-                const sample = lastPoint ?? useRoastingStore.getState().liveData;
-                const etRaw = lastPoint
-                    ? (lastPoint.etRaw ?? null)
-                    : (useRoastingStore.getState().liveData?.et_raw ?? null);
-                const btRaw = lastPoint
-                    ? (lastPoint.btRaw ?? null)
-                    : finiteRawTemperature(useRoastingStore.getState().liveData?.bt_raw);
-                const seed: LiveRoastPoint | null =
-                    chargeBt != null && Number.isFinite(chargeBt)
-                        ? {
-                              time: 0,
-                              label: '0:00',
-                              bt: chargeBt,
-                              et: sample?.et ?? null,
-                              ror: null,
-                              ror_et: null,
-                              heater: sample?.heater ?? null,
-                              fan: sample?.fan ?? 0,
-                              drum: sample?.drum ?? 0,
-                              extraReadings:
-                                  lastPoint?.extraReadings ?? useRoastingStore.getState().liveData?.extra_readings,
-                              heaterSet: lastPoint?.heaterSet ?? null,
-                              etRaw,
-                              btRaw,
-                              sensorTimestamp: null,
-                              sensorClock: null,
-                              processing: sample?.processing,
-                          }
-                        : null;
-                setLivePoints(seed ? [seed] : []);
-                if (seed && bbpSessionId) {
-                    enqueueTsvRow(bbpSessionId, formatRoastTsvRow(seed), seed.processing);
-                }
-                preChargeStartRef.current = 0;
-                lastPreChargeAbsRef.current = 0;
-            } else {
-                // 다음 대기 구간은 0부터. 로스팅 간격은 복원된 커브의 마지막 샘플로 판단한다.
-                // 이 렌더의 livePoints는 아직 대기 커브일 수 있어 여기서 덮지 않는다.
-                preChargeStartRef.current = 0;
-                lastPreChargeAbsRef.current = 0;
+            }
+            preChargeStartRef.current = 0;
+            lastPreChargeAbsRef.current = 0;
+        }
+        const store = useRoastingStore.getState();
+        const recordings = [
+            ...(phase === 'roasting' && store.sessionId
+                ? [{ ...store, acceptedCharge, chargeSample, chargeRequestPending, unalignedChargePoints }]
+                : []),
+            ...(completed && !completed.submitted ? [completed.snapshot] : []),
+        ];
+        for (const recording of recordings) {
+            const { acceptedCharge, chargeSample, unalignedChargePoints: pendingPoints } = recording;
+            if (!recording.sessionId || pendingPoints === null || recording.chargeRequestPending) continue;
+            const current = recording.sessionId === store.sessionId ? store.liveData : null;
+            const legacyChargeBt =
+                'logEntries' in recording
+                    ? (recording.logEntries.find((entry) => entry.event === 'Charge')?.tempC ?? null)
+                    : chargeBt;
+            const anchorMatches =
+                acceptedCharge?.anchor != null &&
+                chargeSample?.sensorClock === acceptedCharge.anchor.sensor_clock &&
+                chargeSample.timestamp === acceptedCharge.anchor.acquired_at;
+            const seed: LiveRoastPoint | null = anchorMatches
+                ? {
+                      time: 0,
+                      label: '0:00',
+                      bt: chargeSample.bt,
+                      et: null,
+                      ror: null,
+                      ror_et: null,
+                      heater: null,
+                      fan: 0,
+                      drum: 0,
+                      heaterSet: null,
+                      etRaw: null,
+                      btRaw: chargeSample.bt,
+                      sensorTimestamp: chargeSample.timestamp,
+                      sensorClock: chargeSample.sensorClock,
+                      processing: chargeSample.processing,
+                  }
+                : acceptedCharge
+                  ? null
+                  : legacyChargeBt != null && Number.isFinite(legacyChargeBt)
+                    ? {
+                          time: 0,
+                          label: '0:00',
+                          bt: legacyChargeBt,
+                          et: current?.et ?? null,
+                          ror: null,
+                          ror_et: null,
+                          heater: current?.heater ?? null,
+                          fan: current?.fan ?? 0,
+                          drum: current?.drum ?? 0,
+                          extraReadings: current?.extra_readings,
+                          heaterSet: null,
+                          etRaw: current?.et_raw ?? null,
+                          btRaw: finiteRawTemperature(current?.bt_raw),
+                          sensorTimestamp: null,
+                          sensorClock: null,
+                          processing: current?.processing,
+                      }
+                    : null;
+            const aligned: LiveRoastPoint[] = [];
+            let lastTimestamp = Number.NEGATIVE_INFINITY;
+            for (const point of pendingPoints) {
+                if (
+                    (acceptedCharge &&
+                        (point.sensorClock !== acceptedCharge.sensor_clock ||
+                            point.sensorTimestamp < acceptedCharge.acquired_at)) ||
+                    point.sensorTimestamp <= lastTimestamp
+                )
+                    continue;
+                const time = acceptedCharge ? point.sensorTimestamp - acceptedCharge.acquired_at : point.time;
+                if ('logEntries' in recording && time > recording.elapsed) continue;
+                const min = Math.floor(time / 60);
+                const sec = Math.floor(time % 60);
+                aligned.push({ ...point, time, label: `${min}:${String(sec).padStart(2, '0')}` });
+                lastTimestamp = point.sensorTimestamp;
+            }
+            if (seed && aligned[0]?.time !== 0) aligned.unshift(seed);
+            const patch = { livePoints: aligned, unalignedChargePoints: null };
+            if (recording.sessionId === store.sessionId) {
+                useRoastingStore.setState(patch);
+            } else if (store.completed) {
+                useRoastingStore.setState({
+                    completed: {
+                        ...store.completed,
+                        snapshot: { ...store.completed.snapshot, ...patch },
+                        restore: store.completed.restore ? { ...store.completed.restore, ...patch } : null,
+                    },
+                });
+            }
+            for (const point of aligned) {
+                enqueueTsvRow(recording.sessionId, formatRoastTsvRow(point), point.processing);
             }
         }
-        if (phase === 'roasting') {
-            const id = useRoastingStore.getState().sessionId;
-            if (id) curveSessionRef.current = id;
-        }
         prevPhaseRef.current = phase;
-    }, [phase, chargeBt, livePoints, setLivePoints]);
+    }, [phase, chargeBt, acceptedCharge, chargeSample, chargeRequestPending, unalignedChargePoints, completed]);
 
     // Rust는 인증된 200 뒤에만 sidecar-ready를 쏜다. 마운트가 그 이벤트보다 늦으면
     // waitUntilReady 폴백이 첫 정상 상태를 대신 확인한다 (Machines와 같은 규칙).
@@ -369,8 +420,21 @@ export const useSidecarPolling = ({
                         reconnecting: data.reconnecting,
                         ...over,
                     });
-                if (!data.stale && !data.reconnecting && data.bt != null && data.bt_raw != null) {
-                    rawSample = { timestamp: data.timestamp, receivedAtMs, bt: data.bt_raw };
+                if (
+                    !data.stale &&
+                    !data.reconnecting &&
+                    data.bt != null &&
+                    data.bt_raw != null &&
+                    data.sensor_clock &&
+                    data.processing
+                ) {
+                    rawSample = {
+                        timestamp: data.timestamp,
+                        sensorClock: data.sensor_clock,
+                        receivedAtMs,
+                        bt: data.bt_raw,
+                        processing: data.processing,
+                    };
                 }
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
                 if (data.bt === null || data.bt === undefined) {
@@ -401,7 +465,14 @@ export const useSidecarPolling = ({
                 observationTick = tick({ bt });
                 if (bt === null) return;
 
-                const { phase: currentPhase, roastStartMs, sessionId: currentSessionId } = useRoastingStore.getState();
+                const {
+                    phase: currentPhase,
+                    roastStartMs,
+                    sessionId: currentSessionId,
+                    acceptedCharge: currentCharge,
+                    chargeRequestPending: currentChargePending,
+                    unalignedChargePoints: currentUnalignedChargePoints,
+                } = useRoastingStore.getState();
 
                 // BBP: 이전 드롭 이후 pre-charge 구간(ended/preheating/standby) 기록.
                 // 비활성 시 no-op — 간격 제한·만료는 스토어 append가 처리.
@@ -430,8 +501,55 @@ export const useSidecarPolling = ({
                 }
 
                 if (currentPhase === 'roasting' && roastStartMs !== 0) {
-                    const t = (Date.now() - roastStartMs) / 1000;
-                    // Keep elapsed on wall-clock even if UI tick interval is throttled
+                    if (currentUnalignedChargePoints !== null) {
+                        if (
+                            !data.stale &&
+                            deviceTimestamp != null &&
+                            data.sensor_clock &&
+                            data.processing &&
+                            rawBt != null
+                        ) {
+                            const point: UnalignedRoastPoint = {
+                                time: (Date.now() - roastStartMs) / 1000,
+                                bt,
+                                et: data.et ?? null,
+                                ror: data.ror,
+                                ror_et: data.ror_et ?? null,
+                                heater: data.heater ?? null,
+                                fan: data.fan ?? 0,
+                                drum: data.drum ?? 0,
+                                extraReadings: data.extra_readings,
+                                heaterSet: data.heater_set ?? null,
+                                etRaw: finiteRawTemperature(data.et_raw),
+                                btRaw: rawBt,
+                                sensorTimestamp: deviceTimestamp,
+                                sensorClock: data.sensor_clock,
+                                processing: data.processing,
+                            };
+                            useRoastingStore.setState((latest) => {
+                                const pending = latest.unalignedChargePoints;
+                                if (latest.sessionId !== currentSessionId || pending === null) return latest;
+                                const previous = pending[pending.length - 1];
+                                if (
+                                    previous?.sensorClock === point.sensorClock &&
+                                    previous.sensorTimestamp === point.sensorTimestamp
+                                )
+                                    return latest;
+                                return { unalignedChargePoints: [...pending, point] };
+                            });
+                        }
+                        return;
+                    }
+                    if (currentChargePending) return;
+                    let t: number;
+                    if (currentCharge) {
+                        if (deviceTimestamp == null || data.sensor_clock !== currentCharge.sensor_clock) return;
+                        t = deviceTimestamp - currentCharge.acquired_at;
+                    } else {
+                        t = (Date.now() - roastStartMs) / 1000;
+                    }
+                    if (t < 0) return;
+                    // Keep display elapsed aligned to each accepted acquisition.
                     const elapsedSec = Math.floor(t);
                     if (useRoastingStore.getState().elapsed !== elapsedSec) {
                         useRoastingStore.setState({ elapsed: elapsedSec });

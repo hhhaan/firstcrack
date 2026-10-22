@@ -127,3 +127,71 @@ class TestClosedLoop:
         rig.t += 600.0
         after = (await rig.adapter.read()).bt
         assert after < before
+
+
+@pytest.mark.parametrize("gains,noise,delay,rising", [
+    ((4, 0.3, 2), 0, 0, False),
+    ((4, 0.3, 2), 0.3, 2, False),
+    ((20, 0.01, 3), 0, 0, False),
+    ((4, 0.3, 2), 0, 0, True),
+    ((4, 0.3, 2), 0.3, 2, True),
+])
+async def test_production_curve_runner_600_tick_contract(gains, noise, delay, rising):
+    import math
+    import random
+    from collections import deque
+    from adapters.thermal_model import FirstOrderThermalModel
+    from pid_runner import CurveRuntime
+    from roast_target import (CurveConfig, MachineIdentity, QualifiedTp, RawObservation,
+                              RoastTarget, advance_filter)
+    rng = random.Random(216)
+    now = [0.0]
+    clock = "a" * 32 + ":1"
+    def target(t):
+        return 150 + t / 10 if rising else (250 if 20 <= t < 80 else 150)
+    points = tuple(RawObservation(clock, t, t, target(t)) for t in range(602))
+    # This declared saturation schedule exercises the runner, not archive-source eligibility.
+    schedule = RoastTarget("fixture", "numerical-schedule", MachineIdentity("fixture", "virtual", "virtual"),
+                           points, tuple(target(t) for t in range(602)), QualifiedTp(0, 0, 150), 601, 601)
+    filtered = None
+    for t in range(-10, 1):
+        filtered = advance_filter(filtered, RawObservation(clock, t, t, 150))
+    config = CurveConfig(kp=gains[0], ki=gains[1], kd=gains[2])
+    plant = FirstOrderThermalModel(bt0=150)
+    duty = [(150 - 25) / 2.4]
+    samples = deque([150] * (delay + 1), maxlen=delay + 1)
+    writes = []
+    async def read():
+        return PvSample(samples[0], now[0], False, True, (clock, now[0]))
+    async def write(value):
+        duty[0] = value
+        writes.append(value)
+    async def terminate(reason):
+        pytest.fail(f"Unexpected terminal condition {reason}")
+    runner = PidRunner(read_pv=read, write_duty=write, gains=PidGains(*gains), clock=lambda: now[0],
+                       curve=CurveRuntime(schedule, config, 0, lambda: filtered, terminate))
+    runner.start_curve(duty[0], 0)
+    rows = []
+    for t in range(1, 601):
+        now[0] = t
+        samples.append(plant.step(duty[0], 1) + rng.uniform(-noise, noise))
+        filtered = advance_filter(filtered, RawObservation(clock, t, t, samples[0]))
+        previous = duty[0]
+        await runner.tick()
+        assert runner.state_name == "running"
+        assert math.isfinite(duty[0]) and 0 <= duty[0] <= 100
+        assert abs(duty[0] - previous) <= 5 + 1e-9
+        assert 0 <= runner._pid._i_term <= 100
+        rows.append((t, target(t) - filtered.value, duty[0]))
+    assert len(writes) == 600
+    rmse = math.sqrt(sum(error**2 for _, error, _ in rows[-60:]) / 60)
+    assert rmse <= 1
+    if rising:
+        assert max(abs(error) for _, error, _ in rows) <= 5
+    else:
+        recovery = next((t - 80 for index, (t, _, _) in enumerate(rows)
+                         if t >= 80 and len(rows[index:index + 30]) == 30
+                         and all(abs(error) <= 5 for _, error, _ in rows[index:index + 30])), None)
+        assert recovery is not None and recovery <= 120
+        assert max(duty for _, _, duty in rows[20:79]) >= 99.9
+        print(f"runner recovery={recovery}s rmse={rmse:.6f}C gains={gains} noise={noise} delay={delay}")

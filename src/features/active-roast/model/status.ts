@@ -1,6 +1,6 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
-import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
+import type { ChargeResponse, ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
 import { type BatchActions, type BatchState, createBatchActions, initialBatchState, type RoastPhase } from './batch';
 
@@ -61,6 +61,7 @@ export interface RoastingState extends BatchState, BatchActions {
     setReconnecting: (reconnecting: boolean) => void;
     updateLiveData: (data: LiveData) => void;
     setPid: (pid: PidRuntime | null) => void;
+    settleSidecarCharge: (sessionId: string, response: ChargeResponse | null, receivedAtMs: number) => boolean;
     setPendingBean: (beanId: string | null, beanName?: string | null) => void;
     setPendingProfile: (profileId: string | null, source?: BatchState['pendingProfileSource']) => void;
     rememberMachineSnapshot: (snapshot: MachineSnapshot) => void;
@@ -73,6 +74,10 @@ const initialState = {
     phase: 'idle' as RoastPhase,
     elapsed: 0,
     roastStartMs: 0,
+    acceptedCharge: null,
+    chargeSample: null,
+    chargeRequestPending: false,
+    unalignedChargePoints: null,
     sidecarConnected: false,
     sidecarError: null as string | null,
     machineCapabilities: [] as string[],
@@ -100,6 +105,10 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         const state = get();
         set({
             ...initialState,
+            acceptedCharge: null,
+            chargeSample: null,
+            chargeRequestPending: false,
+            unalignedChargePoints: null,
             sidecarConnected: state.sidecarConnected,
             machineCapabilities: state.machineCapabilities,
             // Drop and end reset the batch. The connected machine id stays.
@@ -222,6 +231,40 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         )
             return;
         set({ pid });
+    },
+
+    settleSidecarCharge: (sessionId, response, receivedAtMs) => {
+        const state = get();
+        const active = state.phase === 'roasting' && state.sessionId === sessionId;
+        const completed = state.completed;
+        const recording = active
+            ? state
+            : completed?.snapshot.sessionId === sessionId && !completed.submitted
+              ? completed.snapshot
+              : null;
+        if (!recording) return false;
+        if (response && response.charge.session_id !== sessionId) return false;
+        const acceptedCharge = recording.acceptedCharge ?? response?.charge ?? null;
+        const patch = { acceptedCharge, chargeRequestPending: false };
+        if (active) {
+            set({
+                ...patch,
+                ...(!recording.acceptedCharge &&
+                    response && {
+                        roastStartMs: receivedAtMs - response.elapsed_sec * 1000,
+                        elapsed: Math.max(0, Math.floor(response.elapsed_sec)),
+                    }),
+            });
+        } else if (completed) {
+            set({
+                completed: {
+                    ...completed,
+                    snapshot: { ...completed.snapshot, ...patch },
+                    restore: completed.restore ? { ...completed.restore, ...patch } : null,
+                },
+            });
+        }
+        return true;
     },
 
     reset: () => {

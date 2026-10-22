@@ -3,7 +3,9 @@ import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
+import type { ChargeRequest } from '@shared/types/sidecar';
 import { useCallback } from 'react';
+import type { RawTemperatureSample } from '../lib/autoCharge';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
@@ -18,13 +20,18 @@ interface UseRoastActionsParams {
     storeStartCharge: (
         originMs?: number,
         ownerId?: string,
-        charge?: { bt: number | null; unit: TemperatureUnit },
+        charge?: {
+            bt: number | null;
+            unit: TemperatureUnit;
+            sample?: RawTemperatureSample;
+            awaitSidecar?: boolean;
+        },
     ) => string | null;
 }
 
 interface UseRoastActionsReturn {
-    /** chargeTimeMs: auto-charge 후처리 onset 시각. 없으면 Date.now() (manual). */
-    triggerCharge: (btAtCharge?: number | null, chargeTimeMs?: number) => void;
+    /** Auto Charge passes its exact acquired sample; manual Charge omits it. */
+    triggerCharge: (btAtCharge?: number | null, origin?: number | RawTemperatureSample) => void;
     /** onset: BTbreak 꺾임 점. 없으면 현재 elapsed/BT. */
     handleAutoDrop: (onset?: { timeSec: number; bt: number }) => void;
     handleTurningPoint: (tp: TurningPoint) => void;
@@ -39,17 +46,63 @@ export const useRoastActions = ({
 }: UseRoastActionsParams): UseRoastActionsReturn => {
     const { workspaceOwnerId } = useActiveWorkspace();
     const triggerCharge = useCallback(
-        (btAtCharge?: number | null, chargeTimeMs?: number) => {
+        (btAtCharge?: number | null, requestedOrigin?: number | RawTemperatureSample) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
             if (isChargedPhase(useRoastingStore.getState().phase)) return;
             const now = Date.now();
-            const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
+            const sample = typeof requestedOrigin === 'object' ? requestedOrigin : undefined;
+            const requestedOriginMs = typeof requestedOrigin === 'number' ? requestedOrigin : sample?.receivedAtMs;
+            const origin = requestedOriginMs != null && requestedOriginMs <= now ? requestedOriginMs : now;
             const btVal = btAtCharge ?? rawBT;
-            const sessionId = storeStartCharge(origin, workspaceOwnerId, { bt: btVal, unit });
-            if (!sessionId) return;
-            sidecar.startRoast().catch((error) => {
-                logger.capture(error, { context: 'roast start' });
+            const sessionId = storeStartCharge(origin, workspaceOwnerId, {
+                bt: btVal,
+                unit,
+                sample,
+                awaitSidecar: true,
             });
+            if (!sessionId) return;
+            void (async () => {
+                try {
+                    const status = await sidecar.getStatus().catch(() => null);
+                    const current = useRoastingStore.getState();
+                    if (current.phase !== 'roasting' || current.sessionId !== sessionId) {
+                        current.settleSidecarCharge(sessionId, null, Date.now());
+                        return;
+                    }
+                    const sensorClock = sample?.sensorClock ?? status?.sensor_clock;
+                    const connectionEpoch = status?.connection_epoch;
+                    const generation = status?.heater_control?.generation;
+                    if (
+                        !sensorClock ||
+                        (sample && sample.sensorClock !== status?.sensor_clock) ||
+                        typeof connectionEpoch !== 'number' ||
+                        !Number.isInteger(connectionEpoch) ||
+                        typeof generation !== 'number' ||
+                        !Number.isInteger(generation)
+                    ) {
+                        await sidecar.startRoast();
+                        useRoastingStore.getState().settleSidecarCharge(sessionId, null, Date.now());
+                        return;
+                    }
+                    const request: ChargeRequest = {
+                        session_id: sessionId,
+                        sensor_clock: sensorClock,
+                        connection_epoch: connectionEpoch,
+                        expected_generation: generation,
+                        origin: sample
+                            ? {
+                                  kind: 'sample',
+                                  sample: { sensor_clock: sample.sensorClock, acquired_at: sample.timestamp },
+                              }
+                            : { kind: 'now' },
+                    };
+                    const response = await sidecar.startRoast(request);
+                    useRoastingStore.getState().settleSidecarCharge(sessionId, response, Date.now());
+                } catch (error) {
+                    useRoastingStore.getState().settleSidecarCharge(sessionId, null, Date.now());
+                    logger.capture(error, { context: 'roast start' });
+                }
+            })();
         },
         [unit, rawBT, storeStartCharge, workspaceOwnerId],
     );

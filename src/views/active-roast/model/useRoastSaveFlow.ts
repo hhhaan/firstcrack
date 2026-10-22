@@ -137,6 +137,31 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const epoch = flowEpoch.current;
             try {
                 const frozen = flow.summaryData;
+                const recordingPending = () => {
+                    const completed = useRoastingStore.getState().completed;
+                    const recording = completed?.snapshot;
+                    return (
+                        Boolean(completed?.summary) &&
+                        !completed?.submitted &&
+                        recording?.sessionId === frozen?.sessionId &&
+                        (recording?.chargeRequestPending || Boolean(recording?.unalignedChargePoints?.length))
+                    );
+                };
+                if (recordingPending()) {
+                    await new Promise<void>((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            unsubscribe();
+                            reject(new Error(i18n.t('activeRoast.dialogs.chargeRecordingPending')));
+                        }, 10_000);
+                        const unsubscribe = useRoastingStore.subscribe(() => {
+                            if (recordingPending()) return;
+                            clearTimeout(timeout);
+                            unsubscribe();
+                            resolve();
+                        });
+                    });
+                }
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 const completed = useRoastingStore.getState().completed;
                 if (!frozen?.sessionId || completed?.snapshot.sessionId !== frozen.sessionId || !completed.summary)
                     return;
@@ -268,6 +293,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 }
                 onResetActiveRoast();
             } catch (err) {
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 logger.capture(err, { context: 'roastSummary save' });
                 const detail = formatRoastSaveError(err);
                 await message(i18n.t('activeRoast.dialogs.saveFailedMsg', { error: detail }), {

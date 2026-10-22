@@ -1,6 +1,6 @@
 # First Crack Sidecar API
 
-작성일: 2026-05-08 · 갱신일: 2026-07-26
+작성일: 2026-05-08 · 갱신일: 2026-10-22
 
 이 문서는 `src-tauri/sidecar/main.py`의 현재 `aiohttp` 기반 HTTP API를 기준으로 한다. 프론트엔드는 `src/shared/lib/sidecar.ts`에서 이 API를 호출한다.
 
@@ -409,20 +409,20 @@ Behavior:
 
 Charge 버튼과 연동되는 시작 신호다.
 
-Request body: 없음
+Request body: 생략하거나 `ChargeRequest`를 보낸다. 구조화된 Charge 형식은 아래 FSD 절을 따른다.
 
 Response:
 
 ```json
-{ "ok": true }
+{ "ok": true, "charge": null, "curve_eligible": false }
 ```
 
 Behavior:
 
-- BT RoR window를 초기화한다.
-- ET RoR window를 초기화한다.
-- 현재 adapter에 `start_roast()` 메서드가 있으면 호출한다.
-- virtual adapter는 이 호출 시 profile 재생 시작 시간을 현재 시각으로 리셋한다.
+- 위 응답은 바디 없는 legacy 요청이다. FSD 제어용 Charge 원점을 만들지 않는다.
+- 새 Charge는 BT·ET RoR window를 초기화하고 adapter의 `start_roast()`를 알린다.
+- 동일한 구조화된 Charge 재전송은 기존 원점을 반환하며 필터나 adapter 타이머를 다시 초기화하지 않는다.
+- 구조화된 Charge가 열려 있으면 바디 없는 legacy 요청은 `409`다.
 
 ### POST /reset
 
@@ -590,17 +590,14 @@ PID를 켜려면 레지스트리에 **게인(`pid`)과 heater `write_map`이 둘
   fault는 자동 복귀하지 않는다 — 사용자가 다시 켜야 한다.
 - `mode="hold"`는 배출 후 화력을 그대로 둔다(연속 배치용). 이상 정지는 mode와 무관하게 0.
 
-**남는 위험 — 앱 강제 종료 시 머신에 duty가 남는다**
+**종료 시 명령과 관측의 구분**
 
-Tauri 앱이 SIGKILL 등으로 죽으면 `parent_watchdog`(`main.py:101`)이 감지해
-`manager.disconnect()` 후 sidecar를 종료한다. 이 경로는 PID 태스크를 취소하고 어댑터
-연결을 끊을 뿐 **heater 0을 쓰지 않는다** — 즉 정리되는 것은 sidecar 프로세스이고,
-머신에는 마지막으로 써진 duty가 그대로 남아 계속 가열한다. 정상 종료(`POST /shutdown`)나
-`POST /pid/off`를 거치지 않는 한 소프트웨어가 화력을 회수할 방법은 없다.
-
-이 상태는 사용자가 머신 패널에서 직접 화력을 내려야 해제된다. 사이드카가 배출을
-인지해 스스로 정지하는 안전망도 아직 없다(이슈 #196) — 배출 시 자동 해제는
-프론트(`usePidControl.ts`)가 실패 시 재시도하는 방식으로만 보장된다.
+Parent watchdog과 정상 종료는 manager의 disconnect 경로를 사용한다. PID operation이
+있으면 기존 writer가 끝나기를 기다리고 논리 heater 0을 시도한 뒤 연결을 종료한다.
+미완료 writer의 timeout은 완료로 보고하지 않는다. 전송 실패, 프로세스 정지나
+머신의 명령 미반영까지 소프트웨어가 해결한다는 보장은 없다. 논리 명령이나 register
+readback은 실제 소염·연료 차단의 관측이 아니다. 수동 화력만 사용 중인 disconnect가
+새로운 heater 0 명령을 보낸다고 해석해서도 안 된다.
 
 **런타임 상태**는 `GET /temperatures`의 `pid` 블록으로 나간다 (PID를 한 번 켠 뒤부터):
 
@@ -615,6 +612,57 @@ Tauri 앱이 SIGKILL 등으로 죽으면 `parent_watchdog`(`main.py:101`)이 감
 
 별도 폴링 엔드포인트를 두지 않은 이유: 프론트가 이미 `/temperatures`를 폴링 중이라
 타이머를 하나 더 만들 이유가 없다. 정적 지원 여부만 `/status.control.pid`에 있다.
+
+### FSD curve protocol
+
+FSD는 같은 Charge 경과시간의 기록 BT를 추종한다. 기존 heater session과 PID runner를
+재사용한다. `virtual-v1`은 명시적 machine identity가 있는 `sim: "thermal"` virtual만
+지원한다. 기본 scripted virtual과 모든 물리 adapter의 curve capability는 false다.
+
+완전한 wire 형식과 불변 조건은 [FSD-02 계약](agent/fsd-mode/fsd02-contract.md), 실제
+TypeScript DTO는 `src/shared/types/sidecar.ts`에 있다.
+
+| 요청 | 동작 |
+| --- | --- |
+| `POST /start` + `ChargeRequest` | 기존 앱 `session_id`, 현재 clock·epoch·generation, `origin.kind="now"` 또는 보관된 정확한 sample key를 받는다. `{ok,charge,server_time,elapsed_sec}`를 반환한다. |
+| `POST /pid/on` + `mode="curve"` | Charge identity, 고유 `request_id`, 현재 generation, machine, `config_id="virtual-v1"`, 전체 frozen reference를 받는다. `{ok,pid,curve,server_time}`를 반환한다. |
+| `POST /pid/renew` | 반환된 `CurveAuthority` 전체를 받는다. 살아 있는 같은 run의 lease만 서버 수락 시각부터 3초로 갱신한다. |
+| `POST /pid/off` + `mode="curve"` | authority와 `user`, `drop`, `view_hidden`, `workspace_changed` 사유를 받는다. 기존 writer barrier 뒤에 virtual 논리 최소값 0을 적용한다. |
+| `GET /pid/receipts?charge_id=...&after=0&limit=256` | 해당 Charge의 immutable receipt page를 반환한다. 최대 page는 512개, journal은 최근 2,048개다. |
+
+Reference는 raw Celsius BT, acquisition 시각·clock, 전체 processing metadata, 저장된
+machine identity, 명시적 Charge·Drop을 포함한다. 10~10,000개 point와 최대 1,800초를
+허용한다. 인접 간격은 3초 이하다. Synthetic fallback, 표시 EMA와 잘못된 row를
+버려서 만든 커브는 제어 source가 아니다. Curve JSON body 상한은 8 MiB다.
+
+Reference와 live raw BT 모두 tau 2초의 동일한 dt EMA와 10초 warmup을 사용한다.
+양쪽 raw TP와 초기 오차 조건을 통과한 명시적 시작만 허용한다. TP에 맞춰 시간축을
+이동하지 않는다. 마지막 실제 reference 표본에서 제어를 끝내며 물리 Drop을 생성하지 않는다.
+
+Curve lease와 reference 종료 deadline은 read·write 대기와 독립적으로 자동 권한을
+회수한다. 상태·온도·receipt 조회와 start 재전송은 lease를 갱신하지 않는다. 종료된
+authority와 지연된 이전 run의 stop은 새 run을 제어할 수 없다. Curve가 소유 중인
+`/pid/sv` 요청은 `409`다. Fixed `{sv}`와 기존 hold·zero stop 형식은 유지한다.
+
+`/status`는 `server_time`, `sensor_clock`, `charge`, `curve`, `curve_eligibility`,
+`charge_history_oldest_at`, `control.pid.curve`를 제공한다. `/temperatures`도 현재 또는
+마지막 curve snapshot을 포함한다. 시작·종료 phase와 runner state는 별개다.
+Runner가 off여도 종결 쓰기가 pending·uncertain이면 완료된 정지가 아니다.
+
+Receipt는 `(charge_id, sequence)`로 식별한다. Attempt, 실제 heater transmission,
+completion, uncertainty와 늦은 reconciliation을 서로 다른 entry로 보존한다. 예전
+권한의 늦은 실제 완료도 원래 journal에 남으며 현재 LastApplied를 덮지 않는다.
+Heat feedback은 이 명령 증거와 별개다. Retention 뒤 cursor에는 명시적 `gap`이 붙고,
+폐기된 journal은 `410 journal_unavailable`이다. 미래 cursor는 `400`이다.
+
+새 요청 오류는 기존 `error`와 안정된 `code`, 해당 시 `field`를 포함한다. 입력 오류는
+`400`, 상태·소유권 충돌은 `409`, 미완료 writer는 `504 write_uncertain`과
+`uncertain:true`, transport 실패는 `502`다. 잘못된 nonempty JSON stop은 `400`이며
+바디 없는 stop으로 처리하지 않는다.
+
+격리 재현은 `rtk src-tauri/sidecar/.venv/bin/python scripts/verify-fsd.py curve --help`에서
+시작한다. 검증 driver는 virtual만 만들고 소유한 ephemeral loopback port를 사용한다.
+Port 9999의 기존 서비스는 사용하지 않는다.
 
 ### GET /serial-ports
 

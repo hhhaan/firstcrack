@@ -605,3 +605,41 @@ async def test_connection_terminal_timeout_returns_uncertainty_without_detaching
         release.set()
         await asyncio.gather(writer, return_exceptions=True)
         await manager.disconnect()
+
+
+@pytest.mark.parametrize("route", ["/start", "/pid/off", "/pid/renew"])
+async def test_new_protocol_malformed_body_is_readonly(client, route):
+    manager = client.server.app["manager"]
+    before = manager.status()["heater_control"]
+    response = await client.post(route, data=b"{broken", headers={"Content-Type": "application/json"})
+    assert response.status == 400
+    assert manager.status()["heater_control"] == before
+
+
+async def test_curve_request_body_has_explicit_eight_mib_bound(client):
+    manager = client.server.app["manager"]
+    before = manager.status()["heater_control"]
+    accepted = await client.post("/pid/on", data=b" " * (1024 * 1024 + 1) + b"{}",
+                                 headers={"Content-Type": "application/json"})
+    assert accepted.status == 400
+    oversized = await client.post("/pid/on", data=b" " * (8 * 1024 * 1024) + b"{}",
+                                  headers={"Content-Type": "application/json"})
+    assert oversized.status == 413
+    assert manager.status()["heater_control"] == before
+
+
+async def test_thermal_capability_and_modern_charge_duplicate_preserve_timer(client):
+    response = await client.post("/connect", json={"roaster": "virtual", "sim": "thermal", "machine_id": "fixture"})
+    assert response.status == 200
+    status = await (await client.get("/status")).json()
+    assert status["control"]["pid"]["curve"] == {"supported": True, "reason": "ready", "config_id": "virtual-v1"}
+    request = {"session_id": "roast", "sensor_clock": status["sensor_clock"],
+               "connection_epoch": status["connection_epoch"],
+               "expected_generation": status["heater_control"]["generation"], "origin": {"kind": "now"}}
+    first = await (await client.post("/start", json=request)).json()
+    second = await (await client.post("/start", json=request)).json()
+    assert first["charge"] == second["charge"]
+    assert first["charge"]["anchor"] is None
+    assert (await client.post("/start")).status == 409
+    assert (await client.post("/start", json=None)).status == 409
+    assert (await client.post("/start", data=b"null")).status == 400

@@ -21,6 +21,7 @@ I/O도 시계도 갖지 않는다. 호출자가 PV와 시각을 넘기고 duty�
 
 from collections import deque
 from dataclasses import dataclass
+import math
 from typing import Any
 
 
@@ -76,6 +77,7 @@ class SoftwarePid:
         self._last_pv: float | None = None
         self._prev_d_input: float | None = None
         self._prev_raw_output = 0.0
+        self._prev_output_bounds = (out_min, out_max)
         self._skip_integration_once = False
         self._attenuate_d_once = False
         self._seed_output: float | None = None
@@ -91,6 +93,10 @@ class SoftwarePid:
     @property
     def target(self) -> float:
         return self._sv
+
+    @property
+    def requested_output(self) -> float:
+        return self._prev_raw_output
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -155,6 +161,7 @@ class SoftwarePid:
         self._last_pv = None
         self._prev_d_input = None
         self._prev_raw_output = 0.0
+        self._prev_output_bounds = (self.out_min, self.out_max)
         self._skip_integration_once = False
         self._attenuate_d_once = False
         self._seed_output = None
@@ -162,8 +169,18 @@ class SoftwarePid:
 
     # ── 계산 ───────────────────────────────────────────────────────────────
 
-    def update(self, pv: float, now: float) -> float | None:
+    def update(self, pv: float, now: float, *,
+               output_bounds: tuple[float, float] | None = None) -> float | None:
         """한 사이클. 출력(clamp된 duty)을 반환하고, 건너뛴 사이클은 None."""
+        lower, upper = self.out_min, self.out_max
+        if output_bounds is not None:
+            if (len(output_bounds) != 2 or any(isinstance(value, bool)
+                    or not isinstance(value, (int, float)) or not math.isfinite(value)
+                    for value in output_bounds)):
+                raise ValueError("Output bounds must be two finite numbers")
+            lower, upper = max(lower, output_bounds[0]), min(upper, output_bounds[1])
+            if lower > upper:
+                raise ValueError("Output bounds do not intersect the absolute output range")
         if self._last_ts is None:
             self._last_ts = now
             self._last_pv = pv
@@ -195,13 +212,15 @@ class SoftwarePid:
             self._clamp_integral()
             self._seed_output = None
         else:
-            self._integrate(err, dt)
+            self._integrate(err, dt, self._prev_output_bounds if output_bounds is not None
+                            else (self.out_min, self.out_max))
 
         raw = self._p_term + self._i_term + self._d_term
-        out = min(self.out_max, max(self.out_min, raw))
+        out = min(upper, max(lower, raw))
         self._back_calculate(raw, out)
 
         self._prev_raw_output = raw
+        self._prev_output_bounds = (lower, upper)
         self._last_ts = now
         self._last_pv = pv
         return out
@@ -252,13 +271,13 @@ class SoftwarePid:
         lower = 0.0 if self.out_min >= 0.0 else -band
         self._i_term = min(band, max(lower, self._i_term))
 
-    def _integrate(self, err: float, dt: float) -> None:
+    def _integrate(self, err: float, dt: float, output_bounds: tuple[float, float]) -> None:
         if self._skip_integration_once:
             self._skip_integration_once = False
             return
         # 이미 포화된 방향으로 더 밀어붙이는 적분은 windup만 만든다
-        saturated_high = self._prev_raw_output > self.out_max and err > 0
-        saturated_low = self._prev_raw_output < self.out_min and err < 0
+        saturated_high = self._prev_raw_output > output_bounds[1] and err > 0
+        saturated_low = self._prev_raw_output < output_bounds[0] and err < 0
         if saturated_high or saturated_low:
             return
         self._i_term += self.gains.ki * err * dt

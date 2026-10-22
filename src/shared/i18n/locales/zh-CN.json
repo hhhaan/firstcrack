@@ -1165,6 +1165,7 @@
             "cancel": "取消",
             "machineRequiredTitle": "需要连接设备",
             "machineRequiredMsg": "尚未连接设备。请连接后重试。",
+            "chargeRecordingPending": "正在确认投豆时的记录。烘焙数据已保留，请稍后重试保存。",
             "saveFailedTitle": "保存失败",
             "saveFailedMsg": "保存烘焙数据失败。\n\n{{error}}",
             "beanDeletedTitle": "生豆不存在",

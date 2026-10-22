@@ -449,3 +449,16 @@ class TestResetRoast:
             gate.set()
             await reset_task
         assert manager._resetting is False
+
+
+async def test_probat_heater_transport_observation_survives_later_fan_failure():
+    adapter = ProbatWSAdapter(write_map={"heater": {"node": "burner"}, "fan": {"node": "fan"}})
+    adapter._ws = object()
+    facts = []
+    async def send(payload):
+        if "fan" in payload["params"]:
+            raise OSError("fan send failed")
+    adapter._send = send
+    with pytest.raises(OSError):
+        await adapter.control(heater=35, fan=20, _heater_observer=lambda *fact: facts.append(fact))
+    assert facts == [("transport_sent", 35)]

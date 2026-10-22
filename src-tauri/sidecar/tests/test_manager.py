@@ -621,7 +621,7 @@ class FlakyConnectAdapter:
     async def read(self):
         raise RuntimeError("not used")
 
-    async def control(self, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False) -> None:
+    async def control(self, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None) -> None:
         self.control_calls = getattr(self, "control_calls", [])
         self.control_calls.append({"heater": heater, "fan": fan, "drum": drum})
 
@@ -1015,7 +1015,7 @@ class TestDisconnectRace:
         class ControlFailsAfterDisconnect:
             connected = True
 
-            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False):
+            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None):
                 manager._adapter = None
                 raise ConnectionError("cable pulled")
 
@@ -1031,7 +1031,7 @@ class TestDisconnectRace:
         release = asyncio.Event()
 
         class DelayedControl:
-            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False):
+            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None):
                 started.set()
                 await release.wait()
 
@@ -1076,7 +1076,7 @@ class TestDisconnectRace:
 
     async def test_control_write_failure_breadcrumb_omits_values(self, manager):
         class Boom:
-            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False):
+            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None):
                 raise OSError("PLC unreachable")
 
         manager._adapter = Boom()

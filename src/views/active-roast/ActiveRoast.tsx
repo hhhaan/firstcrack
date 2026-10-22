@@ -15,6 +15,7 @@ import {
     computePhaseSegments,
     formatTemp,
     isRoastShortcutBaseEnabled,
+    type RawTemperatureSample,
     useBbpStore,
     useBbpTimer,
     useEffectivePollIntervalMs,
@@ -484,7 +485,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const disableAutoChargeRef = useRef<() => void>(() => {});
     const disableAutoDropRef = useRef<() => void>(() => {});
     const rearmAutoChargeRef = useRef<() => void>(() => {});
-    const triggerChargeRef = useRef<(bt?: number | null, chargeTimeMs?: number) => void>(() => {});
+    const triggerChargeRef = useRef<(bt?: number | null, origin?: number | RawTemperatureSample) => void>(() => {});
 
     const lifecycle = useRoastLifecycle({
         phase,
@@ -535,8 +536,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
 
     const triggerCharge = useCallback(
-        (bt?: number | null, chargeTimeMs?: number) => {
-            startChargeAction(bt, chargeTimeMs);
+        (bt?: number | null, origin?: number | RawTemperatureSample) => {
+            startChargeAction(bt, origin);
             // Rearm auto Drop for this batch only. Drop's reset would re-arm too early (#484).
             resetAutoDetectionRef.current?.();
         },

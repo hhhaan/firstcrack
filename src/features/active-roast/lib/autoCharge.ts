@@ -1,12 +1,15 @@
 import { createBtFilter } from '@shared/lib/btFilter';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 
 export type AutoDetectMode = 'standard' | 'sensitive';
 export type AutoChargeMode = AutoDetectMode;
 export type AutoDropMode = AutoDetectMode;
 export type RawTemperatureSample = {
     timestamp: number; // sidecar monotonic seconds; never Unix time
+    sensorClock: string;
     receivedAtMs: number; // frontend Date.now(), captured on response
     bt: number;
+    processing: TemperatureProcessing;
 };
 
 type BtBreakKind = 'charge' | 'drop';
@@ -60,6 +63,7 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
     const minBt = MIN_BT[kind];
     let history: RawTemperatureSample[] = [];
     let lastTimestamp: number | null = null;
+    let lastSensorClock: string | null = null;
     let filter = createBtFilter();
     let candidate: { onset: RawTemperatureSample; dipBt: number; armedAt: number } | null = null;
     let held: RawTemperatureSample | null = null;
@@ -67,6 +71,7 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
     const reset = () => {
         history = [];
         lastTimestamp = null;
+        lastSensorClock = null;
         filter = createBtFilter();
         candidate = null;
         held = null;
@@ -101,6 +106,8 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
                 !sample ||
                 !Number.isFinite(sample.timestamp) ||
                 sample.timestamp < 0 ||
+                typeof sample.sensorClock !== 'string' ||
+                sample.sensorClock.length === 0 ||
                 !Number.isFinite(sample.receivedAtMs) ||
                 sample.receivedAtMs <= 0 ||
                 !Number.isFinite(sample.bt) ||
@@ -110,6 +117,8 @@ const createBtBreakDetector = (kind: BtBreakKind, mode: AutoDetectMode, pollInte
                 reset();
                 return null;
             }
+            if (lastSensorClock !== null && sample.sensorClock !== lastSensorClock) reset();
+            lastSensorClock = sample.sensorClock;
             if (lastTimestamp !== null) {
                 const dt = sample.timestamp - lastTimestamp;
                 if (dt <= 0) return null; // duplicate or late response; reconnect clears state separately

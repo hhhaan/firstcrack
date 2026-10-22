@@ -1050,4 +1050,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if sys.argv[1:2] == ["curve"]:
+        os.execv(sys.executable, [sys.executable, str(REPO / "scripts/verify-fsd-curve.py"), *sys.argv[2:]])
     raise SystemExit(main())

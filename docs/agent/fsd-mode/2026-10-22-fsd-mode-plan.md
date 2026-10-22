@@ -1,6 +1,6 @@
 # Build supervised FSD heat control
 
-> Current handoff: [progress and resume order](README.md). FSD-01 is accepted at b2af3543. FSD-02 has a design contract but no implementation. The active goal covers FSD-01 through FSD-03. FSD-04 remains outside scope. Older original-program checklist items below do not override this current scope or reopen completed work.
+> Current handoff: [progress and resume order](README.md). FSD-01 is accepted at b2af3543. FSD-02 implementation and independent runtime reviews are complete; its final gate and local commit are recorded in fsd02-verification.md. The active goal covers FSD-01 through FSD-03. FSD-04 remains outside scope. Older original-program checklist items below do not override this current scope or reopen completed work.
 
 Give the operator an FSD mode that follows a recorded BT curve with automatic Gas correction.
 Keep the operator responsible for Charge, pre-TP Gas, Drop, airflow, and drum speed in v1.
@@ -130,59 +130,59 @@ Run each lane with its own virtual sidecar state and test database state at the 
 
 **Files.**
 
-- [ ] Create `src-tauri/sidecar/roast_target.py` for substantive pure reference validation, control filtering, and interpolation.
-- [ ] Extend `src-tauri/sidecar/pid_runner.py`, `manager.py`, `main.py`, and `config.py` through the existing PID loop. Do not add a second heater-writing loop.
-- [ ] Extend `src/shared/types/sidecar.ts` and `src/shared/lib/sidecar.ts` with the mode and session protocol. Extend `src/features/active-roast/model/useRoastActions.ts` only to transmit the accepted Charge origin.
-- [ ] Add `src-tauri/sidecar/tests/test_roast_target.py` and extend PID, API, and virtual closed-loop tests. Extend `scripts/verify-fsd.py` and `docs/sidecar-api.md`.
+- [x] Create `src-tauri/sidecar/roast_target.py` for substantive pure reference validation, control filtering, and interpolation.
+- [x] Extend `src-tauri/sidecar/pid_runner.py`, `manager.py`, `main.py`, and `config.py` through the existing PID loop. Do not add a second heater-writing loop.
+- [x] Extend `src/shared/types/sidecar.ts` and `src/shared/lib/sidecar.ts` with the mode and session protocol. Extend `src/features/active-roast/model/useRoastActions.ts` only to transmit the accepted Charge origin.
+- [x] Add `src-tauri/sidecar/tests/test_roast_target.py` and extend PID, API, and virtual closed-loop tests. Extend `scripts/verify-fsd.py` and `docs/sidecar-api.md`.
 
 **Build.**
 
-- [ ] Define a discriminated PID request. Preserve legacy `{ sv }` as fixed mode. Curve mode carries a frozen reference, processing version, session ID, machine identity, connection epoch, and qualified control configuration. Reject malformed or unsupported input before ownership changes.
-- [ ] Require a real recorded Celsius source with raw BT and acquisition timing. Reject synthetic curves, missing provenance, duplicate or decreasing times, non-finite points, excessive gaps, incompatible machine identity, and data after reference Drop. Do not fall back to chart arrays or legacy displayed BT.
-- [ ] Specify one control-filter version for both reference raw BT and live raw BT. State the seed at Charge, time-dependent coefficient, warmup, repeated-sample handling, and gap reset policy. Reuse pure existing calculations where possible. Preserve existing display and fixed-PID processing. Qualify gains against this filter rather than copying them as approved settings.
-- [ ] Extend `/start` with an optional session identity and elapsed time since the accepted Charge mark. Reconstruct one sidecar monotonic origin, including a bounded backdated automatic Charge. A duplicate cannot reset origin. Missing or uncertain origin blocks curve mode. The client cannot later retime an active session.
-- [ ] Extend `/pid/on` with curve mode and `/pid/off` with session-bound termination reasons. Add `/pid/renew` for that session and owner generation. Keep stop idempotent. Reject old renewals and starts for closed sessions. Connection loss and process restart never auto-resume.
-- [ ] Permit curve mode only after explicit operator start, live TP eligibility, reference TP elapsed, filter warmup, and acceptable initial tracking error. Retain Charge-relative time. Do not shift the reference to make the TP times appear equal. Keep pre-TP Gas manual in v1.
-- [ ] Interpolate target BT from sidecar elapsed time. Apply calibrated lookahead only when the configuration supplies it. Prototype with zero lookahead until machine evidence selects another value. End the reference at Drop and terminate control with the explicit end policy. Do not hold its last target indefinitely or mark physical Drop automatically.
-- [ ] Bound output and changes in output using machine-qualified limits. Feed the actually permitted output back into anti-windup. Cover prolonged saturation and the current low-Ki integral behavior before accepting curve mode.
-- [ ] Renew the lease only from a responsive, visible operator control UI. Keep the lease checker independent of slow sensor reads and driver writes. Stop when that lease expires. A surviving app-shell timer must not renew a crashed or hidden control view.
-- [ ] Emit bounded, sequenced command receipts with session identity, elapsed time, target, requested Heat set, acknowledged logical Heat set, and outcome. Expose cursor replay after polling gaps. Stop or report a recording gap explicitly when receipts cannot be recovered. Do not create a new sidecar temperature recorder.
-- [ ] Advertise curve capability only for virtual operation at this stage. Keep physical machines disabled until FSD-04. Keep status and stop available regardless of entitlement changes.
+- [x] Define a discriminated PID request. Preserve legacy `{ sv }` as fixed mode. Curve mode carries a frozen reference, processing version, session ID, machine identity, connection epoch, and qualified control configuration. Reject malformed or unsupported input before ownership changes.
+- [x] Require a real recorded Celsius source with raw BT and acquisition timing. Reject synthetic curves, missing provenance, duplicate or decreasing times, non-finite points, excessive gaps, incompatible machine identity, and data after reference Drop. Do not fall back to chart arrays or legacy displayed BT.
+- [x] Specify one control-filter version for both reference raw BT and live raw BT. State the seed at Charge, time-dependent coefficient, warmup, repeated-sample handling, and gap reset policy. Reuse pure existing calculations where possible. Preserve existing display and fixed-PID processing. Qualify gains against this filter rather than copying them as approved settings.
+- [x] Extend `/start` with an optional session identity and elapsed time since the accepted Charge mark. Reconstruct one sidecar monotonic origin, including a bounded backdated automatic Charge. A duplicate cannot reset origin. Missing or uncertain origin blocks curve mode. The client cannot later retime an active session.
+- [x] Extend `/pid/on` with curve mode and `/pid/off` with session-bound termination reasons. Add `/pid/renew` for that session and owner generation. Keep stop idempotent. Reject old renewals and starts for closed sessions. Connection loss and process restart never auto-resume.
+- [x] Permit curve mode only after explicit operator start, live TP eligibility, reference TP elapsed, filter warmup, and acceptable initial tracking error. Retain Charge-relative time. Do not shift the reference to make the TP times appear equal. Keep pre-TP Gas manual in v1.
+- [x] Interpolate target BT from sidecar elapsed time. Apply calibrated lookahead only when the configuration supplies it. Prototype with zero lookahead until machine evidence selects another value. End the reference at Drop and terminate control with the explicit end policy. Do not hold its last target indefinitely or mark physical Drop automatically.
+- [x] Bound output and changes in output using machine-qualified limits. Feed the actually permitted output back into anti-windup. Cover prolonged saturation and the current low-Ki integral behavior before accepting curve mode.
+- [x] Renew the lease only from a responsive, visible operator control UI. Keep the lease checker independent of slow sensor reads and driver writes. Stop when that lease expires. A surviving app-shell timer must not renew a crashed or hidden control view.
+- [x] Emit bounded, sequenced command receipts with session identity, elapsed time, target, requested Heat set, acknowledged logical Heat set, and outcome. Expose cursor replay after polling gaps. Stop or report a recording gap explicitly when receipts cannot be recovered. Do not create a new sidecar temperature recorder.
+- [x] Advertise curve capability only for virtual operation at this stage. Keep physical machines disabled until FSD-04. Keep status and stop available regardless of entitlement changes.
 
 **You see.**
 
-- [ ] The real virtual sidecar reports curve mode, authoritative elapsed time, current target, PV, owner generation, and stop reason. Its live receipt stream shows changing Heat set commands responding to target error.
-- [ ] Closing the lease-renewing client or exhausting the reference ends automatic writes. Restarting the client adopts terminal status without resuming control.
+- [x] The real virtual sidecar reports curve mode, authoritative elapsed time, current target, PV, owner generation, and stop reason. Its live receipt stream shows changing Heat set commands responding to target error.
+- [x] Closing the lease-renewing client or exhausting the reference ends automatic writes. Restarting the client adopts terminal status without resuming control.
 
 **Verify, unit.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Cover curve validation, interpolation, units, filter seeding, irregular sample intervals, duplicate Charge, backdating, TP eligibility, reference end, lease expiry during blocked reads, and old-session fencing. Run `rtk pnpm verify:sidecar`.
-- [ ] Add moving-target closed-loop tests with noise, delay, saturation, and low-Ki configurations. Assert finite bounded commands, no late writes, and explicit terminal reasons. Keep real-machine accuracy unqualified. Run `rtk pnpm check:registry` and `rtk pnpm typecheck`.
+- [x] Cover curve validation, interpolation, units, filter seeding, irregular sample intervals, duplicate Charge, backdating, TP eligibility, reference end, lease expiry during blocked reads, and old-session fencing. Run `rtk pnpm verify:sidecar`.
+- [x] Add moving-target closed-loop tests with noise, delay, saturation, and low-Ki configurations. Assert finite bounded commands, no late writes, and explicit terminal reasons. Keep real-machine accuracy unqualified. Run `rtk pnpm check:registry` and `rtk pnpm typecheck`.
 
 **Verify, live.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked. Ten lanes on `gpt-6-astra` at the PR head, per the boot recipe.
 
-- [ ] Lane 1. Regression lane against trunk. Run the same fixed-target virtual roast on parent and head, then request curve mode. Save `curve-mode-regression.png`. Pass when fixed mode remains equivalent and head adds bounded moving-target operation. Record that parent lacks curve mode.
-- [ ] Lane 2. Upload a real-format raw reference and follow its rising section. Save `rising-target.png`. Pass when the sidecar target matches interpolation on its own Charge-relative clock.
-- [ ] Lane 3. Submit a synthetic or legacy display-only reference. Save `reference-rejected.png`. Pass when start is rejected without changing the current Gas command or owner.
-- [ ] Lane 4. Submit duplicate, backward, missing, and non-finite curve points. Save `curve-invalid.png`. Pass when each has an explicit validation result and no automatic command.
-- [ ] Lane 5. Backdate Charge and submit the same start twice. Save `charge-origin.png`. Pass when origin stays fixed and target time matches the accepted Charge mark.
-- [ ] Lane 6. Attempt start before either TP gate, then satisfy both gates. Save `tp-engagement.png`. Pass when no pre-TP correction occurs and eligible start seeds from the current applied command.
-- [ ] Lane 7. Slow or freeze sensor reads while withholding lease renewal. Save `lease-expiry.png`. Pass when the independent expiry path revokes automatic ownership and records any uncertain final write.
-- [ ] Lane 8. Trigger Drop and reference exhaustion during pending I/O. Save `terminal-boundary.png`. Pass when both stop further automatic writes and old renewals cannot reactivate them.
-- [ ] Lane 9. Saturate output, then return the target to a reachable range. Save `saturation-recovery.png`. Pass when the integral remains bounded and the synthetic loop recovers within its declared fixture criterion.
-- [ ] Lane 10. Pause polling, recover command receipts, then overflow the bounded journal deliberately. Save `receipt-recovery.png`. Pass when recovered sequences are complete or a gap is explicit. No missing sequence is silently treated as recorded.
+- [x] Lane 1. Regression lane against trunk. Run the same fixed-target virtual roast on parent and head, then request curve mode. Save `curve-mode-regression.png`. Pass when fixed mode remains equivalent and head adds bounded moving-target operation. Record that parent lacks curve mode.
+- [x] Lane 2. Upload a real-format raw reference and follow its rising section. Save `rising-target.png`. Pass when the sidecar target matches interpolation on its own Charge-relative clock.
+- [x] Lane 3. Submit a synthetic or legacy display-only reference. Save `reference-rejected.png`. Pass when start is rejected without changing the current Gas command or owner.
+- [x] Lane 4. Submit duplicate, backward, missing, and non-finite curve points. Save `curve-invalid.png`. Pass when each has an explicit validation result and no automatic command.
+- [x] Lane 5. Backdate Charge and submit the same start twice. Save `charge-origin.png`. Pass when origin stays fixed and target time matches the accepted Charge mark.
+- [x] Lane 6. Attempt start before either TP gate, then satisfy both gates. Save `tp-engagement.png`. Pass when no pre-TP correction occurs and eligible start seeds from the current applied command.
+- [x] Lane 7. Slow or freeze sensor reads while withholding lease renewal. Save `lease-expiry.png`. Pass when the independent expiry path revokes automatic ownership and records any uncertain final write.
+- [x] Lane 8. Trigger Drop and reference exhaustion during pending I/O. Save `terminal-boundary.png`. Pass when both stop further automatic writes and old renewals cannot reactivate them.
+- [x] Lane 9. Saturate output, then return the target to a reachable range. Save `saturation-recovery.png`. Pass when the integral remains bounded and the synthetic loop recovers within its declared fixture criterion.
+- [x] Lane 10. Pause polling, recover command receipts, then overflow the bounded journal deliberately. Save `receipt-recovery.png`. Pass when recovered sequences are complete or a gap is explicit. No missing sequence is silently treated as recorded.
 
 **Verify, perf.** Tests alone are not sufficient verification. A PR is verified only when its unit, live, and perf boxes are all checked.
 
-- [ ] Metric. Measure target-evaluation time, tick scheduling lateness, and API stop acknowledgement with virtual I/O. Count fresh samples, emitted commands, and terminal transitions. Measure fixed-PID cadence on both revisions.
-- [ ] Probe. Run the driver for 600 one-second virtual ticks and a separate real-time 60-second cadence run. Interleave five parent and head trials. Exercise the maximum accepted reference size and the same induced I/O delay. Keep CPU work distinct from hardware waiting.
-- [ ] Baseline. Record parent fixed-PID tick and stop timings first. Parent has no curve evaluator, so measure the added evaluator directly at head and do not invent a parent curve result.
-- [ ] Rule. Proposed budgets are target evaluation p99 below 5 ms, extra scheduling lateness p95 below 50 ms, and lease revocation within its configured deadline plus 250 ms under the isolated virtual load. Fail any skipped required deadline or false stop acknowledgement. Revisit the budgets only with evidence and independent review.
+- [x] Metric. Measure target-evaluation time, tick scheduling lateness, and API stop acknowledgement with virtual I/O. Count fresh samples, emitted commands, and terminal transitions. Measure fixed-PID cadence on both revisions.
+- [x] Probe. Run the driver for 600 one-second virtual ticks and a separate real-time 60-second cadence run. Interleave five parent and head trials. Exercise the maximum accepted reference size and the same induced I/O delay. Keep CPU work distinct from hardware waiting.
+- [x] Baseline. Record parent fixed-PID tick and stop timings first. Parent has no curve evaluator, so measure the added evaluator directly at head and do not invent a parent curve result.
+- [x] Rule. Proposed budgets are target evaluation p99 below 5 ms, extra scheduling lateness p95 below 50 ms, and lease revocation within its configured deadline plus 250 ms under the isolated virtual load. Fail any skipped required deadline or false stop acknowledgement. Revisit the budgets only with evidence and independent review.
 
 **Review gate.** The operator reviews the changed control protocol before acceptance.
 
-- [ ] Copy screenshot evidence for rising-target tracking and lease expiry into the review media directory for FSD-02.
-- [ ] Record a 30 to 60 second video of the live virtual run and its terminal state. Show the operator both screenshot and video evidence. Keep hardware disabled.
+- [x] Copy screenshot evidence for rising-target tracking and lease expiry into the review media directory for FSD-02.
+- [x] Record a 30 to 60 second video of the live virtual run and its terminal state. Show the operator both screenshot and video evidence. Keep hardware disabled.
 
 **Merge.**
 

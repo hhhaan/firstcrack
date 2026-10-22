@@ -1,7 +1,18 @@
 import type {
+    ChargeRequest,
+    ChargeResponse,
+    CurveAuthority,
+    CurvePidResponse,
+    CurveRenewResponse,
+    CurveStartRequest,
+    CurveStopRequest,
+    FixedPidResponse,
+    FixedPidStartRequest,
     HeaterControlIntent,
+    LegacyStartResponse,
     NetworkHost,
     PidRuntime,
+    ReceiptPage,
     ReplayHeaterTicket,
     SerialPort,
     SidecarStatus,
@@ -157,6 +168,37 @@ const errorMessageFrom = (err: unknown): string => {
     return 'network error';
 };
 
+function startRoast(): Promise<LegacyStartResponse>;
+function startRoast(charge: ChargeRequest): Promise<ChargeResponse>;
+function startRoast(charge?: ChargeRequest): Promise<LegacyStartResponse | ChargeResponse> {
+    return request<LegacyStartResponse | ChargeResponse>(
+        '/start',
+        { method: 'POST', ...(charge && { body: JSON.stringify(charge) }) },
+        DEFAULT_TIMEOUT_MS,
+        false,
+    );
+}
+
+function pidOn(sv: number): Promise<FixedPidResponse>;
+function pidOn(requestBody: FixedPidStartRequest): Promise<FixedPidResponse>;
+function pidOn(requestBody: CurveStartRequest): Promise<CurvePidResponse>;
+function pidOn(requestBody: number | FixedPidStartRequest | CurveStartRequest) {
+    return request<FixedPidResponse | CurvePidResponse>('/pid/on', {
+        method: 'POST',
+        body: JSON.stringify(typeof requestBody === 'number' ? { sv: requestBody } : requestBody),
+    });
+}
+
+function pidOff(): Promise<FixedPidResponse>;
+function pidOff(mode: 'hold' | 'zero'): Promise<FixedPidResponse>;
+function pidOff(requestBody: CurveStopRequest): Promise<CurvePidResponse>;
+function pidOff(requestBody: 'hold' | 'zero' | CurveStopRequest = 'hold') {
+    return request<FixedPidResponse | CurvePidResponse>('/pid/off', {
+        method: 'POST',
+        body: JSON.stringify(typeof requestBody === 'string' ? { mode: requestBody } : requestBody),
+    });
+}
+
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
@@ -203,7 +245,7 @@ export const sidecar = {
     enterStandby: () => request<{ ok: boolean }>('/standby', { method: 'POST' }),
 
     // Charge 버튼과 연동 — 시뮬레이터 타이머 리셋 + RoR 윈도우 초기화
-    startRoast: () => request<{ ok: boolean }>('/start', { method: 'POST' }, DEFAULT_TIMEOUT_MS, false),
+    startRoast,
 
     // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
     resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }, DEFAULT_TIMEOUT_MS, false),
@@ -230,17 +272,15 @@ export const sidecar = {
         }),
 
     /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */
-    pidOn: (sv: number) =>
-        request<{ ok: boolean; pid: PidRuntime }>('/pid/on', {
-            method: 'POST',
-            body: JSON.stringify({ sv }),
-        }),
+    pidOn,
 
     /** PID 해제. mode='hold'는 현재 화력 유지, 'zero'는 히터 0. */
-    pidOff: (mode: 'hold' | 'zero' = 'hold') =>
-        request<{ ok: boolean; pid: PidRuntime }>('/pid/off', {
+    pidOff,
+
+    pidRenew: (authority: CurveAuthority) =>
+        request<CurveRenewResponse>('/pid/renew', {
             method: 'POST',
-            body: JSON.stringify({ mode }),
+            body: JSON.stringify(authority),
         }),
 
     pidSetSv: (sv: number) =>
@@ -248,6 +288,9 @@ export const sidecar = {
             method: 'POST',
             body: JSON.stringify({ sv }),
         }),
+
+    getPidReceipts: (chargeId: string, after = 0, limit = 256) =>
+        request<ReceiptPage>(`/pid/receipts?charge_id=${encodeURIComponent(chargeId)}&after=${after}&limit=${limit}`),
 
     getSerialPorts: () => request<SerialPort[]>('/serial-ports'),
 

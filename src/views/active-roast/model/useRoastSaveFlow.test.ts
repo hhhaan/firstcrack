@@ -585,3 +585,74 @@ describe('explicit discard is scoped to the visible summary', () => {
         expect(listPendingRoastSaves().some((pending) => pending.params.sessionId === 's-b')).toBe(true);
     });
 });
+
+it('waits for a pending Charge recording before submitting its completed snapshot', async () => {
+    const state = useRoastingStore.getState();
+    const sessionId = state.startCharge(undefined, 'workspace-a', { bt: 190, unit: 'C', awaitSidecar: true });
+    const h = renderFlow({ sessionId });
+    act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+    let saving: Promise<void> | undefined;
+    await act(async () => {
+        saving = h.api.handleSave(form);
+        await Promise.resolve();
+    });
+    expect(mocks.resumeSave).not.toHaveBeenCalled();
+    await act(async () => {
+        const completed = useRoastingStore.getState().completed;
+        if (!completed) throw new Error('Missing completed roast');
+        useRoastingStore.setState({
+            completed: {
+                ...completed,
+                snapshot: { ...completed.snapshot, chargeRequestPending: false, unalignedChargePoints: null },
+            },
+        });
+        await saving;
+    });
+    expect(mocks.resumeSave).toHaveBeenCalledTimes(1);
+    expect(mocks.resumeSave.mock.calls[0][0].params.sessionId).toBe(sessionId);
+});
+
+it('does not submit a pending recording after its completed owner is discarded', async () => {
+    const state = useRoastingStore.getState();
+    const sessionId = state.startCharge(undefined, 'workspace-a', { bt: 190, unit: 'C', awaitSidecar: true });
+    const h = renderFlow({ sessionId });
+    act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+    let saving: Promise<void> | undefined;
+    await act(async () => {
+        saving = h.api.handleSave(form);
+        await Promise.resolve();
+    });
+    await act(async () => {
+        useRoastingStore.getState().discardSummary('workspace-a', sessionId);
+        await saving;
+    });
+    expect(mocks.resumeSave).not.toHaveBeenCalled();
+});
+
+it('times out pending recording visibly without submitting or losing its retry snapshot', async () => {
+    vi.useFakeTimers();
+    try {
+        const state = useRoastingStore.getState();
+        const sessionId = state.startCharge(undefined, 'workspace-a', { bt: 190, unit: 'C', awaitSidecar: true });
+        const h = renderFlow({ sessionId });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+        let saving: Promise<void> | undefined;
+        await act(async () => {
+            saving = h.api.handleSave(form);
+            await Promise.resolve();
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+            await saving;
+        });
+        expect(mocks.resumeSave).not.toHaveBeenCalled();
+        expect(mocks.message).toHaveBeenCalledTimes(1);
+        expect(useRoastingStore.getState().completed?.snapshot).toMatchObject({
+            sessionId,
+            chargeRequestPending: true,
+        });
+        expect(listPendingRoastSaves()).toHaveLength(1);
+    } finally {
+        vi.useRealTimers();
+    }
+});

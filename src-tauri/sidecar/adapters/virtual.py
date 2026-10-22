@@ -7,7 +7,6 @@
   3. 로스팅 (start_roast 이후): Charge 시점 BT에서 즉각 25°C 강하 → 로스팅 커브 재생
 """
 
-from typing import Callable
 from control_guard import ControlUnavailable
 import dataclasses
 import math
@@ -262,6 +261,7 @@ class VirtualMachineAdapter:
         fan: float | None = None,
         drum: float | None = None,
         *, _is_current: Callable[[], bool] | None = None, _confirm_first: bool = False,
+        _heater_observer: Callable[[str, float], None] | None = None,
     ) -> None:
         """명령값을 저장해 이후 read()가 그 값을 되돌려준다.
 
@@ -273,6 +273,8 @@ class VirtualMachineAdapter:
         for role, value in (("heater", heater), ("fan", fan), ("drum", drum)):
             if value is not None:
                 self._cmd[role] = float(value)
+                if role == "heater" and _heater_observer is not None:
+                    _heater_observer("virtual_applied", float(value))
 
     def _apply_cmd(self, reading: Reading) -> Reading:
         """control()로 받은 값이 있으면 스크립트 값 대신 그것을 표시한다."""
