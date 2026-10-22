@@ -21,7 +21,7 @@ async def client(monkeypatch):
         yield c
     # Cancel any background task left by tests
     manager = app["manager"]
-    for task in (manager._reconnect_task, manager._pid_task, manager._connect_task):
+    for task in (manager._reconnect_task, manager._heat.task, manager._connect_task):
         if task is not None and not task.done():
             task.cancel()
             try:
@@ -357,9 +357,9 @@ class TestPidEndpoints:
         await self._connect_virtual(client, fake)
         await client.post("/pid/on", json={"sv": 200})
         manager = client.app["manager"]
-        assert manager._pid_task is not None
+        assert manager._heat.task is not None
         await client.post("/disconnect")
-        assert manager._pid_task is None
+        assert manager._heat.task is None
         assert manager.pid_state() is None
 
 
@@ -565,3 +565,43 @@ class TestDisconnectDuringConnect:
         assert data["connected"] is False
         assert data["error"] is None, "취소는 실패가 아니다"
         assert fake.connect_cancelled is True
+
+
+@pytest.mark.parametrize("origin", ["safety", "pid", "curve", None, 1])
+async def test_external_control_cannot_request_internal_authority(client, origin):
+    response = await client.post("/control", json={"heater": 0, "origin": origin})
+    assert response.status == 400
+
+
+@pytest.mark.parametrize("endpoint", ["/connect", "/disconnect", "/reset"])
+async def test_connection_terminal_timeout_returns_uncertainty_without_detaching(client, endpoint):
+    await client.post("/connect", json={"roaster": "virtual", "machine_id": "old"})
+    manager = client.server.app["manager"]
+    adapter = manager._adapter
+    original_control = adapter.control
+    entered, release = asyncio.Event(), asyncio.Event()
+
+    async def blocked(**values):
+        entered.set()
+        await release.wait()
+        await original_control(**values)
+
+    adapter.control = blocked
+    writer = asyncio.create_task(manager.control(fan=30))
+    await asyncio.wait_for(entered.wait(), 1)
+    manager._heat.barrier_timeout = 0.01
+    try:
+        response = await client.post(endpoint, json={"roaster": "virtual", "machine_id": "new"})
+        assert response.status == 504
+        body = await response.json()
+        assert body["uncertain"] is True
+        assert body["error"]
+        assert "ok" not in body
+        assert manager._adapter is adapter
+        assert manager._machine_id == "old"
+        assert manager._heat.state()["pending_writes"] == 1
+        assert manager._heat.state()["uncertain"]
+    finally:
+        release.set()
+        await asyncio.gather(writer, return_exceptions=True)
+        await manager.disconnect()

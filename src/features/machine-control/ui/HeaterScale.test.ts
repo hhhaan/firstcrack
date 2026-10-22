@@ -65,7 +65,7 @@ describe('HeaterScale A′ (#436)', () => {
             (container.querySelector('[data-tick="90"]') as HTMLButtonElement).click();
         });
         expect(send).toHaveBeenCalledTimes(1);
-        expect(send).toHaveBeenCalledWith({ heater: 90 });
+        expect(send).toHaveBeenCalledWith({ heater: 90 }, undefined, 'manual', undefined);
         unmount();
     });
 
@@ -264,7 +264,7 @@ describe('HeaterScale A′ (#436)', () => {
             expect(onChange).not.toHaveBeenCalled();
             await act(async () => input.dispatchEvent(new Event(event, { bubbles: true })));
             expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 83);
-            expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 83 });
+            expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 83 }, undefined, 'manual', undefined);
             scale.unmount();
         },
     );
@@ -325,7 +325,7 @@ describe('HeaterScale A′ (#436)', () => {
         expect((scale.container.querySelector('input[type="range"]') as HTMLInputElement).value).toBe('70');
         await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
         expect(onChange).toHaveBeenCalledExactlyOnceWith('heater', 53);
-        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 53 });
+        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 53 }, undefined, 'manual', undefined);
         scale.unmount();
     });
 
@@ -383,7 +383,7 @@ describe('HeaterScale A′ (#436)', () => {
         });
         expect(input.value).toBe('129');
         await act(async () => input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })));
-        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 100 });
+        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 100 }, undefined, 'manual', undefined);
         scale.unmount();
     });
 

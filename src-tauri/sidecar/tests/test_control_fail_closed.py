@@ -14,6 +14,7 @@ from adapters.s7 import S7Adapter
 from adapters.virtual import VirtualMachineAdapter
 from control_guard import ControlUnavailable
 from main import create_app
+from heater_control_session import PidOperation
 from manager import RoasterManager
 from roaster_registry import ROASTER_REGISTRY
 from tests.conftest import FakeAdapter, make_reading
@@ -43,7 +44,7 @@ async def client(monkeypatch):
     async with TestClient(TestServer(app)) as c:
         yield c
     manager = app["manager"]
-    for task in (manager._reconnect_task, manager._pid_task, manager._connect_task):
+    for task in (manager._reconnect_task, manager._heat.task, manager._connect_task):
         if task is not None and not task.done():
             task.cancel()
             try:
@@ -343,10 +344,15 @@ class TestResetRoast:
         stopped: list[tuple[str, str, bool]] = []
 
         class _Pid:
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+            state_name = "running"
+
+            def state(self):
+                return {"state": self.state_name, "error": None}
+            async def stop(self, reason: str = "user", *, mode: str = "hold", write_final=None, force=False) -> None:
                 stopped.append((reason, mode, manager._connected))
 
-        manager._pid = _Pid()
+        manager._heat.runner = _Pid()
+        manager._heat._operation = PidOperation(manager._heat.ticket, manager._heat.runner, "active")
 
         async def boom() -> None:
             raise ConnectionError("Connection refused")
@@ -360,7 +366,7 @@ class TestResetRoast:
         assert manager.status()["connected"] is False
         assert manager._reconnecting()
         assert manager.status()["reconnecting"] is True
-        assert manager._pid is None
+        assert manager._heat.runner is None
         assert stopped == [("reset", "zero", True)]
 
     async def test_reset_reconnect_fail_loop_retries_connect(self, manager, monkeypatch):
@@ -437,8 +443,8 @@ class TestResetRoast:
 
             with pytest.raises(ControlUnavailable, match="초기화"):
                 await manager.control(heater=50)
-            with pytest.raises(ControlUnavailable, match="초기화"):
-                await manager._pid_write_duty(40.0)
+            with pytest.raises(ControlUnavailable):
+                await manager.pid_start(180.0)
         finally:
             gate.set()
             await reset_task

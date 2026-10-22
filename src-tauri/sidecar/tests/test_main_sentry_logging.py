@@ -100,15 +100,8 @@ async def test_pid_on_failure_then_pid_off_failure_emits_two_events(http_client,
     with patch.object(manager, "pid_start", side_effect=OSError("on fail")):
         assert (await http_client.post("/pid/on", json={"sv": 200})).status == 502
 
-    class _Pid:
-        async def off(self, reason: str = "user", *, mode: str = "hold") -> None:
-            raise OSError("off fail")
-
-        def state(self):
-            return {"state": "off", "error": None}
-
-    manager._pid = _Pid()
-    assert (await http_client.post("/pid/off", json={"mode": "zero"})).status == 502
+    with patch.object(manager, "pid_stop", side_effect=OSError("off fail")):
+        assert (await http_client.post("/pid/off", json={"mode": "zero"})).status == 502
 
     assert len(sentry_transport.events) == 2
     events = {(e.get("tags") or {}).get("event"): (e.get("tags") or {}).get("route") for e in sentry_transport.events}
@@ -121,8 +114,8 @@ async def test_pid_sv_502_once_dedupes_across_retries(http_client, sentry_transp
     manager._connected = True
     manager._roaster_key = "virtual"
     manager._protocol = "virtual"
-    manager._pid = MagicMock()
-    manager._pid.state.return_value = {"state": "on", "error": None}
+    manager._heat.runner = MagicMock()
+    manager._heat.runner.state.return_value = {"state": "on", "error": None}
 
     with patch.object(manager, "pid_set_sv", side_effect=OSError("sv fail")):
         for _ in range(3):
@@ -165,7 +158,7 @@ async def test_pid_sv_success_clears_once_then_failure_reports_again(http_client
     manager._connected = True
     manager._roaster_key = "virtual"
     manager._protocol = "virtual"
-    manager._pid = MagicMock()
+    manager._heat.runner = MagicMock()
     calls = 0
 
     async def pid_set_sv_side_effect(_sv: float):
@@ -193,18 +186,10 @@ async def test_pid_off_502_once_dedupes_across_retries(http_client, sentry_trans
     manager._roaster_key = "test"
     manager._protocol = "virtual"
 
-    class _Pid:
-        async def off(self, reason: str = "user", *, mode: str = "hold") -> None:
-            raise OSError("PLC unreachable at 10.0.0.2:102")
-
-        def state(self):
-            return {"state": "off", "error": None}
-
-    manager._pid = _Pid()
-
-    for _ in range(2):
-        response = await http_client.post("/pid/off", json={"mode": "zero"})
-        assert response.status == 502
+    with patch.object(manager, "pid_stop", side_effect=OSError("PLC unreachable at 10.0.0.2:102")):
+        for _ in range(2):
+            response = await http_client.post("/pid/off", json={"mode": "zero"})
+            assert response.status == 502
 
     assert len(sentry_transport.events) == 1
     tags = sentry_transport.events[0].get("tags") or {}

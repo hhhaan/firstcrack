@@ -7,6 +7,11 @@ vi.mock('@shared/lib/sidecar', () => ({
     subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
         getStatus: vi.fn(),
+        claimReplay: vi.fn(async () => ({
+            ok: true,
+            ticket: { connection_epoch: 7, generation: 1, origin: 'replay' },
+        })),
+        releaseReplay: vi.fn(async () => ({ ok: true })),
         setControl: vi.fn(),
         pidOn: vi.fn(),
         pidOff: vi.fn(),
@@ -155,7 +160,10 @@ describe('useMachineControlComposition', () => {
         };
         const hook = await renderComposition(input);
         await act(async () => hook.get().replay.toggle());
-        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        expect(setControl).toHaveBeenCalledExactlyOnceWith(
+            { heater: 0 },
+            expect.objectContaining({ origin: 'replay', generation: 1, connection_epoch: 7 }),
+        );
         expect(hook.get().replay.active).toBe(false);
         expect(hook.get().replay.stopReason).toBe('writeFailed');
         expect(hook.get().replay.firedCount).toBe(0);
@@ -177,7 +185,10 @@ describe('useMachineControlComposition', () => {
         expect(hook.get().replay.firedCount).toBe(0);
         expect(setControl).toHaveBeenCalledTimes(1);
         await act(async () => vi.advanceTimersByTimeAsync(500));
-        expect(setControl).toHaveBeenLastCalledWith({ heater: 0 }, { connectionEpoch: 7 });
+        expect(setControl).toHaveBeenLastCalledWith(
+            { heater: 0 },
+            expect.objectContaining({ origin: 'replay', generation: 1, retry_epoch: 7 }),
+        );
         expect(hook.get().replay.active).toBe(true);
         expect(hook.get().replay.firedCount).toBe(1);
         expect(hook.get().replay.stopReason).toBeNull();
@@ -195,9 +206,9 @@ describe('useMachineControlComposition', () => {
         await act(async () => hook.get().replay.toggle());
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         expect(setControl.mock.calls).toEqual([
-            [{ heater: 0 }],
-            [{ heater: 0 }, { connectionEpoch: 7 }],
-            [{ heater: 0 }, { connectionEpoch: 7 }],
+            [{ heater: 0 }, expect.objectContaining({ origin: 'replay', generation: 1 })],
+            [{ heater: 0 }, expect.objectContaining({ origin: 'replay', generation: 1, retry_epoch: 7 })],
+            [{ heater: 0 }, expect.objectContaining({ origin: 'replay', generation: 1, retry_epoch: 7 })],
         ]);
         expect(hook.get().replay.active).toBe(false);
         expect(hook.get().replay.stopReason).toBe('writeFailed');
@@ -215,7 +226,10 @@ describe('useMachineControlComposition', () => {
             hook.get().commitManual();
         });
         await act(async () => vi.advanceTimersByTimeAsync(2000));
-        expect(setControl.mock.calls).toEqual([[{ heater: 60 }], [{ heater: 30 }]]);
+        expect(setControl.mock.calls).toEqual([
+            [{ heater: 60 }, expect.objectContaining({ origin: 'replay' })],
+            [{ heater: 30 }, expect.objectContaining({ origin: 'manual', takeover: true })],
+        ]);
         expect(hook.get().replay.stopReason).toBe('manual');
         expect(hook.get().replay.firedCount).toBe(0);
         await hook.unmount();
@@ -235,7 +249,10 @@ describe('useMachineControlComposition', () => {
         };
         const hook = await renderComposition(input);
         await act(async () => hook.get().replay.toggle());
-        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        expect(setControl).toHaveBeenCalledExactlyOnceWith(
+            { heater: 0 },
+            expect.objectContaining({ origin: 'replay', generation: 1, connection_epoch: 7 }),
+        );
         for (let second = 1; second <= 5; second++) {
             await act(async () => vi.advanceTimersByTimeAsync(1000));
             await hook.rerender({
@@ -273,5 +290,46 @@ describe('useMachineControlComposition', () => {
         await hook.unmount();
         await act(async () => vi.advanceTimersByTimeAsync(10000));
         expect(logger.capture).not.toHaveBeenCalled();
+    });
+    it('does not activate a delayed Replay claim after a manual heater takeover', async () => {
+        const hook = await renderComposition(base());
+        let resolveClaim!: (result: Awaited<ReturnType<typeof sidecar.claimReplay>>) => void;
+        vi.mocked(sidecar.claimReplay).mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    resolveClaim = resolve;
+                }),
+        );
+        await act(async () => hook.get().replay.toggle());
+        expect(setControl).not.toHaveBeenCalled();
+        await act(async () => {
+            hook.get().changeManual('heater', 25);
+            hook.get().commitManual();
+        });
+        const ticket = { connection_epoch: 7, generation: 1, origin: 'replay' } as const;
+        await act(async () => {
+            resolveClaim({ ok: true, ticket });
+        });
+        expect(setControl.mock.calls.map(([cmd]) => cmd)).toEqual([{ heater: 25 }]);
+        expect(sidecar.releaseReplay).toHaveBeenCalledWith(ticket);
+        expect(hook.get().replay.active).toBe(false);
+        hook.unmount();
+    });
+
+    it('manual fan and drum changes keep the Replay heater ticket', async () => {
+        const hook = await renderComposition(base());
+        await act(async () => hook.get().replay.toggle());
+        const claims = vi.mocked(sidecar.claimReplay).mock.calls.length;
+        const releases = vi.mocked(sidecar.releaseReplay).mock.calls.length;
+        await act(async () => {
+            hook.get().changeManual('fan', 55);
+            hook.get().changeManual('drum', 60);
+            hook.get().commitManual();
+        });
+        expect(hook.get().replay.active).toBe(true);
+        expect(vi.mocked(sidecar.claimReplay).mock.calls).toHaveLength(claims);
+        expect(vi.mocked(sidecar.releaseReplay).mock.calls).toHaveLength(releases);
+        expect(setControl).toHaveBeenLastCalledWith({ fan: 55, drum: 60 }, undefined);
+        hook.unmount();
     });
 });

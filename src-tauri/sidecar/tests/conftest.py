@@ -72,7 +72,9 @@ class FakeAdapter:
             return r
         raise RuntimeError("no more readings")
 
-    async def control(self, heater=None, fan=None, drum=None) -> None:
+    async def control(self, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False) -> None:
+        if _is_current is not None and not _is_current():
+            raise ConnectionError("Ownership changed")
         self.control_calls.append({"heater": heater, "fan": fan, "drum": drum})
 
 

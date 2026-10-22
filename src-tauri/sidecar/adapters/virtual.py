@@ -7,6 +7,8 @@
   3. 로스팅 (start_roast 이후): Charge 시점 BT에서 즉각 25°C 강하 → 로스팅 커브 재생
 """
 
+from typing import Callable
+from control_guard import ControlUnavailable
 import dataclasses
 import math
 import random
@@ -259,12 +261,15 @@ class VirtualMachineAdapter:
         heater: float | None = None,
         fan: float | None = None,
         drum: float | None = None,
+        *, _is_current: Callable[[], bool] | None = None, _confirm_first: bool = False,
     ) -> None:
         """명령값을 저장해 이후 read()가 그 값을 되돌려준다.
 
         실기 없이 제어 UI를 검증하기 위한 최소 동작이다. 열 반응(duty → BT)은
         모델링하지 않는다 — PID 루프 검증용 열 모델은 별도로 붙인다.
         """
+        if not self._connected or (_is_current is not None and not _is_current()):
+            raise ControlUnavailable("Virtual control connection or owner changed.")
         for role, value in (("heater", heater), ("fan", fan), ("drum", drum)):
             if value is not None:
                 self._cmd[role] = float(value)

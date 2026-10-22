@@ -26,7 +26,16 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@shared/lib/sidecar', () => ({
     subscribeSidecarSettings: vi.fn(() => () => {}),
-    sidecar: { getStatus: vi.fn(), setControl: vi.fn(), pidOff: vi.fn() },
+    sidecar: {
+        getStatus: vi.fn(),
+        setControl: vi.fn(),
+        pidOff: vi.fn(),
+        claimReplay: vi.fn(async () => ({
+            ok: true,
+            ticket: { connection_epoch: 7, generation: 1, origin: 'replay' },
+        })),
+        releaseReplay: vi.fn(async () => ({ ok: true })),
+    },
 }));
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));

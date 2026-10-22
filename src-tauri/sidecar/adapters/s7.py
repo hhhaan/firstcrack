@@ -570,11 +570,13 @@ class S7Adapter:
                 self._io_lock.release()
 
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _write_all)
-
-    async def retry_control(self, heater: float, is_current: Callable[[], bool]) -> None:
-        """Confirm a possibly applied command before deciding whether to send it again."""
-        await self.control(heater=heater, _confirm_first=True, _is_current=is_current)
+        future = loop.run_in_executor(None, _write_all)
+        # Cancellation of the HTTP waiter cannot cancel the synchronous driver.
+        try:
+            await asyncio.shield(future)
+        except asyncio.CancelledError:
+            await asyncio.shield(future)
+            raise
 
     @property
     def write_map(self) -> dict[str, dict[str, Any]]:

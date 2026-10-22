@@ -4,7 +4,7 @@ import random
 import socket
 import time
 import logging
-from typing import Any
+from typing import Any, Callable
 
 from adapters.base import Reading
 from control_guard import ControlUnavailable
@@ -43,6 +43,7 @@ class ProbatWSAdapter:
         self._port = port
         self._channel_nodes: dict[str, str] = channel_nodes or {}
         self._write_map: dict[str, dict[str, Any]] = write_map or {}
+        self._control_lock = asyncio.Lock()
         self._ws: Any = None
         self._connected: bool = False
 
@@ -169,7 +170,8 @@ class ProbatWSAdapter:
         except Exception as exc:
             raise await self._on_ws_error(exc) from exc
 
-    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:
+    async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None, *,
+                      _is_current: Callable[[], bool] | None = None, _confirm_first: bool = False) -> None:
         """Artisan slidercommands: setControlParams 한 역할씩.
 
         node가 없는 write_map은 주소가 아니므로 쓰지 않는다.
@@ -186,16 +188,22 @@ class ProbatWSAdapter:
             targets.append((node, float(value)))
         if not targets:
             raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
-        for node, value in targets:
-            sent = int(value) if value.is_integer() else value
-            await self._send(
-                {
-                    "command": "setControlParams",
-                    "id": random.randint(1, 99999),
-                    "roasterID": 0,
-                    "params": {node: sent},
-                }
-            )
+        ws = self._ws
+        async with self._control_lock:
+            for node, value in targets:
+                if ws is None:
+                    raise ConnectionError("WebSocket이 연결되지 않음")
+                if ws is not self._ws or (_is_current is not None and not _is_current()):
+                    raise ControlUnavailable("Probat control connection or owner changed.")
+                sent = int(value) if value.is_integer() else value
+                await self._send(
+                    {
+                        "command": "setControlParams",
+                        "id": random.randint(1, 99999),
+                        "roasterID": 0,
+                        "params": {node: sent},
+                    }
+                )
 
     @property
     def connected(self) -> bool:

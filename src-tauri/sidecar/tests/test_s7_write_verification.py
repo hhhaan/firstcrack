@@ -126,8 +126,7 @@ async def test_retry_cannot_override_an_intervening_owner(verified, boundary):
     elif boundary == "connection":
         manager._connection_epoch += 1
     elif boundary == "pid":
-        manager._pid = MagicMock()
-        manager._pid.state.return_value = {"state": "running"}
+        manager._heat.revoke("pid")
     else:
         manager._resetting = True
     sent = plc.db_write.call_count
@@ -143,7 +142,7 @@ async def test_owner_change_during_retry_preflight_prevents_resend(verified):
         await manager.control(heater=0)
 
     def preflight(db, offset, size):
-        manager._heater_command_version += 1
+        manager._heat._command += 1
         return registers[(db, offset)][:size]
 
     plc.db_read.side_effect = preflight

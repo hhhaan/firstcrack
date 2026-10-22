@@ -181,7 +181,10 @@ describe('useMachineControl capability 조회 (#269 회귀)', () => {
 
         expect(first).not.toHaveBeenCalled();
         expect(second).toHaveBeenCalledWith({ heater: 0 });
-        expect(setControl).toHaveBeenCalledWith({ heater: 0 });
+        expect(setControl).toHaveBeenCalledWith(
+            { heater: 0 },
+            expect.objectContaining({ origin: 'manual', takeover: true }),
+        );
         hook.unmount();
     });
 });

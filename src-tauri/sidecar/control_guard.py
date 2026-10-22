@@ -75,3 +75,28 @@ def clamp_command(
             value = min(float(hi), value)
         clamped[role] = value
     return clamped
+
+
+def parse_ownership(body: dict[str, Any]) -> dict[str, Any]:
+    origin = body.get("origin", "manual")
+    if origin not in ("manual", "replay"):
+        raise ControlRangeError("origin must be manual or replay")
+    takeover = body.get("takeover", False)
+    if not isinstance(takeover, bool) or (takeover and origin != "manual"):
+        raise ControlRangeError("takeover is only valid for manual control")
+    result: dict[str, Any] = {"origin": origin, "takeover": takeover}
+    if origin == "replay":
+        result.update(parse_ticket(body))
+    return result
+
+
+def parse_ticket(body: Any) -> dict[str, int]:
+    if not isinstance(body, dict):
+        raise ControlRangeError("Expected heater ticket")
+    result = {}
+    for field in ("connection_epoch", "generation"):
+        value = body.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ControlRangeError(f"{field} must be a nonnegative integer")
+        result[field] = value
+    return result

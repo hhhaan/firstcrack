@@ -22,6 +22,7 @@ export const pidRuntime = (state: PidRuntime['state']): PidRuntime => ({
 
 export const writableHeaterStatus = {
     connected: true,
+    heater_control: { connection_epoch: 7, generation: 0, origin: 'manual', pending_writes: 0, uncertain: false },
     roaster: 'giesen_w6a',
     display_name: 'Giesen',
     brand: 'Giesen',

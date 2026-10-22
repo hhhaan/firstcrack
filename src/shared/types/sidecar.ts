@@ -77,9 +77,26 @@ export interface PidRuntime {
     error: string | null;
 }
 
+export interface ReplayHeaterTicket {
+    readonly connection_epoch: number;
+    readonly generation: number;
+    readonly origin: 'replay';
+}
+
+export type HeaterControlIntent =
+    | { origin: 'manual'; takeover: boolean; retry_epoch?: number }
+    | (ReplayHeaterTicket & { retry_epoch?: number });
+
 export interface SidecarStatus {
     machine_id?: string | null;
     connection_epoch?: number;
+    heater_control?: {
+        connection_epoch: number;
+        generation: number;
+        origin: 'manual' | 'replay' | 'pid' | 'safety';
+        pending_writes: number;
+        uncertain: boolean;
+    };
     read_units?: ReadUnits;
     connected: boolean;
     reconnecting?: boolean;

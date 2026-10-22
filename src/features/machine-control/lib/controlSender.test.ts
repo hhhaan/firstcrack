@@ -136,7 +136,7 @@ describe('createControlSender', () => {
 
         await sender.commitNow();
         expect(send).toHaveBeenCalledTimes(1);
-        expect(send).toHaveBeenCalledWith({ heater: 30 });
+        expect(send).toHaveBeenCalledWith({ heater: 30 }, undefined, 'manual', undefined);
     });
 
     it('여러 role 변경을 하나의 명령으로 합친다', async () => {
@@ -147,7 +147,7 @@ describe('createControlSender', () => {
         sender.queue('fan', 40);
         await sender.commitNow();
 
-        expect(send).toHaveBeenCalledWith({ heater: 60, fan: 40 });
+        expect(send).toHaveBeenCalledWith({ heater: 60, fan: 40 }, undefined, 'manual', undefined);
     });
 
     it('보낼 값이 없으면 전송하지 않는다', async () => {
@@ -826,10 +826,10 @@ describe('guarded Replay retries share the control queue', () => {
         const last = sender.commitNow();
         deferred.resolve();
         await first;
-        expect(send).toHaveBeenLastCalledWith({ heater: 0 }, { connectionEpoch: 7 });
+        expect(send).toHaveBeenLastCalledWith({ heater: 0 }, { connectionEpoch: 7 }, 'replay', undefined);
         deferred.resolve();
         await retry;
-        expect(send).toHaveBeenLastCalledWith({ drum: 55 });
+        expect(send).toHaveBeenLastCalledWith({ drum: 55 }, undefined, undefined, undefined);
         deferred.resolve();
         await last;
         expect(deferred.calls).toEqual([{ fan: 40 }, { heater: 0 }, { drum: 55 }]);
@@ -863,7 +863,7 @@ describe('guarded Replay retries share the control queue', () => {
         await expect(retry).resolves.toBeNull();
         deferred.resolve();
         await first;
-        expect(send).toHaveBeenLastCalledWith({ heater: 30 });
+        expect(send).toHaveBeenLastCalledWith({ heater: 30 }, undefined, 'manual', undefined);
         deferred.resolve();
         await manual;
         expect(deferred.calls).toEqual([{ fan: 40 }, { heater: 30 }]);
@@ -902,4 +902,28 @@ describe('applied control chart observers', () => {
         await Promise.resolve();
         expect(onApplied).not.toHaveBeenCalled();
     });
+});
+
+it('retains the winning heater origin and issued ticket in a mixed-role batch', async () => {
+    let release!: (result: ControlCommand) => void;
+    const send = vi
+        .fn()
+        .mockImplementationOnce(
+            () =>
+                new Promise<ControlCommand>((resolve) => {
+                    release = resolve;
+                }),
+        )
+        .mockImplementation(async (cmd: ControlCommand) => cmd);
+    const sender = createControlSender({ send });
+    sender.queue('drum', 10);
+    const first = sender.commitNow();
+    const ticket = { connection_epoch: 3, generation: 8, origin: 'replay' } as const;
+    sender.queue('heater', 70);
+    const replay = sender.commitNow('replay', undefined, ticket);
+    sender.queue('fan', 40);
+    const fan = sender.commitNow('manual');
+    release({ drum: 10 });
+    await Promise.all([first, replay, fan]);
+    expect(send).toHaveBeenLastCalledWith({ heater: 70, fan: 40 }, undefined, 'replay', ticket);
 });

@@ -1,4 +1,5 @@
 import type { PidRuntime } from '@entities/machine';
+import type { ReplayHeaterTicket } from '@shared/types/sidecar';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
@@ -115,9 +116,9 @@ export const useMachineControlComposition = ({
 
     // Replay writes only through setValue + commitNow. A drag preview is not a send.
     const writeHeater = useCallback(
-        async (value: number, origin: ControlOrigin = 'replay') => {
+        async (value: number, origin: ControlOrigin = 'replay', ticket?: ReplayHeaterTicket) => {
             machine.setValue('heater', value);
-            const applied = await machine.commitNow(origin);
+            const applied = await machine.commitNow(origin, undefined, ticket);
             return applied?.heater ?? null;
         },
         [machine.setValue, machine.commitNow],
@@ -127,10 +128,10 @@ export const useMachineControlComposition = ({
     }, [machine.commitNow]);
     const retryEpoch = machine.connectionStatus?.connection_epoch;
     const retryHeater = useCallback(
-        async (value: number) => {
+        async (value: number, ticket?: ReplayHeaterTicket) => {
             if (retryEpoch == null) return null;
             machine.setValue('heater', value);
-            return (await machine.commitNow('replay', { connectionEpoch: retryEpoch }))?.heater ?? null;
+            return (await machine.commitNow('replay', { connectionEpoch: retryEpoch }, ticket))?.heater ?? null;
         },
         [retryEpoch, machine.setValue, machine.commitNow],
     );
@@ -159,6 +160,8 @@ export const useMachineControlComposition = ({
         writeHeater,
         retryHeater: retryEpoch == null ? undefined : retryHeater,
         connectionEpoch: retryEpoch,
+        activateOwnership: machine.activateReplay,
+        releaseOwnership: machine.releaseReplay,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,
         heaterMin: machine.limits.heater?.min,

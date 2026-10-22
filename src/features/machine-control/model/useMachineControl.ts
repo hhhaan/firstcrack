@@ -2,7 +2,8 @@ import type { ControlCapability, SidecarStatus } from '@entities/machine';
 import { logger } from '@shared/lib/logger';
 import { sidecar, subscribeSidecarSettings } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { HeaterControlIntent, ReplayHeaterTicket } from '@shared/types/sidecar';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { convergeTolerance } from '../lib/controlScale';
 import {
     type ControlCommand,
@@ -56,12 +57,40 @@ export const useMachineControl = (
         zeroRequested: boolean;
     }>({ desired: {}, zeroPolls: 0, zeroRequested: false });
     const [sending, setSending] = useState(false);
+    const replayTicket = useRef<ReplayHeaterTicket | null>(null);
+    const activation = useRef(0);
+    const releaseReplay = useCallback(() => {
+        activation.current += 1;
+        const ticket = replayTicket.current;
+        replayTicket.current = null;
+        if (ticket) void sidecar.releaseReplay(ticket).catch(() => {});
+    }, []);
+    const activateReplay = useCallback(async () => {
+        const revision = ++activation.current;
+        const status = await sidecar.getStatus();
+        if (revision !== activation.current || !status.heater_control) return false;
+        const { ticket } = await sidecar.claimReplay(status.heater_control);
+        if (revision !== activation.current) {
+            void sidecar.releaseReplay(ticket).catch(() => {});
+            return false;
+        }
+        replayTicket.current = ticket;
+        return ticket;
+    }, []);
 
     const sender = useMemo(
         () =>
             createControlSender({
-                send: async (cmd, retry) =>
-                    (await (retry ? sidecar.setControl(cmd, retry) : sidecar.setControl(cmd))).applied,
+                send: async (cmd, retry, origin, ticket) => {
+                    let intent: HeaterControlIntent | undefined;
+                    if (origin === 'replay') {
+                        if (!ticket) throw new Error('Replay ownership is unavailable.');
+                        intent = { ...ticket, retry_epoch: retry?.connectionEpoch };
+                    } else if (cmd.heater != null) {
+                        intent = { origin: 'manual', takeover: true, retry_epoch: retry?.connectionEpoch };
+                    }
+                    return (await sidecar.setControl(cmd, intent)).applied;
+                },
                 onApplied: (applied) => setTracking((t) => ({ ...t, desired: { ...t.desired, ...applied } })),
                 onError: (err, origins) => {
                     logger.capture(err, { feature: 'machine-control', action: 'setControl' });
@@ -175,8 +204,11 @@ export const useMachineControl = (
 
     /** 전송 성공 여부 — 슬라이더는 무시하고, Replay는 실패 시 이벤트를 보존한다 (#312) */
     const commitNow = useCallback(
-        (origin?: ControlOrigin, retry?: ControlRetry) => sender.commitNow(origin, retry),
-        [sender],
+        (origin: ControlOrigin = 'manual', retry?: ControlRetry, ticket?: ReplayHeaterTicket) => {
+            if (origin !== 'replay' && sender.hasDraftHeater) releaseReplay();
+            return sender.commitNow(origin, retry, ticket);
+        },
+        [sender, releaseReplay],
     );
     /** 미전송 Replay heater만 — fan/drum·수동·DROP zero는 남긴다 (#368 R03) */
     const cancelUnsentReplayHeater = useCallback(() => {
@@ -212,5 +244,7 @@ export const useMachineControl = (
         setValue,
         commitNow,
         cancelUnsentReplayHeater,
+        activateReplay,
+        releaseReplay,
     };
 };

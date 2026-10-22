@@ -802,3 +802,73 @@ The first line stays the column header. Columns 9–13 are `et_raw`, `bt_raw`, `
 `# processing\t{JSON}` lines describe the calculation settings for following samples. They are written at the first archived sample with known settings and whenever settings change, and retained during Drop clipping and BBP saving. `# processing\tnull` clears the context when a sidecar supplies no settings. The archive reader validates these records and skips malformed metadata without discarding temperature samples. External TSV readers must skip comment lines.
 
 The metadata records the actual sidecar RoR window, BT RoR EMA, ET RoR EMA, display EMA alphas, warmup read count, units, timestamp clock, and algorithm version. Older archives omit `et_ror_ema_alpha`; those curves used `ror_ema_alpha` for both rates. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.
+
+
+### Heater ownership and completion
+
+`GET /status` includes `heater_control` with `connection_epoch`, `generation`,
+`origin` (`manual`, `replay`, `pid`, or `safety`), `pending_writes`, `starting`,
+`stopping`, and `uncertain`.
+These identify command authority, not heat feedback or flame state.
+
+`POST /control` accepts `origin: "manual" | "replay"`. Omitting origin preserves
+ordinary manual control when no automatic owner is active. A manual heater edit
+uses `takeover: true` to revoke automatic ownership. Fan and drum commands never
+claim heater ownership. External callers cannot request PID or safety authority.
+The app's Replay Drop-zero action uses a manual takeover command at logical zero;
+the machine's minimum applies, and this does not confirm burner extinction.
+
+Replay activation first reads status, then calls `POST /control/replay/claim`
+with the expected `{connection_epoch, generation}`. Success returns
+`{ok: true, ticket: {connection_epoch, generation, origin: "replay"}}`.
+Every Replay heater write carries that exact ticket. A bounded retry also sends
+`retry_epoch` and retains the original ticket. `POST /control/replay/release`
+accepts the ticket and releases it after outstanding writes finish. Stale claims,
+commands, retries, and releases return 409. Reacquisition requires a new explicit
+activation. A delayed command cannot acquire a new generation.
+
+All admitted writes retain their completion tasks when an HTTP waiter cancels.
+S7 checks connection and generation under its I/O lock after throttling and
+immediately before every physical write. Virtual and Probat check before mutation
+or socket send. An already-started write may finish. A takeover acknowledges only
+after older submitted work completes and its own command completes. A two-second
+completion timeout returns 504 with `{error, uncertain: true}` and retains the
+writer. It does not acknowledge takeover. A subsequent explicit takeover can
+retry the barrier after the outstanding work finishes. Probat completion means
+socket transmission, not machine confirmation.
+
+Fixed PID endpoints and hold/zero choices remain unchanged. PID normal and final
+writes use session-issued authority and the same machine limits. Reconnect
+safe-off uses that same path. A superseded read or stop callback cannot write.
+
+`timestamp` is acquisition time in monotonic seconds. The pair
+`(sensor_clock, timestamp)` identifies a sample. Cache hits and stale fallback
+preserve that pair; repeated samples advance neither control filtering nor PID
+integration. Non-finite, future, backward, and foreign-connection observations
+cannot authorize a PID update. Freshness is checked after asynchronous reads.
+
+The session admits a PID start before waiting for earlier writes or heat feedback.
+It reports `starting` during those waits. A concurrent zero stop or reset must
+complete the minimum command before acknowledging the terminal transition.
+Disconnect attempts that command before closing write admission. A completed
+write failure retains the existing best-effort disconnect behavior. Failed or
+cancelled engagement remains a visible PID fault with
+terminal duty retained for an explicit zero stop or reconnect.
+
+An unfinished PID terminal command remains `stopping` even if its HTTP caller
+cancels. Cancellation or failure leaves PID faulted until a terminal command
+completes or an explicit takeover replaces the operation. A later zero stop supersedes a blocked hold-feedback read and must issue
+the minimum command before it acknowledges completion. An older hold cannot
+restore its duty or overwrite the newer stop result.
+
+A completed automatic safe-off retains the PID fault but does not report
+`stopping`. Reconnect revokes old write authority without discarding unfinished
+PID terminal duty. Manual takeover explicitly replaces that duty.
+
+Explicit disconnect and adapter replacement close write admission and drain all
+submitted writers before retiring the old connection's PID operation. A failed
+minimum command cannot carry that operation onto a different adapter. An
+unfinished writer prevents teardown and replacement, including after its HTTP
+waiter cancels. `/connect`, `/disconnect`, and `/reset` return 504 with
+`{error, uncertain: true}` when their writer barrier times out. This reports
+incomplete command completion, not physical heat or flame state.

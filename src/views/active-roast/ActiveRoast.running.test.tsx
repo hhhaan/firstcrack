@@ -120,6 +120,11 @@ vi.mock('@shared/lib/sidecar', async (importOriginal) => {
             resetRoast: vi.fn().mockResolvedValue({ ok: true }),
             enterStandby: vi.fn().mockResolvedValue(undefined),
             setControl: vi.fn().mockResolvedValue({ applied: {} }),
+            claimReplay: vi.fn(async () => ({
+                ok: true,
+                ticket: { connection_epoch: 7, generation: 1, origin: 'replay' },
+            })),
+            releaseReplay: vi.fn(async () => ({ ok: true })),
             pidOff: vi.fn().mockResolvedValue({ ok: true }),
             pidOn: vi.fn().mockResolvedValue({ ok: true }),
         },
@@ -330,6 +335,13 @@ describe('ActiveRoast running clock (#627)', () => {
         const previousWrite = write.getMockImplementation();
         capability.mockResolvedValue({
             ...status,
+            heater_control: {
+                connection_epoch: 7,
+                generation: 0,
+                origin: 'manual',
+                pending_writes: 0,
+                uncertain: false,
+            },
             control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } } },
         });
         write.mockClear().mockResolvedValue({ ok: true, applied: { heater: 45 } });
@@ -362,7 +374,10 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(latest().replay.plan?.events).toEqual(events);
             await act(async () => latest().replay.toggle());
             expect(latest().replay.active).toBe(true);
-            expect(write).toHaveBeenCalledWith({ heater: 45 });
+            expect(write).toHaveBeenCalledWith(
+                { heater: 45 },
+                expect.objectContaining({ origin: 'replay', connection_epoch: 7, generation: 1 }),
+            );
             await advance(2000);
             expect(latest().replay.source).toBe('batch');
             expect(latest().replay.plan?.events).toEqual(events);

@@ -1,4 +1,12 @@
-import type { NetworkHost, PidRuntime, SerialPort, SidecarStatus, TemperatureReading } from '@shared/types/sidecar';
+import type {
+    HeaterControlIntent,
+    NetworkHost,
+    PidRuntime,
+    ReplayHeaterTicket,
+    SerialPort,
+    SidecarStatus,
+    TemperatureReading,
+} from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
 import { isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
 import { captureSidecarRequestFailure, isSentryEnabled } from './sentry';
@@ -204,10 +212,21 @@ export const sidecar = {
      * 머신 제어값 쓰기. 사이드카가 write_map 범위로 자른 뒤 `applied`로 실제 값을 돌려준다.
      * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
      */
-    setControl: (cmd: Partial<Record<'heater' | 'fan' | 'drum', number>>, retry?: { connectionEpoch: number }) =>
+    setControl: (cmd: Partial<Record<'heater' | 'fan' | 'drum', number>>, intent?: HeaterControlIntent) =>
         request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>('/control', {
             method: 'POST',
-            body: JSON.stringify(retry ? { ...cmd, retry_epoch: retry.connectionEpoch } : cmd),
+            body: JSON.stringify({ ...cmd, ...intent }),
+        }),
+
+    claimReplay: (expected: Pick<ReplayHeaterTicket, 'connection_epoch' | 'generation'>) =>
+        request<{ ok: boolean; ticket: ReplayHeaterTicket }>('/control/replay/claim', {
+            method: 'POST',
+            body: JSON.stringify(expected),
+        }),
+    releaseReplay: (ticket: ReplayHeaterTicket) =>
+        request<{ ok: boolean }>('/control/replay/release', {
+            method: 'POST',
+            body: JSON.stringify(ticket),
         }),
 
     /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */

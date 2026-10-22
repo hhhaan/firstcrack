@@ -34,6 +34,7 @@ from typing import Any
 
 from aiohttp import web
 
+from heater_control_session import ControlUncertain
 import control_guard
 import pid_runner
 from manager import RoasterManager
@@ -173,6 +174,8 @@ async def handle_connect(request: web.Request) -> web.Response:
         return web.json_response({"error": "roaster field required"}, status=400)
     try:
         await manager.connect(roaster_key, body, machine_id)
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     return web.json_response(manager.status())
@@ -180,7 +183,10 @@ async def handle_connect(request: web.Request) -> web.Response:
 
 async def handle_disconnect(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
-    await manager.disconnect()
+    try:
+        await manager.disconnect()
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     return web.json_response(manager.status())
 
 
@@ -214,6 +220,8 @@ async def handle_reset(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     try:
         await manager.reset_roast()
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     except Exception as exc:
         _log.error("reset 실패: %s", exc, exc_info=True)
         body = manager.status()
@@ -258,14 +266,17 @@ async def handle_control(request: web.Request) -> web.Response:
     try:
         # 빈 요청은 연결 여부와 무관하게 no-op — 검증은 쓸 값이 있을 때만 의미가 있다.
         cmd = control_guard.parse_command(body)
+        ownership = control_guard.parse_ownership(body)
         if not cmd:
             return web.json_response({"ok": True, "applied": {}})
         retry_epoch = control_guard.parse_retry_epoch(body)
-        applied = await manager.control(**cmd, retry_epoch=retry_epoch)
+        applied = await manager.control(**cmd, retry_epoch=retry_epoch, **ownership)
     except control_guard.ControlRangeError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     except control_guard.ControlUnavailable as exc:
         return web.json_response({"error": str(exc)}, status=409)
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     except Exception as exc:
         # exc_info=True 먼저 쓰면 LoggingIntegration이 태그 없는 이벤트를 만들고 dedupe가
         # 아래 tagged capture를 삭제한다 (#771).
@@ -273,6 +284,30 @@ async def handle_control(request: web.Request) -> web.Response:
         _log.warning("control 실패 (%s)", type(exc).__name__, exc_info=True)
         return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True, "applied": applied})
+
+
+async def handle_replay_claim(request: web.Request) -> web.Response:
+    manager = request.app["manager"]
+    try:
+        body = await request.json()
+        ticket = await manager.claim_replay(**control_guard.parse_ticket(body))
+        return web.json_response({"ok": True, "ticket": ticket})
+    except (ValueError, TypeError) as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="control_write_failed", route="replay_claim")
+
+
+async def handle_replay_release(request: web.Request) -> web.Response:
+    manager = request.app["manager"]
+    try:
+        body = await request.json()
+        await manager.release_replay(**control_guard.parse_ticket(body))
+        return web.json_response({"ok": True})
+    except (ValueError, TypeError) as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="control_write_failed", route="replay_release")
 
 
 def _pid_error_response(
@@ -283,6 +318,8 @@ def _pid_error_response(
     route: str,
     once: bool = False,
 ) -> web.Response:
+    if isinstance(exc, ControlUncertain):
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     if isinstance(exc, control_guard.ControlRangeError):
         return web.json_response({"error": str(exc)}, status=400)
     if isinstance(exc, control_guard.ControlUnavailable):
@@ -536,6 +573,8 @@ def create_app() -> web.Application:
     app.router.add_post("/reset", handle_reset)
     app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)
+    app.router.add_post("/control/replay/claim", handle_replay_claim)
+    app.router.add_post("/control/replay/release", handle_replay_release)
     app.router.add_post("/pid/on", handle_pid_on)
     app.router.add_post("/pid/off", handle_pid_off)
     app.router.add_post("/pid/sv", handle_pid_sv)
