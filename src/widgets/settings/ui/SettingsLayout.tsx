@@ -74,7 +74,7 @@ export function SettingsLayout({
                                 ref={focusHeading}
                                 id="settings-page-title"
                                 tabIndex={-1}
-                                className="m-0 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary outline-none"
+                                className="m-0 font-(--font-display) text-3xl font-normal leading-9 tracking-[0.24px] text-primary outline-none"
                             >
                                 {groupLabel ?? tab?.label}
                             </h1>

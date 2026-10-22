@@ -192,7 +192,7 @@ export const Machines = ({
                             <div className="rounded-2xl border border-border bg-main-bg px-8 py-7 h-fit">
                                 <div className="flex items-start justify-between mb-6">
                                     <div>
-                                        <h2 className="font-display text-2xl font-medium leading-[1.2] text-primary tracking-[0.24px] mb-2">
+                                        <h2 className="font-display text-3xl font-normal leading-9 text-primary tracking-[0.24px] mb-2">
                                             {selected.name}
                                         </h2>
                                         <div className="flex gap-2.5 flex-wrap">

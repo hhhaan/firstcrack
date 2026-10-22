@@ -1839,7 +1839,6 @@
     },
     "pricing": {
         "title": "Margin Calculator",
-        "subtitle": "Calculate roasted cost and set selling price by margin",
         "source": {
             "title": "Source",
             "mode": {
@@ -2044,7 +2043,6 @@
     },
     "orders": {
         "title": "Orders",
-        "subtitle": "Pull store orders, see what to roast, and manage finished goods.",
         "loading": "Loading…",
         "locked": {
             "subtitle": "E-commerce order integration",

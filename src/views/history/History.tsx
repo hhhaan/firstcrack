@@ -249,11 +249,11 @@ export const History = () => {
         : null;
     const handleConfirmDelete = useCallback(() => {
         if (!deletingId) return;
-        deleteSession.mutate(deletingId, {
-            onSuccess: () => {
-                setDeletingId(null);
-                setSelectedId((prev) => (prev === deletingId ? null : prev));
-            },
+        const id = deletingId;
+        setDeletingId(null);
+        setSelectedId((prev) => (prev === id ? null : prev));
+        deleteSession.mutate(id, {
+            onError: () => setDeletingId((current) => current ?? id),
         });
     }, [deletingId, deleteSession]);
 

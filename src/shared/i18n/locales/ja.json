@@ -1839,7 +1839,6 @@
     },
     "pricing": {
         "title": "マージン計算",
-        "subtitle": "焙煎後の原価を計算し、マージンで販売価格を決めます",
         "source": {
             "title": "ソース",
             "mode": {
@@ -2044,7 +2043,6 @@
     },
     "orders": {
         "title": "注文",
-        "subtitle": "EC注文を取り込み、焙煎必要量を確認し、完成品在庫を管理します。",
         "loading": "読み込み中…",
         "locked": {
             "subtitle": "ECサイト注文連携",

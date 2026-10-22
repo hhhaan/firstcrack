@@ -1241,7 +1241,7 @@
             "readOnly": "현재 플랜 또는 워크스페이스에서는 편집할 수 없습니다."
         },
         "recordText": {
-            "title": "로스팅 제목",
+            "title": "제목",
             "add": "노트 추가",
             "failed": "저장하지 못했습니다. 입력은 유지됩니다. 다시 시도해 주세요.",
             "inputName": "직접 입력명"
@@ -1331,7 +1331,7 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
-            "batchTitle": "로스팅 제목",
+            "batchTitle": "제목",
             "sourceChangeTitle": "로스팅 원료 변경",
             "sourceChangeUnlinks": "원료를 변경하면 현재 배치의 일정 연결이 해제됩니다.",
             "profileSources": "프로파일 연결 항목",
@@ -1806,7 +1806,6 @@
     },
     "pricing": {
         "title": "Pricing",
-        "subtitle": "로스팅 후 원가를 계산하고 마진으로 판매가를 정합니다",
         "source": {
             "title": "원두 선택",
             "mode": {
@@ -2044,7 +2043,6 @@
     },
     "orders": {
         "title": "Orders",
-        "subtitle": "쇼핑몰 주문을 모으고, 로스팅 필요량을 확인하며, 완제품 재고를 관리합니다.",
         "loading": "불러오는 중…",
         "locked": {
             "subtitle": "이커머스 주문 연동",

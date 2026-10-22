@@ -1839,7 +1839,6 @@
     },
     "pricing": {
         "title": "利润计算器",
-        "subtitle": "计算烘焙后成本，并按毛利率设定售价",
         "source": {
             "title": "来源",
             "mode": {
@@ -2044,7 +2043,6 @@
     },
     "orders": {
         "title": "订单",
-        "subtitle": "汇总店铺订单、查看需烘焙量并管理成品库存。",
         "loading": "加载中…",
         "locked": {
             "subtitle": "电商订单集成",
