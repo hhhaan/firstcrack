@@ -13,6 +13,8 @@ DECLARE
   retried public.roast_sessions;
   stock_before bigint;
 BEGIN
+  ASSERT NOT has_function_privilege('anon', 'public.get_roast_batch_counters(uuid)', 'EXECUTE');
+  ASSERT has_function_privilege('authenticated', 'public.get_roast_batch_counters(uuid)', 'EXECUTE');
   ASSERT NOT EXISTS (
     SELECT s.user_id FROM public.roast_sessions s
     LEFT JOIN private.roast_batch_counters c ON c.user_id = s.user_id AND c.profile_id IS NULL
@@ -43,6 +45,15 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
   SET LOCAL ROLE authenticated;
+
+  ASSERT public.get_roast_batch_counters(owner_id) = '{"total": 0}'::jsonb;
+  ASSERT public.get_roast_batch_counters(owner_id) = '{"total": 0}'::jsonb,
+    'reading counters does not reserve a number';
+  BEGIN
+    PERFORM public.get_roast_batch_counters(other_owner);
+    RAISE EXCEPTION 'foreign workspace counters accepted';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
 
   saved := public.save_roast_op(jsonb_build_object('id', gen_random_uuid(), 'user_id', owner_id,
     'status', 'completed', 'weight_grams', 1000, 'bean_id', bean_id, 'profile_id', profile_a,
@@ -103,6 +114,8 @@ BEGIN
   retried := public.save_roast_op(jsonb_build_object('id', gen_random_uuid(), 'user_id', owner_id,
     'status', 'completed', 'weight_grams', 0, 'batch_name', 'No profile', 'batch_title_numbering', 'total'), false, 0, 0, false);
   ASSERT retried.batch_name = 'No profile Σ#5' AND retried.profile_batch_number IS NULL AND retried.total_batch_number = 5;
+  ASSERT public.get_roast_batch_counters(owner_id) = jsonb_build_object(
+    'total', 5, profile_a::text, 3, profile_b::text, 1), 'cached counters cover every profile';
   ASSERT (SELECT profile_batch_number IS NULL AND total_batch_number IS NULL FROM public.roast_sessions WHERE id = source_id),
     'legacy unknown numbers stay null';
   BEGIN

@@ -37,6 +37,7 @@ type InfiniteSessions = { pages: PaginatedSessions[]; pageParams: unknown[] };
 export const invalidateRoastSessionQueries = async (qc: QueryClient, userId: string) => {
     await Promise.all([
         qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: [...roastProfileQueryRoots.profiles, userId], refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: dashboardKeys.all(userId), refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: roastProfileQueryRoots.beanHistory, refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: roastProfileQueryRoots.consistency, refetchType: 'all' }),

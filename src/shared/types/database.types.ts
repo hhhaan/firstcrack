@@ -33,123 +33,6 @@ export type Database = {
     };
     public: {
         Tables: {
-            polar_notification_outbox: {
-                Row: {
-                    polar_organization_id: string;
-                    event_id: string;
-                    payload: Json;
-                    lease_id: string | null;
-                    lease_until: string | null;
-                    attempts: number;
-                    created_at: string;
-                    sent_at: string | null;
-                };
-                Insert: {
-                    polar_organization_id: string;
-                    event_id: string;
-                    payload: Json;
-                    lease_id?: string | null;
-                    lease_until?: string | null;
-                    attempts?: number;
-                    created_at?: string;
-                    sent_at?: string | null;
-                };
-                Update: {
-                    polar_organization_id?: string;
-                    event_id?: string;
-                    payload?: Json;
-                    lease_id?: string | null;
-                    lease_until?: string | null;
-                    attempts?: number;
-                    created_at?: string;
-                    sent_at?: string | null;
-                };
-                Relationships: [];
-            };
-
-            billing_customers: {
-                Row: {
-                    polar_organization_id: string;
-                    polar_customer_id: string;
-                    user_id: string;
-                };
-                Insert: {
-                    polar_organization_id: string;
-                    polar_customer_id: string;
-                    user_id: string;
-                };
-                Update: {
-                    polar_organization_id?: string;
-                    polar_customer_id?: string;
-                    user_id?: string;
-                };
-                Relationships: [
-                    {
-                        foreignKeyName: 'billing_customers_user_id_fkey';
-                        columns: ['user_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'profiles';
-                        referencedColumns: ['id'];
-                    },
-                ];
-            };
-            polar_subscription_state: {
-                Row: {
-                    polar_organization_id: string;
-                    polar_subscription_id: string;
-                    user_id: string;
-                    polar_customer_id: string | null;
-                    plan: string | null;
-                    payload: Json;
-                    event_at: string;
-                };
-                Insert: {
-                    polar_organization_id: string;
-                    polar_subscription_id: string;
-                    user_id: string;
-                    polar_customer_id?: string | null;
-                    plan?: string | null;
-                    payload: Json;
-                    event_at: string;
-                };
-                Update: {
-                    polar_organization_id?: string;
-                    polar_subscription_id?: string;
-                    user_id?: string;
-                    polar_customer_id?: string | null;
-                    plan?: string | null;
-                    payload?: Json;
-                    event_at?: string;
-                };
-                Relationships: [
-                    {
-                        foreignKeyName: 'polar_subscription_state_user_id_fkey';
-                        columns: ['user_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'profiles';
-                        referencedColumns: ['id'];
-                    },
-                ];
-            };
-            polar_webhook_events: {
-                Row: {
-                    polar_organization_id: string;
-                    event_id: string;
-                    event_at: string;
-                };
-                Insert: {
-                    polar_organization_id: string;
-                    event_id: string;
-                    event_at: string;
-                };
-                Update: {
-                    polar_organization_id?: string;
-                    event_id?: string;
-                    event_at?: string;
-                };
-                Relationships: [];
-            };
-
             bean_stock_events: {
                 Row: {
                     bean_id: string;
@@ -258,6 +141,32 @@ export type Database = {
                 Relationships: [
                     {
                         foreignKeyName: 'beans_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            billing_customers: {
+                Row: {
+                    polar_customer_id: string;
+                    polar_organization_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    polar_customer_id: string;
+                    polar_organization_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    polar_customer_id?: string;
+                    polar_organization_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'billing_customers_user_id_fkey';
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
@@ -1249,6 +1158,95 @@ export type Database = {
                 };
                 Relationships: [];
             };
+            polar_notification_outbox: {
+                Row: {
+                    attempts: number;
+                    created_at: string;
+                    event_id: string;
+                    lease_id: string | null;
+                    lease_until: string | null;
+                    payload: Json;
+                    polar_organization_id: string;
+                    sent_at: string | null;
+                };
+                Insert: {
+                    attempts?: number;
+                    created_at?: string;
+                    event_id: string;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    payload: Json;
+                    polar_organization_id: string;
+                    sent_at?: string | null;
+                };
+                Update: {
+                    attempts?: number;
+                    created_at?: string;
+                    event_id?: string;
+                    lease_id?: string | null;
+                    lease_until?: string | null;
+                    payload?: Json;
+                    polar_organization_id?: string;
+                    sent_at?: string | null;
+                };
+                Relationships: [];
+            };
+            polar_subscription_state: {
+                Row: {
+                    event_at: string;
+                    payload: Json;
+                    plan: string | null;
+                    polar_customer_id: string | null;
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    event_at: string;
+                    payload: Json;
+                    plan?: string | null;
+                    polar_customer_id?: string | null;
+                    polar_organization_id: string;
+                    polar_subscription_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    event_at?: string;
+                    payload?: Json;
+                    plan?: string | null;
+                    polar_customer_id?: string | null;
+                    polar_organization_id?: string;
+                    polar_subscription_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'polar_subscription_state_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
+            polar_webhook_events: {
+                Row: {
+                    event_at: string;
+                    event_id: string;
+                    polar_organization_id: string;
+                };
+                Insert: {
+                    event_at: string;
+                    event_id: string;
+                    polar_organization_id: string;
+                };
+                Update: {
+                    event_at?: string;
+                    event_id?: string;
+                    polar_organization_id?: string;
+                };
+                Relationships: [];
+            };
             product_channel_skus: {
                 Row: {
                     created_at: string;
@@ -1695,6 +1693,49 @@ export type Database = {
                     },
                 ];
             };
+            roast_profile_sources: {
+                Row: {
+                    bean_id: string | null;
+                    blend_id: string | null;
+                    id: string;
+                    profile_id: string;
+                };
+                Insert: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    id?: string;
+                    profile_id: string;
+                };
+                Update: {
+                    bean_id?: string | null;
+                    blend_id?: string | null;
+                    id?: string;
+                    profile_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'roast_profile_sources_bean_id_fkey';
+                        columns: ['bean_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_profile_sources_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_profile_sources_profile_id_fkey';
+                        columns: ['profile_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'roast_profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             roast_profiles: {
                 Row: {
                     charge_temp_celsius: number | null;
@@ -1798,23 +1839,20 @@ export type Database = {
             };
             roast_sessions: {
                 Row: {
-                    batch_name: string | null;
                     ambient_humidity_pct: number | null;
                     ambient_temp_celsius: number | null;
+                    batch_name: string | null;
                     bbp_seconds: number | null;
                     bbp_tsv_path: string | null;
                     bean_id: string | null;
-                    /** Free-text name when bean_id is null (sample / no-inventory). */
                     bean_label: string | null;
+                    blend_id: string | null;
                     charge_temp_celsius: number | null;
-                    /** Whole-bean roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_whole?: string | null;
-                    /** Ground roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_ground?: string | null;
+                    color_ground: string | null;
+                    color_whole: string | null;
                     created_at: string;
                     created_by: string | null;
-                    /** Bulk density, g/L. History QC entry. Omitted until recorded. */
-                    density_g_per_l?: number | null;
+                    density_g_per_l: number | null;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
@@ -1825,36 +1863,34 @@ export type Database = {
                     machine_name: string | null;
                     machine_protocol: string | null;
                     machine_roaster_key: string | null;
-                    /** Moisture, percent. History QC entry. Omitted until recorded. */
-                    moisture_pct?: number | null;
+                    moisture_pct: number | null;
                     notes: string | null;
                     output_weight_grams: number | null;
                     plan_batch_id: string | null;
-                    profile_id: string | null;
                     profile_batch_number: number | null;
-                    total_batch_number: number | null;
+                    profile_id: string | null;
                     roast_level: string | null;
                     roasted_at: string | null;
                     scheduled_at: string | null;
                     status: string;
+                    total_batch_number: number | null;
                     tsv_path: string | null;
                     updated_at: string;
                     user_id: string;
                     weight_grams: number;
-
-                    blend_id: string | null;
                 };
                 Insert: {
-                    batch_name?: string | null;
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
+                    batch_name?: string | null;
                     bbp_seconds?: number | null;
                     bbp_tsv_path?: string | null;
                     bean_id?: string | null;
                     bean_label?: string | null;
+                    blend_id?: string | null;
                     charge_temp_celsius?: number | null;
-                    color_whole?: string | null;
                     color_ground?: string | null;
+                    color_whole?: string | null;
                     created_at?: string;
                     created_by?: string | null;
                     density_g_per_l?: number | null;
@@ -1872,31 +1908,30 @@ export type Database = {
                     notes?: string | null;
                     output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
-                    profile_id?: string | null;
                     profile_batch_number?: number | null;
-                    total_batch_number?: number | null;
+                    profile_id?: string | null;
                     roast_level?: string | null;
                     roasted_at?: string | null;
                     scheduled_at?: string | null;
                     status?: string;
+                    total_batch_number?: number | null;
                     tsv_path?: string | null;
                     updated_at?: string;
                     user_id: string;
                     weight_grams: number;
-
-                    blend_id?: string | null;
                 };
                 Update: {
-                    batch_name?: string | null;
                     ambient_humidity_pct?: number | null;
                     ambient_temp_celsius?: number | null;
+                    batch_name?: string | null;
                     bbp_seconds?: number | null;
                     bbp_tsv_path?: string | null;
                     bean_id?: string | null;
                     bean_label?: string | null;
+                    blend_id?: string | null;
                     charge_temp_celsius?: number | null;
-                    color_whole?: string | null;
                     color_ground?: string | null;
+                    color_whole?: string | null;
                     created_at?: string;
                     created_by?: string | null;
                     density_g_per_l?: number | null;
@@ -1914,19 +1949,17 @@ export type Database = {
                     notes?: string | null;
                     output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
-                    profile_id?: string | null;
                     profile_batch_number?: number | null;
-                    total_batch_number?: number | null;
+                    profile_id?: string | null;
                     roast_level?: string | null;
                     roasted_at?: string | null;
                     scheduled_at?: string | null;
                     status?: string;
+                    total_batch_number?: number | null;
                     tsv_path?: string | null;
                     updated_at?: string;
                     user_id?: string;
                     weight_grams?: number;
-
-                    blend_id?: string | null;
                 };
                 Relationships: [
                     {
@@ -1934,6 +1967,13 @@ export type Database = {
                         columns: ['bean_id'];
                         isOneToOne: false;
                         referencedRelation: 'beans';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'roast_sessions_blend_id_fkey';
+                        columns: ['blend_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'blends';
                         referencedColumns: ['id'];
                     },
                     {
@@ -1955,13 +1995,6 @@ export type Database = {
                         columns: ['user_id'];
                         isOneToOne: false;
                         referencedRelation: 'profiles';
-                        referencedColumns: ['id'];
-                    },
-                    {
-                        foreignKeyName: 'roast_sessions_blend_id_fkey';
-                        columns: ['blend_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'blends';
                         referencedColumns: ['id'];
                     },
                 ];
@@ -2171,51 +2204,6 @@ export type Database = {
                     },
                 ];
             };
-
-            roast_profile_sources: {
-                Row: {
-                    bean_id: string | null;
-                    blend_id: string | null;
-                    id: string;
-                    profile_id: string;
-                };
-                ComputedFields: never;
-                Insert: {
-                    bean_id?: string | null;
-                    blend_id?: string | null;
-                    id?: string;
-                    profile_id: string;
-                };
-                Update: {
-                    bean_id?: string | null;
-                    blend_id?: string | null;
-                    id?: string;
-                    profile_id?: string;
-                };
-                Relationships: [
-                    {
-                        foreignKeyName: 'roast_profile_sources_bean_id_fkey';
-                        columns: ['bean_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'beans';
-                        referencedColumns: ['id'];
-                    },
-                    {
-                        foreignKeyName: 'roast_profile_sources_blend_id_fkey';
-                        columns: ['blend_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'blends';
-                        referencedColumns: ['id'];
-                    },
-                    {
-                        foreignKeyName: 'roast_profile_sources_profile_id_fkey';
-                        columns: ['profile_id'];
-                        isOneToOne: false;
-                        referencedRelation: 'roast_profiles';
-                        referencedColumns: ['id'];
-                    },
-                ];
-            };
         };
         Views: {
             active_subscriptions: {
@@ -2291,27 +2279,6 @@ export type Database = {
             };
         };
         Functions: {
-            claim_polar_notification: {
-                Args: { p_org_id: string; p_event_id: string; p_payload: Json };
-                Returns: Json;
-            };
-            finish_polar_notification: {
-                Args: { p_org_id: string; p_event_id: string; p_lease_id: string; p_sent: boolean };
-                Returns: boolean;
-            };
-            apply_polar_subscription_event: {
-                Args: {
-                    p_org_id: string;
-                    p_event_id: string;
-                    p_event_at: string;
-                    p_user_id: string | null;
-                    p_customer_id: string;
-                    p_subscription: Json;
-                    p_plan: string | null;
-                };
-                Returns: string;
-            };
-
             admin_auth_session_ips: {
                 Args: never;
                 Returns: {
@@ -2347,7 +2314,22 @@ export type Database = {
             };
             allocate_blend_grams: {
                 Args: { p_blend_id: string; p_charge_grams: number };
-                Returns: { bean_id: string; grams: number }[];
+                Returns: {
+                    bean_id: string;
+                    grams: number;
+                }[];
+            };
+            apply_polar_subscription_event: {
+                Args: {
+                    p_customer_id: string;
+                    p_event_at: string;
+                    p_event_id: string;
+                    p_org_id: string;
+                    p_plan: string;
+                    p_subscription: Json;
+                    p_user_id: string;
+                };
+                Returns: string;
             };
             calc_plan_batch_count: {
                 Args: {
@@ -2361,6 +2343,10 @@ export type Database = {
             cancel_order: { Args: { p_order_id: string }; Returns: undefined };
             channel_try_integer: { Args: { p_value: string }; Returns: number };
             channel_try_timestamptz: { Args: { p_value: string }; Returns: string };
+            claim_polar_notification: {
+                Args: { p_event_id: string; p_org_id: string; p_payload: Json };
+                Returns: Json;
+            };
             compute_inventory_alerts: {
                 Args: { p_horizon_days?: number; p_user_id: string };
                 Returns: undefined;
@@ -2368,6 +2354,14 @@ export type Database = {
             compute_inventory_alerts_for_all_users: {
                 Args: { p_horizon_days?: number };
                 Returns: string;
+            };
+            correct_session_charge_weight: {
+                Args: { p_session_id: string; p_weight_grams: number };
+                Returns: undefined;
+            };
+            correct_session_output_weight: {
+                Args: { p_output_grams: number; p_session_id: string };
+                Returns: undefined;
             };
             create_order: { Args: { p_lines: Json; p_order: Json }; Returns: string };
             create_org_invite: {
@@ -2388,6 +2382,15 @@ export type Database = {
                 };
                 Returns: string[];
             };
+            finish_polar_notification: {
+                Args: {
+                    p_event_id: string;
+                    p_lease_id: string;
+                    p_org_id: string;
+                    p_sent: boolean;
+                };
+                Returns: boolean;
+            };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
@@ -2407,6 +2410,7 @@ export type Database = {
                 Args: { p_product_id: string };
                 Returns: number;
             };
+            get_roast_batch_counters: { Args: { p_user_id: string }; Returns: Json };
             get_roasting_requirements: { Args: { p_user_id: string }; Returns: Json };
             get_stock_summary_rows: {
                 Args: { p_bean_id?: string; p_horizon_days?: number; p_user_id: string };
@@ -2456,6 +2460,10 @@ export type Database = {
             };
             profile_write_error: { Args: { p_user_id: string }; Returns: string };
             redeem_org_invite: { Args: { p_token: string }; Returns: string };
+            refresh_session_roasted_inbound: {
+                Args: { p_session_id: string };
+                Returns: undefined;
+            };
             remove_org_member: {
                 Args: { p_member_id: string; p_org_id: string };
                 Returns: undefined;
@@ -2493,14 +2501,14 @@ export type Database = {
                     bbp_seconds: number | null;
                     bbp_tsv_path: string | null;
                     bean_id: string | null;
+                    bean_label: string | null;
+                    blend_id: string | null;
                     charge_temp_celsius: number | null;
-                    /** Whole-bean roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_whole?: string | null;
-                    /** Ground roast color. Manual entry, no meter. Omitted until recorded. */
-                    color_ground?: string | null;
+                    color_ground: string | null;
+                    color_whole: string | null;
                     created_at: string;
                     created_by: string | null;
-                    density_g_per_l?: number | null;
+                    density_g_per_l: number | null;
                     drop_temp_celsius: number | null;
                     duration_seconds: number | null;
                     events: Json;
@@ -2511,23 +2519,21 @@ export type Database = {
                     machine_name: string | null;
                     machine_protocol: string | null;
                     machine_roaster_key: string | null;
-                    moisture_pct?: number | null;
+                    moisture_pct: number | null;
                     notes: string | null;
                     output_weight_grams: number | null;
                     plan_batch_id: string | null;
-                    profile_id: string | null;
                     profile_batch_number: number | null;
-                    total_batch_number: number | null;
+                    profile_id: string | null;
                     roast_level: string | null;
                     roasted_at: string | null;
                     scheduled_at: string | null;
                     status: string;
+                    total_batch_number: number | null;
                     tsv_path: string | null;
                     updated_at: string;
                     user_id: string;
                     weight_grams: number;
-
-                    blend_id: string | null;
                 };
                 SetofOptions: {
                     from: '*';
@@ -2536,97 +2542,6 @@ export type Database = {
                     isSetofReturn: false;
                 };
             };
-            set_session_charge_weight: {
-                Args: {
-                    p_inbound_grams: number;
-                    p_inbound_is_estimate: boolean;
-                    p_session_id: string;
-                    p_weight_grams: number;
-                };
-                Returns: undefined;
-            };
-            set_session_output_weight: {
-                Args: {
-                    p_inbound_grams: number;
-                    p_inbound_is_estimate: boolean;
-                    p_output_grams: number;
-                    p_session_id: string;
-                };
-                Returns: undefined;
-            };
-            split_recurrence_rule: {
-                Args: { p_from_date: string; p_rule: Json; p_rule_id: string };
-                Returns: {
-                    batch_size_kg: number;
-                    batch_type: string;
-                    bean_id: string | null;
-                    bean_name: string;
-                    blend_id: string | null;
-                    created_at: string;
-                    dtstart: string;
-                    green_lot: string;
-                    id: string;
-                    machine_id: string | null;
-                    notes: string;
-                    roast_profile_id: string | null;
-                    rrule: string;
-                    status: string;
-                    target_roasted_kg: number;
-                    until: string | null;
-                    updated_at: string;
-                    user_id: string;
-                    yield_pct: number;
-                };
-            };
-            sync_channel_orders_batch: {
-                Args: { p_connection_id: string; p_orders: Json; p_user_id: string };
-                Returns: Json;
-            };
-            update_roast_session_record: {
-                Args: {
-                    p_drop_temp_celsius: number;
-                    p_duration_seconds: number;
-                    p_events: Json;
-                    p_expected_events: Json;
-                    p_expected_heater_events: Json;
-                    p_heater_events: Json;
-                    p_profile_summary: Json;
-                    p_session_id: string;
-                };
-                Returns: Database['public']['Tables']['roast_sessions']['Row'];
-                SetofOptions: {
-                    from: '*';
-                    to: 'roast_sessions';
-                    isOneToOne: true;
-                    isSetofReturn: false;
-                };
-            };
-            upsert_roasted_inbound: {
-                Args: {
-                    p_grams: number;
-                    p_is_estimate: boolean;
-                    p_session_id: string;
-                    p_user_id: string;
-                };
-                Returns: undefined;
-            };
-            write_cupping_scorecards_batch: {
-                Args: {
-                    p_cards: Json;
-                    p_cupped_by: string;
-                    p_invite_id: string;
-                    p_participant_id: string;
-                    p_publish: boolean;
-                };
-                Returns: {
-                    created: boolean;
-                    cupped_at: string;
-                    id: string;
-                    sample_id: string;
-                    total_score: number;
-                }[];
-            };
-
             save_roast_profile_sources: {
                 Args: { p_id?: string; p_profile: Json; p_sources: Json };
                 Returns: {
@@ -2658,6 +2573,146 @@ export type Database = {
                     isOneToOne: true;
                     isSetofReturn: false;
                 };
+            };
+            set_session_charge_weight: {
+                Args: {
+                    p_inbound_grams: number;
+                    p_inbound_is_estimate: boolean;
+                    p_session_id: string;
+                    p_weight_grams: number;
+                };
+                Returns: undefined;
+            };
+            set_session_output_weight: {
+                Args: {
+                    p_inbound_grams: number;
+                    p_inbound_is_estimate: boolean;
+                    p_output_grams: number;
+                    p_session_id: string;
+                };
+                Returns: undefined;
+            };
+            set_session_roast_level: {
+                Args: { p_roast_level: string; p_session_id: string };
+                Returns: undefined;
+            };
+            split_recurrence_rule: {
+                Args: { p_from_date: string; p_rule: Json; p_rule_id: string };
+                Returns: {
+                    batch_size_kg: number;
+                    batch_type: string;
+                    bean_id: string | null;
+                    bean_name: string;
+                    blend_id: string | null;
+                    created_at: string;
+                    dtstart: string;
+                    green_lot: string;
+                    id: string;
+                    machine_id: string | null;
+                    notes: string;
+                    roast_profile_id: string | null;
+                    rrule: string;
+                    status: string;
+                    target_roasted_kg: number;
+                    until: string | null;
+                    updated_at: string;
+                    user_id: string;
+                    yield_pct: number;
+                };
+                SetofOptions: {
+                    from: '*';
+                    to: 'recurrence_rules';
+                    isOneToOne: true;
+                    isSetofReturn: false;
+                };
+            };
+            sync_channel_orders_batch: {
+                Args: { p_connection_id: string; p_orders: Json; p_user_id: string };
+                Returns: Json;
+            };
+            update_roast_session_record: {
+                Args: {
+                    p_drop_temp_celsius: number;
+                    p_duration_seconds: number;
+                    p_events: Json;
+                    p_expected_events: Json;
+                    p_expected_heater_events: Json;
+                    p_heater_events: Json;
+                    p_profile_summary: Json;
+                    p_session_id: string;
+                };
+                Returns: {
+                    ambient_humidity_pct: number | null;
+                    ambient_temp_celsius: number | null;
+                    batch_name: string | null;
+                    bbp_seconds: number | null;
+                    bbp_tsv_path: string | null;
+                    bean_id: string | null;
+                    bean_label: string | null;
+                    blend_id: string | null;
+                    charge_temp_celsius: number | null;
+                    color_ground: string | null;
+                    color_whole: string | null;
+                    created_at: string;
+                    created_by: string | null;
+                    density_g_per_l: number | null;
+                    drop_temp_celsius: number | null;
+                    duration_seconds: number | null;
+                    events: Json;
+                    heater_events: Json | null;
+                    id: string;
+                    machine_brand: string | null;
+                    machine_id: string | null;
+                    machine_name: string | null;
+                    machine_protocol: string | null;
+                    machine_roaster_key: string | null;
+                    moisture_pct: number | null;
+                    notes: string | null;
+                    output_weight_grams: number | null;
+                    plan_batch_id: string | null;
+                    profile_batch_number: number | null;
+                    profile_id: string | null;
+                    roast_level: string | null;
+                    roasted_at: string | null;
+                    scheduled_at: string | null;
+                    status: string;
+                    total_batch_number: number | null;
+                    tsv_path: string | null;
+                    updated_at: string;
+                    user_id: string;
+                    weight_grams: number;
+                };
+                SetofOptions: {
+                    from: '*';
+                    to: 'roast_sessions';
+                    isOneToOne: true;
+                    isSetofReturn: false;
+                };
+            };
+            upsert_roasted_inbound: {
+                Args: {
+                    p_grams: number;
+                    p_is_estimate: boolean;
+                    p_session_id: string;
+                    p_user_id: string;
+                };
+                Returns: undefined;
+            };
+            write_cupping_scorecards_batch: {
+                Args: {
+                    p_cards: Json;
+                    p_cupped_by: string;
+                    p_invite_id: string;
+                    p_participant_id: string;
+                    p_publish: boolean;
+                };
+                Returns: {
+                    created: boolean;
+                    cupped_at: string;
+                    id: string;
+                    sample_id: string;
+                    total_score: number;
+                }[];
             };
         };
         Enums: {

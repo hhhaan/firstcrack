@@ -387,6 +387,16 @@ export class MockDb {
         return batch;
     }
 
+    roastBatchCounters(userId: string) {
+        return Object.fromEntries([
+            ['total', 0],
+            ...[...this.batchCounters].flatMap(([scope, number]) => {
+                const [ownerId, profileId] = JSON.parse(scope);
+                return ownerId === userId ? [[profileId ?? 'total', number]] : [];
+            }),
+        ]);
+    }
+
     /**
      * Mirrors production save_roast_op C2: skip deduct when plan_batch already has roast event.
      */

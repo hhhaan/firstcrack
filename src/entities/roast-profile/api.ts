@@ -1,5 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Json, RoastProfile } from '@shared/types/database.types';
+import { z } from 'zod';
 import { type ProfileSource, registeredProfileSources } from './lib/source-candidates';
 
 type RoastProfileInsert = Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> & { sources?: ProfileSource[] };
@@ -68,6 +69,12 @@ const listProfiles = (userId: string, select: ProfileListSelect) =>
     supabase.from('roast_profiles').select(select).eq('user_id', userId).order('created_at', { ascending: false });
 
 export const roastProfileApi = {
+    batchCounters: async (userId: string) => {
+        const { data, error } = await supabase.rpc('get_roast_batch_counters', { p_user_id: userId });
+        if (error) throw error;
+        return z.record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)).parse(data);
+    },
+
     list: async (userId: string): Promise<RoastProfileWithSource[]> => {
         const select = omitSessionHeaterColumn ? SELECT_WITHOUT_SESSION_HEATER : SELECT_WITH_SESSION_HEATER;
         const first = await listProfiles(userId, select);

@@ -4,8 +4,10 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import type { RoastSourceCandidate } from '@entities/roast-profile';
 import { useRoastProfiles } from '@entities/roast-profile';
+import { automaticBatchTitle } from '@features/active-roast/lib/batch-title';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { selectReviewSnapshot } from '@features/active-roast/model/batch';
+import { useRoastSettings } from '@features/active-roast/model/settings';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
@@ -67,8 +69,7 @@ export const RoastHeader = ({
     const selectedBeanId = review ? review.selection.beanId : currentBeanId;
     const selectedBlendId = review ? review.selection.blendId : currentBlendId;
     const fallbackBeanName = review ? review.selection.beanName : currentBeanName;
-    const runningTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
-    const batchTitle = review?.selection.identity?.title ?? runningTitle;
+    const runningIdentity = useRoastingStore((state) => state.activeSelection?.identity);
     const runningSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
     const editingSessionId = review?.sessionId ?? runningSessionId;
     const charged = useRoastingStore((s) => isChargedPhase(s.phase));
@@ -79,11 +80,24 @@ export const RoastHeader = ({
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    const { batchTitleNumbering } = useRoastSettings();
+    const { data: dbProfiles = [], batchCounters } = useRoastProfiles(workspaceOwnerId);
+    const nextNumbers =
+        batchCounters && runningSessionId && sessionOwnerId === workspaceOwnerId
+            ? {
+                  profile_batch_number: targetProfileId ? (batchCounters[targetProfileId] ?? 0) + 1 : null,
+                  total_batch_number: (batchCounters.total ?? 0) + 1,
+              }
+            : undefined;
+    const batchTitle =
+        review?.selection.identity?.title ??
+        (runningIdentity && !runningIdentity.edited
+            ? automaticBatchTitle(runningIdentity, batchTitleNumbering, nextNumbers)
+            : runningIdentity?.title);
     const canSelectSource =
         !review && isWorkspaceReady && !!workspaceOwnerId && (!charged || sessionOwnerId === workspaceOwnerId);
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
-    const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
     const profileVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
     const visibleBeans = beans.filter((bean) => bean.id === selectedBeanId || !beanVisibility.hidden.has(bean.id));

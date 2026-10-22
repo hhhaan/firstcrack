@@ -118,6 +118,9 @@ export async function installMockSupabase(page: Page, db: MockDb) {
             if (fn === 'get_bean_reserved_stock') {
                 return json(route, 0);
             }
+            if (fn === 'get_roast_batch_counters') {
+                return json(route, db.roastBatchCounters(String(body.p_user_id)));
+            }
             if (fn === 'save_roast_op') {
                 const session = db.saveRoastOp({
                     session: (body.p_session as Record<string, unknown>) ?? {},

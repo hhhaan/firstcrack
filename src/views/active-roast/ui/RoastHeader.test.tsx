@@ -23,6 +23,7 @@ vi.mock('@entities/organization', () => ({
 const profileMutate = vi.hoisted(() => vi.fn());
 const savedTitle = vi.hoisted(() => ({ value: 'Saved roast' }));
 const updateSession = vi.hoisted(() => vi.fn());
+const previewNumbers = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@entities/roast', () => ({
     useRoastSession: () => ({ data: { batch_name: savedTitle.value } }),
     useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
@@ -35,6 +36,7 @@ vi.mock('@entities/profile', () => ({
 
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({
+        batchCounters: previewNumbers.enabled ? { 'prof-1': 2, 'prof-2': 7, total: 11 } : undefined,
         data: [
             { id: 'prof-1', name: 'One' },
             { id: 'prof-2', name: 'Two' },
@@ -53,6 +55,7 @@ vi.mock('react-i18next', () => ({
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 afterEach(() => {
+    previewNumbers.enabled = false;
     useRoastingStore.getState().reset();
     document.body.replaceChildren();
 });
@@ -260,6 +263,34 @@ describe('inline running title edits', () => {
         });
     });
     afterEach(() => act(() => root.unmount()));
+
+    it('previews cached profile counters and preserves edited titles across profile changes', () => {
+        previewNumbers.enabled = true;
+        act(() =>
+            root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' })),
+        );
+        expect(titleButton()?.textContent).toBe('마라닉 #3');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('마라닉');
+        click(titleButton());
+        expect(input()?.value).toBe('마라닉 #3');
+        act(() => input()?.blur());
+        expect(useRoastingStore.getState().activeSelection?.identity?.edited).not.toBe(true);
+        act(() =>
+            root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-2', selectedBeanId: 'bean-2' })),
+        );
+        expect(titleButton()?.textContent).toBe('마라닉 #8');
+        click(titleButton());
+        type('Morning roast');
+        press('Enter');
+        act(() =>
+            root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' })),
+        );
+        expect(titleButton()?.textContent).toBe('Morning roast');
+        click(titleButton());
+        type('');
+        press('Enter');
+        expect(titleButton()?.textContent).toBe('마라닉 #3');
+    });
 
     it.each(['Enter', 'blur'])('saves a clicked title on %s without renaming the bean', (commit) => {
         click(titleButton());

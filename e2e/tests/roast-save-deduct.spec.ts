@@ -81,11 +81,15 @@ test.describe('2c roast save with stock deduct', () => {
         await expect(page.getByTestId('roast-summary-save')).toBeHidden();
     });
 
-    test('assigns numbers only when saving the final profile and preserves them across title edits', async ({
+    test('uses cached profile counters and assigns numbers only when saving the final profile', async ({
         authedPage: page,
         db,
     }, testInfo) => {
         const bean = db.seedBean({ name: 'Lot', origin: '', stockGrams: 10_000 });
+        let counterReads = 0;
+        page.on('request', (request) => {
+            if (request.url().endsWith('/rpc/get_roast_batch_counters')) counterReads += 1;
+        });
         await page.route('**/rest/v1/roast_profiles?**', (route) =>
             route.fulfill({
                 json: ['a', 'b'].map((id) => ({
@@ -110,15 +114,18 @@ test.describe('2c roast save with stock deduct', () => {
         await selectProfile('Profile A');
         await page.getByTestId('roast-ready').click();
         await page.getByTestId('roast-charge').click();
-        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot #1', exact: true })).toBeVisible();
+        const cachedReads = counterReads;
+        expect(cachedReads).toBeGreaterThan(0);
         await selectProfile('Profile B');
-        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot #1', exact: true })).toBeVisible();
         await selectProfile('Profile A');
-        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot #1', exact: true })).toBeVisible();
         await selectProfile('Profile B');
-        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot #1', exact: true })).toBeVisible();
         await page.evaluate(() => window.__FC_E2E__?.remountRoast?.());
-        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot #1', exact: true })).toBeVisible();
+        expect(counterReads).toBe(cachedReads);
         expect(await page.evaluate(() => localStorage.getItem('roast.batchNumbers'))).toBeNull();
         await page.screenshot({ path: testInfo.outputPath('profile-batch-number.png') });
         await page.getByTestId('roast-end').click();

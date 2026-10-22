@@ -1,5 +1,5 @@
 import { supabase } from '@shared/lib/supabase';
-import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { Database, Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import type { BatchTitleNumbering } from '@shared/types/roast';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
@@ -8,7 +8,7 @@ const SELECT_WITH_RELATIONS =
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<
-    RoastSession,
+    Database['public']['Tables']['roast_sessions']['Insert'],
     | 'id'
     | 'created_at'
     | 'updated_at'
