@@ -456,7 +456,7 @@
                 "controlChart": "컨트롤 차트",
                 "controlChartDescription": "컨트롤 차트의 표시 항목과 축 범위. 차트 표시 여부는 데이터 표시에서 설정",
                 "mergeControlChart": "온도 차트에 합치기",
-                "mergeControlChartDescription": "켜면 컨트롤 곡선을 온도 차트에 겹쳐 표시합니다. 끄면 아래에 분리합니다.",
+                "mergeControlChartDescription": "켜면 컨트롤 곡선을 온도 차트 하단 25%에 겹쳐 표시합니다. 끄면 아래에 분리합니다.",
                 "controlDrum": "드럼",
                 "controlDrumDescription": "드럼 회전 속도(RPM)",
                 "controlHeat": "히터",

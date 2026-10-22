@@ -1485,6 +1485,41 @@ it.each([false, true])(
 );
 
 describe('merged control chart', () => {
+    it.each([
+        [0, 100],
+        [-20, 80],
+        [20, 80],
+    ])(
+        'fits control range %s–%s in the bottom quarter without changing temperature or RoR axes',
+        (controlYMin, controlYMax) => {
+            const params = {
+                ...baseParams(),
+                controlYMin,
+                controlYMax,
+                controlData: { xs: [0], drumTemp: [controlYMin], heatPower: [controlYMax], fanSpeed: [50] },
+            };
+            const merged = buildRoastChartOption({ ...params, mergeControlChart: true });
+            expect(merged.yAxis).toMatchObject([
+                { min: 50, max: 250 },
+                { min: -5, max: 20 },
+                { min: controlYMin },
+                { min: controlYMin },
+            ]);
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            try {
+                chart.setOption(merged);
+                const bottom = chart.convertToPixel({ yAxisIndex: 0 }, 50);
+                const height = bottom - chart.convertToPixel({ yAxisIndex: 0 }, 250);
+                for (const yAxisIndex of [2, 3]) {
+                    expect(chart.convertToPixel({ yAxisIndex }, controlYMin)).toBeCloseTo(bottom);
+                    expect(chart.convertToPixel({ yAxisIndex }, controlYMax)).toBeCloseTo(bottom - height * 0.25);
+                }
+            } finally {
+                chart.dispose();
+            }
+        },
+    );
+
     it.each(['C', 'F'] as const)(
         'renders all control curves on a shared time axis with independent values (%s)',
         (temperatureUnit) => {
@@ -1515,8 +1550,8 @@ describe('merged control chart', () => {
             expect(option.yAxis).toMatchObject([
                 { gridIndex: 0 },
                 { gridIndex: 0 },
-                { gridIndex: 0, min: 0, max: 100, splitLine: { show: false } },
-                { gridIndex: 0, min: 0, max: 100, splitLine: { show: false } },
+                { gridIndex: 0, min: 0, max: 400, splitLine: { show: false } },
+                { gridIndex: 0, min: 0, max: 400, splitLine: { show: false } },
             ]);
             expect(option.series).toEqual(
                 expect.arrayContaining(

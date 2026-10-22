@@ -456,7 +456,7 @@
                 "controlChart": "コントロールチャート",
                 "controlChartDescription": "コントロールチャートの表示項目と軸範囲。チャートの表示切替はデータ表示で設定。",
                 "mergeControlChart": "温度チャートに統合",
-                "mergeControlChartDescription": "オンにすると制御曲線を温度チャートに重ねます。オフにすると下に分離します。",
+                "mergeControlChartDescription": "オンにすると制御曲線を温度チャートの下部25%に重ねます。オフにすると下に分離します。",
                 "controlDrum": "ドラム",
                 "controlDrumDescription": "コントロールバンドのドラム RPM 系列",
                 "controlHeat": "ヒート",

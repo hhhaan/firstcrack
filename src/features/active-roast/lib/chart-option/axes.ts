@@ -8,6 +8,7 @@ import {
     CHART_GRID_TOP,
     CONTROL_GRID_BOTTOM,
     getControlGridLayout,
+    MERGED_CONTROL_HEIGHT_RATIO,
     SINGLE_GRID_BOTTOM,
     TEMP_Y_INTERVAL,
     TEMP_Y_LABEL_INTERVAL,
@@ -308,6 +309,10 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         yAxisPointer,
     } = params;
     const { tempGridHeight, controlGridTop } = getControlGridLayout(controlChartHeightPct);
+    // Expand the hidden axis so unchanged control values occupy only the bottom band.
+    const controlAxisMax = mergeControlChart
+        ? controlYMin + (controlYMax - controlYMin) / MERGED_CONTROL_HEIGHT_RATIO
+        : controlYMax;
 
     const grid = [
         {
@@ -405,7 +410,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisPointer: mergeControlChart ? yAxisPointerOff : yAxisPointer,
             splitLine: { show: !mergeControlChart, lineStyle: { color: colors.gridLine } },
             min: controlYMin,
-            max: controlYMax,
+            max: controlAxisMax,
         },
         {
             gridIndex: mergeControlChart ? 0 : 1,
@@ -420,7 +425,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             axisPointer: yAxisPointerOff,
             splitLine: { show: false },
             min: controlYMin,
-            max: controlYMax,
+            max: controlAxisMax,
         },
     ] as EChartsOption['yAxis'];
 
