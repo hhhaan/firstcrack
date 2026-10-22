@@ -172,6 +172,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         // Title is a snapshot of the bean name, then edited in History. Never re-derived from the bean.
         batch_name: formData.batchName?.trim() || resolvedBeanName,
         profile_id: payloadParams.targetProfileId,
+        batch_title_numbering: payloadParams.batchTitleNumbering ?? 'none',
         tsv_path: null,
         bbp_tsv_path: null,
         bbp_seconds: bbpSummary?.seconds ?? null,

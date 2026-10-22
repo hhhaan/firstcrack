@@ -1050,6 +1050,7 @@
     },
     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
     "history": {
+        "batchNumbers": { "label": "배치 번호" },
         "title": "Roast History",
         "subtitle": "{{count}}회 기록됨",
         "subtitleLoading": "불러오는 중...",
@@ -1301,7 +1302,7 @@
     "activeRoast": {
         "batchTitleSettings": {
             "title": "배치 제목의 번호",
-            "description": "이 기기·작업공간의 Charge 누적 번호입니다. 취소·폐기도 번호를 사용하며, 선택은 다음 배치부터 적용됩니다.",
+            "description": "저장할 때 번호를 확정하며, 같은 작업공간의 모든 기기에서 이어집니다. 취소·폐기한 로스팅은 번호를 사용하지 않습니다.",
             "profile": "프로파일 누적",
             "total": "전체 누적",
             "both": "프로파일 + 전체",

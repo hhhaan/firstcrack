@@ -15,6 +15,7 @@ import {
     readPendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
+import { getRoastSettings } from '@features/active-roast/model/settings';
 import { isChargedPhase, type RoastPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
@@ -90,6 +91,9 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const savedSessionId = snapshot?.sessionId ?? state.sessionId;
             const bbp = useBbpStore.getState().finalized;
             const forcedProfileId = savedProfileIdRef.current?.();
+            const identity = (snapshot?.selection ?? selection).identity;
+            const profileId =
+                forcedProfileId !== undefined ? forcedProfileId : (snapshot?.selection ?? selection).profileId;
             return {
                 formData: { ...formData, batchName: formData.batchName?.trim() || snapshot?.selection.identity?.title },
                 userId: snapshot?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
@@ -100,12 +104,8 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 ambientHumidity,
                 selectedBlendId: (snapshot ? snapshot.selection.blendId : selection.blendId) ?? null,
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
-                targetProfileId:
-                    forcedProfileId !== undefined
-                        ? forcedProfileId
-                        : snapshot
-                          ? snapshot.selection.profileId
-                          : selection.profileId,
+                targetProfileId: profileId,
+                batchTitleNumbering: identity?.edited ? 'none' : getRoastSettings().batchTitleNumbering,
                 planBatchHandoff: snapshot ? snapshot.selection.planBatchHandoff : selection.planBatchHandoff,
                 sessionId: savedSessionId,
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
@@ -180,6 +180,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     userId: ownerId,
                     formData: { ...baseParams.formData, ...formPatch },
                     logEntries: frozen?.logEntries ?? baseParams.logEntries,
+                    batchTitleNumbering:
+                        snapshot.selection.identity?.edited ||
+                        (formData.batchName?.trim() && formData.batchName.trim() !== snapshot.selection.identity?.title)
+                            ? 'none'
+                            : (baseParams.batchTitleNumbering ?? getRoastSettings().batchTitleNumbering),
                     ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
                 };
                 const pending = existing
@@ -191,6 +196,14 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 const saveStarted = Date.now();
                 const saveResult = await resumeSave(pending);
                 logger.debug('roast-save-stage', { stage: 'resume-save', ms: Date.now() - saveStarted });
+                if (saveResult.savedSession.batch_name)
+                    useRoastingStore
+                        .getState()
+                        .replaceReviewTitle(
+                            pending.params.sessionId ?? '',
+                            pending.params.userId,
+                            saveResult.savedSession.batch_name,
+                        );
                 const matched = useRoastingStore
                     .getState()
                     .saveSucceeded(pending.params.userId, pending.params.sessionId);

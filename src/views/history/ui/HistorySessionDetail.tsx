@@ -2,6 +2,7 @@ import { sessionBeanName } from '@entities/roast';
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
+import { sessionBatchNumberLabel } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { ChevronLeft, FileText, Package } from 'lucide-react';
@@ -57,6 +58,15 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                             <span className="text-[12px] text-secondary">{session.beans.origin}</span>
                         )}
                         {session.roast_level && <Badge tone="neutral">{session.roast_level}</Badge>}
+                        {sessionBatchNumberLabel(session) && (
+                            <span
+                                data-testid="history-batch-numbers"
+                                className="font-mono"
+                                title={t('history.batchNumbers.label')}
+                            >
+                                {sessionBatchNumberLabel(session)}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">

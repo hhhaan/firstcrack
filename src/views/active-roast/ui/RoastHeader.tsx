@@ -7,7 +7,6 @@ import { useRoastProfiles } from '@entities/roast-profile';
 import { DEFAULT_BEAN_KEY } from '@features/active-roast/lib/constants';
 import { selectReviewSnapshot } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
-import { useBatchNumber } from '@features/active-roast/model/useBatchNumber';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
@@ -64,7 +63,6 @@ export const RoastHeader = ({
 }) => {
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
-    useBatchNumber();
     const review = useRoastingStore(selectReviewSnapshot);
     const selectedBeanId = review ? review.selection.beanId : currentBeanId;
     const selectedBlendId = review ? review.selection.blendId : currentBlendId;

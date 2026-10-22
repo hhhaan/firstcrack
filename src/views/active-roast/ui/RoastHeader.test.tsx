@@ -16,8 +16,6 @@ vi.mock('@entities/bean/queries', () => ({
     }),
 }));
 
-vi.mock('@features/active-roast/model/useBatchNumber', () => ({ useBatchNumber: () => 1 }));
-
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'user-1', isWorkspaceReady: true }),
 }));
@@ -92,14 +90,13 @@ it.each([
     act(() => root.render(createElement(RoastHeader, { ...props, ...target, selectedBeanId: 'bean-1' })));
     expect(host.querySelector('span')?.textContent).toBe('Colombia Santander');
     act(() => {
-        const id = state.startCharge(undefined, 'user-1') ?? '';
-        state.assignBatchNumbers(id, 'user-1', 3, 10, 'profile', null);
+        state.startCharge(undefined, 'user-1');
     });
-    expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander #3');
+    expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander');
     expect(host.querySelector('input')).toBeNull();
     expect(host.querySelector('label')).toBeNull();
     expect(host.textContent).not.toContain('activeRoast.header.batchTitle');
-    expect(host.querySelector('span')?.textContent).toBe('Colombia Santander #3');
+    expect(host.querySelector('span')?.textContent).toBe('Colombia Santander');
     expect(host.querySelector('select')?.disabled).toBe(false);
     expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
     act(() => root.unmount());
@@ -108,7 +105,7 @@ it.each([
 it.each([
     { selectedBeanId: 'bean-2', selectedBlendId: null, name: '마라닉' },
     { selectedBeanId: null, selectedBlendId: 'blend-1', name: 'Modern' },
-])('keeps the source name separate from the numbered heading: $name', (source) => {
+])('shows the source name without a number before save: $name', (source) => {
     const state = useRoastingStore.getState();
     state.prepareWorkspace('user-1');
     if (source.selectedBlendId) state.prepareBlend(source.selectedBlendId, source.name);
@@ -116,16 +113,12 @@ it.each([
     const host = document.createElement('div');
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, { ...props, ...source })));
-    let sessionId = '';
     act(() => {
-        sessionId = state.startCharge(undefined, 'user-1') ?? '';
-        state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile', null);
+        state.startCharge(undefined, 'user-1');
     });
-    expect(host.querySelector('span')?.textContent).toBe(`${source.name} #3`);
+    expect(host.querySelector('span')?.textContent).toBe(`${source.name}`);
     expect(useRoastingStore.getState().prepared.beanName).toBe(source.name);
     expect(useRoastingStore.getState().activeSelection?.identity?.name).toBe(source.name);
-    act(() => state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile', null));
-    expect(host.querySelector('span')?.textContent).toBe(`${source.name} #3`);
     act(() => root.unmount());
 });
 
@@ -264,7 +257,6 @@ describe('inline running title edits', () => {
         act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-2' })));
         act(() => {
             sessionId = state.startCharge(undefined, 'user-1') ?? '';
-            state.assignBatchNumbers(sessionId, 'user-1', 3, 10, 'profile', null);
         });
     });
     afterEach(() => act(() => root.unmount()));
@@ -272,7 +264,7 @@ describe('inline running title edits', () => {
     it.each(['Enter', 'blur'])('saves a clicked title on %s without renaming the bean', (commit) => {
         click(titleButton());
         expect(input()).toBe(document.activeElement);
-        expect(input()?.value).toBe('마라닉 #3');
+        expect(input()?.value).toBe('마라닉');
         expect(input()?.maxLength).toBe(120);
         type('  Morning roast  ');
         if (commit === 'Enter') press('Enter');
@@ -280,7 +272,6 @@ describe('inline running title edits', () => {
         expect(input()).toBeNull();
         expect(titleButton()?.textContent).toBe('Morning roast');
         expect(useRoastingStore.getState().prepared.beanName).toBe('마라닉');
-        act(() => useRoastingStore.getState().assignBatchNumbers(sessionId, 'user-1', 4, 11, 'profile', null));
         expect(titleButton()?.textContent).toBe('Morning roast');
     });
 
@@ -289,7 +280,7 @@ describe('inline running title edits', () => {
         type('Discard me');
         press('Escape');
         expect(input()).toBeNull();
-        expect(titleButton()?.textContent).toBe('마라닉 #3');
+        expect(titleButton()?.textContent).toBe('마라닉');
         click(titleButton());
         type('Keep me');
         press('Enter');
@@ -301,15 +292,14 @@ describe('inline running title edits', () => {
         click(titleButton());
         type('  ');
         press('Enter');
-        expect(titleButton()?.textContent).toBe('마라닉 #3');
+        expect(titleButton()?.textContent).toBe('마라닉');
         expect(useRoastingStore.getState().activeSelection?.identity?.edited).toBe(false);
     });
 
-    it('keeps a late number allocation when an untouched editor is closed', () => {
+    it('keeps an automatic title when an untouched editor is closed', () => {
         click(titleButton());
-        act(() => useRoastingStore.getState().assignBatchNumbers(sessionId, 'user-1', 4, 11, 'profile', null));
         act(() => input()?.blur());
-        expect(titleButton()?.textContent).toBe('마라닉 #4');
+        expect(titleButton()?.textContent).toBe('마라닉');
         expect(useRoastingStore.getState().activeSelection?.identity?.edited).not.toBe(true);
     });
 
@@ -318,7 +308,7 @@ describe('inline running title edits', () => {
         type('아침 로스팅');
         press('Enter', true);
         expect(input()?.value).toBe('아침 로스팅');
-        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('마라닉 #3');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('마라닉');
         press('Enter');
         expect(titleButton()?.textContent).toBe('아침 로스팅');
     });
@@ -329,18 +319,17 @@ describe('inline running title edits', () => {
         act(() => {
             const state = useRoastingStore.getState();
             state.resetCurrentBatch();
-            const nextId = state.startCharge(undefined, 'user-1') ?? '';
-            state.assignBatchNumbers(nextId, 'user-1', 4, 11, 'profile', null);
+            state.startCharge(undefined, 'user-1');
         });
         expect(input()).toBeNull();
-        expect(titleButton()?.textContent).toBe('마라닉 #4');
+        expect(titleButton()?.textContent).toBe('마라닉');
     });
 
     it('does not edit a batch belonging to a different workspace', () => {
         act(() => useRoastingStore.setState({ sessionOwnerId: 'other' }));
         expect(titleButton()).toBeNull();
         expect(input()).toBeNull();
-        expect(host.querySelector('span')?.textContent).toBe('마라닉 #3');
+        expect(host.querySelector('span')?.textContent).toBe('마라닉');
     });
 
     const reviewSaved = () => {
@@ -377,7 +366,7 @@ describe('inline running title edits', () => {
         await act(async () => press('Enter'));
         expect(titleButton()?.textContent).toBe('Saved roast');
         expect(host.querySelector('[role="alert"]')?.textContent).toBe('history.edit.saveFailed');
-        expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.title).toBe('마라닉 #3');
+        expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.title).toBe('마라닉');
     });
 
     it('does not edit a snapshot belonging to another workspace', () => {

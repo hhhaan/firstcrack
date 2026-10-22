@@ -950,7 +950,7 @@
     "activeRoast": {
         "batchTitleSettings": {
             "title": "Batch title numbering",
-            "description": "Charge counts for this device and workspace, including canceled or discarded batches. Applies to the next batch.",
+            "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",
             "profile": "Profile total",
             "total": "Overall total",
             "both": "Profile + overall",
@@ -1385,6 +1385,7 @@
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
+        "batchNumbers": { "label": "Batch numbers" },
         "title": "Roast History",
         "subtitle": "{{count}} sessions recorded",
         "subtitleLoading": "Loading...",

@@ -1831,6 +1831,8 @@ export type Database = {
                     output_weight_grams: number | null;
                     plan_batch_id: string | null;
                     profile_id: string | null;
+                    profile_batch_number: number | null;
+                    total_batch_number: number | null;
                     roast_level: string | null;
                     roasted_at: string | null;
                     scheduled_at: string | null;
@@ -1871,6 +1873,8 @@ export type Database = {
                     output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
                     profile_id?: string | null;
+                    profile_batch_number?: number | null;
+                    total_batch_number?: number | null;
                     roast_level?: string | null;
                     roasted_at?: string | null;
                     scheduled_at?: string | null;
@@ -1911,6 +1915,8 @@ export type Database = {
                     output_weight_grams?: number | null;
                     plan_batch_id?: string | null;
                     profile_id?: string | null;
+                    profile_batch_number?: number | null;
+                    total_batch_number?: number | null;
                     roast_level?: string | null;
                     roasted_at?: string | null;
                     scheduled_at?: string | null;
@@ -2510,6 +2516,8 @@ export type Database = {
                     output_weight_grams: number | null;
                     plan_batch_id: string | null;
                     profile_id: string | null;
+                    profile_batch_number: number | null;
+                    total_batch_number: number | null;
                     roast_level: string | null;
                     roasted_at: string | null;
                     scheduled_at: string | null;

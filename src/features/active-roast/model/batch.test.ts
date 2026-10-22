@@ -38,14 +38,11 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 42, 100, 'both', 'profile-a');
-        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A #42 · Σ#100');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
         state.setRunningBatchTitle(id, 'Morning production');
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
-        state.assignBatchNumbers(id, 'owner', 42, 100, 'profile', 'profile-a');
         drop();
         expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Morning production');
-        state.assignBatchNumbers(id, 'owner', 42, 100, 'both', 'profile-a');
         state.cancelDrop();
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Morning production');
     });
@@ -55,77 +52,52 @@ describe('central batch ownership and transitions', () => {
         state.prepareWorkspace('owner');
         state.prepareBean('bean-a');
         const id = state.startCharge(undefined, 'owner') ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', null);
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
-        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander #3');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander');
         state.setRunningBatchTitle(id, 'Custom title');
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Huila' }, 'owner');
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Custom title');
         state.setRunningBatchTitle(id, '');
-        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Huila #3');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Huila');
         drop();
-        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Colombia Huila #3');
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Colombia Huila');
     });
 
     it('ignores names from a different source or workspace', () => {
         charge();
         const state = useRoastingStore.getState();
-        const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
         state.setSourceDisplayName({ beanId: 'bean-b', beanName: 'Other bean' }, 'owner');
         state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Other workspace' }, 'other');
         state.setSourceDisplayName({ beanId: 'bean-a', blendId: 'blend-a', beanName: 'Other blend' }, 'owner');
-        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A #3');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
         expect(useRoastingStore.getState().prepared.beanName).toBe('Lot A');
     });
 
-    it('keeps the blend name while reassigning its profile number', () => {
+    it('keeps the blend title when changing the profile before save', () => {
         const state = useRoastingStore.getState();
         state.prepareWorkspace('owner');
         state.prepareBlend('blend-a', 'Modern');
         state.commitProfile('profile-a', null, 'owner');
         const id = state.startCharge(undefined, 'owner') ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
         state.commitProfile('profile-b', id, 'owner');
-        expect(useRoastingStore.getState().activeSelection?.identity?.number).toBeUndefined();
-        state.assignBatchNumbers(id, 'owner', 7, 10, 'profile', 'profile-b');
         expect(useRoastingStore.getState().activeSelection?.identity).toMatchObject({
-            profileId: 'profile-b',
-            number: 7,
-            totalNumber: 10,
-            title: 'Modern #7',
+            title: 'Modern',
         });
-    });
-
-    it('rejects late allocations for a profile that was changed before Drop', () => {
-        charge();
-        const state = useRoastingStore.getState();
-        const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
-        state.commitProfile('profile-b', id, 'owner');
-        state.assignBatchNumbers(id, 'owner', 99, 10, 'profile', 'profile-a');
-        expect(useRoastingStore.getState().activeSelection?.identity?.number).toBeUndefined();
-        drop();
-        state.assignBatchNumbers(id, 'owner', 99, 10, 'profile', 'profile-a');
-        expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.number).toBeUndefined();
-        state.assignBatchNumbers(id, 'owner', 7, 10, 'profile', 'profile-b');
-        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Lot A #7');
     });
 
     it.each([
         { beanId: 'bean-b', blendId: null, beanName: 'New lot' },
         { beanId: null, blendId: 'blend-b', beanName: 'New blend' },
-    ])('corrects the running source without resetting the roast or its number: $beanName', (source) => {
+    ])('corrects the running source without resetting the roast: $beanName', (source) => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId;
-        state.assignBatchNumbers(id ?? '', 'owner', 3, 10, 'profile', 'profile-a');
         state.setRunningSource(source, id, 'owner');
         const next = useRoastingStore.getState();
         expect(next.activeSelection).toMatchObject({
             ...source,
             profileId: 'profile-a',
-            identity: { profileId: 'profile-a', number: 3, totalNumber: 10, title: `${source.beanName} #3` },
+            identity: { title: source.beanName },
         });
         expect(next.sessionId).toBe(id);
         expect(next.roastStartMs).toBe(state.roastStartMs);
@@ -142,14 +114,13 @@ describe('central batch ownership and transitions', () => {
         charge();
         const state = useRoastingStore.getState();
         const id = state.sessionId ?? '';
-        state.assignBatchNumbers(id, 'owner', 3, 10, 'profile', 'profile-a');
         state.setRunningBatchTitle(id, 'Morning production');
         state.setRunningSource({ beanId: null, blendId: 'blend-b', beanName: 'Blend' }, id, 'owner');
         state.setRunningSource({ beanId: 'bean-b', beanName: 'Bean' }, id, 'owner');
         expect(useRoastingStore.getState().activeSelection).toMatchObject({
             beanId: 'bean-b',
             blendId: null,
-            identity: { number: 3, name: 'Bean', title: 'Morning production', edited: true },
+            identity: { name: 'Bean', title: 'Morning production', edited: true },
         });
     });
 
@@ -170,6 +141,7 @@ describe('central batch ownership and transitions', () => {
             planBatchId: 'batch-a',
             planId: 'plan-a',
             beanId: 'bean-a',
+            blendId: null,
             beanName: 'Planned lot',
             profileId: 'profile-a',
             batchSizeKg: 1,
@@ -187,17 +159,6 @@ describe('central batch ownership and transitions', () => {
             handoffBeanName: 'Actual lot',
             planBatchHandoff: null,
         });
-    });
-
-    it('fills a late allocation after Drop without assigning it to the next batch', () => {
-        charge();
-        const id = useRoastingStore.getState().sessionId ?? '';
-        drop();
-        useRoastingStore.getState().startCharge(undefined, 'owner');
-        useRoastingStore.getState().assignBatchNumbers(id, 'owner', 7, 20, 'profile', 'profile-a');
-        const state = useRoastingStore.getState();
-        expect(state.completed?.snapshot.selection.identity?.number).toBe(7);
-        expect(state.activeSelection?.identity?.number).toBeUndefined();
     });
 
     it('publishes Charge identity, selection and log together, once for manual/auto duplicates', () => {

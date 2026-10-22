@@ -31,7 +31,11 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 
 An explicit source correction updates the active batch without replacing its session, number, curve or next preparation. Automatic titles follow the selected source; edited titles stay unchanged. Changing the source detaches the active schedule handoff so saving cannot restore the plan's original bean or blend. Completed snapshots remain unchanged.
 
-Changing the running reference profile selects that profile's reserved batch number. Switching A→B→A reuses A's reservation; the physical roast's overall number stays unchanged. Number assignments match owner, session and selected profile before updating running or completed data. Manual titles stay unchanged when numbers change. These reservations are device-local; independent number fields in saved History remain a separate persistence task (see [batch-number research](roast-batch-numbering-research.md)).
+Live batch titles contain only the selected source name or an edited title. No number is reserved at Charge, profile changes, Drop, or discard. `save_roast_op` assigns the final workspace-wide and workspace/profile sequences inside its transaction. Independent nullable `roast_sessions.profile_batch_number` and `total_batch_number` survive title edits and hidden title numbering. A missing profile has no profile number. Counters start from the existing completed-record counts; existing records themselves keep null numbers. Never backfill from title suffixes (see [batch-number research](roast-batch-numbering-research.md)).
+
+The pending checkpoint preserves form data and the title-numbering preference, not allocated numbers. Manual titles use `none`; automatic titles receive the requested suffix during the same server save. Live save and recovery share the existing idempotent session UUID; retrying an existing session returns its committed title and numbers. Failed saves roll back the counters, and deleting a saved roast does not recycle its numbers. There is no local number ledger, reservation queue, or delayed checkpoint enrichment. Offline saves remain pending until the database can assign numbers.
+
+History renders its profile as read-only. The update payload excludes `profile_id` and both number fields; a database trigger also rejects changes to completed identities. Existing profile deletion may still clear the reference via its foreign key without changing the saved numbers. History list/detail/compare and PDF read the saved metadata; CSV exports independent numeric columns. Raw curve TSV stays unchanged and is associated through the session UUID.
 
 Drop/End atomically capture summary, owner, selection, charge origin, curve/logs and machine context, then release the running session into Charge wait. Drop additionally retains the cancel snapshot and pre-Drop Replay state. Cancel restores the same session and frozen elapsed time; next Charge or submission locks cancellation. The view reducer owns modal visibility only, not completed data.
 
@@ -79,6 +83,10 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 - Connected machine is snapshotted onto `roast_sessions` (`machine_id` TEXT + name/brand/protocol/`roaster_key`). Local `fc_machines` ids are not a FK. Profile-from-session copies the same columns.
 
 ---
+
+## Batch-number migration verification (2026-10-22)
+
+The historical chain cannot bootstrap an empty database: placeholder migrations omit the original tables, so `20260510200500_enable_rls.sql` fails with `relation public.beans does not exist`. Validate the new migration using `supabase db reset --local` against an isolated pre-change public-schema snapshot. This tests the new migration against that snapshot, not replay of the complete historical chain. The isolated reset and `supabase/tests/roast_batch_numbers.sql` passed authenticated saves, retry identity, counter rollback, immutable metadata, title modes, legacy nulls and stock invariants. `python3 supabase/tests/roast_batch_numbers_concurrency.py <local-db-container>` passed six concurrent distinct saves and six same-UUID retries. Security advisors returned no errors. Public database types were regenerated locally; the new fields match the existing table/save return shapes (the record-update return already aliases the row). Snapshot-only role defaults were omitted and application signup triggers restored for the isolated check. Production migration application stays on the release path.
 
 ## Stock side-effects
 

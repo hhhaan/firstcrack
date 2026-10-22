@@ -2,7 +2,7 @@ import type { MachineSnapshot } from '@entities/machine';
 import { formatElapsed } from '@shared/lib/format';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
-import { automaticBatchTitle, type BatchTitleNumbering, type RoastBatchIdentity } from '../lib/batch-title';
+import { automaticBatchTitle, type RoastBatchIdentity } from '../lib/batch-title';
 import { buildDropSummary, type DropOnset, planDropTransition } from '../lib/drop-transition';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -269,11 +269,6 @@ export const createBatchActions = (
         if (state.sessionId !== expectedSessionId || state.prepared.workspaceOwnerId !== expectedWorkspaceOwnerId)
             return false;
         const activeSelection = state.activeSelection ? { ...state.activeSelection, profileId } : null;
-        if (activeSelection?.identity && activeSelection.identity.profileId !== profileId) {
-            activeSelection.identity = { ...activeSelection.identity, profileId, number: undefined };
-            if (!activeSelection.identity.edited)
-                activeSelection.identity.title = automaticBatchTitle(activeSelection.identity);
-        }
         set({
             prepared: {
                 ...state.prepared,
@@ -380,50 +375,6 @@ export const createBatchActions = (
         }
         if (Object.keys(patch).length) set(patch);
     },
-    assignBatchNumbers: (
-        sessionId: string,
-        ownerId: string,
-        number: number,
-        totalNumber: number | null,
-        numbering: BatchTitleNumbering,
-        profileId: string | null,
-    ) => {
-        const state = get();
-        const assign = (selection: RoastSelection): RoastSelection => {
-            const identity: RoastBatchIdentity = {
-                name: selection.beanName,
-                ...selection.identity,
-                profileId,
-                number,
-                totalNumber,
-                numbering,
-            };
-            if (!identity.edited) identity.title = automaticBatchTitle(identity);
-            return { ...selection, identity };
-        };
-        const patch: Partial<BatchState> = {};
-        if (
-            state.sessionId === sessionId &&
-            state.sessionOwnerId === ownerId &&
-            state.activeSelection?.profileId === profileId
-        )
-            patch.activeSelection = assign(state.activeSelection);
-        const completed = state.completed;
-        if (
-            completed?.snapshot.sessionId === sessionId &&
-            completed.snapshot.sessionOwnerId === ownerId &&
-            completed.snapshot.selection.profileId === profileId
-        ) {
-            const selection = assign(completed.snapshot.selection);
-            patch.completed = {
-                ...completed,
-                snapshot: { ...completed.snapshot, selection },
-                summary: completed.summary ? { ...completed.summary, batchName: selection.identity?.title } : null,
-                restore: completed.restore ? { ...completed.restore, selection } : null,
-            };
-        }
-        if (Object.keys(patch).length) set(patch);
-    },
     setRunningBatchTitle: (sessionId: string, title: string) => {
         const state = get();
         const selection = state.activeSelection;
@@ -450,9 +401,8 @@ export const createBatchActions = (
             activeSelection: {
                 ...copySelection(state.prepared),
                 identity: {
-                    profileId: state.prepared.profileId,
                     name: state.prepared.beanName,
-                    numbering: 'profile',
+                    title: automaticBatchTitle({ name: state.prepared.beanName }),
                 },
             },
             livePoints: [],
@@ -625,9 +575,7 @@ export const createBatchActions = (
             return;
         const selection = completed.snapshot.selection;
         const identity = selection.identity ?? {
-            profileId: selection.profileId,
             name: selection.beanName,
-            numbering: 'none' as const,
         };
         set({
             completed: {

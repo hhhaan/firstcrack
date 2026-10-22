@@ -1,6 +1,6 @@
+import type { BatchTitleNumbering } from '@shared/types/roast';
 import type { AlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
-import type { BatchTitleNumbering } from '../lib/batch-title';
 import type { CurveStyles } from '../lib/curve-style';
 import type { RoastEventButtons } from '../lib/event-buttons';
 import type { TemperatureUnit } from '../lib/temperature';

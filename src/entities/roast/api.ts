@@ -1,5 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { BatchTitleNumbering } from '@shared/types/roast';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
@@ -8,14 +9,27 @@ const SELECT_WITH_RELATIONS =
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<
     RoastSession,
-    'id' | 'created_at' | 'updated_at' | 'created_by' | 'heater_events' | 'batch_name'
+    | 'id'
+    | 'created_at'
+    | 'updated_at'
+    | 'created_by'
+    | 'heater_events'
+    | 'batch_name'
+    | 'profile_batch_number'
+    | 'total_batch_number'
 > & {
     /** Client session uuid — save_roast_op idempotency key. Omit → server generates. */
     id?: string;
     batch_name?: string | null;
+    batch_title_numbering?: BatchTitleNumbering;
     created_by?: string | null;
 };
-type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
+type RoastSessionUpdate = { id: string } & Partial<
+    Omit<
+        RoastSession,
+        'id' | 'created_at' | 'updated_at' | 'user_id' | 'profile_id' | 'profile_batch_number' | 'total_batch_number'
+    >
+>;
 
 interface PaginatedParams {
     userId: string;

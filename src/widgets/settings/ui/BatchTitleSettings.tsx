@@ -1,5 +1,5 @@
-import type { BatchTitleNumbering } from '@features/active-roast/lib/batch-title';
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import type { BatchTitleNumbering } from '@shared/types/roast';
 import { useTranslation } from 'react-i18next';
 import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';

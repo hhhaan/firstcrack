@@ -272,6 +272,11 @@ export async function installMockSupabase(page: Page, db: MockDb) {
         }
 
         if (table === 'roast_sessions') {
+            if (method === 'PATCH') {
+                const row = db.sessions.find((s) => s.id === params.id?.replace('eq.', ''));
+                if (row && body && typeof body === 'object') Object.assign(row, body);
+                return json(route, row ?? null);
+            }
             if (method === 'GET') {
                 const userId = params['user_id']?.replace('eq.', '') ?? E2E_USER.id;
                 let rows = db.sessions.filter((s) => s.user_id === userId);

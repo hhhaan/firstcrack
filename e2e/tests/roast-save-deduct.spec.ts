@@ -12,7 +12,7 @@ test.describe('2c roast save with stock deduct', () => {
         );
     });
 
-    test('edits the numbered title and changes beans independently', async ({ authedPage: page, db }, testInfo) => {
+    test('edits an unnumbered title and changes beans independently', async ({ authedPage: page, db }, testInfo) => {
         const bean = db.seedBean({
             name: 'Santander Cooperative',
             origin: 'Colombia',
@@ -20,12 +20,6 @@ test.describe('2c roast save with stock deduct', () => {
             stockGrams: 10_000,
         });
         const otherBean = db.seedBean({ name: '마라닉', origin: '', stockGrams: 10_000 });
-        await page.evaluate((ownerId) => {
-            localStorage.setItem(
-                'roast.batchNumbers',
-                JSON.stringify({ counters: { [JSON.stringify([ownerId, null])]: 2 }, sessions: {} }),
-            );
-        }, E2E_USER.id);
         await page.reload();
         await goNav(page, 'roast');
         await page
@@ -35,12 +29,12 @@ test.describe('2c roast save with stock deduct', () => {
         await page.getByTestId('roast-ready').click();
         await page.getByTestId('roast-charge').click();
         const title = page.getByRole('textbox', { name: 'Roast title', exact: true });
-        const automaticTitle = page.getByRole('button', { name: 'Colombia Santander #3', exact: true });
+        const automaticTitle = page.getByRole('button', { name: 'Colombia Santander', exact: true });
         await expect(automaticTitle).toBeVisible();
         await expect(title).toHaveCount(0);
         await automaticTitle.click();
         await expect(title).toBeFocused();
-        await expect(title).toHaveValue('Colombia Santander #3');
+        await expect(title).toHaveValue('Colombia Santander');
         await title.fill('Morning production');
         await title.press('Enter');
         const editedTitle = page.getByRole('button', { name: 'Morning production', exact: true });
@@ -59,7 +53,7 @@ test.describe('2c roast save with stock deduct', () => {
         await source.click();
         await source.press('Escape');
         await source.selectOption(otherBean.id);
-        const otherAutomaticTitle = page.getByRole('button', { name: '마라닉 #3', exact: true });
+        const otherAutomaticTitle = page.getByRole('button', { name: '마라닉', exact: true });
         await expect(otherAutomaticTitle).toBeVisible();
         await otherAutomaticTitle.click();
         await title.fill('Morning production');
@@ -82,11 +76,12 @@ test.describe('2c roast save with stock deduct', () => {
         expect((await saveRequest).postDataJSON().p_session).toMatchObject({
             bean_id: otherBean.id,
             batch_name: 'Morning production',
+            batch_title_numbering: 'none',
         });
         await expect(page.getByTestId('roast-summary-save')).toBeHidden();
     });
 
-    test('switches live profile numbers while keeping the physical roast total', async ({
+    test('assigns numbers only when saving the final profile and preserves them across title edits', async ({
         authedPage: page,
         db,
     }, testInfo) => {
@@ -105,19 +100,6 @@ test.describe('2c roast save with stock deduct', () => {
                 })),
             }),
         );
-        await page.evaluate((ownerId) => {
-            localStorage.setItem(
-                'roast.batchNumbers',
-                JSON.stringify({
-                    counters: {
-                        [JSON.stringify([ownerId, 'a'])]: 4,
-                        [JSON.stringify([ownerId, 'b'])]: 8,
-                        [JSON.stringify([ownerId, null, 'total'])]: 12,
-                    },
-                    sessions: {},
-                }),
-            );
-        }, E2E_USER.id);
         await page.reload();
         await goNav(page, 'roast');
         await page.getByRole('combobox', { name: 'Green Bean', exact: true }).selectOption(bean.id);
@@ -125,37 +107,47 @@ test.describe('2c roast save with stock deduct', () => {
             await page.getByRole('button', { name: 'Target:', exact: true }).click();
             await page.getByRole('button', { name, exact: true }).click();
         };
-        const reservation = () =>
-            page.evaluate(() => {
-                const ledger = JSON.parse(localStorage.getItem('roast.batchNumbers') ?? '{}');
-                return Object.values(ledger.sessions)[0];
-            });
         await selectProfile('Profile A');
         await page.getByTestId('roast-ready').click();
         await page.getByTestId('roast-charge').click();
-        await expect(page.getByRole('button', { name: 'Lot #5', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
         await selectProfile('Profile B');
-        await expect(page.getByRole('button', { name: 'Lot #9', exact: true })).toBeVisible();
-        await expect.poll(reservation).toMatchObject({
-            scope: JSON.stringify([E2E_USER.id, 'b']),
-            number: 9,
-            totalNumber: 13,
-        });
+        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
         await selectProfile('Profile A');
-        await expect(page.getByRole('button', { name: 'Lot #5', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
         await selectProfile('Profile B');
-        await expect(page.getByRole('button', { name: 'Lot #9', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
         await page.evaluate(() => window.__FC_E2E__?.remountRoast?.());
-        await expect(page.getByRole('button', { name: 'Lot #9', exact: true })).toBeVisible();
-        await expect.poll(reservation).toMatchObject({ number: 9, totalNumber: 13 });
+        await expect(page.getByRole('button', { name: 'Lot', exact: true })).toBeVisible();
+        expect(await page.evaluate(() => localStorage.getItem('roast.batchNumbers'))).toBeNull();
         await page.screenshot({ path: testInfo.outputPath('profile-batch-number.png') });
         await page.getByTestId('roast-end').click();
         await page.getByTestId('end-roast-confirm').click();
         await page.getByTestId('roast-summary-weight').fill('2');
         const saveRequest = page.waitForRequest('**/rest/v1/rpc/save_roast_op');
         await page.getByTestId('roast-summary-save').click();
-        expect((await saveRequest).postDataJSON().p_session).toMatchObject({ profile_id: 'b', batch_name: 'Lot #9' });
+        expect((await saveRequest).postDataJSON().p_session).toMatchObject({
+            profile_id: 'b',
+            batch_name: 'Lot',
+            batch_title_numbering: 'profile',
+        });
         await expect(page.getByTestId('roast-summary-save')).toBeHidden();
+        await goNav(page, 'history');
+        await expect(page.getByTestId('history-open-row')).toContainText('#1 · Σ#1');
+        await page.getByTestId('history-open-row').first().click();
+        await expect(page.getByTestId('history-profile')).toBeVisible();
+        expect(db.sessions[0].profile_id).toBe('b');
+        await expect(page.locator('select[data-testid="history-profile"]')).toHaveCount(0);
+        await expect(page.getByTestId('history-batch-numbers')).toHaveText('#1 · Σ#1');
+        await page.getByTestId('history-record-title').click();
+        await page.getByTestId('history-record-title').fill('Renamed roast');
+        await page.getByTestId('history-record-title').press('Enter');
+        await expect(page.getByTestId('history-record-title')).toHaveText('Renamed roast');
+        await expect(page.getByTestId('history-batch-numbers')).toHaveText('#1 · Σ#1');
+        await page.screenshot({ path: testInfo.outputPath('saved-batch-numbers.png') });
+        await page.reload();
+        await goNav(page, 'history');
+        await expect(page.getByTestId('history-open-row')).toContainText('#1 · Σ#1');
     });
 
     test('save with deduct → history session + green stock down', async ({ authedPage: page, db }) => {

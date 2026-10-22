@@ -9,7 +9,6 @@ import {
     useSetOutputWeight,
     useUpdateRoastSession,
 } from '@entities/roast';
-import { useRoastProfiles } from '@entities/roast-profile';
 import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
@@ -35,12 +34,11 @@ const isKnownLevel = (level: string): level is (typeof ROAST_LEVELS)[number] =>
 const frozenTitleFor = (session: RoastSessionWithRelations): string | null =>
     session.batch_name?.trim() ? null : session.bean_label?.trim() || session.beans?.name?.trim() || null;
 
-/** History edit of the linked green bean, its origin, linked profile, and roast level. */
+/** History edits retain the profile and numbers fixed at save. */
 export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
     const qc = useQueryClient();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const { data: profiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const authUserId = useAuthStore((state) => state.user?.id ?? '');
     const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, workspaceOwnerId, 'beans');
@@ -56,14 +54,12 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     const beanLocked = stockRecorded || stockCheckPending;
     const storedOrigin = session.beans?.origin ?? '';
     const [origin, setOrigin] = useState(storedOrigin);
-    const [profileId, setProfileId] = useState(session.profile_id ?? '');
     const [level, setLevel] = useState(session.roast_level ?? '');
 
     useEffect(() => {
         setOrigin(storedOrigin);
-        setProfileId(session.profile_id ?? '');
         setLevel(session.roast_level ?? '');
-    }, [storedOrigin, session.profile_id, session.roast_level]);
+    }, [storedOrigin, session.roast_level]);
 
     const beanOptions = useMemo(() => {
         const visible = beans
@@ -75,13 +71,6 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         return visible;
     }, [beans, hiddenBeans, session.bean_id, session.beans?.name]);
 
-    const profileOptions = profiles.map((profile) => ({ id: profile.id, name: profile.name }));
-    if (session.profile_id && !profileOptions.some((profile) => profile.id === session.profile_id)) {
-        profileOptions.unshift({
-            id: session.profile_id,
-            name: session.roast_profiles?.name || session.profile_id,
-        });
-    }
     const levelOptions = [...ROAST_LEVELS] as string[];
     if (session.roast_level && !isKnownLevel(session.roast_level)) levelOptions.unshift(session.roast_level);
 
@@ -136,16 +125,6 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
             });
         } catch {
             // Keep the typed text; the next refetch restores the stored label.
-        }
-    };
-
-    const commitProfile = async (raw: string) => {
-        const next = raw === '' ? null : raw;
-        if (next === session.profile_id || !canWrite) return;
-        try {
-            await updateSession({ id: session.id, profile_id: next });
-        } catch {
-            setProfileId(session.profile_id ?? '');
         }
     };
 
@@ -238,28 +217,14 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                 )}
             </div>
             <div>
-                <label htmlFor={`history-profile-${session.id}`} className={labelCls}>
-                    {t('history.table.profile')}
-                </label>
-                <FormSelect
+                <span className={labelCls}>{t('history.table.profile')}</span>
+                <p
                     id={`history-profile-${session.id}`}
                     data-testid="history-profile"
-                    aria-label={t('history.table.profile')}
-                    value={profileId}
-                    disabled={busy || !canWrite}
-                    onChange={(e) => {
-                        setProfileId(e.target.value);
-                        void commitProfile(e.target.value);
-                    }}
-                    className="py-1.5 text-[13px]"
+                    className="m-0 text-[13px] text-secondary"
                 >
-                    <option value="">—</option>
-                    {profileOptions.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                            {profile.name}
-                        </option>
-                    ))}
-                </FormSelect>
+                    {session.roast_profiles?.name || '—'}
+                </p>
             </div>
             <div>
                 <label htmlFor={`history-level-${session.id}`} className={labelCls}>

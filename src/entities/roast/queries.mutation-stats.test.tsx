@@ -171,10 +171,6 @@ describe('roast mutations refresh profile stats', () => {
 
     it('patches the history page before the server answers', async () => {
         qc.setQueryData(pageKey, { data: [row], total: 1 });
-        qc.setQueryData(
-            [...roastProfileQueryRoots.profiles, uid],
-            [{ id: 'p1', name: 'Washed', target_level: 'Light' }],
-        );
         let release: (() => void) | undefined;
         const gate = () =>
             new Promise<void>((resolve) => {
@@ -190,12 +186,12 @@ describe('roast mutations refresh profile stats', () => {
 
         let pending: Promise<unknown> = Promise.resolve();
         await act(async () => {
-            pending = latest.update.mutateAsync({ id: 's1', notes: 'next', profile_id: 'p1' });
+            pending = latest.update.mutateAsync({ id: 's1', notes: 'next' });
         });
         for (let i = 0; i < 20 && pageRow().notes !== 'next'; i++) await flush();
         expect(pageRow().notes).toBe('next');
-        expect(pageRow().profile_id).toBe('p1');
-        expect(pageRow().roast_profiles).toEqual({ name: 'Washed', target_level: 'Light' });
+        expect(pageRow().profile_id).toBe(row.profile_id);
+        expect(pageRow().roast_profiles).toEqual(row.roast_profiles);
 
         await act(async () => {
             release?.();
