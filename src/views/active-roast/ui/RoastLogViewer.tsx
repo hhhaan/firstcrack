@@ -18,7 +18,7 @@ export const RoastLogViewer = ({
     const { t } = useTranslation();
     const active = showReference && reference != null;
     return (
-        <>
+        <div>
             {reference && (
                 <div
                     role="group"
@@ -64,6 +64,6 @@ export const RoastLogViewer = ({
             ) : (
                 <RoastLog {...current} />
             )}
-        </>
+        </div>
     );
 };
