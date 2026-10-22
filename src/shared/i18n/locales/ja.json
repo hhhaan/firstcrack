@@ -447,6 +447,8 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR 最小",
                 "rorAxisMax": "RoR 最大",
+                "rorGridInterval": "RoR 目盛り間隔",
+                "rorGridIntervalCapped": "この範囲では目盛りが上限の{{maxTicks}}本を超えるため、目盛りを間引いて{{effective}}{{suffix}}間隔で表示します。保存した{{requested}}{{suffix}}設定は変わりません。",
                 "horizontalGridInterval": "横補助線の間隔",
                 "rorNumberMode": "RoRの数値表示",
                 "rorTickList": "RoR を指定",

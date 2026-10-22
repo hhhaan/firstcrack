@@ -27,13 +27,14 @@ import {
     useEffectivePollIntervalMs,
     useRoastSettings,
 } from '@features/active-roast';
+import { ROR_AXIS_MAX_TICKS, resolveRorAxisInterval } from '@features/active-roast/lib/chart-option/ror-axis-interval';
 import { parseRorTicks, parseTemperatureTicks } from '@features/active-roast/lib/temperature';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { Badge } from '@shared/ui/Badge';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { Lock, Play } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
 import { BatchTitleSettings } from './BatchTitleSettings';
@@ -607,6 +608,13 @@ const RorTickSection = () => {
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
     const roastSettings = useRoastSettings();
     const unit = roastSettings.temperatureUnit;
+    const suffix = rorUnitLabel(unit);
+    const intervalCap = useMemo(() => {
+        if (roastSettings.rorTickMode === 'list') return null;
+        const minDisplay = Number(toDisplayRoR(roastSettings.rorYMin, unit).toFixed(6));
+        const maxDisplay = Number(toDisplayRoR(roastSettings.rorYMax, unit).toFixed(6));
+        return resolveRorAxisInterval(minDisplay, maxDisplay, roastSettings.rorLabelInterval, unit);
+    }, [roastSettings.rorTickMode, roastSettings.rorYMin, roastSettings.rorYMax, roastSettings.rorLabelInterval, unit]);
     return (
         <div className="grid gap-3">
             <TickModeTabs
@@ -623,11 +631,21 @@ const RorTickSection = () => {
                 aria-labelledby={`roast-ror-mode-${roastSettings.rorTickMode}`}
             >
                 {roastSettings.rorTickMode === 'list' ? (
-                    <RorTickListField unit={unit} suffix={rorUnitLabel(unit)} />
+                    <RorTickListField unit={unit} suffix={suffix} />
                 ) : (
                     <RorLabelIntervalRow />
                 )}
             </div>
+            {intervalCap?.capped && (
+                <p className={settingsOptionDescCls}>
+                    {t('settings.tabs.roast.rorGridIntervalCapped', {
+                        effective: intervalCap.displayInterval,
+                        requested: Number(intervalCap.requestedDisplayInterval.toFixed(6)),
+                        suffix,
+                        maxTicks: ROR_AXIS_MAX_TICKS,
+                    })}
+                </p>
+            )}
         </div>
     );
 };

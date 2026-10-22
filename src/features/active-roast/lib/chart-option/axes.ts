@@ -19,6 +19,7 @@ import { toDisplayRoR, toDisplayTemp, toDisplayTempDelta } from '@features/activ
 import { formatElapsed } from '@shared/lib/format';
 import type { EChartsOption } from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
+import { alignRorAxisBound, resolveRorAxisInterval } from './ror-axis-interval';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
 
 export const fmtSec = (v: number) => `${v < 0 ? '-' : ''}${formatElapsed(Math.abs(v))}`;
@@ -147,39 +148,51 @@ export const applyChartAxisSettings = (
         ? toDisplayTempDelta(settings.horizontalGridInterval, temperatureUnit)
         : 0;
     if (rorAxis?.type === 'value') {
-        const numberInterval = toDisplayRoR(settings.rorLabelInterval ?? 5, temperatureUnit);
+        const storedIntervalC = settings.rorLabelInterval ?? 5;
         rorAxis.splitLine = { ...rorAxis.splitLine, show: false };
-        if (numberInterval > 0) {
-            rorAxis.interval = numberInterval;
-            rorAxis.minInterval = numberInterval;
-            rorAxis.maxInterval = numberInterval;
-            const pointer = rorAxis.axisPointer;
-            if (pointer && typeof pointer === 'object') {
-                pointer.label = {
-                    ...pointer.label,
-                    formatter: (p: { value: unknown }) => {
-                        const n = Number(p.value);
-                        if (!Number.isFinite(n)) return '';
-                        return formatTick(Math.round(n / numberInterval) * numberInterval);
-                    },
-                };
-            }
-        }
         const ticks = settings.rorTicksC?.map((value) => Number(toDisplayRoR(value, temperatureUnit).toFixed(6)));
         const customValues = ticks?.length ? ticks : undefined;
         rorAxis.axisTick = { ...rorAxis.axisTick, customValues, show: Boolean(customValues) };
         rorAxis.axisLabel = { ...rorAxis.axisLabel, customValues, hideOverlap: true, verticalAlign: 'middle' };
         if (customValues) {
             rorAxis.axisLabel.formatter = formatTick;
-        } else if (numberInterval > 0) {
-            const step = numberInterval;
-            rorAxis.axisLabel = {
-                ...rorAxis.axisLabel,
-                customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
-                hideOverlap: true,
-                verticalAlign: 'middle',
-                formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
-            };
+        } else {
+            const minDisplay = Number(rorAxis.min);
+            const maxDisplay = Number(rorAxis.max);
+            const { displayInterval } = resolveRorAxisInterval(
+                minDisplay,
+                maxDisplay,
+                storedIntervalC,
+                temperatureUnit,
+            );
+            if (displayInterval > 0) {
+                rorAxis.interval = displayInterval;
+                rorAxis.minInterval = displayInterval;
+                rorAxis.maxInterval = displayInterval;
+                const pointer = rorAxis.axisPointer;
+                if (pointer && typeof pointer === 'object') {
+                    pointer.label = {
+                        ...pointer.label,
+                        formatter: (p: { value: unknown }) => {
+                            const n = Number(p.value);
+                            if (!Number.isFinite(n)) return '';
+                            return formatTick(Math.round(n / displayInterval) * displayInterval);
+                        },
+                    };
+                }
+                if (Number.isFinite(minDisplay) && Number.isFinite(maxDisplay)) {
+                    rorAxis.min = alignRorAxisBound(minDisplay, displayInterval, 'min');
+                    rorAxis.max = alignRorAxisBound(maxDisplay, displayInterval, 'max');
+                }
+                const step = displayInterval;
+                rorAxis.axisLabel = {
+                    ...rorAxis.axisLabel,
+                    customValues: ticksFromInterval(Number(rorAxis.min), Number(rorAxis.max), step),
+                    hideOverlap: true,
+                    verticalAlign: 'middle',
+                    formatter: (value: number) => (matchesTick(value, step) ? formatTick(value) : ''),
+                };
+            }
         }
     }
     for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {

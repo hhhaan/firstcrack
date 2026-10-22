@@ -447,6 +447,8 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR 최소",
                 "rorAxisMax": "RoR 최대",
+                "rorGridInterval": "RoR 눈금 간격",
+                "rorGridIntervalCapped": "이 범위는 눈금 한도({{maxTicks}}개)를 넘어서므로 눈금을 줄여 차트에 {{effective}}{{suffix}} 간격을 씁니다. 저장된 {{requested}}{{suffix}} 설정은 그대로입니다.",
                 "horizontalGridInterval": "가로 보조선 간격",
                 "rorNumberMode": "RoR 숫자 표시",
                 "rorTickList": "특정 RoR 지정",

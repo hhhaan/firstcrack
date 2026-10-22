@@ -447,6 +447,8 @@
                 "axisRoR": "RoR",
                 "rorAxisMin": "RoR minimum",
                 "rorAxisMax": "RoR maximum",
+                "rorGridInterval": "RoR tick interval",
+                "rorGridIntervalCapped": "This range would need more than the {{maxTicks}}-tick limit, so ticks were thinned and the chart uses {{effective}}{{suffix}} spacing. Your {{requested}}{{suffix}} setting is unchanged.",
                 "horizontalGridInterval": "Horizontal grid interval",
                 "rorNumberMode": "RoR labels",
                 "rorTickList": "Specific RoR values",
