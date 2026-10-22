@@ -148,7 +148,7 @@ describe('SummaryMetaEditor', () => {
         expect(input.value).toBe('Ethiopia');
     });
 
-    it('shows the saved profile without an editable control', async () => {
+    it('shows the saved profile with its profile batch number without an editable control', async () => {
         await render({
             ...session,
             profile_id: 'p1',
@@ -157,9 +157,20 @@ describe('SummaryMetaEditor', () => {
             total_batch_number: 13,
         });
         const profile = host.querySelector('[data-testid="history-profile"]');
-        expect(profile?.textContent).toBe('Profile A');
+        expect(profile?.textContent).toBe('Profile A #9');
         expect(profile?.tagName).toBe('P');
         expect(updateSession).not.toHaveBeenCalled();
+    });
+
+    it('shows only the profile name when its batch number is missing', async () => {
+        await render({
+            ...session,
+            profile_id: 'p1',
+            roast_profiles: { name: 'Profile A', target_level: 'Medium' },
+            profile_batch_number: null,
+            total_batch_number: 13,
+        });
+        expect(host.querySelector('[data-testid="history-profile"]')?.textContent).toBe('Profile A');
     });
 
     it('relinks the roast to another green bean and drops the free-text label', async () => {

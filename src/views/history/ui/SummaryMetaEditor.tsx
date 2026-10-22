@@ -164,6 +164,7 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     className="m-0 text-[13px] text-secondary"
                 >
                     {session.roast_profiles?.name || '—'}
+                    {session.profile_batch_number != null && ` #${session.profile_batch_number}`}
                 </p>
             </div>
             <div className="min-w-0">
