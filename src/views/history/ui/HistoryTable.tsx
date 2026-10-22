@@ -2,7 +2,7 @@ import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import { roastColorDisplay } from '@features/active-roast/lib/roastColorText';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
-import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
+import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
 import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
@@ -55,7 +55,7 @@ type Column = {
 };
 
 const columnsFor = (unit: TemperatureUnit): Column[] => [
-    { key: 'date', label: 'Date', width: '160px', sortable: true, render: (s) => formatDateTimeShort(s.roasted_at) },
+    { key: 'date', label: 'Date', width: '112px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
         key: null,
         label: 'roastTitle',
