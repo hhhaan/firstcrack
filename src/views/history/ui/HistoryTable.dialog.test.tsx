@@ -9,9 +9,6 @@ import { HistorySessionDetail } from './HistorySessionDetail';
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@widgets/profile-curve-chart/ui/ProfileCurveChart', () => ({
-    COMPARE_COLORS: ['var(--color-palette-blue)'],
-}));
 vi.mock('./OutputWeightEditor', () => ({ OutputWeightEditor: () => null }));
 vi.mock('./SessionScorecard', () => ({ SessionScorecard: () => null }));
 vi.mock('./HistorySessionChart', () => ({ HistorySessionChart: () => null }));

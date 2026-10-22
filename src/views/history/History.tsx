@@ -7,6 +7,7 @@ import {
 } from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateTimeShort } from '@shared/lib/format';
 import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
@@ -28,8 +29,6 @@ import { HistorySessionDetail } from './ui/HistorySessionDetail';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 import { SessionCompareModal } from './ui/SessionCompareModal';
-
-const MAX_COMPARE = 4;
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -185,7 +184,11 @@ export const History = () => {
     const handleRowClick = (id: string): void => {
         if (compareMode) {
             setCompareIds((prev) =>
-                prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= MAX_COMPARE ? prev : [...prev, id],
+                prev.includes(id)
+                    ? prev.filter((x) => x !== id)
+                    : prev.length >= COMPARE_COLORS.length
+                      ? prev
+                      : [...prev, id],
             );
             return;
         }
@@ -291,7 +294,9 @@ export const History = () => {
     return (
         <PageLayout>
             <div data-testid="history-page" className="contents">
-                {selectedSession ? (
+                {showCompare && compareSessions.length >= 2 ? (
+                    <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
+                ) : selectedSession ? (
                     <HistorySessionDetail
                         session={selectedSession}
                         onBack={() => setSelectedId(null)}
@@ -375,9 +380,6 @@ export const History = () => {
 
                         {renderContent()}
                     </>
-                )}
-                {showCompare && compareSessions.length >= 2 && (
-                    <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
                 )}
                 {promoteSessionId != null && (
                     <NewProfileModal

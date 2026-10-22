@@ -1,7 +1,7 @@
-import type { CSSProperties, PointerEvent, ReactNode, RefObject } from 'react';
+import type { CSSProperties, PointerEvent, ReactNode, Ref } from 'react';
 
 interface ChartZoomSurfaceProps {
-    chartAreaRef: RefObject<HTMLDivElement | null>;
+    chartAreaRef: Ref<HTMLDivElement | null>;
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;
     handleChartPointerDown: (event: PointerEvent<HTMLDivElement>) => void;
@@ -12,7 +12,7 @@ interface ChartZoomSurfaceProps {
     idleCursorClassName?: string;
     /** wins over grab/idle — marker hover/drag uses pointer */
     cursorOverrideClassName?: string;
-    onPointerLeave?: () => void;
+    onPointerLeave?: (event: PointerEvent<HTMLDivElement>) => void;
     style?: CSSProperties;
     /** set → wraps in role="region" for AT; keep accurate to the surface's actual keys */
     ariaLabel?: string;

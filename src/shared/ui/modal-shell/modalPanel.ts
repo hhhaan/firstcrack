@@ -19,6 +19,9 @@ export const modalPanel = {
     formXl: `max-w-[880px] max-h-[min(860px,calc(100vh-56px))] ${formChrome}`,
     /** Multi-session / multi-profile compare workspace */
     compare: `max-w-[1120px] h-[min(900px,calc(100vh-40px))] ${formChrome}`,
+    /** Roast history: chart, sensor controls and batch comparison table. */
+    compareWorkspace:
+        'w-full max-w-[1440px] max-h-[calc(100dvh-48px)] flex flex-col overflow-hidden rounded-2xl border border-border bg-main-bg shadow-2xl',
     /** Workspace settings (sidebar layout) */
     settings:
         'max-w-[920px] w-full h-[min(780px,calc(100vh-48px))] flex flex-col rounded-xl bg-white dark:bg-main-bg shadow-2xl border border-border dark:border-border overflow-hidden',

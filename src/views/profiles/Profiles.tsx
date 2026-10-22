@@ -12,6 +12,7 @@ import {
 } from '@entities/roast-profile';
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
@@ -86,13 +87,6 @@ const ProfileDetailSkeleton = () => (
         </div>
     </div>
 );
-
-const COMPARE_COLORS = [
-    'var(--color-palette-blue)',
-    'var(--color-palette-indigo)',
-    'var(--color-palette-yellow)',
-    'var(--color-palette-teal)',
-] as const;
 
 interface ProfilesProps {
     onNavigate: (view: View) => void;
@@ -327,7 +321,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 {compareMode && (
                                     <div className="flex justify-end -mt-1 mb-1">
                                         <div
-                                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
+                                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white dark:text-palette-black' : 'bg-surface dark:bg-surface-elevated '}`}
                                             style={
                                                 isCompareSelected
                                                     ? { backgroundColor: COMPARE_COLORS[compareIdx] }

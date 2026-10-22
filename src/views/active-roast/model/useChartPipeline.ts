@@ -29,7 +29,7 @@ export interface UseChartPipelineReturn {
     chartData: LiveChartRow[];
     targetSeries: ReferenceCurvePoint[];
     visibleChartData: LiveChartRow[];
-    chartAreaRef: React.RefObject<HTMLDivElement | null>;
+    chartAreaRef: (node: HTMLDivElement | null) => void;
     mainChartHeight: number;
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;

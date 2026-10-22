@@ -92,6 +92,18 @@
 
 Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
+### Compare colors
+
+비교 곡선은 배치마다 다른 색이다. 순서는 파랑, 초록, 노랑이고 그다음은 인디고, 틸이다. 배치는 번호와 마커 모양도 유지하고, 숨겨도 번호와 모양은 그대로다.
+
+| Token | Light | Dark |
+|---|---|---|
+| `--color-compare-blue` | `oklch(0.6 0.17 225)` | `oklch(0.78 0.13 225)` |
+| `--color-compare-green` | `oklch(0.6 0.18 155)` | `oklch(0.78 0.14 155)` |
+| `--color-compare-yellow` | `oklch(0.78 0.16 88)` | `oklch(0.88 0.14 88)` |
+| `--color-compare-purple` | `oklch(0.58 0.16 280)` | `oklch(0.76 0.13 280)` |
+| `--color-compare-teal` | `oklch(0.62 0.16 165)` | `oklch(0.8 0.12 165)` |
+
 ### Sensor colors
 
 | Token | Light | Dark | 의미 |
