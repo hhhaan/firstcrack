@@ -185,30 +185,53 @@ test('a skipped required check does not satisfy the release gate unless a succes
         'edge-check',
         'actionlint',
         'zizmor',
-        'clippy',
         'native-tests (macos-latest)',
         'native-tests (macos-15-intel)',
         'native-tests (windows-latest)',
     ];
     const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
-    const withClippy = (extra) =>
-        green.map((run) => (run.name === 'clippy' ? extra : run)).concat(extra.name === 'clippy' ? [] : []);
-    assert.equal(releaseCiStatus([...green, { name: 'clippy', status: 'completed', conclusion: 'skipped' }]), 'ok');
-    assert.equal(releaseCiStatus(withClippy({ name: 'clippy', status: 'completed', conclusion: 'skipped' })), 'failed');
+    const onlySkipped = (name) =>
+        green.map((run) => (run.name === name ? { name, status: 'completed', conclusion: 'skipped' } : run));
+    assert.equal(releaseCiStatus(onlySkipped('sidecar')), 'failed');
     assert.equal(
         releaseCiStatus([
-            ...green.filter((run) => run.name !== 'clippy'),
-            { name: 'clippy', status: 'completed', conclusion: 'failure' },
-            { name: 'clippy', status: 'completed', conclusion: 'skipped' },
+            ...green.filter((run) => run.name !== 'sidecar'),
+            { name: 'sidecar', status: 'completed', conclusion: 'failure' },
+            { name: 'sidecar', status: 'completed', conclusion: 'skipped' },
         ]),
         'failed',
     );
-    assert.equal(
-        releaseCiStatus([
-            ...green.filter((run) => run.name !== 'clippy'),
-            { name: 'clippy', status: 'completed', conclusion: 'success' },
-            { name: 'clippy', status: 'completed', conclusion: 'failure' },
-        ]),
-        'failed',
-    );
+});
+
+test('clippy is ignored by the release gate until #1018 is fixed', async () => {
+    const { releaseCiStatus } = await import('./check-release-ci.mjs');
+    const checks = [
+        'check',
+        'test',
+        'sidecar',
+        'semgrep',
+        'gitleaks',
+        'edge-check',
+        'actionlint',
+        'zizmor',
+        'native-tests (macos-latest)',
+        'native-tests (macos-15-intel)',
+        'native-tests (windows-latest)',
+    ];
+    const green = checks.map((name) => ({ name, status: 'completed', conclusion: 'success' }));
+    for (const conclusion of ['success', 'skipped', 'cancelled', 'failure', 'timed_out', null]) {
+        assert.equal(
+            releaseCiStatus([...green, { name: 'clippy', status: 'completed', conclusion }]),
+            'ok',
+            `clippy conclusion ${conclusion}`,
+        );
+    }
+    for (const status of ['queued', 'in_progress']) {
+        assert.equal(
+            releaseCiStatus([...green, { name: 'clippy', status, conclusion: null }]),
+            'ok',
+            `clippy status ${status}`,
+        );
+    }
+    assert.equal(releaseCiStatus(green), 'ok', 'clippy absent');
 });

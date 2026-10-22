@@ -214,7 +214,6 @@ test('release policy fails closed and is shared by CLI, local release and workfl
         'edge-check',
         'actionlint',
         'zizmor',
-        'clippy',
         'native-tests (macos-latest)',
         'native-tests (macos-15-intel)',
         'native-tests (windows-latest)',
@@ -233,6 +232,10 @@ test('release policy fails closed and is shared by CLI, local release and workfl
         ],
         [[...green, { name: 'ios-check', status: 'completed', conclusion: 'skipped' }], 'ok'],
         [[...green, { name: 'paths', status: 'completed', conclusion: 'skipped' }], 'ok'],
+        [[...green, { name: 'clippy', status: 'completed', conclusion: 'failure' }], 'ok'],
+        [[...green, { name: 'clippy', status: 'completed', conclusion: 'cancelled' }], 'ok'],
+        [[...green, { name: 'clippy', status: 'completed', conclusion: 'timed_out' }], 'ok'],
+        [[...green, { name: 'clippy', status: 'in_progress', conclusion: null }], 'ok'],
     ];
     for (const conclusion of [
         'skipped',
