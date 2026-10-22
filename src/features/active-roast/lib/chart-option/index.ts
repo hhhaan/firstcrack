@@ -21,7 +21,15 @@ import { createAxisTooltipFormatter, lastDrawnSampleSec } from './tooltip';
 import type { ChartOptionParams } from './types';
 
 export { fmtSec } from './axes';
-export { buildCompareChartOption, type CompareChartSeries, compareChartXMax } from './compare';
+export {
+    buildCompareChartOption,
+    COMPARE_GRID_LEFT,
+    COMPARE_GRID_RIGHT,
+    type CompareChartSeries,
+    compareChartRightMargin,
+    compareChartXMax,
+} from './compare';
+export { compareChannels, isCompareControlChannel } from './compare-channels';
 export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {

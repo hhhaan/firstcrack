@@ -5,7 +5,7 @@ import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/m
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import type { RoastNoteControls } from '@shared/types/roast';
-import { type RefObject, useRef, useState } from 'react';
+import { type Ref, useRef, useState } from 'react';
 import { ChartLegend } from './ChartLegend';
 
 const applyMarkerPointer = (surface: HTMLElement, on: boolean) => {
@@ -17,7 +17,7 @@ const applyMarkerPointer = (surface: HTMLElement, on: boolean) => {
 };
 
 interface RoastChartContainerProps {
-    chartAreaRef: RefObject<HTMLDivElement | null>;
+    chartAreaRef: Ref<HTMLDivElement | null>;
     mainChartHeight: number;
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;
@@ -237,10 +237,8 @@ export const RoastChartContainer = ({
             className="relative flex-1 flex flex-col min-w-0 min-h-0 outline-none"
             idleCursorClassName="cursor-default"
             cursorOverrideClassName={markerCursor ? 'cursor-pointer' : undefined}
-            onPointerLeave={() => {
-                if (markerPointerId.current == null && chartAreaRef.current) {
-                    setMarkerPointer(chartAreaRef.current, false);
-                }
+            onPointerLeave={(event) => {
+                if (markerPointerId.current == null) setMarkerPointer(event.currentTarget, false);
             }}
             ariaLabel="Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom."
         >
