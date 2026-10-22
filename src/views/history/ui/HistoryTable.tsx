@@ -4,7 +4,7 @@ import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roa
 import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
-import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
+import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
@@ -67,6 +67,13 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         label: 'Bean',
         sortable: true,
         render: (s) => s.beans?.name?.trim() || '—',
+    },
+    {
+        key: null,
+        label: 'batchNumbers',
+        width: '140px',
+        sortable: false,
+        render: (s) => sessionBatchNumberLabel(s) ?? '—',
     },
     {
         key: 'profile',
@@ -226,6 +233,7 @@ export const HistoryTable = ({
             date: t('history.table.date'),
             bean: t('activeRoast.summary.bean'),
             roastTitle: t('history.recordText.title'),
+            batchNumbers: t('history.batchNumbers.label'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
             charge: t('history.table.chargeTemp'),
@@ -314,7 +322,7 @@ export const HistoryTable = ({
                                         </div>
                                     </td>
                                 )}
-                                {columns.map((col) => {
+                                {columns.map((col, colIdx) => {
                                     const isActions = col.key === null && col.label === '';
                                     const cellClass = isActions
                                         ? stickyActionsCls
@@ -327,7 +335,7 @@ export const HistoryTable = ({
                                     const cellTitle = getCellTitle(col, session);
                                     return (
                                         <td
-                                            key={col.key ?? 'actions'}
+                                            key={col.key ?? `col-${colIdx}`}
                                             title={cellTitle}
                                             className={`overflow-hidden px-4 py-4 text-sm whitespace-nowrap ${cellClass} ${responsiveClass}`}
                                             style={{ width: col.width, minWidth: col.minWidth }}

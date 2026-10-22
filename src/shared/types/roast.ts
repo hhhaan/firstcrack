@@ -1,3 +1,5 @@
+export type BatchTitleNumbering = 'profile' | 'total' | 'both' | 'none';
+
 import type { ExtraSensorReading, TemperatureProcessing } from './sidecar';
 
 /** Logical values acknowledged by an app control write, independent of sensor feedback. */

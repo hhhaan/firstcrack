@@ -48,7 +48,7 @@ export interface UseRoastProfileSelectionReturn {
     selectedBeanId: string | null;
     selectedBlendId: string | null;
     setSelectedBlendId: (id: string | null, name?: string | null) => void;
-    setSelectedBeanId: (id: string | null) => void;
+    setSelectedBeanId: (id: string | null, name?: string | null) => void;
     handoffBeanName: string | null;
     setUserSelectedTarget: (id: string | null) => Promise<boolean | undefined>;
 }
@@ -187,27 +187,27 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
     const setSelectedBlendId = useCallback(
         (id: string | null, name: string | null = null) => {
             const store = useRoastingStore.getState();
-            if (isChargedPhase(store.phase)) {
+            if (isChargedPhase(store.phase))
                 store.editRunningSource(
                     { beanId: null, blendId: id, beanName: name },
                     store.sessionId,
-                    workspaceOwnerId ?? store.sessionOwnerId,
+                    workspaceOwnerId ?? null,
                 );
-            } else store.prepareBlend(id, name);
+            else store.prepareBlend(id, name);
         },
         [workspaceOwnerId],
     );
     const setUserSelectedTarget = useCallback((id: string | null) => applyTarget(id, 'user'), [applyTarget]);
     const setSelectedBeanId = useCallback(
-        (id: string | null) => {
+        (id: string | null, name: string | null = null) => {
             const store = useRoastingStore.getState();
-            if (isChargedPhase(store.phase)) {
+            if (isChargedPhase(store.phase))
                 store.editRunningSource(
-                    { beanId: id, blendId: null, beanName: null },
+                    { beanId: id, blendId: null, beanName: name },
                     store.sessionId,
-                    workspaceOwnerId ?? store.sessionOwnerId,
+                    workspaceOwnerId ?? null,
                 );
-            } else store.prepareBean(id);
+            else store.prepareBean(id, name);
         },
         [workspaceOwnerId],
     );

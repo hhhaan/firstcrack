@@ -17,6 +17,8 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
     const linked = {
         id: 'linked',
         batch_name: 'Batch C',
+        profile_batch_number: 9,
+        total_batch_number: 13,
         bean_label: null,
         beans: { name: 'Green B' },
         roast_profiles: { name: 'Profile A' },
@@ -42,6 +44,8 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
                             batch_name: null,
                             beans: null,
                             bean_label: 'Legacy name',
+                            profile_batch_number: null,
+                            total_batch_number: null,
                             roasted_at: '2026-10-19T14:36:47',
                         },
                     ],
@@ -64,10 +68,10 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         const rows = host.querySelectorAll('tbody tr');
         const cells = [...rows[0].querySelectorAll('td')].map((cell) => cell.textContent);
         expect(cells[0]).toBe('26-10-19 14:35');
-        expect(cells.slice(1, 4)).toEqual(['Batch C', 'Green B', 'Profile A']);
+        expect(cells.slice(1, 5)).toEqual(['Batch C', 'Green B', '#9 · Σ#13', 'Profile A']);
         const legacy = [...rows[1].querySelectorAll('td')].map((cell) => cell.textContent);
         expect(legacy[0]).toBe('26-10-19 14:36');
-        expect(legacy.slice(1, 4)).toEqual(['Legacy name', '—', 'Profile A']);
+        expect(legacy.slice(1, 5)).toEqual(['Legacy name', '—', '—', 'Profile A']);
         expect(linked.batch_name).toBe('Batch C');
         expect(linked.bean_label).toBeNull();
     } finally {

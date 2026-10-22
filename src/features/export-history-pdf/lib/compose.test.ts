@@ -64,6 +64,7 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
         header: {
             bean: hasTitle ? 'Green B' : bean,
             ...(hasTitle ? { roastTitle: bean } : {}),
+            batchNumbers: '#9 · Σ#13',
             date: '2026-09-21',
             duration: '10:42',
             charge: '195°C',
@@ -71,6 +72,7 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
             labels: {
                 bean: '원두',
                 roastTitle: hasTitle ? '배치명' : undefined,
+                batchNumbers: '배치 번호',
                 date: '날짜',
                 duration: '로스팅 시간',
                 charge: '투입 온도',
@@ -81,6 +83,7 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
         legend: [{ label: 'BT (°C)', color: '#009d4c' }],
     });
     expect(load).toHaveBeenCalledTimes(4);
+    expect(ctx.fillText).toHaveBeenCalledWith('배치 번호: #9 · Σ#13', expect.any(Number), expect.any(Number));
     expect(result).toMatchObject(HISTORY_PDF_PAGE_PX);
     const titleLines = ctx.fillText.mock.calls.filter(
         ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 113 || y === HISTORY_PDF_MARGIN_PX + 177,

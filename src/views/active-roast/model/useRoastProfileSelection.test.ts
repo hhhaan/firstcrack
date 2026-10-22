@@ -446,6 +446,18 @@ describe('selection ownership across screen recovery', () => {
         useRoastingStore.getState().reset();
         vi.useRealTimers();
     });
+    it('applies explicit bean and blend choices to the running batch', () => {
+        const h = mountHook({ ...baseSelection, workspaceOwnerId: 'ws-a' });
+        act(() => useRoastingStore.getState().startCharge(undefined, 'ws-a'));
+        h.rerender({ ...baseSelection, workspaceOwnerId: 'ws-a', charged: true });
+        act(() => h.api.setSelectedBeanId('bean-b', 'New lot'));
+        expect(h.api.selectedBeanId).toBe('bean-b');
+        act(() => h.api.setSelectedBlendId('blend-b', 'New blend'));
+        expect(h.api.selectedBeanId).toBeNull();
+        expect(h.api.selectedBlendId).toBe('blend-b');
+        expect(h.api.handoffBeanName).toBe('New blend');
+        h.unmount();
+    });
     it('keeps the running bean and approved reference after the view remounts', async () => {
         localStorage.setItem(DEFAULT_BEAN_KEY, 'bean-a');
         const props = { ...baseSelection, workspaceOwnerId: 'ws-a', beans: [{ id: 'bean-a' }] };

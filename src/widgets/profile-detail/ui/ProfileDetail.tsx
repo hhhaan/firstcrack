@@ -34,6 +34,7 @@ import { ProfileStartButton } from './ProfileStartButton';
 
 interface ProfileDetailProps {
     selected: RoastProfileWithSource;
+    batchNumber?: number;
     selectedRealCurve: TsvPoint[];
     selectedHasReal: boolean;
     defaultId: string | null;
@@ -47,6 +48,7 @@ interface ProfileDetailProps {
 
 export const ProfileDetail = ({
     selected,
+    batchNumber,
     selectedRealCurve,
     selectedHasReal,
     defaultId,
@@ -114,6 +116,15 @@ export const ProfileDetail = ({
                 <div className="min-w-0 flex-1">
                     <h2 className="mb-1 break-words font-display text-2xl font-medium leading-[1.2] tracking-[0.24px] text-primary">
                         {selected.name}
+                        {batchNumber !== undefined && (
+                            <Badge
+                                className="ml-2 align-middle font-body tabular-nums"
+                                title={t('history.batchNumbers.label')}
+                                data-testid="profile-detail-batch-number"
+                            >
+                                #{batchNumber}
+                            </Badge>
+                        )}
                     </h2>
                     {selected.description && (
                         <p className="break-words text-sm leading-normal tracking-[0.14px] text-secondary">

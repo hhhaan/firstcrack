@@ -34,6 +34,133 @@ describe('central batch ownership and transitions', () => {
     });
     afterEach(() => vi.useRealTimers());
 
+    it('keeps automatic and edited titles in completed and restored snapshots', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId ?? '';
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
+        state.setRunningBatchTitle(id, 'Morning production');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Morning production');
+        state.cancelDrop();
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Morning production');
+    });
+
+    it('fills a late bean display name and restores it when an edited title is cleared', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.prepareBean('bean-a');
+        const id = state.startCharge(undefined, 'owner') ?? '';
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Santander' }, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Santander');
+        state.setRunningBatchTitle(id, 'Custom title');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Colombia Huila' }, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Custom title');
+        state.setRunningBatchTitle(id, '');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Colombia Huila');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Colombia Huila');
+    });
+
+    it('ignores names from a different source or workspace', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        state.setSourceDisplayName({ beanId: 'bean-b', beanName: 'Other bean' }, 'owner');
+        state.setSourceDisplayName({ beanId: 'bean-a', beanName: 'Other workspace' }, 'other');
+        state.setSourceDisplayName({ beanId: 'bean-a', blendId: 'blend-a', beanName: 'Other blend' }, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
+        expect(useRoastingStore.getState().prepared.beanName).toBe('Lot A');
+    });
+
+    it('keeps the blend title when changing the profile before save', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.prepareBlend('blend-a', 'Modern');
+        state.commitProfile('profile-a', null, 'owner');
+        const id = state.startCharge(undefined, 'owner') ?? '';
+        state.commitProfile('profile-b', id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity).toMatchObject({
+            title: 'Modern',
+        });
+    });
+
+    it.each([
+        { beanId: 'bean-b', blendId: null, beanName: 'New lot' },
+        { beanId: null, blendId: 'blend-b', beanName: 'New blend' },
+    ])('corrects the running source without resetting the roast: $beanName', (source) => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId;
+        state.editRunningSource(source, id, 'owner');
+        const next = useRoastingStore.getState();
+        expect(next.activeSelection).toMatchObject({
+            ...source,
+            profileId: 'profile-a',
+            identity: { title: source.beanName },
+        });
+        expect(next.sessionId).toBe(id);
+        expect(next.roastStartMs).toBe(state.roastStartMs);
+        expect(next.livePoints).toBe(state.livePoints);
+        expect(next.logState).toBe(state.logState);
+        expect(next.prepared).toBe(state.prepared);
+        drop();
+        expect(useRoastingStore.getState().completed?.snapshot.selection).toMatchObject(source);
+        state.cancelDrop();
+        expect(useRoastingStore.getState().activeSelection).toMatchObject(source);
+    });
+
+    it('keeps an edited title when switching between blends and beans', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId ?? '';
+        state.setRunningBatchTitle(id, 'Morning production');
+        state.editRunningSource({ beanId: null, blendId: 'blend-b', beanName: 'Blend' }, id, 'owner');
+        state.editRunningSource({ beanId: 'bean-b', beanName: 'Bean' }, id, 'owner');
+        expect(useRoastingStore.getState().activeSelection).toMatchObject({
+            beanId: 'bean-b',
+            blendId: null,
+            identity: { name: 'Bean', title: 'Morning production', edited: true },
+        });
+    });
+
+    it('rejects source corrections from stale sessions and other workspaces', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const source = { beanId: 'bean-b', beanName: 'Other' };
+        state.editRunningSource(source, 'stale-session', 'owner');
+        state.editRunningSource(source, state.sessionId, 'other-owner');
+        state.editRunningSource(source, state.sessionId, null);
+        expect(useRoastingStore.getState().activeSelection).toBe(state.activeSelection);
+    });
+
+    it('detaches a changed source from its schedule without overwriting the next preparation', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.startBatch({
+            planBatchId: 'batch-a',
+            planId: 'plan-a',
+            beanId: 'bean-a',
+            blendId: null,
+            beanName: 'Planned lot',
+            profileId: 'profile-a',
+            batchSizeKg: 1,
+            batchCount: 1,
+            completedSessions: 0,
+        });
+        const id = state.startCharge(undefined, 'owner');
+        const prepared = useRoastingStore.getState().prepared;
+        state.editRunningSource({ beanId: 'bean-b', beanName: 'Actual lot' }, id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.planBatchHandoff).toBeNull();
+        expect(useRoastingStore.getState().prepared).toBe(prepared);
+        state.abortRoast(200, 'C');
+        expect(useRoastingStore.getState().completed?.summary).toMatchObject({
+            selectedBeanId: 'bean-b',
+            handoffBeanName: 'Actual lot',
+            planBatchHandoff: null,
+        });
+    });
+
     it('publishes Charge identity, selection and log together, once for manual/auto duplicates', () => {
         const state = useRoastingStore.getState();
         state.prepareBean('bean-a');

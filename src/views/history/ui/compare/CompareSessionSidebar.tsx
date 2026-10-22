@@ -3,7 +3,7 @@ import { roastColorDisplay } from '@features/active-roast/lib/roastColorText';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { formatDuration, formatElapsed } from '@shared/lib/format';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
-import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
+import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
 import { AlertCircle } from 'lucide-react';
@@ -46,6 +46,7 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                 {items.map((item) => {
                     const { session: s, color, hasCurve, events, visible } = item;
                     const name = sessionRoastTitle(s) || s.roast_profiles?.name || '—';
+                    const batchNumbers = sessionBatchNumberLabel(s);
                     return (
                         <button
                             key={s.id}
@@ -91,6 +92,14 @@ export const CompareSessionSidebar = ({ items, onToggle }: CompareSessionSidebar
                                 )}
                             </div>
 
+                            {batchNumbers && (
+                                <div
+                                    className="mb-1 pl-5.5 font-mono text-[11px] text-muted"
+                                    title={t('history.batchNumbers.label')}
+                                >
+                                    {batchNumbers}
+                                </div>
+                            )}
                             <div className="mb-1 grid grid-cols-2 gap-x-3 gap-y-0.5 pl-5.5">
                                 <div className="flex items-baseline justify-between gap-1">
                                     <span className="text-[10px] font-medium uppercase tracking-[0.4px] text-muted">

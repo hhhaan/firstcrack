@@ -170,6 +170,25 @@ afterEach(() => {
 });
 
 describe('roast save identity and Continue lifecycle', () => {
+    it('checkpoints the display preference without reserving numbers after the next roast starts', async () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('workspace-a');
+        state.commitProfile('profile-a', null, 'workspace-a');
+        const sessionId = state.startCharge(undefined, 'workspace-a');
+        if (!sessionId) throw new Error('Charge failed');
+        const h = renderFlow({ sessionId, targetProfileId: 'profile-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+        expect(listPendingRoastSaves()[0].params).toMatchObject({ batchTitleNumbering: 'profile' });
+        expect(listPendingRoastSaves()[0].params).not.toHaveProperty('profileBatchNumber');
+        act(() => useRoastingStore.getState().startCharge(undefined, 'workspace-a'));
+        await act(async () => h.api.handleSave({ ...form, batchName: 'Custom title' }));
+        expect(mocks.resumeSave.mock.calls[0][0].params).toMatchObject({
+            sessionId,
+            targetProfileId: 'profile-a',
+            batchTitleNumbering: 'none',
+            formData: { batchName: 'Custom title' },
+        });
+    });
     it('keeps the frozen header separate from a form-only selection after a failed save', async () => {
         const h = renderFlow({ sessionId: 's-a' });
         mocks.resumeSave.mockRejectedValueOnce(new Error('network'));
@@ -513,6 +532,7 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
         act(() => {
             saving = h.api.handleSave(form);
         });
+        await vi.waitFor(() => expect(mocks.resumeSave).toHaveBeenCalledTimes(1));
         const nextId = useRoastingStore.getState().startCharge(undefined, 'workspace-a');
         if (!nextId) throw new Error('B did not Charge');
         act(() => {

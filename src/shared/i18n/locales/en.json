@@ -948,6 +948,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "Batch title numbering",
+            "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",
+            "profile": "Profile total",
+            "total": "Overall total",
+            "both": "Profile + overall",
+            "none": "No number"
+        },
         "noteEntry": {
             "events": "Events",
             "eventRecorded": "Recorded: {{event}}",
@@ -964,6 +972,7 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "batchTitle": "Roast title",
             "sourceChangeTitle": "Change roast source",
             "sourceChangeUnlinks": "Changing the source unlinks this batch from its schedule.",
             "profileSources": "Profile sources",
@@ -1386,6 +1395,7 @@
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
+        "batchNumbers": { "label": "Batch numbers" },
         "title": "Roast History",
         "subtitle": "{{count}} sessions recorded",
         "subtitleLoading": "Loading...",

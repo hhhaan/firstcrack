@@ -46,11 +46,12 @@ describe('roast session mutation invalidation', () => {
         const keys = spy.mock.calls.map((c) => (c[0] as { queryKey?: readonly unknown[] })?.queryKey);
         const refetchTypes = spy.mock.calls.map((c) => (c[0] as { refetchType?: string })?.refetchType);
         expect(keys).toContainEqual(roastSessionKeys.all(uid));
+        expect(keys).toContainEqual([...roastProfileQueryRoots.profiles, uid]);
         expect(keys).toContainEqual(dashboardKeys.all(uid));
         expect(keys).toContainEqual(roastProfileQueryRoots.beanHistory);
         expect(keys).toContainEqual(roastProfileQueryRoots.consistency);
         expect(keys).not.toContainEqual(['roast_sessions']);
-        expect(spy).toHaveBeenCalledTimes(4);
+        expect(spy).toHaveBeenCalledTimes(5);
         expect(refetchTypes.every((t) => t === 'all')).toBe(true);
     });
 

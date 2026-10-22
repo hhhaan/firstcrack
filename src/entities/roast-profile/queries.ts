@@ -29,12 +29,19 @@ export const useProfileSourceHistory = (userId: string, profileId: string | null
         enabled: !!userId && !!profileId,
     });
 
-export const useRoastProfiles = (userId: string) =>
-    useQuery({
+export const useRoastProfiles = (userId: string) => {
+    const { data: batchCounters } = useQuery({
+        queryKey: [...roastProfileKeys.all(userId), 'batch_counters'],
+        queryFn: () => roastProfileApi.batchCounters(userId),
+        enabled: !!userId,
+    });
+    const profiles = useQuery({
         queryKey: roastProfileKeys.all(userId),
         queryFn: () => roastProfileApi.list(userId),
         enabled: !!userId,
     });
+    return { ...profiles, batchCounters };
+};
 
 /** List is the SSoT for count/cards/detail — patch it immediately, then invalidate for joins. */
 const toListRow = (created: RoastProfile): RoastProfileWithSource => ({
