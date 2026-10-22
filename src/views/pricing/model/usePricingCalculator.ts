@@ -41,15 +41,24 @@ const emptyOverhead = (): FixedOverheadItem => ({
     amountPerKg: 0,
 });
 
-const blendToComponents = (blend: BlendWithComponents, beans: { id: string; cost_per_kg: number | null }[]) =>
+type BlendDraft =
+    | { source: 'saved'; id: string | null; costs: Partial<Record<string, number | null>> }
+    | { source: 'custom'; components: BlendComponentCost[] };
+
+const blendToComponents = (
+    blend: BlendWithComponents,
+    beans: { id: string; cost_per_kg: number | null }[],
+    costs: Partial<Record<string, number | null>>,
+) =>
     blend.blend_components.map((c) => {
         const bean = beans.find((b) => b.id === c.bean_id);
+        const cost = costs[c.id];
         return {
             id: c.id,
             beanId: c.bean_id,
             name: c.beans.name,
             ratioPct: Number(c.ratio_pct),
-            costPerKg: bean?.cost_per_kg ?? null,
+            costPerKg: cost !== undefined ? cost : (bean?.cost_per_kg ?? null),
         };
     });
 
@@ -63,15 +72,27 @@ export const usePricingCalculator = () => {
     const [mode, setMode] = useState<SourceMode>('single');
     const [selectedBeanId, setSelectedBeanId] = useState<string | null>(null);
     const [greenCostOverride, setGreenCostOverride] = useState<number | null>(null);
-    const [blendSource, setBlendSource] = useState<BlendSourceMode>('saved');
-    const [selectedBlendId, setSelectedBlendId] = useState<string | null>(null);
-    const [blendComponents, setBlendComponents] = useState<BlendComponentCost[]>([emptyRow()]);
+    const [blendDraft, setBlendDraft] = useState<BlendDraft>({ source: 'saved', id: null, costs: {} });
     const [yieldPct, setYieldPct] = useState(DEFAULT_YIELD_PCT);
     const [fixedOverheads, setFixedOverheads] = useState<FixedOverheadItem[]>([]);
     const [overheadsReady, setOverheadsReady] = useState(false);
     const [marginPct, setMarginPct] = useState(40);
-    const [priceDriven, setPriceDriven] = useState(false);
     const [sellingPriceOverride, setSellingPriceOverride] = useState<number | null>(null);
+
+    const blendSource = blendDraft.source;
+    const selectedBlendId = blendDraft.source === 'saved' ? blendDraft.id : null;
+    const blendComponents = useMemo(() => {
+        if (blendDraft.source === 'custom') return blendDraft.components;
+        const blend = blends.find((item) => item.id === blendDraft.id);
+        return blend ? blendToComponents(blend, beans, blendDraft.costs) : [];
+    }, [blendDraft, blends, beans]);
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: query updates reset edited costs, matching the former row replacement.
+    useEffect(() => {
+        setBlendDraft((draft) =>
+            draft.source === 'saved' && Object.keys(draft.costs).length > 0 ? { ...draft, costs: {} } : draft,
+        );
+    }, [beans, blends]);
 
     const persistReadyRef = useRef(false);
 
@@ -104,7 +125,6 @@ export const usePricingCalculator = () => {
     const updateOverheads = useCallback(
         (next: FixedOverheadItem[] | ((prev: FixedOverheadItem[]) => FixedOverheadItem[])) => {
             setFixedOverheads((prev) => (typeof next === 'function' ? next(prev) : next));
-            setPriceDriven(false);
             setSellingPriceOverride(null);
         },
         [],
@@ -113,7 +133,6 @@ export const usePricingCalculator = () => {
     const selectedBean = beans.find((b) => b.id === selectedBeanId) ?? null;
 
     const resetPricing = useCallback(() => {
-        setPriceDriven(false);
         setSellingPriceOverride(null);
     }, []);
 
@@ -121,7 +140,7 @@ export const usePricingCalculator = () => {
         setMode(next);
         resetPricing();
         if (next === 'blend' && blendSource === 'custom' && blendComponents.length === 0) {
-            setBlendComponents([emptyRow()]);
+            setBlendDraft({ source: 'custom', components: [emptyRow()] });
         }
     };
 
@@ -133,30 +152,30 @@ export const usePricingCalculator = () => {
     };
 
     const handleBlendSelect = (blendId: string) => {
-        setSelectedBlendId(blendId || null);
-        const blend = blends.find((b) => b.id === blendId);
-        if (blend) {
-            setBlendComponents(blendToComponents(blend, beans));
-        }
+        setBlendDraft({ source: 'saved', id: blendId || null, costs: {} });
         resetPricing();
     };
 
     const handleBlendSourceChange = (next: BlendSourceMode) => {
-        setBlendSource(next);
-        setSelectedBlendId(null);
-        setBlendComponents(next === 'custom' ? [emptyRow()] : []);
+        setBlendDraft(
+            next === 'custom'
+                ? { source: 'custom', components: [emptyRow()] }
+                : { source: 'saved', id: null, costs: {} },
+        );
         resetPricing();
     };
 
-    useEffect(() => {
-        if (blendSource !== 'saved' || !selectedBlendId) return;
-        const blend = blends.find((b) => b.id === selectedBlendId);
-        if (!blend) return;
-        setBlendComponents(blendToComponents(blend, beans));
-    }, [beans, blendSource, selectedBlendId, blends]);
-
     const handleBlendComponentChange = (id: string, patch: Partial<BlendComponentCost>) => {
-        setBlendComponents((rows) => rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+        setBlendDraft((draft) => {
+            if (draft.source === 'custom') {
+                return {
+                    ...draft,
+                    components: draft.components.map((row) => (row.id === id ? { ...row, ...patch } : row)),
+                };
+            }
+            if (patch.costPerKg === undefined) return draft;
+            return { ...draft, costs: { ...draft.costs, [id]: patch.costPerKg } };
+        });
         resetPricing();
     };
 
@@ -175,11 +194,17 @@ export const usePricingCalculator = () => {
     };
 
     const handleAddBlendRow = () => {
-        setBlendComponents((rows) => [...rows, emptyRow()]);
+        setBlendDraft((draft) =>
+            draft.source === 'custom' ? { ...draft, components: [...draft.components, emptyRow()] } : draft,
+        );
     };
 
     const handleRemoveBlendRow = (id: string) => {
-        setBlendComponents((rows) => rows.filter((r) => r.id !== id));
+        setBlendDraft((draft) =>
+            draft.source === 'custom'
+                ? { ...draft, components: draft.components.filter((row) => row.id !== id) }
+                : draft,
+        );
         resetPricing();
     };
 
@@ -218,24 +243,23 @@ export const usePricingCalculator = () => {
     const totalCost = totalCostPerKg(roastedCost, overheadPerKg);
 
     const sellingPricePerKg = useMemo(() => {
-        if (priceDriven && sellingPriceOverride !== null) return sellingPriceOverride;
+        if (sellingPriceOverride !== null) return sellingPriceOverride;
         return sellingPriceFromMargin(totalCost, marginPct);
-    }, [priceDriven, sellingPriceOverride, totalCost, marginPct]);
+    }, [sellingPriceOverride, totalCost, marginPct]);
 
-    const displayMargin = priceDriven
-        ? normalizePct(marginFromSellingPrice(totalCost, sellingPricePerKg), lang)
-        : normalizePct(marginPct, lang);
+    const displayMargin =
+        sellingPriceOverride !== null
+            ? normalizePct(marginFromSellingPrice(totalCost, sellingPricePerKg), lang)
+            : normalizePct(marginPct, lang);
 
     const handleMarginChange = (value: number) => {
         const clamped = Math.min(80, Math.max(0, normalizePct(value, lang)));
         setMarginPct(clamped);
-        setPriceDriven(false);
         setSellingPriceOverride(null);
     };
 
     const handleSellingPriceChange = (value: number) => {
         setSellingPriceOverride(value);
-        setPriceDriven(true);
         if (value > 0 && totalCost > 0) {
             setMarginPct(Math.min(80, Math.max(0, normalizePct(marginFromSellingPrice(totalCost, value), lang))));
         }

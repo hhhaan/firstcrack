@@ -115,8 +115,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const [defaultId, setDefaultId] = useState<string | null>(null);
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
-    const [showNewModal, setShowNewModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
+    const [profileModal, setProfileModal] = useState<'new' | 'edit' | null>(null);
     const [search, setSearch] = useState('');
     const [showHidden, setShowHidden] = useState(false);
     const { hidden, setHidden } = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
@@ -274,7 +273,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 defaultId={defaultId}
                 chartKey={chartKey}
                 onSetDefault={setDefault}
-                onEdit={() => setShowEditModal(true)}
+                onEdit={() => setProfileModal('edit')}
                 onDuplicate={(profile) => void handleDuplicate(profile)}
                 onDelete={handleDelete}
                 onNavigate={onNavigate}
@@ -410,7 +409,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 {compareMode ? t('profiles.compare.exit') : t('profiles.compare.enter')}
                             </SurfaceButton>
                         )}
-                        <PillButton onClick={() => setShowNewModal(true)}>
+                        <PillButton onClick={() => setProfileModal('new')}>
                             <Plus size={15} strokeWidth={2.5} />
                             {t('profiles.newProfile')}
                         </PillButton>
@@ -428,7 +427,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             ) : !isLoading && profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-2xl border border-border bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
-                    <PillButton onClick={() => setShowNewModal(true)}>
+                    <PillButton onClick={() => setProfileModal('new')}>
                         <Plus size={14} strokeWidth={2.5} />
                         {t('profiles.createFirst')}
                     </PillButton>
@@ -437,16 +436,18 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 <MasterDetailLayout left={profileList} detail={renderDetail()} />
             )}
 
-            {showNewModal && <NewProfileModal open onClose={() => setShowNewModal(false)} onCreated={handleCreated} />}
-            {showEditModal && selected && (
+            {profileModal === 'new' && (
+                <NewProfileModal open onClose={() => setProfileModal(null)} onCreated={handleCreated} />
+            )}
+            {profileModal === 'edit' && selected && (
                 <NewProfileModal
                     open
-                    onClose={() => setShowEditModal(false)}
+                    onClose={() => setProfileModal(null)}
                     onCreated={() => {}}
                     editingProfile={selected}
                     onUpdated={async (updated) => {
                         await updateRoastProfile(updated);
-                        setShowEditModal(false);
+                        setProfileModal(null);
                     }}
                 />
             )}
