@@ -505,11 +505,14 @@ async def scenario_failed_minimum_stop(driver: LiveDriver) -> JSON:
     require(adapter._cmd.get("heater") != 0.0, "failed minimum stop reported an adapter effect", adapter.writes)
     _, faulted = await driver.heater_status()
     require(faulted.get("origin") == "safety", "failed minimum stop did not retain safety ownership", faulted)
+    runtime = await driver.request("/temperatures")
+    require(runtime.body.get("pid", {}).get("state") == "fault", "failed minimum stop did not expose runtime fault", runtime)
+    require(bool(runtime.body.get("pid", {}).get("error")), "failed minimum stop lost its runtime error", runtime)
     adapter.fail_zero_writes = 0
     recovered = await driver.request("/pid/off", {"mode": "zero"})
     require(recovered.status == 200, "minimum stop could not be retried", recovered)
     require(adapter._cmd.get("heater") == 0.0, "retried minimum stop did not reach adapter", adapter.writes)
-    return {"start": started.json(), "failed": failed.json(), "faulted": faulted, "recovered": recovered.json(), "writes": adapter.writes}
+    return {"start": started.json(), "failed": failed.json(), "faulted": faulted, "runtime_fault": runtime.json(), "recovered": recovered.json(), "writes": adapter.writes}
 
 
 async def scenario_fan_drum_independence(driver: LiveDriver) -> JSON:
@@ -526,7 +529,17 @@ async def scenario_fan_drum_independence(driver: LiveDriver) -> JSON:
         {"connection_epoch": ticket["connection_epoch"], "generation": ticket["generation"]},
     )
     require(released.status == 200, "Replay release failed", released)
-    return {"before": before_status.json(), "control": controlled.json(), "after": after, "release": released.json(), "writes": driver.adapter.writes}
+    pid_started = await driver.request("/pid/on", {"sv": 180})
+    require(pid_started.status == 200, "fixed PID did not start for independent controls", pid_started)
+    _, pid_before = await driver.heater_status()
+    pid_controlled = await driver.request("/control", {"fan": 37, "drum": 48, "origin": "manual"})
+    require(pid_controlled.status == 200, "fan/drum write conflicted with PID heater owner", pid_controlled)
+    _, pid_after = await driver.heater_status()
+    require(pid_after["origin"] == "pid" and pid_after["generation"] == pid_before["generation"], "fan/drum changed PID heater ownership", {"before": pid_before, "after": pid_after})
+    require(driver.adapter._cmd.get("fan") == 37 and driver.adapter._cmd.get("drum") == 48, "PID-owned fan/drum control did not reach adapter", driver.adapter.writes)
+    pid_stopped = await driver.request("/pid/off", {"mode": "zero"})
+    require(pid_stopped.status == 200, "cleanup PID stop failed", pid_stopped)
+    return {"before": before_status.json(), "control": controlled.json(), "after": after, "release": released.json(), "pid_start": pid_started.json(), "pid_control": pid_controlled.json(), "pid_after": pid_after, "pid_stop": pid_stopped.json(), "writes": driver.adapter.writes}
 
 
 async def scenario_reconnect_off(driver: LiveDriver) -> JSON:
