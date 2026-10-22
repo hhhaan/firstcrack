@@ -1,5 +1,6 @@
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
+import { roastColorDisplay } from '@features/active-roast/lib/roastColorText';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
@@ -156,6 +157,20 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     },
     {
         key: null,
+        label: 'colorWhole',
+        width: '160px',
+        sortable: false,
+        render: (s) => roastColorDisplay(s.color_whole),
+    },
+    {
+        key: null,
+        label: 'colorGround',
+        width: '160px',
+        sortable: false,
+        render: (s) => roastColorDisplay(s.color_ground),
+    },
+    {
+        key: null,
         label: '',
         width: '48px',
         sortable: false,
@@ -242,11 +257,15 @@ export const HistoryTable = ({
             loss: t('history.table.loss'),
             dtr: t('history.table.dtr'),
             level: t('history.table.level'),
+            colorWhole: t('history.expanded.colorWhole'),
+            colorGround: t('history.expanded.colorGround'),
         };
         return map[key] || key;
     };
 
     const getCellTitle = (col: Column, session: RoastSessionWithRelations): string | undefined => {
+        if (col.label === 'colorWhole') return session.color_whole ?? undefined;
+        if (col.label === 'colorGround') return session.color_ground ?? undefined;
         if (col.key === 'level') {
             return session.roast_level ?? '—';
         }

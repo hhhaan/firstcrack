@@ -28,6 +28,8 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         drop_temp_celsius: 200,
         events: [],
         roast_level: null,
+        color_whole: '58.4, 59.6',
+        color_ground: '63',
     } as unknown as RoastSessionWithRelations;
     const host = document.createElement('div');
     document.body.appendChild(host);
@@ -47,6 +49,8 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
                             profile_batch_number: null,
                             total_batch_number: null,
                             roasted_at: '2026-10-19T14:36:47',
+                            color_whole: null,
+                            color_ground: null,
                         },
                     ],
                     total: 2,
@@ -72,6 +76,16 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         const legacy = [...rows[1].querySelectorAll('td')].map((cell) => cell.textContent);
         expect(legacy[0]).toBe('26-10-19 14:36');
         expect(legacy.slice(1, 5)).toEqual(['Legacy name', '—', '—', 'Profile A']);
+        const headers = [...host.querySelectorAll('thead th')].map((cell) => cell.textContent);
+        const wholeIndex = headers.indexOf('history.expanded.colorWhole');
+        const groundIndex = headers.indexOf('history.expanded.colorGround');
+        expect(wholeIndex).toBeGreaterThanOrEqual(0);
+        expect(groundIndex).toBeGreaterThanOrEqual(0);
+        expect(cells[wholeIndex]).toBe('59.00');
+        expect(cells[groundIndex]).toBe('63.00');
+        expect(rows[0].querySelectorAll('td')[wholeIndex].title).toBe('58.4, 59.6');
+        expect(legacy[wholeIndex]).toBe('—');
+        expect(legacy[groundIndex]).toBe('—');
         expect(linked.batch_name).toBe('Batch C');
         expect(linked.bean_label).toBeNull();
     } finally {
