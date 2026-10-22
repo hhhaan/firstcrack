@@ -13,7 +13,7 @@ export const Pricing = ({ onNavigate }: { onNavigate?: (view: View) => void }) =
 
     return (
         <PageLayout>
-            <PageHeader title={t('pricing.title')} subtitle={t('pricing.subtitle')} />
+            <PageHeader title={t('pricing.title')} />
 
             <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
                 <div className="order-1 xl:order-2 xl:sticky xl:top-6">

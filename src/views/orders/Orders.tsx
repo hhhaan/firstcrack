@@ -41,7 +41,7 @@ export const Orders = ({ onUpgrade }: OrdersProps) => {
 
     return (
         <PageLayout>
-            <PageHeader title={t('orders.title')} subtitle={t('orders.subtitle')} />
+            <PageHeader title={t('orders.title')} />
 
             <div className="mb-6 flex gap-1 border-b border-border-subtle dark:border-border">
                 {(['orders', 'products', 'channels'] as Tab[]).map((id) => {
