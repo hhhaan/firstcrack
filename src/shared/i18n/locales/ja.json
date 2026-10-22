@@ -2126,6 +2126,7 @@
             "listingPick": "商品を選択",
             "listingLoading": "カタログを読み込み中…",
             "listingError": "カタログを読み込めませんでした。バリアント／商品IDを手入力してください。",
+            "catalogSyncInProgress": "このストアで別の同期が実行中です。しばらく待ってから再度お試しください。",
             "manualKey": "バリアント / 商品ID",
             "manualKeyPh": "例: 4521098765 または SKU",
             "manualHelp": "ストアが注文明細に表示するIDを使用します（バリアントID優先、なければ商品ID）。",

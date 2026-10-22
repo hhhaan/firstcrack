@@ -2126,6 +2126,7 @@
             "listingPick": "Select a listing",
             "listingLoading": "Loading catalog…",
             "listingError": "Could not load the catalog. Enter the variant or product ID by hand.",
+            "catalogSyncInProgress": "Another sync is running on this store. Wait a moment and try again.",
             "manualKey": "Variant / product ID",
             "manualKeyPh": "e.g. 4521098765 or SKU",
             "manualHelp": "Use the ID the store shows on order lines (variant ID first, product ID otherwise).",

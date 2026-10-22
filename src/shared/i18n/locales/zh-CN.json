@@ -2126,6 +2126,7 @@
             "listingPick": "选择商品",
             "listingLoading": "正在加载目录…",
             "listingError": "无法加载目录，请手动输入变体或商品 ID。",
+            "catalogSyncInProgress": "该店铺正在同步，请稍后再试。",
             "manualKey": "变体 / 商品 ID",
             "manualKeyPh": "例如 4521098765 或 SKU",
             "manualHelp": "使用店铺在订单行上显示的 ID（优先变体 ID，否则商品 ID）。",

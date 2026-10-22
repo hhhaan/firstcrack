@@ -1,8 +1,8 @@
 /**
  * POST /order-sync
  * Auth: user JWT (manual "Sync now") OR header x-cron-secret (pg_cron / scheduler).
- * Body: { connectionId?: string, workspaceOwnerId?: string } — omit connectionId to
- * sync all active connections (cron / manual sync-all).
+ * Body: { connectionId?: string, workspaceOwnerId?: string } — cron requires connectionId
+ * (see invoke_order_sync_cron); manual sync-all may omit it.
  */
 import {
     corsHeaders,
@@ -13,15 +13,15 @@ import {
 } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
-import { reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
+import { acquireConnectionRunLock, reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
 import type { Platform, PollCursor } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 import { verifySharedSecret } from '../_shared/webhook-auth.ts';
 
-/** Cron sweeps every active connection, so one invocation must stay well inside the wall clock. */
+/** Manual sync-all: stay inside the platform wall clock. */
 const INVOCATION_BUDGET_MS = 90 * 1000;
-/** Connections handled per invocation. Ordered least-recently-polled first → round robin. */
+/** Connections handled per manual sync-all invocation. */
 const MAX_CONNECTIONS_PER_RUN = 25;
 
 function isCron(req: Request): boolean {
@@ -39,45 +39,17 @@ type ConnRow = {
     auto_fulfill_on_shipped?: boolean;
 };
 
-async function syncOne(
+async function runSyncForConnection(
     admin: ReturnType<typeof serviceClient>,
     conn: ConnRow,
-    trigger: 'cron' | 'manual',
+    runId: string,
 ): Promise<{
     ok: boolean;
     upserted: number;
-    skipped?: boolean;
     error?: string;
     /** #109 EF-path guard: stock events the batch RPC refused (terminal orders) — never silent. */
     stockEventSkips?: Array<{ referenceId: string; orderId: string; orderStatus: string; reason: string }>;
 }> {
-    // The insert is the lock: a partial unique index allows one 'running' row per connection for
-    // cron/manual/dispatch triggers. Webhook runs are outside it — see the migration for why.
-    const { data: run, error: runErr } = await admin
-        .from('order_sync_runs')
-        .insert({
-            connection_id: conn.id,
-            user_id: conn.user_id,
-            trigger,
-            status: 'running',
-        })
-        .select('id')
-        .single();
-    if (runErr || !run) {
-        if (runErr?.code === '23505') {
-            await admin.from('order_sync_runs').insert({
-                connection_id: conn.id,
-                user_id: conn.user_id,
-                trigger,
-                status: 'skipped',
-                finished_at: new Date().toISOString(),
-                error_message: 'another run in progress',
-            });
-            return { ok: true, upserted: 0, skipped: true };
-        }
-        return { ok: false, upserted: 0, error: runErr?.message ?? 'run insert failed' };
-    }
-
     try {
         const session = await loadSecretsSession(admin, conn.id);
         const adapter = getAdapter(conn.platform);
@@ -122,7 +94,7 @@ async function syncOne(
                     ? { error_message: `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 900)}` }
                     : {}),
             })
-            .eq('id', run.id);
+            .eq('id', runId);
         if (runError) throw new Error('Failed to finish sync run', { cause: runError });
 
         return { ok: true, upserted, ...(stockEventSkips.length ? { stockEventSkips } : {}) };
@@ -157,10 +129,36 @@ async function syncOne(
                 finished_at: now,
                 error_message: msg.slice(0, 1000),
             })
-            .eq('id', run.id);
+            .eq('id', runId);
 
         return { ok: false, upserted: 0, error: msg };
     }
+}
+
+async function syncOne(
+    admin: ReturnType<typeof serviceClient>,
+    conn: ConnRow,
+    trigger: 'cron' | 'manual',
+): Promise<{
+    ok: boolean;
+    upserted: number;
+    skipped?: boolean;
+    error?: string;
+    stockEventSkips?: Array<{ referenceId: string; orderId: string; orderStatus: string; reason: string }>;
+}> {
+    const lock = await acquireConnectionRunLock(admin, {
+        connectionId: conn.id,
+        userId: conn.user_id,
+        trigger,
+    });
+    if (!lock.ok) {
+        if (lock.conflict) {
+            return { ok: true, upserted: 0, skipped: true };
+        }
+        return { ok: false, upserted: 0, error: lock.error };
+    }
+
+    return await runSyncForConnection(admin, conn, lock.runId);
 }
 
 serveWithSentry('order-sync', async (req) => {
@@ -183,6 +181,10 @@ serveWithSentry('order-sync', async (req) => {
         workspaceOwnerId = body?.workspaceOwnerId;
     } catch {
         // empty body ok
+    }
+
+    if (cron && !connectionId) {
+        return jsonResponse({ error: 'connectionId required' }, 400);
     }
 
     const admin = serviceClient();
@@ -210,9 +212,10 @@ serveWithSentry('order-sync', async (req) => {
         }
     }
 
+    const listLimit = cron ? 1 : MAX_CONNECTIONS_PER_RUN;
     const { data: conns, error } = await query
         .order('last_polled_at', { ascending: true, nullsFirst: true })
-        .limit(MAX_CONNECTIONS_PER_RUN);
+        .limit(listLimit);
     if (error) {
         console.error('[order-sync] list', error);
         await captureEdgeException(error, { function: 'order-sync', status: 500 });
@@ -232,7 +235,32 @@ serveWithSentry('order-sync', async (req) => {
         return jsonResponse({ results: [], message: 'no connections' });
     }
 
-    const trigger = cron ? 'cron' : 'manual';
+    if (cron) {
+        const conn = conns[0] as ConnRow;
+        const lock = await acquireConnectionRunLock(admin, {
+            connectionId: conn.id,
+            userId: conn.user_id,
+            trigger: 'cron',
+        });
+        if (!lock.ok) {
+            if (lock.conflict) {
+                return jsonResponse({ connectionId: conn.id, skipped: true }, 200);
+            }
+            return jsonResponse({ error: lock.error ?? 'run insert failed' }, 500);
+        }
+
+        const waitUntil = (globalThis as { EdgeRuntime?: { waitUntil: (p: Promise<unknown>) => void } }).EdgeRuntime
+            ?.waitUntil;
+        const work = Promise.resolve().then(() => runSyncForConnection(admin, conn, lock.runId));
+        if (waitUntil) {
+            waitUntil(work);
+        } else {
+            await work;
+        }
+        return jsonResponse({ connectionId: conn.id, accepted: true }, 202);
+    }
+
+    const trigger = 'manual';
     const deadline = Date.now() + INVOCATION_BUDGET_MS;
     const results = [];
     let truncated = false;

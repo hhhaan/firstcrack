@@ -1,4 +1,6 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const edgeWaitUntilTasks: Promise<unknown>[] = [];
 
 type Query = { table: string; operation: string; values: Record<string, unknown>; single: boolean };
 type Result = { data?: unknown; error?: unknown };
@@ -30,6 +32,8 @@ vi.mock('./_shared/auth.ts', () => ({
             const chain = {
                 select: () => chain,
                 eq: () => chain,
+                neq: () => chain,
+                lt: () => chain,
                 in: () => chain,
                 order: () => chain,
                 limit: () => chain,
@@ -71,11 +75,13 @@ vi.mock('./_shared/channels/normalize.ts', async (importOriginal) => ({
     ...(await importOriginal<typeof import('./_shared/channels/normalize.ts')>()),
     upsertCanonicalOrders: mocks.upsert,
 }));
-vi.mock('./_shared/channels/run-lock.ts', () => ({
-    reclaimStaleRuns: vi.fn(),
-    acquireDispatchRunLock: async () => ({ ok: true, runId: 'run' }),
-    releaseRunLock: vi.fn(),
-}));
+vi.mock('./_shared/channels/run-lock.ts', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./_shared/channels/run-lock.ts')>();
+    return {
+        ...actual,
+        reclaimStaleRuns: vi.fn().mockResolvedValue(undefined),
+    };
+});
 vi.mock('./_shared/channels/secrets-session.ts', () => ({
     loadSecretsSession: async () => ({ current: () => ({}), rotate: vi.fn() }),
 }));
@@ -143,6 +149,11 @@ beforeAll(async () => {
     await import('./submit-cupping/index.ts');
 });
 
+afterEach(async () => {
+    await Promise.allSettled(edgeWaitUntilTasks.splice(0));
+    vi.unstubAllGlobals();
+});
+
 beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('Deno', { env: { get: (key: string) => (key.endsWith('SECRET') ? 'shared-secret' : undefined) } });
@@ -186,11 +197,93 @@ describe('order-sync persistence and authorization', () => {
         },
     );
 
-    it('accepts cron without a user JWT, and rejects a wrong secret without a user', async () => {
+    it('cron requires connectionId; accepts per-connection dispatch without a user JWT', async () => {
         mocks.user.mockResolvedValue(null);
-        expect((await request('order-sync', {}, { 'x-cron-secret': 'shared-secret' })).status).toBe(200);
+        vi.stubGlobal('EdgeRuntime', {
+            waitUntil: (promise: Promise<unknown>) => {
+                edgeWaitUntilTasks.push(promise);
+            },
+        });
+        expect((await request('order-sync', {}, { 'x-cron-secret': 'shared-secret' })).status).toBe(400);
+        expect(
+            (await request('order-sync', { connectionId: 'connection' }, { 'x-cron-secret': 'shared-secret' })).status,
+        ).toBe(202);
+        await Promise.allSettled(edgeWaitUntilTasks.splice(0));
         expect(mocks.user).not.toHaveBeenCalled();
         expect((await request('order-sync', {}, { 'x-cron-secret': 'wrong' })).status).toBe(401);
+    });
+
+    it('cron 202 runs sync in waitUntil and completes before the test ends', async () => {
+        mocks.user.mockResolvedValue(null);
+        vi.stubGlobal('EdgeRuntime', {
+            waitUntil: (promise: Promise<unknown>) => {
+                edgeWaitUntilTasks.push(promise);
+            },
+        });
+        const response = await request(
+            'order-sync',
+            { connectionId: 'connection' },
+            { 'x-cron-secret': 'shared-secret' },
+        );
+        expect(response.status).toBe(202);
+        await Promise.allSettled(edgeWaitUntilTasks.splice(0));
+        expect(mocks.adapter.fetchOrdersSince).toHaveBeenCalledTimes(1);
+    });
+
+    it('cron 23505 returns skipped without calling the adapter', async () => {
+        mocks.user.mockResolvedValue(null);
+        let runningInserts = 0;
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'order_sync_runs' && q.operation === 'insert' && q.values.status === 'running') {
+                runningInserts += 1;
+                if (runningInserts === 1) return { error: { code: '23505', message: 'duplicate' } };
+            }
+            return defaultResult(q);
+        });
+        const response = await request(
+            'order-sync',
+            { connectionId: 'connection' },
+            { 'x-cron-secret': 'shared-secret' },
+        );
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ skipped: true });
+        expect(mocks.adapter.fetchOrdersSince).not.toHaveBeenCalled();
+    });
+
+    it('manual sync-all stays synchronous with results array', async () => {
+        const response = await request('order-sync', {});
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({ results: [{ connectionId: 'connection' }] });
+    });
+});
+
+describe('channel-products run lock', () => {
+    it('returns 409 when the per-connection lock is held', async () => {
+        mocks.query.mockImplementation((q) => {
+            if (q.table === 'order_sync_runs' && q.operation === 'insert' && q.values.status === 'running') {
+                return { error: { code: '23505', message: 'duplicate' } };
+            }
+            return defaultResult(q);
+        });
+        const response = await request('channel-products', { connectionId: 'connection' });
+        expect(response.status).toBe(409);
+        expect(mocks.adapter.listProducts).not.toHaveBeenCalled();
+    });
+
+    it('releases with a fixed error_message when listProducts fails', async () => {
+        mocks.adapter.listProducts.mockRejectedValue(new Error('provider access_token=secret'));
+        const response = await request('channel-products', { connectionId: 'connection' });
+        expect(response.status).toBe(502);
+        expect(
+            mocks.query.mock.calls.some(
+                ([q]) =>
+                    q.table === 'order_sync_runs' &&
+                    q.operation === 'update' &&
+                    q.values.status === 'error' &&
+                    q.values.error_message === 'list products failed',
+            ),
+        ).toBe(true);
+        expect(await response.text()).not.toContain('secret');
     });
 });
 

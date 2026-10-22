@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+    acquireConnectionRunLock,
     acquireDispatchRunLock,
     reclaimStaleRuns,
     releaseRunLock,
@@ -107,6 +108,35 @@ describe('reclaimStaleRuns', () => {
     });
 });
 
+describe('acquireConnectionRunLock', () => {
+    it('inserts a running products row', async () => {
+        const { admin, ops } = mockAdmin({ insert: { data: { id: 'run-products' }, error: null } });
+        const result = await acquireConnectionRunLock(admin, {
+            connectionId: 'conn-1',
+            userId: 'user-1',
+            trigger: 'products',
+        });
+        expect(result).toEqual({ ok: true, runId: 'run-products' });
+        expect(ops[1].values).toMatchObject({ trigger: 'products', status: 'running' });
+    });
+
+    it('23505 on products writes skipped row with products trigger', async () => {
+        const { admin, ops } = mockAdmin({
+            insert: [
+                { data: null, error: { code: '23505', message: 'duplicate key' } },
+                { data: { id: 'skipped' }, error: null },
+            ],
+        });
+        const result = await acquireConnectionRunLock(admin, {
+            connectionId: 'conn-1',
+            userId: 'user-1',
+            trigger: 'products',
+        });
+        expect(result).toEqual({ ok: false, conflict: true });
+        expect(ops.filter((o) => o.method === 'insert')[1].values.trigger).toBe('products');
+    });
+});
+
 describe('acquireDispatchRunLock', () => {
     it('reclaims then inserts a running dispatch row', async () => {
         const { admin, ops } = mockAdmin({ insert: { data: { id: 'run-dispatch' }, error: null } });
@@ -190,6 +220,17 @@ describe('releaseRunLock', () => {
         });
         expect(ops[0].values.status).toBe('error');
         expect(String(ops[0].values.error_message)).toHaveLength(1000);
+    });
+});
+
+describe('channel-products wires the run lock', () => {
+    it('acquires before loadSecretsSession and releases in finally path', () => {
+        const dir = dirname(fileURLToPath(import.meta.url));
+        const src = readFileSync(join(dir, '../../channel-products/index.ts'), 'utf8');
+        expect(src).toContain('acquireConnectionRunLock');
+        expect(src).toContain('releaseRunLock');
+        expect(src.indexOf('acquireConnectionRunLock')).toBeLessThan(src.indexOf('loadSecretsSession'));
+        expect(src).toContain("errorMessage: 'list products failed'");
     });
 });
 

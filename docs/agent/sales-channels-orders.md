@@ -66,7 +66,7 @@ there silently deleted nothing for members.
 
 ## Inbound order sync
 
-1. Manual "Sync now" (user JWT) or 15m pg_cron (`x-cron-secret` on `order-sync`)
+1. Manual "Sync now" (user JWT) or 2m pg_cron → `invoke_order_sync_cron()` dispatches one `order-sync` POST per due connection (`x-cron-secret`, body `{ connectionId }`, HTTP 202 + `waitUntil`)
 2. Adapter pulls platform orders → normalize product candidates → `sync_channel_orders_batch` atomically writes orders, lines, and stock effects in chunks of 100
 3. Webhooks: `order-webhook` (Shopify HMAC / Cafe24 shared secret) — fail closed on bad signature
 4. App reads tables only via `orderApi.list(workspaceOwnerId)`
@@ -102,13 +102,16 @@ there silently deleted nothing for members.
 the response retains each connection's result. Dispatch keeps HTTP 200 plus `fulfillError`
 when platform shipping succeeds but internal fulfillment fails.
 
-**Cron activation** (`20260801000002_order_sync_cron.sql`): the job is scheduled but no-ops until
-`vault.create_secret('<ORDER_SYNC_CRON_SECRET>', 'order_sync_cron_secret')` exists. It also needs
+**Cron activation** (`20261018090000_order_sync_scheduler.sql`): `order-sync-2min` calls
+`invoke_order_sync_cron()`. Missing/blank `vault` secret `order_sync_cron_secret` raises
+`order_sync_cron_secret is not configured` (cron run fails; no silent success). Zero due connections
+insert a `order_sync_scheduler_ticks` row with `no_due_connections`. Dispatch also needs
 `ORDER_SYNC_CRON_SECRET` in the function env and `verify_jwt = false` (config.toml) at deploy.
 
 **Run lock:** one `order_sync_runs` row per connection may sit on `status='running'` (partial unique
-index). `order-sync` reclaims rows older than 10 min, caps connections per invocation, and stops at a
-wall-clock budget — a hard kill must never strand a connection.
+index; triggers include `products` for catalog listing). `order-sync` reclaims rows older than 10 min.
+Manual sync-all caps at 25 connections per invocation with a 90s budget; cron uses one connection per
+Edge invocation — a hard kill must never strand a connection.
 
 **Watermark:** every adapter returns its cursor through `_shared/channels/poll-cursor.ts`. Hitting a
 page cap means `complete: false` and the watermark stays put; advancing it drops unread orders for good.
