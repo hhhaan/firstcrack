@@ -671,7 +671,7 @@ it('persists and restores both log panel states', async () => {
 
 it('defaults to separated controls and persists the merged chart preference', () => {
     expect(normalizeRoastSettings({}).mergeControlChart).toBe(false);
-    expect(normalizeRoastSettings({ mergeControlChart: 'true' }).mergeControlChart).toBe(false);
+    expect(normalizeRoastSettings({ mergeControlChart: 'true' } as never).mergeControlChart).toBe(false);
     const original = getRoastSettings();
     try {
         updateRoastSettings({ mergeControlChart: true });
