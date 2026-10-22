@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "setup": "bash scripts/setup.sh",
-        "predev": "bash scripts/ensure-sidecar-venv.sh && (lsof -ti:9999 | xargs kill -9 2>/dev/null || true)",
+        "predev": "bash scripts/ensure-sidecar-venv.sh && (lsof -tiTCP:1420 -iTCP:9999 -sTCP:LISTEN | xargs kill -9 2>/dev/null || true)",
         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
         "build": "vite build",
         "typecheck": "tsgo --noEmit && tsgo --noEmit -p tsconfig.test.json",
