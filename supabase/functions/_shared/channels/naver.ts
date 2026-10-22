@@ -22,8 +22,6 @@
  *   https://apicenter.commerce.naver.com/docs/commerce-api/current/schemas/상품-주문-정보-구조체
  */
 
-import { captureEdgeException } from '../sentry.ts';
-
 // bcryptjs 2.x is CommonJS: it has no named ESM exports, so `import { hash }` throws
 // SyntaxError while the module is evaluated — which the edge runtime reports as BOOT_ERROR
 // for every function importing this file. Type-checking does not catch it (the .d.ts
@@ -34,15 +32,9 @@ import {
     type NaverDispatchResponse,
     readNaverDispatchResult,
 } from './dispatch.ts';
-import { mergeNaverOrdersByOrderId, naverCommercialQuantity, naverPaymentAmount } from './naver-order.ts';
-import { planNaverScan } from './naver-windows.ts';
-import { lineStatusOf } from './normalize.ts';
-import { nextPollCursor } from './poll-cursor.ts';
-import { type HttpAttempt, naverThrottle, readHttpAttempt, withRetry } from './rate-limit.ts';
-import { naverToCanonical } from './status-map.ts';
+import { getLastChanged, NAVER_API_BASE, naverRequest, okStatus, toNaverDateTime } from './naver-http.ts';
+import { pollNaverOrders } from './naver-poll.ts';
 import type {
-    CanonicalOrder,
-    CanonicalOrderLine,
     ChannelAdapter,
     ChannelSecrets,
     FetchOrdersResult,
@@ -53,30 +45,6 @@ import type {
     SecretsRotationSink,
     TestConnectionResult,
 } from './types.ts';
-
-const BASE = 'https://api.commerce.naver.com/external';
-
-/**
- * last-changed pages walked per 24h window before the scan is declared incomplete.
- *
- * No API basis — the official flow is "keep paging until `more` disappears". This is purely an
- * app-side wall-clock bound so one connection cannot eat a whole cron invocation. It is only safe
- * because hitting it pins the cursor (see `truncatedAt`); the next poll resumes the same window.
- */
-const MAX_PAGES_PER_WINDOW = 20;
-
-/**
- * Single choke point for every Naver HTTP call, so 429 / gateway-5xx backoff exists in exactly one
- * place instead of at each call site. `readHttpAttempt` drains the body on every attempt — an
- * abandoned response body would leak across a retry.
- */
-async function naverRequest(url: URL | string, init?: RequestInit): Promise<HttpAttempt> {
-    return withRetry(() => fetch(url, init).then(readHttpAttempt), naverThrottle, { label: 'naver' });
-}
-
-function okStatus(attempt: HttpAttempt): boolean {
-    return attempt.status >= 200 && attempt.status < 300;
-}
 
 export interface NaverSecrets extends ChannelSecrets {
     client_id: string;
@@ -122,7 +90,7 @@ export async function exchangeNaverToken(clientId: string, clientSecret: string)
 
     // Safe to retry: `client_credentials` is stateless here — a re-issue mints an additional token
     // and revokes nothing, unlike Cafe24's refresh_token grant.
-    const res = await naverRequest(`${BASE}/v1/oauth2/token`, {
+    const res = await naverRequest(`${NAVER_API_BASE}/v1/oauth2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body,
@@ -157,129 +125,6 @@ async function authorizedToken(secrets: ChannelSecrets, onRotate: SecretsRotatio
     return token;
 }
 
-/** Official date-time example: 2023-01-16T17:14:51.794+09:00 — ISO-8601 with offset is accepted. */
-function toNaverDateTime(d: Date): string {
-    return d.toISOString().replace(/\.\d{3}Z$/, '.000+00:00');
-}
-
-type LastChangedRow = {
-    orderId?: string;
-    productOrderId?: string;
-    productOrderStatus?: string;
-    claimStatus?: string;
-    lastChangedDate?: string;
-    paymentDate?: string;
-};
-
-type LastChangedResponse = {
-    data?: {
-        lastChangeStatuses?: LastChangedRow[];
-        more?: { moreFrom?: string; moreSequence?: string | number };
-    };
-    lastChangeStatuses?: LastChangedRow[];
-    more?: { moreFrom?: string; moreSequence?: string | number };
-};
-
-async function getLastChanged(
-    token: string,
-    lastChangedFrom: string,
-    lastChangedTo?: string,
-    moreSequence?: string,
-): Promise<{ rows: LastChangedRow[]; moreFrom?: string; moreSequence?: string }> {
-    const url = new URL(`${BASE}/v1/pay-order/seller/product-orders/last-changed-statuses`);
-    url.searchParams.set('lastChangedFrom', lastChangedFrom);
-    if (lastChangedTo) url.searchParams.set('lastChangedTo', lastChangedTo);
-    if (moreSequence) url.searchParams.set('moreSequence', moreSequence);
-
-    const res = await naverRequest(url, {
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
-    });
-    if (!okStatus(res)) {
-        throw new Error(`naver last-changed ${res.status}: ${res.body.slice(0, 300)}`);
-    }
-    const json = JSON.parse(res.body) as LastChangedResponse;
-    const rows = json.data?.lastChangeStatuses ?? json.lastChangeStatuses ?? [];
-    const more = json.data?.more ?? json.more;
-    return {
-        rows,
-        moreFrom: more?.moreFrom,
-        moreSequence: more?.moreSequence != null ? String(more.moreSequence) : undefined,
-    };
-}
-
-/** POST query body: productOrderIds (max 300) — official 상품 주문 상세 내역 조회 */
-async function queryProductOrders(token: string, productOrderIds: string[]): Promise<unknown[]> {
-    if (!productOrderIds.length) return [];
-    const res = await naverRequest(`${BASE}/v1/pay-order/seller/product-orders/query`, {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-        },
-        body: JSON.stringify({ productOrderIds }),
-    });
-    if (!okStatus(res)) {
-        throw new Error(`naver product-orders/query ${res.status}: ${res.body.slice(0, 300)}`);
-    }
-    const json = JSON.parse(res.body) as {
-        data?: unknown[] | { data?: unknown[] };
-        // schema wraps as productOrdersInfo array under data
-    };
-    // Response shape: { data: [ { order, productOrder, ... }, ... ] } per 상품 주문 정보 구조체
-    if (Array.isArray(json.data)) return json.data;
-    if (json.data && typeof json.data === 'object' && Array.isArray((json.data as { data?: unknown[] }).data)) {
-        return (json.data as { data: unknown[] }).data;
-    }
-    return [];
-}
-
-function mapDetail(entry: Record<string, unknown>): CanonicalOrder | null {
-    const order = (entry.order ?? {}) as Record<string, unknown>;
-    const po = (entry.productOrder ?? entry) as Record<string, unknown>;
-    const productOrderId = String(po.productOrderId ?? '');
-    const orderId = String(order.orderId ?? po.orderId ?? productOrderId);
-    if (!productOrderId && !orderId) return null;
-
-    const status =
-        naverToCanonical(String(po.productOrderStatus ?? ''), po.claimStatus != null ? String(po.claimStatus) : null) ??
-        'paid';
-
-    const lineStatus = lineStatusOf(status);
-    const terminal = lineStatus !== 'active';
-    const qty = naverCommercialQuantity(po, terminal);
-    const totalPay = naverPaymentAmount(po, terminal);
-    const parsedUnit = po.unitPrice != null ? Number(po.unitPrice) : null;
-    const unitPrice = parsedUnit != null && Number.isFinite(parsedUnit) ? parsedUnit : null;
-
-    const line: CanonicalOrderLine = {
-        platformLineId: productOrderId || `${orderId}-line`,
-        platformProductId: po.productId != null ? String(po.productId) : null,
-        platformVariantId: po.optionCode != null
-            ? String(po.optionCode)
-            : po.optionManageCode != null
-              ? String(po.optionManageCode)
-              : po.itemNo != null
-                ? String(po.itemNo)
-                : null,
-        title: String(po.productName ?? 'Naver item'),
-        quantity: qty,
-        unitPrice: unitPrice ?? (totalPay != null && qty ? totalPay / qty : null),
-        status: lineStatus,
-    };
-
-    return {
-        platformOrderId: orderId,
-        status,
-        orderedAt: String(order.orderDate ?? order.paymentDate ?? po.placeOrderDate ?? new Date().toISOString()),
-        buyerName: order.ordererName != null ? String(order.ordererName) : null,
-        currency: 'KRW',
-        totalAmount: totalPay,
-        lines: [line],
-        raw: entry,
-    };
-}
-
 export const naverAdapter: ChannelAdapter = {
     platform: 'naver',
     capabilities: { webhooks: false, outboundDispatch: true },
@@ -302,122 +147,7 @@ export const naverAdapter: ChannelAdapter = {
 
     async fetchOrdersSince(secrets, cursor, onRotate): Promise<FetchOrdersResult> {
         const token = await authorizedToken(secrets, onRotate);
-
-        const end = Date.now();
-        // Official: omit lastChangedTo → 24h from lastChangedFrom. Walk day windows.
-        const requestedStart = cursor.since
-            ? new Date(cursor.since).getTime()
-            : end - 24 * 60 * 60 * 1000;
-        // Bounded by a window budget, not by a lookback clamp — see naver-windows.ts for why the
-        // clamp lost orders and why the budget cannot.
-        const plan = planNaverScan(requestedStart, end);
-
-        const productOrderIds: string[] = [];
-        // Lightweight status from last-changed when detail fails
-        const statusHint = new Map<
-            string,
-            { status: string; claim?: string; orderId?: string; orderedAt?: string }
-        >();
-        /** ms of the first window this run does not fully read; null = whole range scanned. */
-        let truncatedAt: number | null = plan.unscannedFrom;
-
-        for (const scan of plan.windows) {
-            let moreFrom: string | undefined;
-            let moreSequence: string | undefined;
-            let pages = 0;
-
-            do {
-                const from = moreFrom ?? toNaverDateTime(new Date(scan.start));
-                const to = moreFrom ? undefined : toNaverDateTime(new Date(scan.end));
-                const page = await getLastChanged(token, from, to, moreSequence);
-                for (const row of page.rows) {
-                    if (row.productOrderId) {
-                        productOrderIds.push(String(row.productOrderId));
-                        statusHint.set(String(row.productOrderId), {
-                            status: String(row.productOrderStatus ?? ''),
-                            claim: row.claimStatus != null ? String(row.claimStatus) : undefined,
-                            orderId: row.orderId != null ? String(row.orderId) : undefined,
-                            orderedAt: row.paymentDate ?? row.lastChangedDate,
-                        });
-                    }
-                }
-                moreFrom = page.moreFrom;
-                moreSequence = page.moreSequence;
-                pages += 1;
-            } while (moreFrom && pages < MAX_PAGES_PER_WINDOW);
-
-            if (moreFrom) {
-                // Page cap hit with pages still unread: stop and leave the watermark inside this
-                // window so the next poll re-reads it instead of skipping the remainder. Earlier
-                // than any budget cut-off, so it overrides `plan.unscannedFrom`.
-                truncatedAt = scan.start;
-                break;
-            }
-        }
-
-        const uniqueIds = [...new Set(productOrderIds)];
-        const mapped: CanonicalOrder[] = [];
-
-        // Official max 300 IDs per query call
-        for (let i = 0; i < uniqueIds.length; i += 300) {
-            const chunk = uniqueIds.slice(i, i + 300);
-            try {
-                const details = await queryProductOrders(token, chunk);
-                for (const d of details) {
-                    const order = mapDetail(d as Record<string, unknown>);
-                    if (order) mapped.push(order);
-                }
-            } catch (e) {
-                console.error('[naver] product-orders/query failed', e);
-                await captureEdgeException(e, {
-                    function: 'order-sync',
-                    status: 502,
-                    tags: { platform: 'naver', step: 'product-orders-query' },
-                });
-                // Fallback: synthesize from last-changed rows only
-                for (const id of chunk) {
-                    const hint = statusHint.get(id);
-                    if (!hint) continue;
-                    const status = naverToCanonical(hint.status, hint.claim) ?? 'paid';
-                    mapped.push({
-                        platformOrderId: hint.orderId ?? id,
-                        status,
-                        // Real platform timestamps only; `now` would be written to a NOT NULL
-                        // column and outlive the outage (the batch RPC keeps the earliest value).
-                        orderedAt: hint.orderedAt ?? new Date().toISOString(),
-                        buyerName: null,
-                        currency: 'KRW',
-                        totalAmount: null,
-                        lines: [
-                            {
-                                platformLineId: id,
-                                platformProductId: null,
-                                platformVariantId: null,
-                                title: `Naver ${id}`,
-                                quantity: 1,
-                                unitPrice: null,
-                                status:
-                                    status === 'cancelled'
-                                        ? 'cancelled'
-                                        : status === 'refunded'
-                                          ? 'refunded'
-                                          : 'active',
-                            },
-                        ],
-                        raw: { productOrderId: id, ...hint },
-                    });
-                }
-            }
-        }
-
-        return {
-            orders: mergeNaverOrdersByOrderId(mapped),
-            nextCursor: nextPollCursor({
-                complete: truncatedAt === null,
-                windowEnd: new Date(end).toISOString(),
-                resumeFrom: new Date(truncatedAt ?? end).toISOString(),
-            }),
-        };
+        return pollNaverOrders(token, cursor);
     },
 
     async listProducts(): Promise<PlatformListing[]> {
@@ -432,7 +162,7 @@ export const naverAdapter: ChannelAdapter = {
         const body = buildNaverDispatchPayload(req);
         // Retries here are 429 / 502-504 only: the gateway rejected the call, so nothing was
         // dispatched. A plain 500 is never replayed — that one could have shipped already.
-        const res = await naverRequest(`${BASE}/v1/pay-order/seller/product-orders/dispatch`, {
+        const res = await naverRequest(`${NAVER_API_BASE}/v1/pay-order/seller/product-orders/dispatch`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`,

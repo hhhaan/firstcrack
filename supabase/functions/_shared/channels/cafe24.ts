@@ -329,9 +329,10 @@ async function fetchOrdersWindow(
     startDate: string,
     endDate: string,
     maxPages: number,
-): Promise<{ raw: Array<Record<string, unknown>>; complete: boolean }> {
+    startOffset = 0,
+): Promise<{ raw: Array<Record<string, unknown>>; complete: boolean; resumeOffset?: number }> {
     const raw: Array<Record<string, unknown>> = [];
-    let offset = 0;
+    let offset = startOffset;
     let pages = 0;
     let complete = true;
 
@@ -360,7 +361,7 @@ async function fetchOrdersWindow(
         }
     }
 
-    return { raw, complete };
+    return { raw, complete, resumeOffset: complete ? undefined : offset };
 }
 
 export const cafe24Adapter: ChannelAdapter = {
@@ -392,7 +393,17 @@ export const cafe24Adapter: ChannelAdapter = {
         const startDate = start.toISOString().slice(0, 10);
         const endDate = end.toISOString().slice(0, 10);
 
-        const primary = await fetchOrdersWindow(session, 'order_date', startDate, endDate, CAFE24_PRIMARY_MAX_PAGES);
+        const savedOffset = cursor.token ? Number.parseInt(cursor.token, 10) : 0;
+        const primaryStartOffset =
+            Number.isFinite(savedOffset) && savedOffset > 0 ? Math.max(0, savedOffset - PAGE_LIMIT) : 0;
+        const primary = await fetchOrdersWindow(
+            session,
+            'order_date',
+            startDate,
+            endDate,
+            CAFE24_PRIMARY_MAX_PAGES,
+            primaryStartOffset,
+        );
 
         // #141: dedupe by order_id. Every poll returns the order's *current* snapshot (date_type
         // only filters which orders come back), so duplicates are same-state payloads and keeping
@@ -450,6 +461,8 @@ export const cafe24Adapter: ChannelAdapter = {
                 complete: primary.complete,
                 windowEnd: end.toISOString(),
                 resumeFrom: cursor.since ?? start.toISOString(),
+                resumeToken:
+                    primary.complete || primary.resumeOffset == null ? undefined : String(primary.resumeOffset),
             }),
         };
     },

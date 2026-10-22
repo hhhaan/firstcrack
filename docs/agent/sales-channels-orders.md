@@ -111,7 +111,20 @@ index). `order-sync` reclaims rows older than 10 min, caps connections per invoc
 wall-clock budget — a hard kill must never strand a connection.
 
 **Watermark:** every adapter returns its cursor through `_shared/channels/poll-cursor.ts`. Hitting a
-page cap means `complete: false` and the watermark stays put; advancing it drops unread orders for good.
+page cap means `complete: false`, the time watermark stays put, and the platform page token (`poll_cursor.token`)
+is persisted so the next run resumes instead of re-reading from offset 0. Advancing the time watermark without
+finishing the page walk drops unread orders for good. Naver `product-orders/query` failures republish the
+incoming cursor (no degraded placeholder lines); `order_sync_runs.error_message` records the hold and Sentry
+tags `naver_cursor_held` for operator visibility.
+
+Naver list resume: when `since` + `moreSequence` finish the API’s implicit +24h continuation slice, the
+same poll continues `planNaverScan` forward to `now` (or publishes an incomplete cursor) so days between
+`since+24h` and the watermark are not skipped. If Naver rejects a stored `moreSequence` (4xx), the adapter
+drops the token and re-walks that window from `since` (up to `MAX_PAGES_PER_WINDOW` pages per slice).
+
+**Known gaps (PR-B):** one bad `product-order` id in a detail chunk fails the whole chunk (up to 299 siblings
+retry with it). Cafe24 primary `order_date` offset resume is implemented; the platform’s maximum `/orders`
+offset is not verified in production.
 
 **Token rotation:** adapters that mint credentials mid-call must hand them to the
 `SecretsRotationSink` they are given. `_shared/channels/secrets-session.ts` is the only writer of

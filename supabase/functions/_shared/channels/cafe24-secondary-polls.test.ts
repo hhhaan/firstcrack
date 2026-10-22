@@ -139,6 +139,7 @@ describe('cafe24 secondary polls (#141)', () => {
         const { nextCursor } = await cafe24Adapter.fetchOrdersSince(secrets, cursor, noRotate);
 
         expect(nextCursor.since).toBe(SINCE);
+        expect(nextCursor.token).toBe('4000');
     });
 
     it('splits the old 50-page budget across the three polls', () => {
