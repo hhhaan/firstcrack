@@ -7,6 +7,7 @@ import { startSelectedContinueBatch } from '@features/active-roast/lib/startNext
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { type CompletedRoastSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { discardReceiptSession } from '@features/active-roast/model/controlReceiptCollector';
 import {
     clearPendingRoastSave,
     createPendingRoastSave,
@@ -385,6 +386,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         )
             return;
         clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
+        discardReceiptSession(sessionId);
         flow.discardSummary(summaryOwnerId, sessionId);
     }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
 

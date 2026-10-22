@@ -5,7 +5,7 @@ import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlS
 import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
-import { type FsdControlInput, useFsdControl } from './useFsdControl';
+import { curveOwnsHeater, type FsdControlInput, useFsdControl } from './useFsdControl';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
@@ -109,7 +109,7 @@ export const useMachineControlComposition = ({
 
     // PID lifetime includes DROP safe-off. It stays mounted when the panel is hidden (#269).
     const curve = machine.connectionStatus?.curve;
-    const curveOwned = curve != null && (curve.phase !== 'terminal' || curve.terminal_outcome !== 'completed');
+    const curveOwned = curveOwnsHeater(curve);
     const pidActive = (pidRuntime?.state ?? 'off') !== 'off' || curveOwned;
 
     // Replay writes only through setValue + commitNow. A drag preview is not a send.

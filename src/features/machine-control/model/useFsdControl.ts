@@ -27,7 +27,7 @@ export interface FsdControlInput {
 const sameAuthority = (left: CurveAuthority | null | undefined, right: CurveAuthority) =>
     left?.sensor_clock === right.sensor_clock && left.run_id === right.run_id && left.generation === right.generation;
 
-const ownsHeater = (curve: CurveSnapshot | null | undefined) =>
+export const curveOwnsHeater = (curve: CurveSnapshot | null | undefined) =>
     curve != null && (curve.phase !== 'terminal' || curve.terminal_outcome !== 'completed');
 
 export const useFsdControl = ({
@@ -56,7 +56,6 @@ export const useFsdControl = ({
     const [failure, setFailure] = useState<string | null>(null);
     const [failureDetail, setFailureDetail] = useState<string | null>(null);
     const authority = useRef<CurveAuthority | null>(null);
-    const observed = useRef<CurveSnapshot | null>(null);
     const revision = useRef(0);
     const startIntent = useRef<number | null>(null);
     const departureReason = useRef<CurveStopRequest['reason']>('view_hidden');
@@ -83,8 +82,11 @@ export const useFsdControl = ({
         if (previous.clock === clock && previous.time === time && previous.curve === curve) return true;
         const next = { curve, time, clock };
         snapshotRef.current = next;
-        observed.current = curve;
-        if (!curve || !ownsHeater(curve) || (authority.current && !sameAuthority(authority.current, curve.authority)))
+        if (
+            !curve ||
+            !curveOwnsHeater(curve) ||
+            (authority.current && !sameAuthority(authority.current, curve.authority))
+        )
             authority.current = null;
         if (mounted.current) setSnapshot(next);
         return true;
@@ -103,7 +105,7 @@ export const useFsdControl = ({
             if (mounted.current) setPendingStops((count) => count + 1);
             const relevant = () =>
                 connectionClock.current === ticket.sensor_clock &&
-                (!observed.current || sameAuthority(observed.current.authority, ticket));
+                (!snapshotRef.current.curve || sameAuthority(snapshotRef.current.curve.authority, ticket));
             const operation = sidecar
                 .pidOff({ mode: 'curve', authority: ticket, reason })
                 .then((response) => {
@@ -145,7 +147,7 @@ export const useFsdControl = ({
                     (reason === 'workspace_changed' || departureReason.current !== 'workspace_changed'))
             )
                 departureReason.current = reason;
-            const ticket = authority.current ?? observed.current?.authority;
+            const ticket = authority.current ?? snapshotRef.current.curve?.authority;
             authority.current = null;
             return ticket ? stopAuthority(ticket, reason) : Promise.resolve(true);
         },
@@ -214,7 +216,7 @@ export const useFsdControl = ({
     }, [input?.visible, healthy, roastFinished, stop]);
 
     const curve = snapshot.curve;
-    const active = ownsHeater(curve);
+    const active = curveOwnsHeater(curve);
     const charge = status?.charge;
     const source = input?.reference;
     const capability = status?.control?.pid?.curve;
@@ -288,7 +290,7 @@ export const useFsdControl = ({
             }
             acceptSnapshot(response.curve, response.server_time, response.curve.authority.sensor_clock);
             const current = snapshotRef.current.curve;
-            if (current && sameAuthority(current.authority, response.curve.authority) && ownsHeater(current)) {
+            if (current && sameAuthority(current.authority, response.curve.authority) && curveOwnsHeater(current)) {
                 authority.current = current.authority;
             }
         } catch (error) {

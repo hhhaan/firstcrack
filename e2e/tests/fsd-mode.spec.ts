@@ -32,6 +32,15 @@ const prepare = async (fsd: FsdFixture) => {
     return start;
 };
 
+const expectReceiptPollingStopped = async (fsd: FsdFixture, chargeId: string) => {
+    const path = `/pid/receipts?charge_id=${encodeURIComponent(chargeId)}&`;
+    await expect.poll(async () => (await fsd.state()).requests.some((request: any) =>
+        request.path.startsWith(path) && request.response?.sealed === true)).toBe(true);
+    const count = fsd.traffic.filter(request => request.path.startsWith(path)).length;
+    await fsd.page.waitForTimeout(2500);
+    expect(fsd.traffic.filter(request => request.path.startsWith(path))).toHaveLength(count);
+};
+
 test('FSD entry explains unavailable references without a control write', async ({ fsd }, info) => {
     const { page } = fsd;
     await page.getByTestId('nav-roast').click();
@@ -118,6 +127,12 @@ test('real recorded thermal reference starts correction and permits acknowledged
     await expect.poll(() => replayed).toBe(true);
     expect((fsd.db.sessions[0].events as any[]).filter(event => event.control_receipt?.kind === 'receipt')).toHaveLength(receipts.length);
     await expect(page.getByTestId('history-control-receipts').getByRole('listitem')).toHaveCount(receipts.length);
+    await page.getByTestId('nav-roast').click();
+    await page.getByTestId('return-to-charge-wait').click();
+    const ready = page.getByTestId('roast-ready');
+    if (await ready.isVisible()) await ready.click();
+    await page.getByTestId('roast-charge').click();
+    await expectReceiptPollingStopped(fsd, receipts[0].control_receipt.receipt.charge_id);
 });
 
 test('collapse preserves control; navigation stops and remount never resumes', async ({ fsd }, info) => {
@@ -242,6 +257,7 @@ test('Drop cancellation and next Charge cannot resume a retired FSD generation',
     await (await prepare(fsd)).click();
     await expect.poll(async () => (await fsd.state()).status.curve?.phase).toBe('active');
     const charge = (await fsd.state()).status.charge.charge_id;
+    const sessionId = (await fsd.state()).status.charge.session_id;
     await page.getByRole('button', { name: /Mark Drop/ }).click();
     await expect.poll(async () => (await fsd.state()).status.charge?.state).toBe('closed');
     const starts = fsd.traffic.filter(r => r.path === '/pid/on').length;
@@ -263,4 +279,14 @@ test('Drop cancellation and next Charge cannot resume a retired FSD generation',
     await page.getByTestId('roast-charge').click();
     await expect.poll(async () => (await fsd.state()).status.charge?.charge_id).not.toBe(charge);
     expect(fsd.traffic.filter(r => r.path === '/pid/on')).toHaveLength(starts);
+    await expectReceiptPollingStopped(fsd, charge);
+    await page.getByTestId('roast-end').click();
+    await page.getByTestId('end-roast-confirm').click();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: en.activeRoast.summary.discard, exact: true }).click();
+    await expect.poll(() => page.evaluate(async session => {
+        const path = '/src/features/active-roast/model/controlReceiptCollector.ts';
+        const { useControlReceiptStore } = await import(path);
+        return session in useControlReceiptStore.getState().collections;
+    }, sessionId)).toBe(false);
 });

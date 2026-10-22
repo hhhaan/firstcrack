@@ -564,12 +564,17 @@ async def test_new_charge_waits_for_old_operation_and_writers(fixture, automatic
     if automatic:
         await stop
     rows = session.receipts(old_charge)["receipts"]
+    assert not session.receipts(old_charge)["sealed"]
     assert all(row["charge_id"] == old_charge and row["session_id"] == request["session_id"] for row in rows)
     if automatic:
         assert [row["purpose"] for row in rows[-3:]] == ["terminal"] * 3
         assert all(row["run_id"] == authority["run_id"] and row["elapsed_sec"] == 40 for row in rows)
     accepted, _ = session.accept_charge({**replacement, "expected_generation": session.ticket.generation})
+    assert session.receipts(old_charge)["sealed"]
     assert session.receipts(accepted["charge"]["charge_id"])["receipts"] == []
+    assert not session.receipts(accepted["charge"]["charge_id"])["sealed"]
+    await session.control({"heater": 20})
+    assert session.receipts(old_charge)["receipts"] == rows
 
 
 @pytest.mark.parametrize("reason", ["drop", "workspace_changed"])

@@ -655,6 +655,12 @@ completion, uncertainty와 늦은 reconciliation을 서로 다른 entry로 보�
 Heat feedback은 이 명령 증거와 별개다. Retention 뒤 cursor에는 명시적 `gap`이 붙고,
 폐기된 journal은 `410 journal_unavailable`이다. 미래 cursor는 `400`이다.
 
+Receipt page의 `sealed:true`는 이전 writer와 종결 작업이 모두 끝난 뒤 다음 Charge가
+승인되어 해당 journal에 더 이상 기록이 추가되지 않음을 뜻한다. Drop만으로 sealed가
+되지는 않는다. 앱은 sealed journal의 마지막 페이지까지 회수한 뒤 조회를 멈추며,
+저장 동기화 또는 명시적 폐기가 끝나고 현재 화면·pending save에서도 참조하지 않는
+컬렉션만 메모리에서 정리한다. `410` 역시 유실을 기록한 뒤 재조회하지 않는다.
+
 새 요청 오류는 기존 `error`와 안정된 `code`, 해당 시 `field`를 포함한다. 입력 오류는
 `400`, 상태·소유권 충돌은 `409`, 미완료 writer는 `504 write_uncertain`과
 `uncertain:true`, transport 실패는 `502`다. 잘못된 nonempty JSON stop은 `400`이며

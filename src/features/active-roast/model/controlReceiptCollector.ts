@@ -1,5 +1,5 @@
 import { roastSessionApi } from '@entities/roast';
-import { sidecar } from '@shared/lib/sidecar';
+import { isSidecarHttpError, sidecar } from '@shared/lib/sidecar';
 import type { LogEntry } from '@shared/types/roast';
 import type { Charge } from '@shared/types/sidecar';
 import { z } from 'zod';
@@ -26,6 +26,8 @@ type Collection = {
     after: number;
     entries: LogEntry[];
     unavailable: boolean;
+    sealed: boolean;
+    discarded: boolean;
     saved: boolean;
     syncedCount: number;
 };
@@ -54,6 +56,8 @@ const pendingCollectionSchema = z.object({
         }),
     ),
     saved: z.literal(true),
+    sealed: z.boolean().default(false),
+    discarded: z.literal(false).default(false),
     syncedCount: z.number().int().nonnegative(),
     unavailable: z.boolean(),
 });
@@ -68,7 +72,8 @@ const checkpointReceipts = () => {
     const pending = Object.values(useControlReceiptStore.getState().collections).filter(
         (collection) =>
             collection.saved &&
-            (collection.syncedCount < collection.entries.length || unresolvedReceiptAttempts(collection.entries) > 0),
+            (collection.syncedCount < collection.entries.length ||
+                (!collection.sealed && unresolvedReceiptAttempts(collection.entries) > 0)),
     );
     writePendingControlReceipts(pending);
 };
@@ -85,6 +90,8 @@ export const registerReceiptCollection = (charge: Charge, ownerId: string) => {
                 after: 0,
                 entries: [],
                 unavailable: false,
+                sealed: false,
+                discarded: false,
                 saved: false,
                 syncedCount: 0,
             },
@@ -128,6 +135,8 @@ export const recoverPendingReceiptCollection = (sessionId: string, ownerId: stri
         after: Math.max(0, ...known.map((receipt) => receipt.sequence)),
         entries: [],
         unavailable: !known.length,
+        sealed: !known.length,
+        discarded: false,
         saved: false,
         syncedCount: 0,
     };
@@ -142,7 +151,9 @@ const replaceCollection = (collection: Collection) => {
         previous.after === collection.after &&
         previous.saved === collection.saved &&
         previous.syncedCount === collection.syncedCount &&
-        previous.unavailable === collection.unavailable
+        previous.unavailable === collection.unavailable &&
+        previous.sealed === collection.sealed &&
+        previous.discarded === collection.discarded
     )
         return;
     useControlReceiptStore.setState((state) => ({
@@ -203,7 +214,7 @@ export const drainControlReceipts = (sessionId: string): Promise<void> => {
     if (pending !== undefined) return pending;
     const job = (async () => {
         let collection = useControlReceiptStore.getState().collections[sessionId];
-        if (!collection || collection.charge.sensor_clock === null) return;
+        if (!collection || collection.sealed || collection.charge.sensor_clock === null) return;
         try {
             let target: number | undefined;
             for (let pages = 0; pages < 64; pages += 1) {
@@ -255,6 +266,7 @@ export const drainControlReceipts = (sessionId: string): Promise<void> => {
                     ...useControlReceiptStore.getState().collections[sessionId],
                     after: page.next_after,
                     unavailable: false,
+                    sealed: page.sealed === true && !page.has_more,
                     entries: mergeReceiptLogs(collection.entries, incoming),
                 };
                 replaceCollection(collection);
@@ -262,12 +274,13 @@ export const drainControlReceipts = (sessionId: string): Promise<void> => {
                 if (!page.has_more || collection.after >= target) break;
                 if (pages === 63) throw new Error('Receipt drain remains incomplete');
             }
-        } catch {
+        } catch (error) {
             const previousEntries = collection.entries;
             collection = {
                 ...collection,
                 ...useControlReceiptStore.getState().collections[sessionId],
                 unavailable: true,
+                sealed: collection.sealed || (isSidecarHttpError(error) && error.status === 410),
                 entries: mergeReceiptLogs(collection.entries, [
                     receiptLogEntry({
                         kind: 'unavailable',
@@ -290,7 +303,36 @@ export const receiptLogsForSave = (sessionId: string, entries: LogEntry[]) =>
 
 export const markReceiptSessionSaved = (sessionId: string) => {
     const collection = useControlReceiptStore.getState().collections[sessionId];
-    if (collection) replaceCollection({ ...collection, saved: true });
+    if (collection) replaceCollection({ ...collection, saved: true, discarded: false });
+};
+
+export const discardReceiptSession = (sessionId: string) => {
+    const collection = useControlReceiptStore.getState().collections[sessionId];
+    if (collection && !collection.saved) replaceCollection({ ...collection, discarded: true });
+};
+
+/** Keep late evidence and pending saves; retire only sealed, unreferenced collections. */
+export const pruneReceiptCollections = () => {
+    const state = useRoastingStore.getState();
+    const collections = { ...useControlReceiptStore.getState().collections };
+    let changed = false;
+    for (const [sessionId, collection] of Object.entries(collections)) {
+        if (
+            !collection.sealed ||
+            inFlight.has(sessionId) ||
+            state.sessionId === sessionId ||
+            state.completed?.snapshot.sessionId === sessionId ||
+            (!collection.discarded && (!collection.saved || collection.syncedCount < collection.entries.length)) ||
+            readPendingRoastSave(collection.ownerId, sessionId)
+        )
+            continue;
+        delete collections[sessionId];
+        changed = true;
+    }
+    if (changed) {
+        useControlReceiptStore.setState({ collections });
+        checkpointReceipts();
+    }
 };
 
 export const syncSavedControlReceipts = async (sessionId: string): Promise<boolean> => {

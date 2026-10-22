@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
 import {
     drainControlReceipts,
+    pruneReceiptCollections,
     registerReceiptCollection,
     restoreReceiptCollections,
     syncSavedControlReceipts,
@@ -34,6 +35,7 @@ export const useControlReceiptCollection = () => {
                         await invalidateRoastSessionQueries(qc, collection.ownerId);
                 }),
             );
+            pruneReceiptCollections();
             const failed = results.find((result) => result.status === 'rejected');
             if (failed?.status === 'rejected') throw failed.reason;
             return null;

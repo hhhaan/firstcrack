@@ -298,6 +298,8 @@ export type ReceiptPage = Readonly<{
     next_sequence: number;
     next_after: number;
     has_more: boolean;
+    /** A newer Charge was admitted after all old writers finished; no more receipts can arrive. */
+    sealed: boolean;
     gap: Readonly<{ from: number; through: number }> | null;
     receipts: readonly CommandReceipt[];
 }>;

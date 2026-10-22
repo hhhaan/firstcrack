@@ -14,6 +14,7 @@ from typing import Any, Awaitable, Callable, Literal
 
 import config
 from control_guard import ControlUnavailable, clamp_command
+from control_receipts import ReceiptJournal
 from pid import PidGains
 from pid_runner import PidRunner, PvSample, STOP_HOLD, STOP_ZERO, CurveRuntime
 from roast_target import (MachineIdentity, RawObservation, RawTpState, ControlFilter,
@@ -108,7 +109,7 @@ class HeaterControlSession:
         self._history: deque[dict[str, Any]] = deque(maxlen=2048)
         self._filtered: ControlFilter | None = None
         self._tp = RawTpState()
-        self._journals: dict[str, dict[str, Any]] = {}
+        self._journals: dict[str, ReceiptJournal] = {}
         self._requests: dict[tuple[str, str], tuple[str, str]] = {}
         self._runs: dict[str, dict[str, Any]] = {}
         self._last_curve: dict[str, Any] | None = None
@@ -491,7 +492,7 @@ class HeaterControlSession:
             if self._charge_failed:
                 raise CurveError("charge_closed", "Charge adapter notification failed")
             return self.charge_response(), False
-        if any(journal["session_id"] == body["session_id"] for journal in self._journals.values()):
+        if any(journal.session_id == body["session_id"] for journal in self._journals.values()):
             raise CurveError("charge_conflict")
         if self._charge is not None and self._charge["state"] == "open":
             raise CurveError("charge_conflict")
@@ -524,7 +525,7 @@ class HeaterControlSession:
         self._charge_request = {"session_id": body["session_id"], "origin": deepcopy(origin)}
         self._charge_failed = False
         self._filtered, self._tp = None, RawTpState()
-        self._journals[charge_id] = {"session_id": body["session_id"], "entries": deque(maxlen=2048), "next": 1}
+        self._journals[charge_id] = ReceiptJournal(body["session_id"])
         for row in self._history:
             if row["sensor_clock"] == clock and row["timestamp"] >= acquired_at:
                 self._advance_raw(row)
@@ -604,7 +605,7 @@ class HeaterControlSession:
                 "last_applied_heat_set": applied[0] if applied and applied[2] == self._epoch() else None,
                 "heat_feedback": feedback, "lease_deadline": curve.lease_deadline if operation.phase in ("starting", "active") else None,
                 "pending_writes": len(self._writers), "uncertain": self._uncertain,
-                "receipt_next_sequence": self._journals[curve.charge_id]["next"]}
+                "receipt_next_sequence": self._journals[curve.charge_id].next_sequence}
 
     def _curve_reply(self, snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
         return {"ok": True, "pid": self.runner.state() if self.runner else None,
@@ -865,17 +866,10 @@ class HeaterControlSession:
         return self._append_receipt(entry)
 
     def _append_receipt(self, attempt: dict[str, Any], **changes: Any) -> dict[str, Any]:
-        journal = self._journals[attempt["charge_id"]]
-        sequence = journal["next"]
-        entry = {**attempt, **changes, "sequence": sequence,
-                 "attempt_sequence": attempt["attempt_sequence"] or sequence,
-                 "observed_at": self._clock()}
         # Observation time can outlive Drop; its original immutable command context stays intact.
         if self._charge and self._charge["charge_id"] == attempt["charge_id"]:
-            entry["elapsed_sec"] = self._clock() - self._charge["acquired_at"]
-        journal["entries"].append(entry)
-        journal["next"] += 1
-        return entry
+            changes["elapsed_sec"] = self._clock() - self._charge["acquired_at"]
+        return self._journals[attempt["charge_id"]].append(attempt, **changes, observed_at=self._clock())
 
     def receipts(self, charge_id: str, after: int = 0, limit: int = 256) -> dict[str, Any]:
         _identifier(charge_id)
@@ -886,14 +880,8 @@ class HeaterControlSession:
         journal = self._journals.get(charge_id)
         if journal is None:
             raise CurveError("journal_unavailable", status=410)
-        if after >= journal["next"]:
+        if after >= journal.next_sequence:
             raise CurveError("invalid_request", "Future receipt cursor", status=400)
-        entries = journal["entries"]
-        first = entries[0]["sequence"] if entries else journal["next"]
-        page = [deepcopy(row) for row in entries if row["sequence"] > after][:limit]
-        next_after = page[-1]["sequence"] if page else after
-        return {"session_id": journal["session_id"], "charge_id": charge_id, "first_available": first,
-                "next_sequence": journal["next"], "next_after": next_after,
-                "has_more": next_after < journal["next"] - 1,
-                "gap": {"from": after + 1, "through": first - 1} if after + 1 < first else None,
-                "receipts": page}
+        # A replacement Charge is admitted only after all previous writers/terminal tasks finish.
+        sealed = self._charge is None or self._charge["charge_id"] != charge_id
+        return journal.page(charge_id, after, limit, sealed=sealed)

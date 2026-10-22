@@ -5,6 +5,7 @@ import { parseStoredRoastEvents, serializeRoastEvents } from '@features/active-r
 import {
     drainControlReceipts,
     markReceiptSessionSaved,
+    pruneReceiptCollections,
     receiptLogsForSave,
     registerReceiptCollection,
     restoreReceiptCollections,
@@ -16,7 +17,10 @@ import type { Charge, CommandReceipt, ReceiptPage } from '@shared/types/sidecar'
 import { beforeEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({ get: vi.fn(), append: vi.fn() }));
-vi.mock('@shared/lib/sidecar', () => ({ sidecar: { getPidReceipts: mocks.get } }));
+vi.mock('@shared/lib/sidecar', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@shared/lib/sidecar')>()),
+    sidecar: { getPidReceipts: mocks.get },
+}));
 vi.mock('@entities/roast', () => ({ roastSessionApi: { appendControlReceipts: mocks.append } }));
 const charge: Charge = {
     session_id: '11111111-1111-4111-8111-111111111111',
@@ -68,6 +72,7 @@ const page = (receipts: CommandReceipt[], extra: Partial<ReceiptPage> = {}): Rec
     next_sequence: (receipts[receipts.length - 1]?.sequence ?? 0) + 1,
     next_after: receipts[receipts.length - 1]?.sequence ?? 0,
     has_more: false,
+    sealed: false,
     gap: null,
     receipts,
     ...extra,
@@ -84,6 +89,7 @@ beforeEach(() => {
 
 import { resumePendingRoastSave } from '@features/active-roast/lib/resumePendingRoastSave';
 import {
+    clearPendingRoastSave,
     createPendingRoastSave,
     readPendingControlReceipts,
     readPendingRoastSave,
@@ -112,6 +118,37 @@ const deps = (saveOp: SaveRoastDeps['saveOp']): SaveRoastDeps => ({
     countCompletedTotal: vi.fn().mockResolvedValue(0),
     saveOp,
     flushCurve: vi.fn().mockResolvedValue(undefined),
+});
+
+it('keeps sealed saved evidence while its pending save coordinator still owns the session', async () => {
+    mocks.get.mockResolvedValue(page([receipt(1, 'completed', 'succeeded')], { sealed: true }));
+    await drainControlReceipts(charge.session_id);
+    writePendingRoastSave(createPendingRoastSave(params, true));
+    markReceiptSessionSaved(charge.session_id);
+    mocks.append.mockResolvedValue(true);
+    await syncSavedControlReceipts(charge.session_id);
+    pruneReceiptCollections();
+    expect(useControlReceiptStore.getState().collections[charge.session_id]).toBeDefined();
+    clearPendingRoastSave(params.userId, charge.session_id);
+    pruneReceiptCollections();
+    expect(useControlReceiptStore.getState().collections).toEqual({});
+});
+
+it('restores legacy receipt checkpoints as unsealed so late evidence remains collectible', async () => {
+    mocks.get.mockResolvedValue(page([receipt(1, 'uncertain', 'uncertain')]));
+    await drainControlReceipts(charge.session_id);
+    markReceiptSessionSaved(charge.session_id);
+    const current = useControlReceiptStore.getState().collections[charge.session_id];
+    localStorage.setItem(
+        'fc_pending_control_receipts',
+        JSON.stringify([{ ...current, sealed: undefined, discarded: undefined }]),
+    );
+    useControlReceiptStore.setState({ collections: {} });
+    restoreReceiptCollections();
+    mocks.get.mockResolvedValue(page([receipt(2, 'reconciliation', 'succeeded')]));
+    await drainControlReceipts(charge.session_id);
+    expect(mocks.get).toHaveBeenCalledTimes(2);
+    expect(unresolvedReceiptAttempts(receiptLogsForSave(charge.session_id, []))).toBe(0);
 });
 it('preserves negative and post-Drop elapsed and immutable uncertain then reconciliation across JSON', async () => {
     const rows = [
