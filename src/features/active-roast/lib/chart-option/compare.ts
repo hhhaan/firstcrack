@@ -290,7 +290,7 @@ export const buildCompareChartOption = (
     }
     if (!hideAxisName && channels.some((channel) => channel.kind === 'temperature')) {
         const tempAxis = plotAxes.find((axis) => axis.position !== 'right');
-        if (tempAxis) {
+        if (tempAxis?.type === 'value') {
             tempAxis.min = Math.floor(tempYMin / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL;
             tempAxis.max = Math.ceil(tempYMax / TEMP_Y_INTERVAL) * TEMP_Y_INTERVAL;
             tempAxis.interval = TEMP_Y_INTERVAL;

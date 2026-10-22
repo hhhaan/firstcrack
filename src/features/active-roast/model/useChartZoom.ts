@@ -1,5 +1,8 @@
 import { CHART_GRID_LEFT, CHART_GRID_RIGHT } from '@features/active-roast/lib/chart-config';
 import type { RefObject } from 'react';
+
+type ChartAreaRef = RefObject<HTMLDivElement | null> & ((node: HTMLDivElement | null) => void);
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /** 줌 시 보장하는 최소 표시 구간 (초) */
@@ -17,7 +20,7 @@ export interface ChartZoom {
     setHoveredChartIndex: (index: number | null) => void;
     isChartDragging: boolean;
     mainChartHeight: number;
-    chartAreaRef: RefObject<HTMLDivElement | null>;
+    chartAreaRef: ChartAreaRef;
     handleChartPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
     handleChartPointerMove: (event: React.PointerEvent<HTMLDivElement>) => void;
     endChartDrag: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -144,9 +147,9 @@ export const useChartZoom = (
     );
     // Callback for the DOM node, with .current for marker hit-testing.
     const chartAreaRef = useMemo(() => {
-        const ref = ((node: HTMLDivElement | null) => bindChartArea(node)) as RefObject<HTMLDivElement | null>;
+        const ref = (node: HTMLDivElement | null) => bindChartArea(node);
         Object.defineProperty(ref, 'current', { get: () => chartNodeRef.current });
-        return ref;
+        return ref as ChartAreaRef;
     }, [bindChartArea]);
 
     const handleChartPointerDown = useCallback(
