@@ -1,10 +1,10 @@
 /** Stable batch identities across selection, phase bars and result tables. */
 export const COMPARE_COLORS = [
     'var(--color-compare-blue)',
-    'var(--color-compare-orange)',
+    'var(--color-compare-green)',
+    'var(--color-compare-yellow)',
     'var(--color-compare-purple)',
     'var(--color-compare-teal)',
-    'var(--color-compare-rose)',
 ] as const;
 
 /** Shared SVG paths keep chart symbols and batch labels identical. */

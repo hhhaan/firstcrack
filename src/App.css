@@ -93,11 +93,11 @@
 
 /* ── Sensor & chart tokens (light) ──────────────────────────── */
 :root {
-    --color-compare-blue: oklch(0.54 0.14 250);
-    --color-compare-orange: oklch(0.58 0.15 50);
-    --color-compare-purple: oklch(0.53 0.17 300);
-    --color-compare-teal: oklch(0.52 0.09 175);
-    --color-compare-rose: oklch(0.52 0.17 355);
+    --color-compare-blue: oklch(0.6 0.17 225);
+    --color-compare-green: oklch(0.6 0.18 155);
+    --color-compare-yellow: oklch(0.78 0.16 88);
+    --color-compare-purple: oklch(0.58 0.16 280);
+    --color-compare-teal: oklch(0.62 0.16 165);
 
     --color-sensor-bt: oklch(0.6 0.18 155);
     --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
@@ -163,11 +163,11 @@
 
 /* ── Dark theme ──────────────────────────────────────────────── */
 html.dark {
-    --color-compare-blue: oklch(0.78 0.1 250);
-    --color-compare-orange: oklch(0.78 0.13 50);
-    --color-compare-purple: oklch(0.78 0.13 300);
-    --color-compare-teal: oklch(0.78 0.11 175);
-    --color-compare-rose: oklch(0.78 0.12 355);
+    --color-compare-blue: oklch(0.78 0.13 225);
+    --color-compare-green: oklch(0.78 0.14 155);
+    --color-compare-yellow: oklch(0.88 0.14 88);
+    --color-compare-purple: oklch(0.76 0.13 280);
+    --color-compare-teal: oklch(0.8 0.12 165);
 
     --color-main-bg: #111111;
     --color-roast-bg: #111111;

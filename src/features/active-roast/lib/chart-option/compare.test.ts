@@ -1,8 +1,12 @@
 import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperature';
-import { COMPARE_MARKERS } from '@shared/lib/compare-style';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../curve-style';
-import { buildCompareChartOption, type CompareChartSeries } from './compare';
+import {
+    buildCompareChartOption,
+    type CompareChartSeries,
+    compareBatchColor,
+    compareChartRightMargin,
+} from './compare';
 import { compareChannels } from './compare-channels';
 
 const series: CompareChartSeries[] = [
@@ -19,7 +23,7 @@ afterEach(() => {
 });
 
 describe('buildCompareChartOption display unit', () => {
-    it('keeps user colors and stable batch markers when other batches are hidden', () => {
+    it('keeps a stable color and marker for each batch when others are hidden', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
         const batches = Array.from({ length: 5 }, (_, batchIndex) => ({
@@ -36,8 +40,14 @@ describe('buildCompareChartOption display unit', () => {
             channelKeys: ['bt'],
             curveStyles,
         });
-        const curves = option.series as { symbol: string }[];
-        expect(new Set(curves.map((curve) => curve.symbol)).size).toBe(5);
+        expect(option.series).toMatchObject(
+            [0, 1, 2, 3, 4].map((index) => ({
+                showSymbol: false,
+                lineStyle: { color: compareBatchColor(index), type: 'solid' },
+                endLabel: { show: false },
+                data: [[0, 200]],
+            })),
+        );
         const hidden = buildCompareChartOption([batches[1], batches[3]], {
             xView: { start: 0, end: 60 },
             channelKeys: ['bt'],
@@ -45,9 +55,9 @@ describe('buildCompareChartOption display unit', () => {
         });
         expect(hidden.series).toMatchObject(
             [1, 3].map((index) => ({
-                symbol: `path://${COMPARE_MARKERS[index]}`,
-                lineStyle: { color: '#873d72', type: 'solid' },
-                endLabel: { formatter: String(index + 1).padStart(2, '0') },
+                showSymbol: false,
+                lineStyle: { color: compareBatchColor(index), type: 'solid' },
+                endLabel: { show: false },
                 data: [[0, 200]],
             })),
         );
@@ -207,7 +217,7 @@ describe('buildCompareChartOption display unit', () => {
             channelKeys: ['ror', 'rorEt'],
         });
         expect(option.yAxis).toHaveLength(1);
-        expect(option.grid).toMatchObject([{ right: 32 }]);
+        expect(option.grid).toMatchObject([{ right: 56 }]);
         expect(option.yAxis).toMatchObject([{ name: '°F/min', position: 'left' }]);
         expect(option.series).toMatchObject([
             { name: 'ror|a', yAxisIndex: 0, lineStyle: { type: 'solid' }, data: [[0, 18]] },
@@ -248,6 +258,40 @@ describe('buildCompareChartOption display unit', () => {
         }
     });
 
+    it('aligns a percent-and-rpm control chart with the temperature plot', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '' }));
+        const input: CompareChartSeries[] = [
+            {
+                ...series[0],
+                points: [
+                    { t: 0, bt: 180, et: 190, ror: -70, heaterSet: 80, heaterUnit: '%', drum: 45, drumUnit: 'RPM' },
+                ],
+            },
+        ];
+        const channels = compareChannels(input, 'C');
+        const temp = buildCompareChartOption(input, { xView: { start: 0, end: 60 }, channelKeys: ['bt', 'ror'] });
+        const control = buildCompareChartOption(input, {
+            xView: { start: 0, end: 60 },
+            channelKeys: channels.filter((channel) => channel.kind === 'other').map((channel) => channel.key),
+        });
+        const tempGrid = (temp.grid as { left: number; right: number }[])[0];
+        const controlGrid = (control.grid as { left: number; right: number }[])[0];
+        expect(controlGrid).toMatchObject({ left: tempGrid.left, right: tempGrid.right });
+        expect(compareChartRightMargin(channels.filter((channel) => channel.kind === 'other'))).toBe(
+            compareChartRightMargin(channels.filter((channel) => channel.key === 'bt' || channel.key === 'ror')),
+        );
+        expect(control.yAxis).toMatchObject([
+            { name: '%', position: 'left', min: 0, max: 100 },
+            { name: 'RPM', position: 'right' },
+        ]);
+        const rorAxis = (temp.yAxis as { min?: number; max?: number; position?: string }[]).find(
+            (axis) => axis.position === 'right',
+        );
+        expect(rorAxis?.min).toBe(-5);
+        expect(rorAxis?.max).toBe(20);
+    });
+
     it('keeps channel colors while resolving read-only marker categories', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({
@@ -269,9 +313,11 @@ describe('buildCompareChartOption display unit', () => {
         );
         const [bt] = option.series as {
             lineStyle: { color: string };
-            markPoint: { data: { itemStyle: { color: string } }[] };
+            showSymbol: boolean;
+            markPoint?: unknown;
         }[];
-        expect(bt.lineStyle.color).toBe('#009d4c');
-        expect(bt.markPoint.data.map((marker) => marker.itemStyle.color)).toEqual(['#gray', '#red']);
+        expect(bt.lineStyle.color).toBe(compareBatchColor(0));
+        expect(bt.showSymbol).toBe(false);
+        expect(bt.markPoint).toBeUndefined();
     });
 });

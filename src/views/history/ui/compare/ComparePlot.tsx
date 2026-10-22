@@ -11,8 +11,9 @@ interface ComparePlotProps {
     temperatureUnit: TemperatureUnit;
     focusedSessionId: string | null;
     rightMargin: number;
-    label: string;
     className: string;
+    showEndLabels?: boolean;
+    hideAxisName?: boolean;
 }
 
 export const ComparePlot = ({
@@ -22,8 +23,9 @@ export const ComparePlot = ({
     temperatureUnit,
     focusedSessionId,
     rightMargin,
-    label,
     className,
+    showEndLabels = false,
+    hideAxisName = false,
 }: ComparePlotProps) => {
     const elRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<echarts.ECharts | null>(null);
@@ -34,8 +36,19 @@ export const ComparePlot = ({
     const dataFingerprint = useMemo(() => JSON.stringify(series), [series]);
     const fingerprint = useMemo(
         () =>
-            `${dataFingerprint}|${JSON.stringify([channelKeys, xView, temperatureUnit, focusedSessionId, rightMargin, theme, curveStyles])}`,
-        [dataFingerprint, channelKeys, xView, temperatureUnit, focusedSessionId, rightMargin, theme, curveStyles],
+            `${dataFingerprint}|${JSON.stringify([channelKeys, xView, temperatureUnit, focusedSessionId, rightMargin, showEndLabels, hideAxisName, theme, curveStyles])}`,
+        [
+            dataFingerprint,
+            channelKeys,
+            xView,
+            temperatureUnit,
+            focusedSessionId,
+            rightMargin,
+            showEndLabels,
+            hideAxisName,
+            theme,
+            curveStyles,
+        ],
     );
 
     useEffect(() => {
@@ -63,6 +76,8 @@ export const ComparePlot = ({
             focusedSessionId,
             rightMargin,
             curveStyles,
+            showEndLabels,
+            hideAxisName,
         });
         // The persistent value table replaces the floating tooltip.
         option.tooltip = { show: false };
@@ -70,8 +85,20 @@ export const ComparePlot = ({
             for (const axis of Array.isArray(axes) ? axes : []) axis.axisPointer = { show: false };
         }
         chart.setOption(option, { notMerge: true });
+        chart.resize();
         renderedFingerprintRef.current = fingerprint;
-    }, [series, channelKeys, xView, temperatureUnit, focusedSessionId, rightMargin, curveStyles, fingerprint]);
+    }, [
+        series,
+        channelKeys,
+        xView,
+        temperatureUnit,
+        focusedSessionId,
+        rightMargin,
+        showEndLabels,
+        hideAxisName,
+        curveStyles,
+        fingerprint,
+    ]);
 
-    return <div ref={elRef} role="region" aria-label={label} className={className} />;
+    return <div ref={elRef} className={className} />;
 };

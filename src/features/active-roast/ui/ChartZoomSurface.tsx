@@ -1,7 +1,7 @@
-import type { CSSProperties, PointerEvent, ReactNode, RefObject } from 'react';
+import type { CSSProperties, PointerEvent, ReactNode, Ref } from 'react';
 
 interface ChartZoomSurfaceProps {
-    chartAreaRef: RefObject<HTMLDivElement | null>;
+    chartAreaRef: Ref<HTMLDivElement | null>;
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;
     handleChartPointerDown: (event: PointerEvent<HTMLDivElement>) => void;

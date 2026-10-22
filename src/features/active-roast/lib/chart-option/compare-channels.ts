@@ -9,8 +9,13 @@ export type ComparePoint = {
     et: number | null;
     ror: number | null;
     rorEt?: number | null;
+    heater?: number | null;
     heaterSet?: number | null;
     heaterUnit?: string;
+    fan?: number | null;
+    fanUnit?: string;
+    drum?: number | null;
+    drumUnit?: string;
     extraReadings?: ExtraSensorReading[];
 };
 
@@ -19,7 +24,7 @@ export type CompareChannel = {
     label: string;
     unit: string;
     kind: 'temperature' | 'ror' | 'other';
-    source: 'bt' | 'et' | 'ror' | 'rorEt' | 'heaterSet' | 'extra';
+    source: 'bt' | 'et' | 'ror' | 'rorEt' | 'heater' | 'heaterSet' | 'fan' | 'drum' | 'extra';
     sensorId?: string;
     sensorUnit?: string;
 };
@@ -29,7 +34,10 @@ const CURVE_CHANNEL: Record<Exclude<CompareChannel['source'], 'extra'>, CurveCha
     et: 'et',
     ror: 'ror',
     rorEt: 'etRor',
+    heater: 'heat',
     heaterSet: 'heat',
+    fan: 'heat',
+    drum: 'heat',
 };
 
 export const compareCurveStyle = (channel: CompareChannel, curves: ResolvedCurveStyles): CurveLineStyle => {
@@ -48,6 +56,12 @@ const normalizeExtraUnit = (unit: string): string => {
     return trimmed;
 };
 
+export const isCompareControlChannel = (channel: CompareChannel): boolean =>
+    channel.source === 'heater' ||
+    channel.source === 'heaterSet' ||
+    channel.source === 'fan' ||
+    channel.source === 'drum';
+
 /** Only channels actually recorded in at least one session are offered. */
 export const compareChannels = (series: { points: ComparePoint[] }[], unit: TemperatureUnit): CompareChannel[] => {
     const points = series.flatMap((s) => s.points);
@@ -60,12 +74,36 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
     const channels: CompareChannel[] = builtins.filter((channel) => points.some((p) => finite(p[channel.source])));
     const seen = new Set<string>();
     for (const point of points) {
+        if (finite(point.heater)) {
+            const unit = point.heaterUnit?.trim() || '%';
+            const key = JSON.stringify(['heat', unit]);
+            if (!seen.has(key)) {
+                seen.add(key);
+                channels.push({ key, label: 'Heat', unit, kind: 'other', source: 'heater' });
+            }
+        }
         if (finite(point.heaterSet)) {
             const unit = point.heaterUnit?.trim() || '%';
             const key = JSON.stringify(['gas', unit]);
             if (!seen.has(key)) {
                 seen.add(key);
                 channels.push({ key, label: 'Gas', unit, kind: 'other', source: 'heaterSet' });
+            }
+        }
+        if (finite(point.fan)) {
+            const unit = point.fanUnit?.trim() || '%';
+            const key = JSON.stringify(['fan', unit]);
+            if (!seen.has(key)) {
+                seen.add(key);
+                channels.push({ key, label: 'Fan', unit, kind: 'other', source: 'fan' });
+            }
+        }
+        if (finite(point.drum)) {
+            const unit = point.drumUnit?.trim() || 'RPM';
+            const key = JSON.stringify(['drum', unit]);
+            if (!seen.has(key)) {
+                seen.add(key);
+                channels.push({ key, label: 'Drum', unit, kind: 'other', source: 'drum' });
             }
         }
         for (const sensor of point.extraReadings ?? []) {
@@ -101,11 +139,23 @@ export const compareChannelValue = (
                       s.label === channel.label &&
                       normalizeExtraUnit(s.unit) === channel.sensorUnit,
               )?.value
-            : channel.source === 'heaterSet'
+            : channel.source === 'heater'
               ? (point.heaterUnit?.trim() || '%') === channel.unit
-                  ? point.heaterSet
+                  ? point.heater
                   : null
-              : point[channel.source];
+              : channel.source === 'heaterSet'
+                ? (point.heaterUnit?.trim() || '%') === channel.unit
+                    ? point.heaterSet
+                    : null
+                : channel.source === 'fan'
+                  ? (point.fanUnit?.trim() || '%') === channel.unit
+                      ? point.fan
+                      : null
+                  : channel.source === 'drum'
+                    ? (point.drumUnit?.trim() || 'RPM') === channel.unit
+                        ? point.drum
+                        : null
+                    : point[channel.source];
     if (!finite(value)) return null;
     return channel.kind === 'temperature'
         ? toDisplayTemp(value, unit)

@@ -64,7 +64,7 @@ function seedCompare(db: MockDb, withCurves = true) {
     });
 }
 
-test('history compare: five batches, user colors, channel tabs and responsive themes', async ({
+test('history compare: five batches, user colors, overlay channels and responsive themes', async ({
     authedPage: page,
     db,
 }, testInfo) => {
@@ -89,104 +89,96 @@ test('history compare: five batches, user colors, channel tabs and responsive th
     for (const name of BATCHES) await page.getByText(name, { exact: true }).first().click();
     await page.getByText('Sixth batch', { exact: true }).first().click();
     await page.getByRole('button', { name: 'Compare (5)' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Compare Sessions (5)' });
-    const bt = dialog.getByRole('tab', { name: 'BT °C', exact: true });
-    const mainPlot = dialog.getByRole('region', { name: 'BT °C', exact: true });
+    const report = page.getByTestId('compare-report');
+    const mainPlot = report.getByRole('region', { name: 'Curve Overlay', exact: true });
+    await expect(report.getByRole('heading', { name: 'Compare Sessions (5)' })).toBeVisible();
     await expect(mainPlot.locator('canvas')).toBeVisible();
-    await expect(dialog.locator('canvas')).toHaveCount(1);
-    await expect(dialog.getByRole('tab')).toHaveCount(7);
-    await expect(bt).toHaveAttribute('aria-selected', 'true');
-    await expect(dialog.getByRole('slider')).toHaveCount(0);
-    await expect(dialog.getByTestId('compare-shared-cursor')).toHaveCount(0);
-    await expect(dialog.getByTestId('compare-cursor-time')).toHaveCount(0);
-    await expect(dialog.getByText('Sixth batch', { exact: true })).toHaveCount(0);
-    await expect(bt.locator('span').first()).toHaveCSS('background-color', 'rgb(135, 61, 114)');
-    await expect
-        .poll(() =>
-            mainPlot.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
-                const context = canvas.getContext('2d');
-                if (!context) return 0;
-                const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-                let matches = 0;
-                for (let i = 0; i < data.length; i += 4)
-                    if (data[i] === 135 && data[i + 1] === 61 && data[i + 2] === 114) matches++;
-                return matches;
-            }),
-        )
-        .toBeGreaterThan(100);
+    await expect(report.locator('canvas')).toHaveCount(5);
+    await expect(report.getByRole('checkbox', { name: 'Fan %', exact: true })).toBeChecked();
+    await expect(report.getByRole('checkbox', { name: 'Drum RPM', exact: true })).toBeChecked();
+    await expect(report.getByRole('checkbox', { name: 'BT °C', exact: true })).toBeChecked();
+    await expect(report.getByRole('checkbox', { name: 'BT RoR °C/min', exact: true })).toBeChecked();
+    await expect(report.getByRole('slider')).toHaveCount(0);
+    await expect(report.getByText('Sixth batch', { exact: true })).toHaveCount(0);
+    const batchRgb = await page.evaluate(() => {
+        const paint = (token: string) => {
+            const probe = document.createElement('canvas');
+            probe.width = 1;
+            probe.height = 1;
+            const context = probe.getContext('2d');
+            if (!context) return [0, 0, 0];
+            context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue(token).trim();
+            context.fillRect(0, 0, 1, 1);
+            return [...context.getImageData(0, 0, 1, 1).data].slice(0, 3);
+        };
+        return {
+            blue: paint('--color-compare-blue'),
+            green: paint('--color-compare-green'),
+        };
+    });
+    const countColor = (rgb: number[]) =>
+        mainPlot.locator('canvas').evaluate((canvas: HTMLCanvasElement, expected: number[]) => {
+            const context = canvas.getContext('2d');
+            if (!context) return 0;
+            const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+            let matches = 0;
+            for (let i = 0; i < data.length; i += 4)
+                if (data[i] === expected[0] && data[i + 1] === expected[1] && data[i + 2] === expected[2]) matches++;
+            return matches;
+        }, rgb);
+    await expect.poll(() => countColor(batchRgb.blue)).toBeGreaterThan(8);
+    await expect.poll(() => countColor(batchRgb.green)).toBeGreaterThan(8);
 
-    const metrics = dialog.getByRole('table').last();
+    const metrics = report.getByRole('table').last();
     const row = metrics.getByRole('row').filter({ hasText: 'Ethiopia Guji' });
     for (const text of ['10:00', '207.0°C', '20.0%', '16.7%', '#1 · Σ#251', '64.2', '65.1'])
         await expect(row).toContainText(text);
-    const readout = dialog.getByTestId('compare-batch-readout').filter({ hasText: 'Ethiopia Guji' });
-    await expect(readout).toContainText('#1 · Σ#251');
-    const gasValue = readout.locator('td').nth(4);
-    await expect(gasValue).toHaveText('—');
-    const panel = dialog.getByRole('tabpanel');
-    await panel.focus();
-    await page.keyboard.press('Home');
-    await expect(gasValue).toHaveText('70.0');
-    for (let step = 0; step < 5; step++) await page.keyboard.press('ArrowRight');
-    await expect(readout.locator('td').first()).toHaveText('188.2');
-    await expect(gasValue).toHaveText('70.0');
-    await page.keyboard.press('End');
-    await expect(gasValue).toHaveText('—');
+    const readout = report.getByTestId('compare-batch-readout').filter({ hasText: 'Filter 1' });
+    await expect(readout).toContainText('#1');
+    await expect(readout).toContainText('Filter 1');
+    await expect(readout).not.toContainText('184.4');
+    await mainPlot.focus();
 
     const moveTo = async (plot: typeof mainPlot, ratio: number) => {
-        await plot.scrollIntoViewIfNeeded();
-        const box = await plot.boundingBox();
+        const canvas = plot.locator('canvas');
+        await canvas.scrollIntoViewIfNeeded();
+        const box = await canvas.boundingBox();
         if (!box) throw new Error('Comparison chart is missing');
-        await page.mouse.move(box.x + 32 + (box.width - 64) * ratio, box.y + 120);
+        await page.mouse.move(box.x + box.width * ratio, box.y + box.height * 0.45);
     };
     await moveTo(mainPlot, 0.25);
-    await expect(gasValue).toHaveText('70.0');
-    await dialog.getByRole('tab', { name: 'Gas %', exact: true }).click();
-    const gasPlot = dialog.getByRole('region', { name: 'Gas %', exact: true });
-    await moveTo(gasPlot, 0.25);
-    await expect(gasValue).toHaveText('70.0');
-    await moveTo(gasPlot, 0.7);
-    await expect(gasValue).toHaveText('45.0');
-    await bt.click();
-    await bt.focus();
-    await page.keyboard.press('ArrowRight');
-    const et = dialog.getByRole('tab', { name: 'ET °C', exact: true });
-    await expect(et).toBeFocused();
-    await expect(et).toHaveAttribute('aria-selected', 'true');
-    await expect(et.locator('span').first()).toHaveCSS('background-color', 'rgb(20, 102, 163)');
-    await page.keyboard.press('End');
-    await expect(dialog.getByRole('tab', { name: 'Pressure Pa', exact: true })).toHaveAttribute(
-        'aria-selected',
-        'true',
+    await moveTo(mainPlot, 0.7);
+    await report.getByRole('checkbox', { name: 'BT °C', exact: true }).uncheck();
+    await report.getByRole('checkbox', { name: 'BT RoR °C/min', exact: true }).uncheck();
+    await report.getByRole('checkbox', { name: 'Gas %', exact: true }).uncheck();
+    await report.getByRole('checkbox', { name: 'Pressure Pa', exact: true }).check();
+    await expect(report.getByTestId('compare-channel-et').locator('span').first()).toHaveCSS(
+        'background-color',
+        'rgb(20, 102, 163)',
     );
-    await page.keyboard.press('Home');
-    await expect(bt).toBeFocused();
-    await page.keyboard.press('ArrowLeft');
-    await expect(dialog.getByRole('tab', { name: 'Pressure Pa', exact: true })).toBeFocused();
-    await expect(dialog.getByRole('region', { name: 'Pressure Pa' })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('compare-pressure.png'), animations: 'disabled' });
 
-    const first = dialog.getByRole('button', { name: /^Ethiopia Guji/ });
-    const fourth = dialog.getByRole('button', { name: /^Brazil Cerrado/ });
+    const first = report.getByRole('button', { name: /^Ethiopia Guji/ });
+    const fourth = report.getByRole('button', { name: /^Brazil Cerrado/ });
     const hidden = ['Ethiopia Guji', 'Colombia Huila', 'Kenya Kirinyaga', 'Guatemala Antigua'];
-    for (const name of hidden) await dialog.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+    for (const name of hidden) await report.getByRole('button', { name: new RegExp(`^${name}`) }).click();
     await expect(first).toHaveAttribute('aria-pressed', 'false');
     await expect(fourth).toBeDisabled();
-    await expect(dialog.getByRole('status')).toHaveText('No recorded values for this sensor in the visible batches.');
-    await expect(dialog.getByRole('tab')).toHaveCount(7);
-    for (const name of hidden) await dialog.getByRole('button', { name: new RegExp(`^${name}`) }).click();
-    await bt.click();
+    await expect(report.getByRole('status')).toHaveText('No recorded values for this sensor in the visible batches.');
+    for (const name of hidden) await report.getByRole('button', { name: new RegExp(`^${name}`) }).click();
+    await report.getByRole('checkbox', { name: 'Pressure Pa', exact: true }).uncheck();
+    await report.getByRole('checkbox', { name: 'BT °C', exact: true }).check();
     await moveTo(mainPlot, 0.5);
     await page.mouse.wheel(0, -100);
-    await dialog.getByRole('button', { name: 'Reset zoom' }).click();
-    await expect(dialog.getByRole('button', { name: 'Reset zoom' })).toHaveCount(0);
+    await report.getByRole('button', { name: 'Reset zoom' }).click();
+    await expect(report.getByRole('button', { name: 'Reset zoom' })).toHaveCount(0);
     await moveTo(mainPlot, 0.5);
     await page.screenshot({ path: testInfo.outputPath('compare-light.png'), animations: 'disabled' });
     await first.focus();
     await page.screenshot({ path: testInfo.outputPath('compare-focus.png'), animations: 'disabled' });
     await page.evaluate(() => document.documentElement.classList.add('dark'));
-    await et.click();
-    await bt.click();
+    await report.getByRole('checkbox', { name: 'ET °C', exact: true }).check();
+    await report.getByRole('checkbox', { name: 'ET °C', exact: true }).uncheck();
     await moveTo(mainPlot, 0.5);
     await page.screenshot({ path: testInfo.outputPath('compare-dark.png'), animations: 'disabled' });
     for (const viewport of [
@@ -194,15 +186,13 @@ test('history compare: five batches, user colors, channel tabs and responsive th
         { width: 800, height: 680 },
     ]) {
         await page.setViewportSize(viewport);
-        await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();
-        expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+        await expect(report.getByRole('button', { name: 'Roast History', exact: true })).toBeInViewport();
+        expect(await report.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     }
     await readout.scrollIntoViewIfNeeded();
-    await gasValue.scrollIntoViewIfNeeded();
-    await expect(gasValue).toBeInViewport();
     await page.screenshot({ path: testInfo.outputPath('compare-small.png'), animations: 'disabled' });
-    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-    await expect(dialog).toBeHidden();
+    await report.getByRole('button', { name: 'Roast History', exact: true }).click();
+    await expect(report).toBeHidden();
 });
 
 test('history compare: metrics remain available without curve data', async ({ authedPage: page, db }) => {
@@ -211,7 +201,7 @@ test('history compare: metrics remain available without curve data', async ({ au
     await page.getByRole('button', { name: 'Compare', exact: true }).click();
     for (const name of BATCHES.slice(0, 2)) await page.getByText(name, { exact: true }).first().click();
     await page.getByRole('button', { name: 'Compare (2)' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Compare Sessions (2)' });
-    await expect(dialog.getByRole('status')).toContainText('No curve data in selected sessions');
-    await expect(dialog.getByRole('row').filter({ hasText: 'Ethiopia Guji' })).toContainText('207.0°C');
+    const report = page.getByTestId('compare-report');
+    await expect(report.getByRole('status')).toContainText('No curve data in selected sessions');
+    await expect(report.getByRole('row').filter({ hasText: 'Ethiopia Guji' })).toContainText('207.0°C');
 });

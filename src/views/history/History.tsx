@@ -294,7 +294,9 @@ export const History = () => {
     return (
         <PageLayout>
             <div data-testid="history-page" className="contents">
-                {selectedSession ? (
+                {showCompare && compareSessions.length >= 2 ? (
+                    <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
+                ) : selectedSession ? (
                     <HistorySessionDetail
                         session={selectedSession}
                         onBack={() => setSelectedId(null)}
@@ -378,9 +380,6 @@ export const History = () => {
 
                         {renderContent()}
                     </>
-                )}
-                {showCompare && compareSessions.length >= 2 && (
-                    <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
                 )}
                 {promoteSessionId != null && (
                     <NewProfileModal
