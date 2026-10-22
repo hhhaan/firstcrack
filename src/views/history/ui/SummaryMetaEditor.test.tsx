@@ -148,10 +148,18 @@ describe('SummaryMetaEditor', () => {
         expect(input.value).toBe('Ethiopia');
     });
 
-    it('links a profile on the session', async () => {
-        await render();
-        await setControl('history-profile', 'p1');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', profile_id: 'p1' });
+    it('shows the saved profile without an editable control', async () => {
+        await render({
+            ...session,
+            profile_id: 'p1',
+            roast_profiles: { name: 'Profile A', target_level: 'Medium' },
+            profile_batch_number: 9,
+            total_batch_number: 13,
+        });
+        const profile = host.querySelector('[data-testid="history-profile"]');
+        expect(profile?.textContent).toBe('Profile A');
+        expect(profile?.tagName).toBe('P');
+        expect(updateSession).not.toHaveBeenCalled();
     });
 
     it('relinks the roast to another green bean and drops the free-text label', async () => {

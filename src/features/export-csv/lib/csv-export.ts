@@ -21,6 +21,8 @@ export interface CsvRow {
     duration: string;
     notes: string;
     title: string;
+    profileBatchNumber: number | '';
+    totalBatchNumber: number | '';
 }
 
 const HEADERS: (keyof CsvRow)[] = [
@@ -38,6 +40,8 @@ const HEADERS: (keyof CsvRow)[] = [
     'duration',
     'notes',
     'title',
+    'profileBatchNumber',
+    'totalBatchNumber',
 ];
 
 const HEADER_LABELS: Record<keyof CsvRow, string> = {
@@ -55,6 +59,8 @@ const HEADER_LABELS: Record<keyof CsvRow, string> = {
     duration: 'Duration',
     notes: 'Notes',
     title: 'Roast Title',
+    profileBatchNumber: 'Profile Batch Number',
+    totalBatchNumber: 'Total Batch Number',
 };
 
 const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
@@ -80,6 +86,8 @@ const toCsvRow = (s: RoastSessionWithRelations): CsvRow => {
         duration: roastSec != null ? formatDuration(roastSec) : '',
         notes: s.notes ?? '',
         title: sessionDistinctTitle(s) ?? '',
+        profileBatchNumber: s.profile_batch_number ?? '',
+        totalBatchNumber: s.total_batch_number ?? '',
     };
 };
 

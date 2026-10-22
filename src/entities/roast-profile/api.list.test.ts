@@ -1,16 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fromMock = vi.fn();
+const rpcMock = vi.fn();
 
 vi.mock('@shared/lib/supabase', () => ({
     supabase: {
         from: (...args: unknown[]) => fromMock(...args),
+        rpc: (...args: unknown[]) => rpcMock(...args),
     },
 }));
 
 const { resetRoastProfileSourceSelectForTests, roastProfileApi } = await import('./api');
 
 const selects: string[] = [];
+
+it('loads all current profile counters in one workspace-scoped read', async () => {
+    rpcMock.mockResolvedValueOnce({ data: { total: 12, 'profile-1': 3, 'profile-2': 8 }, error: null });
+    await expect(roastProfileApi.batchCounters('owner-1')).resolves.toEqual({
+        total: 12,
+        'profile-1': 3,
+        'profile-2': 8,
+    });
+    expect(rpcMock).toHaveBeenCalledWith('get_roast_batch_counters', { p_user_id: 'owner-1' });
+    rpcMock.mockResolvedValueOnce({ data: { total: -1 }, error: null });
+    await expect(roastProfileApi.batchCounters('owner-1')).rejects.toThrow();
+});
 
 function mockList(results: { data: unknown; error: unknown }[]) {
     let call = 0;

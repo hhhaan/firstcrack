@@ -41,6 +41,7 @@ export const roastSessionKeys = {
 export const invalidateRoastSessionQueries = async (qc: QueryClient, userId: string) => {
     await Promise.all([
         qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId), refetchType: 'all' }),
+        qc.invalidateQueries({ queryKey: [...roastProfileQueryRoots.profiles, userId], refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: dashboardKeys.all(userId), refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: roastProfileQueryRoots.beanHistory, refetchType: 'all' }),
         qc.invalidateQueries({ queryKey: roastProfileQueryRoots.consistency, refetchType: 'all' }),
@@ -49,21 +50,6 @@ export const invalidateRoastSessionQueries = async (qc: QueryClient, userId: str
 
 /** Alias used by Active Roast save — same helper as update/delete/setOutput. */
 export const invalidateAfterCreateRoastSession = invalidateRoastSessionQueries;
-
-const profileRelation = (
-    qc: QueryClient,
-    userId: string,
-    profileId: string | null,
-): RoastSessionWithRelations['roast_profiles'] => {
-    if (!profileId) return null;
-    const list = qc.getQueryData<Array<{ id: string; name: string; target_level?: string | null }>>([
-        ...roastProfileQueryRoots.profiles,
-        userId,
-    ]);
-    const found = list?.find((profile) => profile.id === profileId);
-    if (!found || typeof found.target_level !== 'string') return null;
-    return { name: found.name, target_level: found.target_level };
-};
 
 /** Bean join re-read from the bean cache so a relinked roast shows the new green bean before the refetch. */
 const beanRelation = (qc: QueryClient, userId: string, beanId: string | null): RoastSessionWithRelations['beans'] => {
@@ -143,9 +129,6 @@ export const useUpdateRoastSession = (userId: string) => {
             return beginOptimisticRoastSessionEdit(qc, userId, (row) => {
                 if (row.id !== id) return row;
                 const next: RoastSessionWithRelations = { ...row, ...patch };
-                if ('profile_id' in patch) {
-                    next.roast_profiles = profileRelation(qc, userId, patch.profile_id ?? null);
-                }
                 if ('bean_id' in patch) next.beans = beanRelation(qc, userId, patch.bean_id ?? null);
                 return next;
             });

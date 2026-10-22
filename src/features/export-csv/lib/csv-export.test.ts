@@ -18,6 +18,17 @@ const session = (partial: Partial<RoastSessionWithRelations> = {}): RoastSession
     }) as RoastSessionWithRelations;
 
 describe('sessionsToCsv', () => {
+    it('exports stored numbers independently of manually edited or unnumbered titles', () => {
+        const csv = sessionsToCsv([
+            session({ batch_name: 'Morning roast', profile_batch_number: 9, total_batch_number: 13 }),
+            session({ batch_name: 'Ethiopia', profile_batch_number: 10, total_batch_number: 14 }),
+            session({ batch_name: 'Legacy #99', profile_batch_number: null, total_batch_number: null }),
+        ]);
+        const lines = csv.trim().split('\n');
+        expect(lines[1]).toMatch(/,Morning roast,9,13$/);
+        expect(lines[2]).toMatch(/,,10,14$/);
+        expect(lines[3]).toMatch(/,Legacy #99,,$/);
+    });
     it('exports distinct roast titles without replacing the bean and preserves legacy titles', () => {
         const csv = sessionsToCsv([
             session({ batch_name: 'Batch A', bean_label: 'Legacy title' }),
@@ -27,11 +38,11 @@ describe('sessionsToCsv', () => {
             session({ batch_name: 'Ethiopia' }),
         ]);
         const lines = csv.trim().split('\n');
-        expect(lines[0]).toMatch(/,Roast Title$/);
+        expect(lines[0]).toMatch(/,Roast Title,Profile Batch Number,Total Batch Number$/);
         expect(lines[1]).toContain(',Ethiopia,Yirgacheffe,City+,');
-        expect(lines[1]).toMatch(/,Batch A$/);
-        expect(lines[2]).toMatch(/,"Batch, ""B"""$/);
-        expect(lines[3]).toMatch(/,Legacy title$/);
+        expect(lines[1]).toMatch(/,Batch A,,$/);
+        expect(lines[2]).toMatch(/,"Batch, ""B""",,$/);
+        expect(lines[3]).toMatch(/,Legacy title,,$/);
         expect(lines[4]).toMatch(/,Ethiopia,Yirgacheffe,City\+,/);
         expect(lines[4]).toMatch(/,$/);
     });

@@ -19,6 +19,7 @@ import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
+import { Badge } from '@shared/ui/Badge';
 import { CatalogVisibilityButton, CatalogVisibilityFilter } from '@shared/ui/CatalogVisibilityControls';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -102,7 +103,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const unit = useRoastSettings().temperatureUnit;
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: profiles = [], isLoading, isError } = useRoastProfiles(workspaceOwnerId);
+    const { data: profiles = [], batchCounters, isLoading, isError } = useRoastProfiles(workspaceOwnerId);
     const listFailed = isError && !isLoading && profiles.length === 0;
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
     const { mutate: deleteProfile } = useDeleteRoastProfile(workspaceOwnerId);
@@ -267,6 +268,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         return (
             <ProfileDetail
                 selected={selected}
+                batchNumber={batchCounters ? (batchCounters[selected.id] ?? 0) : undefined}
                 selectedRealCurve={selectedRealCurve}
                 selectedHasReal={selectedHasReal}
                 defaultId={defaultId}
@@ -352,6 +354,16 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                             <span className="text-sm font-medium leading-5 text-primary tracking-[0.14px]">
                                                 {profile.name}
                                             </span>
+                                            {batchCounters && (
+                                                <Badge
+                                                    size="sm"
+                                                    className="tabular-nums"
+                                                    title={t('history.batchNumbers.label')}
+                                                    data-testid="profile-batch-number"
+                                                >
+                                                    #{batchCounters[profile.id] ?? 0}
+                                                </Badge>
+                                            )}
                                             {defaultId === profile.id && (
                                                 <Star
                                                     size={11}

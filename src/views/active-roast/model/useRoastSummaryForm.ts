@@ -61,7 +61,8 @@ export const useRoastSummaryForm = ({
             deductStock: hasHandoff || selectedBeanId != null,
         },
     });
-    const { watch, setValue, reset } = form;
+    const { watch, setValue, reset, getFieldState } = form;
+    const openedSessionRef = useRef<string | null | undefined>(undefined);
 
     const linkMode = watch('linkMode');
     const formPlanBatchId = watch('planBatchId');
@@ -96,6 +97,13 @@ export const useRoastSummaryForm = ({
 
     useEffect(() => {
         if (open && summaryData) {
+            const key = summaryData.sessionId ?? null;
+            if (openedSessionRef.current === key) {
+                if (!getFieldState('batchName').isDirty && summaryData.batchName != null)
+                    setValue('batchName', summaryData.batchName);
+                return;
+            }
+            openedSessionRef.current = key;
             const initial = summaryFormInitialValues(
                 handoffRef.current,
                 lastAdhocRef.current,
@@ -108,10 +116,10 @@ export const useRoastSummaryForm = ({
                 blendId: initial.blendId ?? null,
             };
             prevLinkRef.current = { mode: initial.linkMode, batchId: initial.planBatchId };
-            reset({ ...initial, blendId: initial.blendId ?? null });
+            reset({ ...initial, batchName: summaryData.batchName ?? '', blendId: initial.blendId ?? null });
             setBeanFieldEpoch((k) => k + 1);
-        }
-    }, [open, summaryData, reset]);
+        } else if (!open) openedSessionRef.current = undefined;
+    }, [open, summaryData, reset, getFieldState, setValue]);
 
     const linkedBatch = useMemo(() => {
         if (hasHandoff || linkMode !== 'schedule' || !formPlanBatchId) return null;

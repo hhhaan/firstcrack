@@ -950,6 +950,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "批次标题编号",
+            "description": "保存烘焙记录时分配编号，同一工作区的所有设备共享编号。取消或丢弃的烘焙不占用编号。",
+            "profile": "曲线累计",
+            "total": "全部累计",
+            "both": "曲线＋全部",
+            "none": "无编号"
+        },
         "noteEntry": {
             "events": "事件",
             "eventRecorded": "已记录：{{event}}",
@@ -966,6 +974,7 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "batchTitle": "烘焙标题",
             "sourceChangeTitle": "更改烘焙原料",
             "sourceChangeUnlinks": "更改原料会解除当前批次与生产计划的关联。",
             "profileSources": "曲线候选原料",
@@ -1388,6 +1397,7 @@
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
+        "batchNumbers": { "label": "批次编号" },
         "title": "烘焙记录",
         "subtitle": "{{count}}条记录",
         "subtitleLoading": "加载中...",

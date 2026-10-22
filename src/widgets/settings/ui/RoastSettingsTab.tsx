@@ -36,6 +36,7 @@ import { Lock, Play } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
+import { BatchTitleSettings } from './BatchTitleSettings';
 import { CurveStyleSection } from './CurveStyleSection';
 import { EventButtonSection } from './EventButtonSection';
 import { RoastingSettingsImport } from './RoastingSettingsImport';
@@ -1353,6 +1354,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
             <SmoothingControls />
+            <BatchTitleSettings />
 
             <SettingsSection group="sensors">
                 <SettingsSection.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />

@@ -1053,6 +1053,7 @@
     },
     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
     "history": {
+        "batchNumbers": { "label": "배치 번호" },
         "title": "Roast History",
         "subtitle": "{{count}}회 기록됨",
         "subtitleLoading": "불러오는 중...",
@@ -1306,6 +1307,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "배치 제목의 번호",
+            "description": "저장할 때 번호를 확정하며, 같은 작업공간의 모든 기기에서 이어집니다. 취소·폐기한 로스팅은 번호를 사용하지 않습니다.",
+            "profile": "프로파일 누적",
+            "total": "전체 누적",
+            "both": "프로파일 + 전체",
+            "none": "번호 없음"
+        },
         "noteEntry": {
             "events": "이벤트",
             "eventRecorded": "기록됨: {{event}}",
@@ -1322,6 +1331,7 @@
         },
         "autoChargeHeld": "온도가 회복되면 자동 투입됩니다. 지금 시작하려면 Charge를 누르세요.",
         "header": {
+            "batchTitle": "로스팅 제목",
             "sourceChangeTitle": "로스팅 원료 변경",
             "sourceChangeUnlinks": "원료를 변경하면 현재 배치의 일정 연결이 해제됩니다.",
             "profileSources": "프로파일 연결 항목",
