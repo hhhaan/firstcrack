@@ -499,7 +499,7 @@
                 "alertsEnabled": "警報を有効化",
                 "alertsEnabledDescription": "焙煎中に警告バナーを表示します。",
                 "alertSound": "警報音",
-                "alertSoundDescription": "警報が最初に発生したときに音で知らせます。",
+                "alertSoundDescription": "TPの検出時や警報が最初に発生したときに音で知らせます。",
                 "alertSoundKind": "警報音の種類",
                 "alertSoundKindDescription": "焙煎室の騒音の中で聞こえるか、試聴で確認してください。",
                 "alertSoundPreview": "試聴",
@@ -546,9 +546,7 @@
                     "solid": "実線",
                     "dashed": "破線",
                     "dotted": "点線"
-                },
-                "alertTp": "ターニングポイント（TP）通知",
-                "alertTpDescription": "自動・手動TPの記録時に一度通知します。時間アラームとは個別に設定します。"
+                }
             },
             "account": {
                 "label": "プロフィール",
@@ -1183,8 +1181,7 @@
             "afterCharge": "投入 {{minutes}}分後",
             "beforeFc": "1ハゼ {{minutes}}分前（リファレンス）",
             "beforeDrop": "排出 {{minutes}}分前（リファレンス）",
-            "afterDrop": "排出 {{minutes}}分後",
-            "turningPoint": "ターニングポイント（TP）が記録されました"
+            "afterDrop": "排出 {{minutes}}分後"
         },
         "recovery": {
             "title": "未保存の焙煎",

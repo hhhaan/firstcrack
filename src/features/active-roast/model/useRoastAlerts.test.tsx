@@ -18,7 +18,6 @@ const defaults: Props = {
     enabled: true,
     soundEnabled: true,
     soundKind: 'pulse',
-    tpEnabled: true,
     rorCrashCPerMin: 0,
     btMaxC: 250,
     afterTurningPoint: false,
@@ -55,7 +54,8 @@ describe('roast alert lifecycle', () => {
         render();
         const patch = kind === 'automatic' ? { afterTurningPoint: true } : { logEntries: [tp] };
         render(patch);
-        expect(alerts).toEqual(['turning-point']);
+        expect(alerts).toEqual([]);
+        expect(playAlertSound).toHaveBeenCalledWith('pulse');
         expect(playAlertSound).toHaveBeenCalledTimes(1);
         render({ ...patch, logEntries: [{ ...tp, timeSec: 61 }] });
         render();
@@ -63,12 +63,34 @@ describe('roast alert lifecycle', () => {
         expect(playAlertSound).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps disabled TP silent, including enabling it after detection', () => {
-        render({ tpEnabled: false });
-        render({ tpEnabled: false, afterTurningPoint: true });
-        render({ tpEnabled: true, afterTurningPoint: true });
+    it.each(['enabled', 'soundEnabled'] as const)('respects %s and does not replay TP when re-enabled', (setting) => {
+        render({ [setting]: false });
+        render({ [setting]: false, afterTurningPoint: true });
+        render({ afterTurningPoint: true });
         expect(alerts).toEqual([]);
         expect(playAlertSound).not.toHaveBeenCalled();
+    });
+
+    it('uses the selected alarm tone for TP', () => {
+        render({ soundKind: 'chime' });
+        render({ soundKind: 'chime', afterTurningPoint: true });
+        expect(playAlertSound).toHaveBeenCalledExactlyOnceWith('chime');
+    });
+
+    it('does not sound TP first detected after Drop', () => {
+        render();
+        const drop: LogEntry = { ...tp, id: 'drop', event: 'Drop', timeSec: 100 };
+        render({ logEntries: [drop] });
+        render({ logEntries: [tp, drop] });
+        render({ logEntries: [tp] });
+        expect(playAlertSound).not.toHaveBeenCalled();
+    });
+
+    it('plays once when TP and a time alarm trigger together', () => {
+        render();
+        render({ afterTurningPoint: true, timeAlerts: { ...off, afterChargeMin: 1 } });
+        expect(alerts).toEqual(['after-charge']);
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
     });
 
     it('does not mistake lagging negative RoR at TP for a crash, but detects a later crash', () => {
@@ -79,10 +101,11 @@ describe('roast alert lifecycle', () => {
                 }),
             );
         updateRor(-2);
-        render({ tpEnabled: false });
-        render({ tpEnabled: false, afterTurningPoint: true });
+        render({ soundEnabled: false });
+        render({ soundEnabled: false, afterTurningPoint: true });
         expect(alerts).toEqual([]);
         expect(playAlertSound).not.toHaveBeenCalled();
+        render({ afterTurningPoint: true });
         updateRor(5);
         updateRor(-1);
         expect(alerts).toEqual(['ror-crash']);
@@ -106,11 +129,9 @@ describe('roast alert lifecycle', () => {
         ['beforeFcMin', 1, 420, 'before-fc'],
         ['beforeDropMin', 1, 540, 'before-drop'],
         ['afterDropMin', 1, 660, 'after-drop'],
-    ] as const)('keeps %s independent of disabled TP and sounds once', (key, value, elapsed, expected) => {
+    ] as const)('keeps %s working without TP and sounds once', (key, value, elapsed, expected) => {
         act(() => useRoastingStore.setState({ elapsed: elapsed - 1 }));
         const patch: Partial<Props> = {
-            tpEnabled: false,
-            afterTurningPoint: true,
             timeAlerts: { ...off, [key]: value },
             logEntries: key === 'afterDropMin' ? [{ ...tp, id: 'drop', event: 'Drop', timeSec: 600 }] : [],
         };

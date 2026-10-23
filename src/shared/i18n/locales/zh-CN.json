@@ -499,7 +499,7 @@
                 "alertsEnabled": "启用警报",
                 "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
                 "alertSound": "警报声",
-                "alertSoundDescription": "警报首次触发时发出提示音。",
+                "alertSoundDescription": "检测到TP或警报首次触发时发出提示音。",
                 "alertSoundKind": "警报音色",
                 "alertSoundKindDescription": "请用试听确认在烘焙车间噪音中能否听清。",
                 "alertSoundPreview": "试听",
@@ -546,9 +546,7 @@
                     "solid": "实线",
                     "dashed": "虚线",
                     "dotted": "点线"
-                },
-                "alertTp": "回温点（TP）提醒",
-                "alertTpDescription": "自动或手动记录TP时提醒一次。可独立于时间闹钟设置。"
+                }
             },
             "account": {
                 "label": "个人资料",
@@ -1183,8 +1181,7 @@
             "afterCharge": "投豆 {{minutes}} 分钟后",
             "beforeFc": "一爆前 {{minutes}} 分钟（参考）",
             "beforeDrop": "下豆前 {{minutes}} 分钟（参考）",
-            "afterDrop": "下豆 {{minutes}} 分钟后",
-            "turningPoint": "已记录回温点（TP）"
+            "afterDrop": "下豆 {{minutes}} 分钟后"
         },
         "recovery": {
             "title": "未保存的烘焙",

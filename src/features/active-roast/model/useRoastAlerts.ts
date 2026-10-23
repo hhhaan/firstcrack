@@ -9,7 +9,6 @@ type UseRoastAlertsParams = {
     enabled: boolean;
     soundEnabled: boolean;
     soundKind: AlertSoundKind;
-    tpEnabled: boolean;
     rorCrashCPerMin: number;
     btMaxC: number;
     /** RoR is legitimately negative until the turning point is confirmed. */
@@ -23,13 +22,12 @@ type UseRoastAlertsParams = {
 /**
  * Live threshold + time alarms. Runs while roasting; Drop/End silences threshold and
  * charge/FC/drop-before alarms, but leaves after-drop armed until End roast.
- * Beeps on the rising edge of each kind so a sustained window doesn't sound every poll.
+ * Beeps once per batch at TP and on the rising edge of each alarm kind.
  */
 export const useRoastAlerts = ({
     enabled,
     soundEnabled,
     soundKind,
-    tpEnabled,
     rorCrashCPerMin,
     btMaxC,
     afterTurningPoint,
@@ -48,8 +46,6 @@ export const useRoastAlerts = ({
     const soundKindRef = useRef(soundKind);
     const sessionRef = useRef(sessionId);
     const tpSeenRef = useRef(false);
-    const tpActiveRef = useRef(false);
-    const tpNotifiedRef = useRef(false);
     const rorReadyRef = useRef(false);
 
     useEffect(() => {
@@ -70,17 +66,13 @@ export const useRoastAlerts = ({
         if (sessionRef.current !== sessionId) {
             sessionRef.current = sessionId;
             tpSeenRef.current = false;
-            tpActiveRef.current = false;
-            tpNotifiedRef.current = false;
             rorReadyRef.current = false;
             activeRef.current = [];
             setActive([]);
         }
         const tpDetected = afterTurningPoint || logEntries.some((entry) => entry.event === 'TP');
-        if (tpDetected && !tpSeenRef.current) {
-            tpSeenRef.current = true;
-            tpActiveRef.current = armed && !dropped && tpEnabled;
-        }
+        const newTp = tpDetected && !tpSeenRef.current;
+        if (tpDetected) tpSeenRef.current = true;
         // Display RoR can still be negative when raw BT confirms TP. A crash needs a prior rise.
         if (armed && !dropped && tpDetected && liveData?.ror != null && liveData.ror > 0) {
             rorReadyRef.current = true;
@@ -112,28 +104,21 @@ export const useRoastAlerts = ({
             },
             timeAlerts,
         );
-        const next: RoastAlertKind[] = [
-            ...(tpActiveRef.current && tpEnabled && !dropped ? ['turning-point' as const] : []),
-            ...threshold,
-            ...timed,
-        ];
+        const next: RoastAlertKind[] = [...threshold, ...timed];
 
         const rising = next.filter((k) => !activeRef.current.includes(k));
         const changed =
             rising.length > 0 ||
             next.length !== activeRef.current.length ||
             activeRef.current.some((k) => !next.includes(k));
-        if (!changed) return;
-
-        activeRef.current = next;
-        setActive(next);
-        const audible = rising.filter((kind) => kind !== 'turning-point' || !tpNotifiedRef.current);
-        if (rising.includes('turning-point')) tpNotifiedRef.current = true;
-        if (audible.length > 0 && soundRef.current) playAlertSound(soundKindRef.current);
+        if (changed) {
+            activeRef.current = next;
+            setActive(next);
+        }
+        if ((rising.length > 0 || (newTp && !dropped)) && soundRef.current) playAlertSound(soundKindRef.current);
     }, [
         armed,
         sessionId,
-        tpEnabled,
         logEntries,
         dropped,
         dropEntry,

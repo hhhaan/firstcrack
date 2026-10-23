@@ -499,7 +499,7 @@
                 "alertsEnabled": "Enable alarms",
                 "alertsEnabledDescription": "Show a warning banner during the roast.",
                 "alertSound": "Alarm sound",
-                "alertSoundDescription": "Beep when an alarm first triggers.",
+                "alertSoundDescription": "Play a sound when TP is detected or an alarm first triggers.",
                 "alertSoundKind": "Alarm tone",
                 "alertSoundKindDescription": "Use Preview to check it cuts through the roastery noise.",
                 "alertSoundPreview": "Preview",
@@ -546,9 +546,7 @@
                     "solid": "Solid",
                     "dashed": "Dashed",
                     "dotted": "Dotted"
-                },
-                "alertTp": "Turning point (TP) notification",
-                "alertTpDescription": "Notify once when an automatic or manual TP is recorded. Independent of time alarms."
+                }
             },
             "account": {
                 "label": "Profile",
@@ -1183,8 +1181,7 @@
             "afterCharge": "{{minutes}} min after charge",
             "beforeFc": "{{minutes}} min before first crack (reference)",
             "beforeDrop": "{{minutes}} min before drop (reference)",
-            "afterDrop": "{{minutes}} min after drop",
-            "turningPoint": "Turning point (TP) recorded"
+            "afterDrop": "{{minutes}} min after drop"
         },
         "recovery": {
             "title": "Unsaved roast",

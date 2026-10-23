@@ -154,7 +154,6 @@ const DEFAULT_SETTINGS: RoastSettings = {
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
-    alertTpEnabled: false,
     alertSoundKind: 'pulse',
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
@@ -434,7 +433,6 @@ export const normalizeRoastSettings = (
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
-        alertTpEnabled: asBool(merged.alertTpEnabled, DEFAULT_SETTINGS.alertTpEnabled),
         alertSoundKind: isAlertSoundKind(merged.alertSoundKind)
             ? merged.alertSoundKind
             : DEFAULT_SETTINGS.alertSoundKind,

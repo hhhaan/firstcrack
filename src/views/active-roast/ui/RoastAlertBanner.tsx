@@ -5,7 +5,6 @@ import { TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const ALERT_KEYS: Record<RoastAlertKind, string> = {
-    'turning-point': 'activeRoast.alerts.turningPoint',
     'ror-crash': 'activeRoast.alerts.rorCrash',
     'bt-over': 'activeRoast.alerts.btOver',
     'after-charge': 'activeRoast.alerts.afterCharge',

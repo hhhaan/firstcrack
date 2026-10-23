@@ -499,7 +499,7 @@
                 "alertsEnabled": "알람 사용",
                 "alertsEnabledDescription": "로스팅 중 경고와 시간 알림 배너 표시",
                 "alertSound": "알람 소리",
-                "alertSoundDescription": "새 알람 발생 시 소리 재생",
+                "alertSoundDescription": "TP 감지 및 새 알람 발생 시 소리 재생",
                 "alertSoundKind": "알람음",
                 "alertSoundKindDescription": "알람 발생 시 재생할 소리",
                 "alertSoundPreview": "미리듣기",
@@ -546,9 +546,7 @@
                     "solid": "실선",
                     "dashed": "파선",
                     "dotted": "점선"
-                },
-                "alertTp": "터닝포인트(TP) 알림",
-                "alertTpDescription": "자동·수동 TP 기록 시 한 번 알립니다. 시간 기반 알람과 별도로 설정합니다."
+                }
             },
             "account": {
                 "label": "프로필",
@@ -1558,8 +1556,7 @@
             "afterCharge": "투입 {{minutes}}분 후",
             "beforeFc": "1차 크랙 {{minutes}}분 전 (레퍼런스)",
             "beforeDrop": "배출 {{minutes}}분 전 (레퍼런스)",
-            "afterDrop": "배출 {{minutes}}분 후",
-            "turningPoint": "터닝포인트(TP)가 기록되었습니다"
+            "afterDrop": "배출 {{minutes}}분 후"
         },
         "recovery": {
             "title": "저장되지 않은 로스팅",

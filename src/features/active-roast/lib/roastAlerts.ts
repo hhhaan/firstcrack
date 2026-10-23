@@ -1,13 +1,6 @@
-export type RoastAlertKind =
-    | 'turning-point'
-    | 'ror-crash'
-    | 'bt-over'
-    | 'after-charge'
-    | 'before-fc'
-    | 'before-drop'
-    | 'after-drop';
+export type RoastAlertKind = 'ror-crash' | 'bt-over' | 'after-charge' | 'before-fc' | 'before-drop' | 'after-drop';
 
-export type TimeAlertKind = Exclude<RoastAlertKind, 'turning-point' | 'ror-crash' | 'bt-over'>;
+export type TimeAlertKind = Exclude<RoastAlertKind, 'ror-crash' | 'bt-over'>;
 
 export type RoastAlertThresholds = {
     /** Fire when BT RoR falls to or below this (°C/min). */
