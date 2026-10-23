@@ -13,14 +13,15 @@ describe('BeanCombobox', () => {
     afterEach(() => {
         act(() => root?.unmount());
         host?.remove();
+        vi.useRealTimers();
     });
 
-    const render = (items: { id: string; name: string }[], initialQuery = '') => {
+    const render = (items: { id: string; name: string }[], initialQuery = '', initialId = 'bean-1') => {
         const onSelect = vi.fn();
         const onFreeTextCommit = vi.fn();
         let resetSelection = () => {};
-        const Harness = () => {
-            const [selectedId, setSelectedId] = useState('bean-1');
+        const Harness = ({ items }: { items: { id: string; name: string }[] }) => {
+            const [selectedId, setSelectedId] = useState(initialId);
             resetSelection = () => setSelectedId('');
             return createElement(BeanCombobox, {
                 items,
@@ -37,7 +38,7 @@ describe('BeanCombobox', () => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
-        act(() => root.render(createElement(Harness)));
+        act(() => root.render(createElement(Harness, { items })));
         const input = host.querySelector('[data-testid="bean"] input') as HTMLInputElement;
         const type = (value: string) =>
             act(() => {
@@ -50,7 +51,14 @@ describe('BeanCombobox', () => {
             });
         const options = () => [...host.querySelectorAll('[role="option"]')].map((el) => el.textContent);
         const clearSelection = () => act(() => resetSelection());
-        return { input, type, enter, options, clearSelection, onSelect, onFreeTextCommit };
+        const updateItems = (next: typeof items) => act(() => root.render(createElement(Harness, { items: next })));
+        const blur = () =>
+            act(() => {
+                input.focus();
+                input.blur();
+                vi.advanceTimersByTime(120);
+            });
+        return { input, type, enter, blur, options, clearSelection, updateItems, onSelect, onFreeTextCommit };
     };
 
     const items = [
@@ -93,5 +101,42 @@ describe('BeanCombobox', () => {
         type('Fresh sample');
         clearSelection();
         expect(input.value).toBe('Fresh sample');
+    });
+
+    it.each(['enter', 'blur'] as const)('preserves a selected blend sharing a bean name on %s', (commit) => {
+        vi.useFakeTimers();
+        const picker = render(
+            [
+                { id: 'bean-1', name: 'House' },
+                { id: 'blend-1', name: 'House' },
+            ],
+            '',
+            'blend-1',
+        );
+        picker[commit]();
+        expect(picker.onSelect).toHaveBeenLastCalledWith('blend-1');
+        expect(picker.onSelect).not.toHaveBeenCalledWith('bean-1');
+        expect(picker.onFreeTextCommit).not.toHaveBeenCalled();
+    });
+
+    it('updates a placeholder when the selected name arrives without changing the id', () => {
+        const { input, updateItems } = render([{ id: 'blend-1', name: 'blend-1' }], '', 'blend-1');
+        updateItems([]);
+        expect(input.value).toBe('blend-1');
+        updateItems([{ id: 'blend-1', name: 'House blend' }]);
+        expect(input.value).toBe('House blend');
+    });
+
+    it('fills an initially missing selection when options finish loading', () => {
+        const { input, updateItems } = render([], 'Saved label', 'blend-1');
+        updateItems([{ id: 'blend-1', name: 'House blend' }]);
+        expect(input.value).toBe('House blend');
+    });
+
+    it('preserves a draft typed before the selected option arrives', () => {
+        const { input, type, updateItems } = render([], 'Saved label', 'blend-1');
+        type('My new label');
+        updateItems([{ id: 'blend-1', name: 'House blend' }]);
+        expect(input.value).toBe('My new label');
     });
 });

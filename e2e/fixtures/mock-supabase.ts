@@ -286,6 +286,12 @@ export async function installMockSupabase(page: Page, db: MockDb) {
                 if (params['status']?.startsWith('eq.')) {
                     rows = rows.filter((s) => s.status === params['status']!.slice(3));
                 }
+                if (params.select?.includes('blends(')) {
+                    rows = rows.map((row) => {
+                        const blend = db.blends.find((item) => item.id === row.blend_id);
+                        return { ...row, blends: blend ? { name: blend.name } : (row.blends ?? null) };
+                    });
+                }
                 // head count
                 if (
                     method === 'GET' &&
@@ -350,7 +356,9 @@ export async function installMockSupabase(page: Page, db: MockDb) {
             }
         }
 
-        if (table === 'roast_profiles' || table === 'blends' || table === 'blend_components') {
+        if (table === 'blends') return json(route, db.blends);
+
+        if (table === 'roast_profiles' || table === 'blend_components') {
             return json(route, []);
         }
 

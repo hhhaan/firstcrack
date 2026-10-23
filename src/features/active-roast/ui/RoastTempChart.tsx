@@ -58,6 +58,7 @@ import {
     useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ChartEventDetails } from './ChartEventDetails';
 import { CurveSwatch } from './CurveSwatch';
 import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
@@ -639,6 +640,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const chart = chartInstanceRef.current;
             const point = localPoint(clientX, clientY);
             if (!chart || !point) return null;
+            if (point.x < 0 || point.y < 0 || point.x > chart.getWidth() || point.y > chart.getHeight()) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
             const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
@@ -721,6 +723,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 const box = boxes[index];
                 const labelHit = Boolean(
                     box &&
+                        box.bottom > box.top &&
                         point.x >= box.left - 4 &&
                         point.x <= box.right + 4 &&
                         point.y >= box.top - 4 &&
@@ -1121,6 +1124,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 className="outline-none"
                 style={{ width: '100%', height: '100%', outline: 'none' }}
             />
+            <ChartEventDetails markers={eventMarkers} unit={temperatureUnit} />
             {noteForm && (
                 <form
                     ref={noteFormRef}

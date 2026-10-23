@@ -298,6 +298,62 @@ describe('event marker visual grammar', () => {
 });
 
 describe('layoutCurveLabelBoxes', () => {
+    it('packs neighboring oversized notes without overlapping their compact previews', () => {
+        const boxes = layoutCurveLabelBoxes(
+            [0, 1].map((timeSec) => ({
+                timeSec,
+                xPx: 100,
+                yPx: 150,
+                text: '한'.repeat(120),
+                below: true,
+                color: '#111',
+                showDot: false,
+            })),
+            220,
+            2,
+            300,
+        );
+        for (let i = 0; i < boxes.length; i++) {
+            expect(boxes[i].top).toBeGreaterThanOrEqual(0);
+            expect(boxes[i].bottom).toBeLessThanOrEqual(300);
+            for (let j = i + 1; j < boxes.length; j++) {
+                expect(boxes[i].bottom <= boxes[j].top || boxes[j].bottom <= boxes[i].top).toBe(true);
+            }
+        }
+    });
+
+    it.each([0, 13, 27, 28])('keeps the hit box inside a canvas only %spx high', (height) => {
+        const [box] = layoutCurveLabelBoxes(
+            [{ timeSec: 1, xPx: 100, yPx: 150, text: '한'.repeat(120), below: true, color: '#111', showDot: false }],
+            220,
+            2,
+            height,
+        );
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.bottom).toBeLessThanOrEqual(height);
+        expect(box.text).toBe(height < MARKER_LABEL_STACK_PX * 2 ? '' : '…');
+    });
+
+    it.each([false, true])('bounds an oversized CJK note at 2x scale (below=%s) and retains its content', (below) => {
+        const text = eventLabelText(
+            'Note',
+            61,
+            '123.4°C',
+            `Gas 0\nAirflow 1.234 kPa\nDrum 55.5 RPM\n${'한'.repeat(120)}`,
+        );
+        const [box] = layoutCurveLabelBoxes(
+            [{ timeSec: 61, xPx: 218, yPx: 190, text, below, color: '#111', showDot: false }],
+            220,
+            2,
+            300,
+        );
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.bottom).toBeLessThanOrEqual(300);
+        expect(box.text.endsWith('…')).toBe(true);
+        expect(box.fullText).toBe(text);
+        expect(box.bottom - box.top).toBe(MARKER_LABEL_STACK_PX * 2 * box.text.split('\n').length);
+    });
+
     it.each([1, 1.5, 2])('wraps every compound note value within both canvas edges at scale %s', (scale) => {
         const payload = 'Gas 0\nAirflow 1.234 kPa\nDrum 55.5 RPM\n한글메모 long-value-12345678901234567890';
         const text = eventLabelText('Note', 61, '123.4°C', payload);

@@ -50,31 +50,27 @@ export const BeanCombobox = ({
     const selected = items.find((i) => i.id === selectedId);
     const [query, setQuery] = useState(selected?.name ?? initialQuery);
     const [open, setOpen] = useState(false);
-    const prevSelectedIdRef = useRef(selectedId);
-    const itemsRef = useRef(items);
+    const previousSelection = useRef({ id: selectedId, name: selected?.name });
 
+    // Refresh a selected label only if it still shows the previous label, preserving edits.
     useEffect(() => {
-        itemsRef.current = items;
-    }, [items]);
-
-    // Sync display only when selectedId changes (not when items refetches).
-    useEffect(() => {
-        if (selectedId === prevSelectedIdRef.current) return;
-        const previousId = prevSelectedIdRef.current;
-        prevSelectedIdRef.current = selectedId;
-        const name = itemsRef.current.find((i) => i.id === selectedId)?.name;
+        const previous = previousSelection.current;
+        const name = selected?.name;
+        previousSelection.current = { id: selectedId, name: name ?? previous.name };
+        if (selectedId === previous.id) {
+            if (name != null) setQuery((current) => (current === (previous.name ?? initialQuery) ? name : current));
+            return;
+        }
         if (name != null) {
             setQuery(name);
             return;
         }
         if (selectedId) return;
         // Clearing the link must not erase free text the operator is typing: only drop a leftover bean name.
-        const previousName = itemsRef.current
-            .find((i) => i.id === previousId)
-            ?.name?.trim()
-            .toLowerCase();
+        const previousName = previous.name?.trim().toLowerCase();
+        previousSelection.current = { id: selectedId, name: undefined };
         setQuery((current) => (previousName && current.trim().toLowerCase() !== previousName ? current : initialQuery));
-    }, [selectedId, initialQuery]);
+    }, [selectedId, selected?.name, initialQuery]);
 
     useEffect(() => {
         if (!open) return;
@@ -103,7 +99,10 @@ export const BeanCombobox = ({
             setQuery('');
             return;
         }
-        const exact = items.find((i) => i.name.toLowerCase() === trimmed.toLowerCase());
+        const exact =
+            selected?.name.trim().toLowerCase() === trimmed.toLowerCase()
+                ? selected
+                : items.find((i) => i.name.toLowerCase() === trimmed.toLowerCase());
         if (exact) {
             onSelect(exact.id);
             setQuery(exact.name);

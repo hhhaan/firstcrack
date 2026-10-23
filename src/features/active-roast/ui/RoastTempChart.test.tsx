@@ -470,9 +470,11 @@ describe('RoastTempChart interactions', () => {
 
         act(() => zrHandlers.get('mousemove')?.({ offsetX: 50, offsetY: 20 }));
         expect(onCursorIdx).toHaveBeenLastCalledWith(1);
-        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 2500, pointerId: 5 })).toBe(true);
+        convertToPixel.mockReturnValueOnce(50).mockReturnValueOnce(250);
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 250, pointerId: 5 })).toBe(true);
+        expect(ref.current?.hitTestMarker({ clientX: 50, clientY: 301 })).toBe(false);
         chart.containPixel.mockReturnValueOnce(false);
-        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 500, pointerId: 6 })).toBe(false);
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 150, pointerId: 6 })).toBe(false);
     });
 
     it.each([

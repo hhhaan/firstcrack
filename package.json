@@ -8,7 +8,7 @@
         "predev": "bash scripts/ensure-sidecar-venv.sh && (lsof -tiTCP:1420 -iTCP:9999 -sTCP:LISTEN | xargs kill -9 2>/dev/null || true)",
         "dev": "concurrently --names \"vite,sidecar\" --prefix-colors \"cyan,yellow\" \"vite\" \"src-tauri/sidecar/.venv/bin/python src-tauri/sidecar/main.py\"",
         "build": "vite build",
-        "typecheck": "tsgo --noEmit && tsgo --noEmit -p tsconfig.test.json",
+        "typecheck": "tsgo --noEmit && tsgo --noEmit -p tsconfig.test.json && tsgo --noEmit -p tsconfig.e2e.json",
         "test": "vitest run",
         "test:e2e": "playwright test --config e2e/playwright.config.ts",
         "test:e2e:ui": "playwright test --config e2e/playwright.config.ts --ui",

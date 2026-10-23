@@ -952,6 +952,7 @@
         }
     },
     "activeRoast": {
+        "eventDetails": "事件详情",
         "batchTitleSettings": {
             "title": "批次标题编号",
             "description": "保存烘焙记录时分配编号，同一工作区的所有设备共享编号。取消或丢弃的烘焙不占用编号。",

@@ -193,7 +193,8 @@ test('history compare: five batches, user colors, overlay channels and responsiv
     await scroller.scrollIntoViewIfNeeded();
     await expect(scroller).toHaveCSS('scrollbar-width', 'auto');
     const geometry = await scroller.evaluate((element) => ({
-        width: element.clientWidth, content: element.scrollWidth,
+        width: element.clientWidth,
+        content: element.scrollWidth,
         scrollbar: getComputedStyle(element, '::-webkit-scrollbar').display,
     }));
     expect(geometry.content).toBeGreaterThan(geometry.width);
@@ -206,8 +207,9 @@ test('history compare: five batches, user colors, overlay channels and responsiv
     await page.mouse.up();
     await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
     await scroller.focus();
-    await scroller.press('Home');
-    await scroller.press('ArrowRight');
+    const beforeKeyScroll = await scroller.evaluate((element) => element.scrollLeft);
+    await scroller.press('ArrowLeft');
+    await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeLessThan(beforeKeyScroll);
     await expect(scroller).toBeFocused();
     await readout.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('compare-small.png'), animations: 'disabled' });

@@ -3,6 +3,15 @@
  */
 import type { Page } from '@playwright/test';
 
+declare global {
+    interface Window {
+        isTauri: boolean;
+        __TAURI_INTERNALS__: {
+            invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
+        };
+    }
+}
+
 export const tauriInitScript = `
 (() => {
   window.isTauri = true;

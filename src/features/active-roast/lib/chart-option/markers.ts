@@ -196,6 +196,8 @@ export interface CurveLabelBox {
     bottom: number;
     below: boolean;
     text: string;
+    /** Complete original content; oversized labels have a compact canvas preview. */
+    fullText: string;
     color: string;
     opacity: number;
     showDot: boolean;
@@ -220,8 +222,13 @@ const makeLabelBox = (
     const xOffset = scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale);
     const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
     const width = Math.min(estimateLabelWidth(item.text, scale), Math.max(0, canvasWidth - gutter));
-    const text = wrapMarkerLabel(item.text, width, scale);
-    const height = stack * text.split('\n').length;
+    const lines = wrapMarkerLabel(item.text, width, scale).split('\n');
+    const maxLines = Math.max(0, Math.floor(canvasHeight / stack));
+    // Oversized labels leave room for other marks. The event-details panel retains every value.
+    const visible =
+        lines.length > maxLines ? (maxLines > 0 ? [...lines.slice(0, Math.min(2, maxLines - 1)), '…'] : []) : lines;
+    const text = visible.join('\n');
+    const height = stack * visible.length;
     textY = item.below
         ? Math.max(0, Math.min(textY, Math.max(0, canvasHeight - height)))
         : Math.max(height, Math.min(textY, canvasHeight));
@@ -242,6 +249,7 @@ const makeLabelBox = (
         bottom,
         below: item.below,
         text,
+        fullText: item.text,
         color: item.color,
         opacity: item.opacity ?? 1,
         showDot: item.showDot,
