@@ -1,4 +1,5 @@
 mod app_nap;
+mod browser_defaults;
 #[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
@@ -508,6 +509,7 @@ pub fn run() {
         ]);
 
     let mut builder = builder
+        .plugin(browser_defaults::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
