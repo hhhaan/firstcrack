@@ -546,7 +546,9 @@
                     "solid": "실선",
                     "dashed": "파선",
                     "dotted": "점선"
-                }
+                },
+                "alertTp": "터닝포인트(TP) 알림",
+                "alertTpDescription": "자동·수동 TP 기록 시 한 번 알립니다. 시간 기반 알람과 별도로 설정합니다."
             },
             "account": {
                 "label": "프로필",
@@ -1053,7 +1055,9 @@
     },
     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
     "history": {
-        "batchNumbers": { "label": "배치 번호" },
+        "batchNumbers": {
+            "label": "배치 번호"
+        },
         "title": "Roast History",
         "subtitle": "{{count}}회 기록됨",
         "subtitleLoading": "불러오는 중...",
@@ -1553,7 +1557,8 @@
             "afterCharge": "투입 {{minutes}}분 후",
             "beforeFc": "1차 크랙 {{minutes}}분 전 (레퍼런스)",
             "beforeDrop": "배출 {{minutes}}분 전 (레퍼런스)",
-            "afterDrop": "배출 {{minutes}}분 후"
+            "afterDrop": "배출 {{minutes}}분 후",
+            "turningPoint": "터닝포인트(TP)가 기록되었습니다"
         },
         "recovery": {
             "title": "저장되지 않은 로스팅",

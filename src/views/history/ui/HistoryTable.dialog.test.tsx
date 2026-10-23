@@ -35,6 +35,9 @@ vi.mock('@tanstack/react-query', async (importOriginal) => {
 vi.mock('@entities/bean', () => ({
     useBeans: () => ({ data: [] }),
 }));
+vi.mock('@entities/blend', () => ({
+    useBlends: () => ({ data: [] }),
+}));
 vi.mock('@features/update-roast-bean-origin', () => ({
     useUpdateRoastBeanOrigin: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));

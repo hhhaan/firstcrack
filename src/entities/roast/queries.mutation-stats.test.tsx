@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { roastProfileQueryRoots } from '@shared/lib/query-keys';
+import { blendQueryRoots, roastProfileQueryRoots } from '@shared/lib/query-keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -91,6 +91,49 @@ describe('roast mutations refresh profile stats', () => {
         expect(qc.getQueryState(historyKey)?.isInvalidated).toBe(true);
         expect(qc.getQueryState(consistencyKey)?.isInvalidated).toBe(true);
     };
+
+    it('updates the blend join optimistically and restores the single source if persistence fails', async () => {
+        const key = roastSessionKeys.all(uid);
+        const single = {
+            id: 's1',
+            status: 'completed',
+            bean_id: 'bean-1',
+            blend_id: null,
+            beans: { name: 'Single' },
+            blends: null,
+        };
+        qc.setQueryData(key, [single]);
+        qc.setQueryData([...blendQueryRoots.all, uid], [{ id: 'blend-1', name: 'House blend' }]);
+        let finish = () => {};
+        const gate = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        vi.mocked(roastSessionApi.update).mockImplementationOnce(async () => {
+            await gate;
+            throw new Error('save failed');
+        });
+        await act(async () =>
+            root.render(
+                <QueryClientProvider client={qc}>
+                    <Probe />
+                </QueryClientProvider>,
+            ),
+        );
+        let pending: Promise<unknown> = Promise.resolve();
+        await act(async () => {
+            pending = latest.update
+                .mutateAsync({ id: 's1', bean_id: null, blend_id: 'blend-1' })
+                .catch(() => undefined);
+        });
+        expect(qc.getQueryData(key)).toMatchObject([
+            { bean_id: null, blend_id: 'blend-1', beans: null, blends: { name: 'House blend' } },
+        ]);
+        await act(async () => {
+            finish();
+            await pending;
+        });
+        expect(qc.getQueryData(key)).toEqual([single]);
+    });
 
     it('save, update, delete, output weight, and record edit share one stats invalidation', async () => {
         await act(async () => {

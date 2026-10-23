@@ -1,5 +1,6 @@
 import {
     beanQueryRoots,
+    blendQueryRoots,
     dashboardKeys,
     inventoryQueryRoots,
     roastedStockKeys,
@@ -130,6 +131,12 @@ export const useUpdateRoastSession = (userId: string) => {
                 if (row.id !== id) return row;
                 const next: RoastSessionWithRelations = { ...row, ...patch };
                 if ('bean_id' in patch) next.beans = beanRelation(qc, userId, patch.bean_id ?? null);
+                if ('blend_id' in patch) {
+                    const blend = qc
+                        .getQueryData<Array<{ id: string; name: string }>>([...blendQueryRoots.all, userId])
+                        ?.find((item) => item.id === patch.blend_id);
+                    next.blends = blend ? { name: blend.name } : null;
+                }
                 return next;
             });
         },

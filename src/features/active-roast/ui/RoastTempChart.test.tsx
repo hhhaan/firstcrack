@@ -52,6 +52,7 @@ const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.ho
         resize: vi.fn(),
         setOption,
         getWidth: () => 1000,
+        getHeight: () => 300,
         getOption: vi.fn(() => ({})),
         getDataURL: vi.fn(() => 'data:image/png;base64,qq'),
     };
@@ -298,7 +299,7 @@ describe('RoastTempChart interactions', () => {
             const series = option.series.find((s: { id: string }) => s.id === 'event-curve-labels');
             const rendered = series.renderItem(
                 { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },
-                { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000 },
+                { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000, getHeight: chart.getHeight },
             );
             const label = rendered.children.find((child: { type: string }) => child.type === 'text');
             const scale = fontScalePct / 100;

@@ -114,6 +114,8 @@ export type RoastSettings = {
     /** Live threshold alarms (RoR crash / BT ceiling). */
     alertsEnabled: boolean;
     alertSoundEnabled: boolean;
+    /** Independent turning-point notification. Existing installations stay silent. */
+    alertTpEnabled: boolean;
     /** Which synthesized alarm plays. See lib/alertSound.ts. */
     alertSoundKind: AlertSoundKind;
     alertRorCrashCPerMin: number;

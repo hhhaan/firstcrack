@@ -29,7 +29,13 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
             <h3 id="compare-metrics-title" className="mb-2 text-[13px] font-semibold text-primary">
                 {t('history.compare.metrics')}
             </h3>
-            <div className="overflow-x-auto rounded-xl border border-border">
+            <div
+                role="region"
+                aria-label={t('history.compare.metrics')}
+                // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users must be able to scroll the overflowing comparison table.
+                tabIndex={0}
+                className="visible-scrollbar overflow-x-auto rounded-xl border border-border focus-visible:outline-2 focus-visible:outline-primary"
+            >
                 <table className="w-full min-w-[760px] border-collapse text-left">
                     <thead className="bg-surface/45 text-[12px] font-medium text-secondary">
                         <tr className="border-b border-border">

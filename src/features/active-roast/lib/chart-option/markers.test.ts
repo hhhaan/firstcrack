@@ -11,6 +11,7 @@ import {
     buildMarkers,
     clampCurveLabelY,
     estimateLabelWidth,
+    eventLabelText,
     getMarkerLabelGeometry,
     LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
@@ -297,6 +298,33 @@ describe('event marker visual grammar', () => {
 });
 
 describe('layoutCurveLabelBoxes', () => {
+    it.each([1, 1.5, 2])('wraps every compound note value within both canvas edges at scale %s', (scale) => {
+        const payload = 'Gas 0\nAirflow 1.234 kPa\nDrum 55.5 RPM\n한글메모 long-value-12345678901234567890';
+        const text = eventLabelText('Note', 61, '123.4°C', payload);
+        const boxes = layoutCurveLabelBoxes(
+            [
+                {
+                    timeSec: 61,
+                    xPx: 218,
+                    yPx: 190,
+                    text,
+                    below: true,
+                    color: '#111',
+                    showDot: false,
+                },
+            ],
+            220,
+            scale,
+            500,
+        );
+        const box = boxes[0];
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(220);
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.bottom).toBeLessThanOrEqual(500);
+        expect(box.text.replace(/\n/g, '')).toBe(text.replace(/\n/g, ''));
+        expect(box.bottom - box.top).toBe(MARKER_LABEL_STACK_PX * scale * box.text.split('\n').length);
+    });
     const item = (overrides: Partial<Parameters<typeof layoutCurveLabelBoxes>[0][number]>) => ({
         timeSec: 0,
         xPx: 100,

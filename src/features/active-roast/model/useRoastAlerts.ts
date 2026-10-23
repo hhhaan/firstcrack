@@ -9,6 +9,7 @@ type UseRoastAlertsParams = {
     enabled: boolean;
     soundEnabled: boolean;
     soundKind: AlertSoundKind;
+    tpEnabled: boolean;
     rorCrashCPerMin: number;
     btMaxC: number;
     /** RoR is legitimately negative until the turning point is confirmed. */
@@ -28,6 +29,7 @@ export const useRoastAlerts = ({
     enabled,
     soundEnabled,
     soundKind,
+    tpEnabled,
     rorCrashCPerMin,
     btMaxC,
     afterTurningPoint,
@@ -39,10 +41,16 @@ export const useRoastAlerts = ({
     const phase = useRoastingStore((s) => s.phase);
     const liveData = useRoastingStore((s) => s.liveData);
     const elapsed = useRoastingStore((s) => s.elapsed);
+    const sessionId = useRoastingStore((s) => s.sessionId ?? s.completed?.snapshot.sessionId ?? null);
     const [active, setActive] = useState<RoastAlertKind[]>([]);
     const activeRef = useRef<RoastAlertKind[]>([]);
     const soundRef = useRef(soundEnabled);
     const soundKindRef = useRef(soundKind);
+    const sessionRef = useRef(sessionId);
+    const tpSeenRef = useRef(false);
+    const tpActiveRef = useRef(false);
+    const tpNotifiedRef = useRef(false);
+    const rorReadyRef = useRef(false);
 
     useEffect(() => {
         soundRef.current = soundEnabled;
@@ -59,18 +67,38 @@ export const useRoastAlerts = ({
     }, [armed, soundEnabled]);
 
     useEffect(() => {
+        if (sessionRef.current !== sessionId) {
+            sessionRef.current = sessionId;
+            tpSeenRef.current = false;
+            tpActiveRef.current = false;
+            tpNotifiedRef.current = false;
+            rorReadyRef.current = false;
+            activeRef.current = [];
+            setActive([]);
+        }
+        const tpDetected = afterTurningPoint || logEntries.some((entry) => entry.event === 'TP');
+        if (tpDetected && !tpSeenRef.current) {
+            tpSeenRef.current = true;
+            tpActiveRef.current = armed && !dropped && tpEnabled;
+        }
+        // Display RoR can still be negative when raw BT confirms TP. A crash needs a prior rise.
+        if (armed && !dropped && tpDetected && liveData?.ror != null && liveData.ror > 0) {
+            rorReadyRef.current = true;
+        }
         if (!armed) {
-            if (activeRef.current.length > 0) {
-                activeRef.current = [];
-                setActive([]);
-            }
+            activeRef.current = [];
+            setActive((previous) => (previous.length ? [] : previous));
             return;
         }
 
         const threshold = dropped
             ? []
             : evaluateRoastAlerts(
-                  { ror: liveData?.ror ?? null, bt: liveData?.bt ?? null, afterTurningPoint },
+                  {
+                      ror: liveData?.ror ?? null,
+                      bt: liveData?.bt ?? null,
+                      afterTurningPoint: tpDetected && rorReadyRef.current,
+                  },
                   { rorCrashBelowCPerMin: rorCrashCPerMin, btMaxC },
                   activeRef.current,
               );
@@ -84,7 +112,11 @@ export const useRoastAlerts = ({
             },
             timeAlerts,
         );
-        const next = [...threshold, ...timed];
+        const next: RoastAlertKind[] = [
+            ...(tpActiveRef.current && tpEnabled && !dropped ? ['turning-point' as const] : []),
+            ...threshold,
+            ...timed,
+        ];
 
         const rising = next.filter((k) => !activeRef.current.includes(k));
         const changed =
@@ -95,9 +127,14 @@ export const useRoastAlerts = ({
 
         activeRef.current = next;
         setActive(next);
-        if (rising.length > 0 && soundRef.current) playAlertSound(soundKindRef.current);
+        const audible = rising.filter((kind) => kind !== 'turning-point' || !tpNotifiedRef.current);
+        if (rising.includes('turning-point')) tpNotifiedRef.current = true;
+        if (audible.length > 0 && soundRef.current) playAlertSound(soundKindRef.current);
     }, [
         armed,
+        sessionId,
+        tpEnabled,
+        logEntries,
         dropped,
         dropEntry,
         liveData,

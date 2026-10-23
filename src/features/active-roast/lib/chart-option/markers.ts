@@ -106,6 +106,9 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
               ? `${event}→${note}`
               : roastEventLabel(event);
     const time = formatMarkerTime(timeSec);
+    if (event === 'Note' && name.includes('\n')) {
+        return `${hasMarkerTemp(temp) ? `${time} | ${temp}` : time}\n${name}`;
+    }
     return hasMarkerTemp(temp) ? `${name}|${time}|${temp}` : `${name}|${time}`;
 };
 
@@ -127,8 +130,30 @@ const markerLabelAdvance = (text: string) => {
 export const estimateLabelWidth = (text: string, scale = 1) =>
     Math.min(
         scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
-        Math.max(scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale), scaleChartPx(markerLabelAdvance(text), scale)),
+        Math.max(
+            scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale),
+            ...text.split('\n').map((line) => scaleChartPx(markerLabelAdvance(line), scale)),
+        ),
     );
+
+/** Wrap canvas text explicitly so packing and pointer hit boxes use the same lines. */
+export const wrapMarkerLabel = (text: string, width: number, scale = 1): string =>
+    text
+        .split('\n')
+        .flatMap((line) => {
+            const lines: string[] = [];
+            let current = '';
+            for (const char of line) {
+                if (current && scaleChartPx(markerLabelAdvance(current + char), scale) > width) {
+                    lines.push(current);
+                    current = '';
+                }
+                current += char;
+            }
+            lines.push(current);
+            return lines;
+        })
+        .join('\n');
 
 export interface MarkerLabelGeometry {
     x: number;
@@ -189,19 +214,25 @@ const makeLabelBox = (
     textY: number,
     canvasWidth: number,
     scale: number,
+    canvasHeight: number,
 ): CurveLabelBox => {
     const gutter = scaleChartPx(MARKER_LABEL_CANVAS_GUTTER_PX, scale);
     const xOffset = scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale);
     const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
     const width = Math.min(estimateLabelWidth(item.text, scale), Math.max(0, canvasWidth - gutter));
+    const text = wrapMarkerLabel(item.text, width, scale);
+    const height = stack * text.split('\n').length;
+    textY = item.below
+        ? Math.max(0, Math.min(textY, Math.max(0, canvasHeight - height)))
+        : Math.max(height, Math.min(textY, canvasHeight));
     const rawX = item.xPx + xOffset;
     // Clamp only anchors already on the canvas. Off-chart anchors must stay off-chart.
     const anchorOnCanvas = item.xPx >= 0 && item.xPx <= canvasWidth;
     const x = anchorOnCanvas
         ? Math.max(xOffset, Math.min(rawX, Math.max(xOffset, canvasWidth - xOffset - width)))
         : rawX;
-    const top = item.below ? textY : textY - stack;
-    const bottom = item.below ? textY + stack : textY;
+    const top = item.below ? textY : textY - height;
+    const bottom = item.below ? textY + height : textY;
     return {
         x,
         textY,
@@ -210,7 +241,7 @@ const makeLabelBox = (
         top,
         bottom,
         below: item.below,
-        text: item.text,
+        text,
         color: item.color,
         opacity: item.opacity ?? 1,
         showDot: item.showDot,
@@ -238,6 +269,7 @@ export const layoutCurveLabelBoxes = (
     items: CurveLabelLayoutInput[],
     canvasWidth = Infinity,
     scale = 1,
+    canvasHeight = Infinity,
 ): CurveLabelBox[] => {
     const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
     const order = items
@@ -248,7 +280,7 @@ export const layoutCurveLabelBoxes = (
     const byIndex: CurveLabelBox[] = [];
     for (const { item, index } of order) {
         let textY = labelTextY(item, scale);
-        let box = makeLabelBox(item, textY, canvasWidth, scale);
+        let box = makeLabelBox(item, textY, canvasWidth, scale, canvasHeight);
         const trySteps = (dir: number) => {
             const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
             let step = 0;
@@ -256,7 +288,7 @@ export const layoutCurveLabelBoxes = (
             while (placed.some((prior) => boxesOverlap(next, prior, scale)) && step < 24) {
                 // Box is `stack` tall and overlap includes `gap`, so one stack still collides.
                 textY += dir * (stack + gap);
-                next = makeLabelBox(item, textY, canvasWidth, scale);
+                next = makeLabelBox(item, textY, canvasWidth, scale, canvasHeight);
                 step += 1;
             }
             return next;
@@ -264,7 +296,7 @@ export const layoutCurveLabelBoxes = (
         box = trySteps(item.below ? 1 : -1);
         if (placed.some((prior) => boxesOverlap(box, prior, scale))) {
             textY = labelTextY(item, scale);
-            box = makeLabelBox(item, textY, canvasWidth, scale);
+            box = makeLabelBox(item, textY, canvasWidth, scale, canvasHeight);
             box = trySteps(item.below ? -1 : 1);
         }
         placed.push(box);
@@ -455,7 +487,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                     m.event,
                     m.timeSec,
                     markerTemp(m, nearest),
-                    m.event === 'Note' ? formatRoastNote(m) : m.note,
+                    m.event === 'Note' ? formatRoastNote(m, '\n') : m.note,
                 ),
                 color: markerLabelColor(m.event),
                 opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,

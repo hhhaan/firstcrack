@@ -813,6 +813,12 @@ export const RoastSettingsTab = () => {
                         description={tk('alertSoundDescription')}
                         onChange={() => updateRoastSettings({ alertSoundEnabled: !roastSettings.alertSoundEnabled })}
                     />
+                    <SettingsCheckRow
+                        checked={roastSettings.alertTpEnabled}
+                        label={tk('alertTp')}
+                        description={tk('alertTpDescription')}
+                        onChange={() => updateRoastSettings({ alertTpEnabled: !roastSettings.alertTpEnabled })}
+                    />
                     <SettingsOptionRow justify="between">
                         <div>
                             <div className={settingsOptionLabelCls}>{tk('alertSoundKind')}</div>

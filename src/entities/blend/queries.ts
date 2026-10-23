@@ -1,3 +1,4 @@
+import { blendQueryRoots } from '@shared/lib/query-keys';
 import type { Database } from '@shared/types/database.types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { BlendWithComponents } from './api';
@@ -7,7 +8,7 @@ type BlendInsert = Database['public']['Tables']['blends']['Insert'];
 type BlendComponentInsert = Database['public']['Tables']['blend_components']['Insert'];
 
 export const blendKeys = {
-    all: (userId: string) => ['blends', userId] as const,
+    all: (userId: string) => [...blendQueryRoots.all, userId] as const,
     detail: (id: string) => ['blends', 'detail', id] as const,
 };
 

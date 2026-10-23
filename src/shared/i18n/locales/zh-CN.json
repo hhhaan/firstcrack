@@ -546,7 +546,9 @@
                     "solid": "实线",
                     "dashed": "虚线",
                     "dotted": "点线"
-                }
+                },
+                "alertTp": "回温点（TP）提醒",
+                "alertTpDescription": "自动或手动记录TP时提醒一次。可独立于时间闹钟设置。"
             },
             "account": {
                 "label": "个人资料",
@@ -1180,7 +1182,8 @@
             "afterCharge": "投豆 {{minutes}} 分钟后",
             "beforeFc": "一爆前 {{minutes}} 分钟（参考）",
             "beforeDrop": "下豆前 {{minutes}} 分钟（参考）",
-            "afterDrop": "下豆 {{minutes}} 分钟后"
+            "afterDrop": "下豆 {{minutes}} 分钟后",
+            "turningPoint": "已记录回温点（TP）"
         },
         "recovery": {
             "title": "未保存的烘焙",
@@ -1397,7 +1400,9 @@
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
-        "batchNumbers": { "label": "批次编号" },
+        "batchNumbers": {
+            "label": "批次编号"
+        },
         "title": "烘焙记录",
         "subtitle": "{{count}}条记录",
         "subtitleLoading": "加载中...",

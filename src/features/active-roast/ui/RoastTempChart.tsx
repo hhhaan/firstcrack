@@ -673,7 +673,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 marker.event,
                                 marker.timeSec,
                                 temp,
-                                marker.event === 'Note' ? formatRoastNote(marker) : marker.note,
+                                marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
                             ),
                             below: atTop || LABEL_BELOW_EVENTS.has(marker.event),
                             topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
@@ -711,7 +711,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ];
                 }),
             ];
-            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale);
+            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale, chart.getHeight());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
                 if (!marker?.logId || marker.event === 'Charge' || (savedReview && marker.event === 'Drop')) return [];

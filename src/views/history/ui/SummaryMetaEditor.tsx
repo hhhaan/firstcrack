@@ -1,4 +1,5 @@
 import { useBeans } from '@entities/bean';
+import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { useSetRoastLevel, useUpdateRoastSession } from '@entities/roast';
 import { useUpdateRoastBeanOrigin } from '@features/update-roast-bean-origin';
@@ -23,13 +24,16 @@ const isKnownLevel = (level: string): level is (typeof ROAST_LEVELS)[number] =>
  * Freeze what is shown now so changing the bean source cannot rename the roast.
  */
 const frozenTitleFor = (session: RoastSessionWithRelations): string | null =>
-    session.batch_name?.trim() ? null : session.bean_label?.trim() || session.beans?.name?.trim() || null;
+    session.batch_name?.trim()
+        ? null
+        : session.blends?.name?.trim() || session.bean_label?.trim() || session.beans?.name?.trim() || null;
 
 /** History edit of the linked green bean, its origin, saved profile, and roast level. */
 export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(workspaceOwnerId);
+    const { data: blends = [] } = useBlends(workspaceOwnerId);
     const authUserId = useAuthStore((state) => state.user?.id ?? '');
     const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, workspaceOwnerId, 'beans');
     const { mutateAsync: updateOrigin, isPending: beanPending } = useUpdateRoastBeanOrigin(workspaceOwnerId);
@@ -58,8 +62,12 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         if (session.bean_id && !visible.some((bean) => bean.id === session.bean_id)) {
             visible.unshift({ id: session.bean_id, name: session.beans?.name ?? session.bean_id });
         }
-        return visible;
-    }, [beans, hiddenBeans, session.bean_id, session.beans?.name]);
+        const blendOptions = blends.map((blend) => ({ id: `blend:${blend.id}`, name: blend.name }));
+        if (session.blend_id && !blendOptions.some((blend) => blend.id === `blend:${session.blend_id}`)) {
+            blendOptions.unshift({ id: `blend:${session.blend_id}`, name: session.blends?.name ?? session.blend_id });
+        }
+        return [...visible, ...blendOptions];
+    }, [beans, blends, hiddenBeans, session.bean_id, session.beans?.name, session.blend_id, session.blends?.name]);
 
     const levelOptions = [...ROAST_LEVELS] as string[];
     if (session.roast_level && !isKnownLevel(session.roast_level)) levelOptions.unshift(session.roast_level);
@@ -78,15 +86,17 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
 
     const commitBean = async (raw: string) => {
         if (beanLocked) return;
-        const next = raw === '' ? null : raw;
-        if (next === session.bean_id || !canWrite) return;
+        const blendId = raw.startsWith('blend:') ? raw.slice('blend:'.length) : null;
+        const next = blendId || raw === '' ? null : raw;
+        if ((next === (session.bean_id ?? null) && blendId === (session.blend_id ?? null)) || !canWrite) return;
         const frozenTitle = frozenTitleFor(session);
         try {
             // A linked inventory bean supersedes the free-text label in the same write.
             await updateSession({
                 id: session.id,
                 bean_id: next,
-                ...(next ? { bean_label: null } : {}),
+                blend_id: blendId,
+                ...(next || blendId ? { bean_label: null } : {}),
                 ...(frozenTitle ? { batch_name: frozenTitle } : {}),
             });
         } catch {
@@ -99,12 +109,13 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         if (beanLocked) return;
         const next = raw.trim() || null;
         if (!canWrite) return;
-        if (next === (session.bean_label?.trim() || null) && !session.bean_id) return;
+        if (next === (session.bean_label?.trim() || null) && !session.bean_id && !session.blend_id) return;
         const frozenTitle = frozenTitleFor(session);
         try {
             await updateSession({
                 id: session.id,
                 bean_id: null,
+                blend_id: null,
                 bean_label: next,
                 ...(frozenTitle ? { batch_name: frozenTitle } : {}),
             });
@@ -137,7 +148,7 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     id={`history-bean-${session.id}`}
                     data-testid="history-bean"
                     items={beanOptions}
-                    selectedId={session.bean_id ?? ''}
+                    selectedId={session.blend_id ? `blend:${session.blend_id}` : (session.bean_id ?? '')}
                     initialQuery={session.bean_label ?? ''}
                     compact
                     className="[&_input]:h-8 [&_input]:min-h-8 [&_input]:rounded-md [&_input]:py-1 [&_input]:pl-2 [&_input]:shadow-none"

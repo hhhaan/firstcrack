@@ -546,7 +546,9 @@
                     "solid": "Solid",
                     "dashed": "Dashed",
                     "dotted": "Dotted"
-                }
+                },
+                "alertTp": "Turning point (TP) notification",
+                "alertTpDescription": "Notify once when an automatic or manual TP is recorded. Independent of time alarms."
             },
             "account": {
                 "label": "Profile",
@@ -1180,7 +1182,8 @@
             "afterCharge": "{{minutes}} min after charge",
             "beforeFc": "{{minutes}} min before first crack (reference)",
             "beforeDrop": "{{minutes}} min before drop (reference)",
-            "afterDrop": "{{minutes}} min after drop"
+            "afterDrop": "{{minutes}} min after drop",
+            "turningPoint": "Turning point (TP) recorded"
         },
         "recovery": {
             "title": "Unsaved roast",
@@ -1397,7 +1400,9 @@
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
-        "batchNumbers": { "label": "Batch numbers" },
+        "batchNumbers": {
+            "label": "Batch numbers"
+        },
         "title": "Roast History",
         "subtitle": "{{count}} sessions recorded",
         "subtitleLoading": "Loading...",

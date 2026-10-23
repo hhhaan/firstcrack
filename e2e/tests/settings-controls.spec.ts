@@ -11,6 +11,11 @@ test('settings switches and series checkboxes preserve keyboard edits when reope
 
     const alarms = settings.getByRole('switch', { name: /^Enable alarms/ });
     const afterCharge = settings.getByRole('switch', { name: 'After charge', exact: true });
+    const tp = settings.getByRole('switch', { name: /^Turning point \(TP\) notification/ });
+    await expect(tp).not.toBeChecked();
+    await tp.focus();
+    await tp.press('Space');
+    await expect(tp).toBeChecked();
     const initialAlarms = await alarms.isChecked();
     const initialAfterCharge = await afterCharge.isChecked();
     await alarms.focus();
@@ -34,6 +39,7 @@ test('settings switches and series checkboxes preserve keyboard edits when reope
     await navigation.getByRole('button', { name: 'Alerts', exact: true }).click();
     await expect(alarms).toBeChecked({ checked: !initialAlarms });
     await expect(afterCharge).toBeChecked({ checked: !initialAfterCharge });
+    await expect(tp).toBeChecked();
     await navigation.getByRole('button', { name: 'Chart display', exact: true }).click();
     await expect(et).toBeChecked({ checked: !initialEt });
 });

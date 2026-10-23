@@ -23,6 +23,18 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
+it('keeps TP notifications off for old settings and persists an explicit choice', () => {
+    expect(normalizeRoastSettings({}).alertTpEnabled).toBe(false);
+    expect(normalizeRoastSettings({ alertTpEnabled: 'true' } as never).alertTpEnabled).toBe(false);
+    updateRoastSettings({ alertTpEnabled: true });
+    expect(getRoastSettings().alertTpEnabled).toBe(true);
+    expect(settingsSet).toHaveBeenCalledWith('roast.settings', expect.objectContaining({ alertTpEnabled: true }), {
+        debounce: true,
+    });
+    updateRoastSettings({ alertTpEnabled: false });
+    expect(getRoastSettings().alertTpEnabled).toBe(false);
+});
+
 it('migrates RoR grid settings into the shared grid without activating an inactive number list', () => {
     const migrated = normalizeRoastSettings({
         rorGridInterval: 1,
