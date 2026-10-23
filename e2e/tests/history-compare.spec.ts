@@ -189,7 +189,7 @@ test('history compare: five batches, user colors, overlay channels and responsiv
         await expect(report.getByRole('button', { name: 'Roast History', exact: true })).toBeInViewport();
         expect(await report.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     }
-    const scroller = report.getByRole('region', { name: 'Batch comparison', exact: true });
+    const scroller = report.getByRole('group', { name: 'Batch comparison', exact: true });
     await scroller.scrollIntoViewIfNeeded();
     await expect(scroller).toHaveCSS('scrollbar-width', 'auto');
     const geometry = await scroller.evaluate((element) => ({

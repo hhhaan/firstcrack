@@ -30,7 +30,7 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                 {t('history.compare.metrics')}
             </h3>
             <div
-                role="region"
+                role="group"
                 aria-label={t('history.compare.metrics')}
                 // biome-ignore lint/a11y/noNoninteractiveTabindex: Keyboard users must be able to scroll the overflowing comparison table.
                 tabIndex={0}
