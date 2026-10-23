@@ -56,18 +56,24 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     }, [storedOrigin, session.roast_level]);
 
     const beanOptions = useMemo(() => {
+        const singleGroup = t('newProfileModal.singleOrigin');
+        const blendGroup = t('newProfileModal.blend');
         const visible = beans
             .filter((bean) => bean.id === session.bean_id || !hiddenBeans.has(bean.id))
-            .map((bean) => ({ id: bean.id, name: bean.name }));
+            .map((bean) => ({ id: bean.id, name: bean.name, group: singleGroup }));
         if (session.bean_id && !visible.some((bean) => bean.id === session.bean_id)) {
-            visible.unshift({ id: session.bean_id, name: session.beans?.name ?? session.bean_id });
+            visible.unshift({ id: session.bean_id, name: session.beans?.name ?? session.bean_id, group: singleGroup });
         }
-        const blendOptions = blends.map((blend) => ({ id: `blend:${blend.id}`, name: blend.name }));
+        const blendOptions = blends.map((blend) => ({ id: `blend:${blend.id}`, name: blend.name, group: blendGroup }));
         if (session.blend_id && !blendOptions.some((blend) => blend.id === `blend:${session.blend_id}`)) {
-            blendOptions.unshift({ id: `blend:${session.blend_id}`, name: session.blends?.name ?? session.blend_id });
+            blendOptions.unshift({
+                id: `blend:${session.blend_id}`,
+                name: session.blends?.name ?? session.blend_id,
+                group: blendGroup,
+            });
         }
         return [...visible, ...blendOptions];
-    }, [beans, blends, hiddenBeans, session.bean_id, session.beans?.name, session.blend_id, session.blends?.name]);
+    }, [beans, blends, hiddenBeans, session.bean_id, session.beans?.name, session.blend_id, session.blends?.name, t]);
 
     const levelOptions = [...ROAST_LEVELS] as string[];
     if (session.roast_level && !isKnownLevel(session.roast_level)) levelOptions.unshift(session.roast_level);

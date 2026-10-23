@@ -2,7 +2,7 @@
 import { act, createElement, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BeanCombobox } from './BeanCombobox';
+import { BeanCombobox, type BeanComboboxOption } from './BeanCombobox';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,11 +16,11 @@ describe('BeanCombobox', () => {
         vi.useRealTimers();
     });
 
-    const render = (items: { id: string; name: string }[], initialQuery = '', initialId = 'bean-1') => {
+    const render = (items: BeanComboboxOption[], initialQuery = '', initialId = 'bean-1') => {
         const onSelect = vi.fn();
         const onFreeTextCommit = vi.fn();
         let resetSelection = () => {};
-        const Harness = ({ items }: { items: { id: string; name: string }[] }) => {
+        const Harness = ({ items }: { items: BeanComboboxOption[] }) => {
             const [selectedId, setSelectedId] = useState(initialId);
             resetSelection = () => setSelectedId('');
             return createElement(BeanCombobox, {
@@ -65,6 +65,24 @@ describe('BeanCombobox', () => {
         { id: 'bean-1', name: 'Aricha' },
         { id: 'bean-2', name: 'Kenya Nyeri' },
     ];
+
+    it('groups options under their labels and hides groups without search matches', () => {
+        const picker = render([
+            { id: 'bean-1', name: 'Aricha', group: 'Single' },
+            { id: 'blend-1', name: 'House blend', group: 'Blend' },
+        ]);
+        act(() => picker.input.focus());
+        const groups = () => [...host.querySelectorAll('[role="group"]')];
+        expect(groups().map((group) => group.getAttribute('aria-label'))).toEqual(['Single', 'Blend']);
+        expect(groups().map((group) => group.querySelector('[role="option"]')?.textContent)).toEqual([
+            'Aricha',
+            'House blend',
+        ]);
+        picker.type('House');
+        expect(groups().map((group) => group.getAttribute('aria-label'))).toEqual(['Blend']);
+        picker.enter();
+        expect(picker.onSelect).toHaveBeenLastCalledWith('blend-1');
+    });
 
     it('keeps typed free text when it unlinks the selected bean', () => {
         const { input, type, onSelect } = render(items);

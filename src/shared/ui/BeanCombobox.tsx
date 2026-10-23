@@ -2,7 +2,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { inputCls } from './form-styles';
 
-export type BeanComboboxOption = { id: string; name: string };
+export type BeanComboboxOption = { id: string; name: string; group?: string };
 
 type BeanComboboxProps = {
     id?: string;
@@ -89,6 +89,12 @@ export const BeanCombobox = ({
     }, [items, query, selectedName]);
     // No match still lists every bean so the operator can pick one, but Enter must commit the text.
     const filtered = matches.length > 0 ? matches : items;
+    const groups = new Map<string | undefined, BeanComboboxOption[]>();
+    for (const item of filtered) {
+        const group = groups.get(item.group);
+        if (group) group.push(item);
+        else groups.set(item.group, [item]);
+    }
 
     const commitFreeOrMatch = (raw: string) => {
         const trimmed = raw.trim();
@@ -201,25 +207,36 @@ export const BeanCombobox = ({
                                 {emptyLabel || (query.trim() ? query.trim() : '—')}
                             </div>
                         ) : (
-                            filtered.map((item) => (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={item.id === selectedId}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent transition-colors"
-                                    onMouseDown={(e) => {
-                                        e.preventDefault();
-                                        onSelect(item.id);
-                                        setQuery(item.name);
-                                        setOpen(false);
-                                    }}
-                                >
-                                    <span className="text-primary truncate">{item.name}</span>
-                                    {item.id === selectedId && (
-                                        <Check size={13} className="text-primary shrink-0 ml-2" strokeWidth={2.5} />
+                            [...groups].map(([group, options]) => (
+                                <div key={group ?? ''} role="group" aria-label={group}>
+                                    {group && (
+                                        <div className="px-4 pt-2 pb-1 text-[11px] font-medium text-muted">{group}</div>
                                     )}
-                                </button>
+                                    {options.map((item) => (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            role="option"
+                                            aria-selected={item.id === selectedId}
+                                            className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] hover:bg-surface dark:hover:bg-surface-elevated cursor-pointer border-none bg-transparent transition-colors ${group ? 'pl-7' : ''}`}
+                                            onMouseDown={(e) => {
+                                                e.preventDefault();
+                                                onSelect(item.id);
+                                                setQuery(item.name);
+                                                setOpen(false);
+                                            }}
+                                        >
+                                            <span className="text-primary truncate">{item.name}</span>
+                                            {item.id === selectedId && (
+                                                <Check
+                                                    size={13}
+                                                    className="text-primary shrink-0 ml-2"
+                                                    strokeWidth={2.5}
+                                                />
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
                             ))
                         )}
                     </div>
