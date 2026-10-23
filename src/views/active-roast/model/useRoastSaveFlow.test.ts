@@ -170,6 +170,31 @@ afterEach(() => {
 });
 
 describe('roast save identity and Continue lifecycle', () => {
+    it('keeps numbering for an edited header through a profile change, checkpoint and save', async () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('workspace-a');
+        state.prepareBean('bean-a', 'Lot A');
+        state.commitProfile('profile-a', null, 'workspace-a');
+        const sessionId = state.startCharge(undefined, 'workspace-a');
+        if (!sessionId) throw new Error('Charge failed');
+        state.setRunningBatchTitle(sessionId, 'Morning production');
+        state.commitProfile('profile-b', sessionId, 'workspace-a');
+        const h = renderFlow({ sessionId, targetProfileId: 'profile-b' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+        expect(listPendingRoastSaves()[0].params).toMatchObject({
+            targetProfileId: 'profile-b',
+            batchTitleNumbering: 'profile',
+            formData: { batchName: 'Morning production' },
+        });
+        await act(async () => h.api.handleSave(form));
+        expect(mocks.resumeSave.mock.calls[0][0].params).toMatchObject({
+            sessionId,
+            targetProfileId: 'profile-b',
+            batchTitleNumbering: 'profile',
+            formData: { batchName: 'Morning production' },
+        });
+    });
+
     it('checkpoints the display preference without reserving numbers after the next roast starts', async () => {
         const state = useRoastingStore.getState();
         state.prepareWorkspace('workspace-a');
@@ -185,7 +210,7 @@ describe('roast save identity and Continue lifecycle', () => {
         expect(mocks.resumeSave.mock.calls[0][0].params).toMatchObject({
             sessionId,
             targetProfileId: 'profile-a',
-            batchTitleNumbering: 'none',
+            batchTitleNumbering: 'profile',
             formData: { batchName: 'Custom title' },
         });
     });

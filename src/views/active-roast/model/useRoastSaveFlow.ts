@@ -91,7 +91,6 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const savedSessionId = snapshot?.sessionId ?? state.sessionId;
             const bbp = useBbpStore.getState().finalized;
             const forcedProfileId = savedProfileIdRef.current?.();
-            const identity = (snapshot?.selection ?? selection).identity;
             const profileId =
                 forcedProfileId !== undefined ? forcedProfileId : (snapshot?.selection ?? selection).profileId;
             return {
@@ -105,7 +104,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 selectedBlendId: (snapshot ? snapshot.selection.blendId : selection.blendId) ?? null,
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
                 targetProfileId: profileId,
-                batchTitleNumbering: identity?.edited ? 'none' : getRoastSettings().batchTitleNumbering,
+                batchTitleNumbering: getRoastSettings().batchTitleNumbering,
                 planBatchHandoff: snapshot ? snapshot.selection.planBatchHandoff : selection.planBatchHandoff,
                 sessionId: savedSessionId,
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
@@ -180,11 +179,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     userId: ownerId,
                     formData: { ...baseParams.formData, ...formPatch },
                     logEntries: frozen?.logEntries ?? baseParams.logEntries,
-                    batchTitleNumbering:
-                        snapshot.selection.identity?.edited ||
-                        (formData.batchName?.trim() && formData.batchName.trim() !== snapshot.selection.identity?.title)
-                            ? 'none'
-                            : (baseParams.batchTitleNumbering ?? getRoastSettings().batchTitleNumbering),
+                    batchTitleNumbering: baseParams.batchTitleNumbering ?? getRoastSettings().batchTitleNumbering,
                     ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
                 };
                 const pending = existing

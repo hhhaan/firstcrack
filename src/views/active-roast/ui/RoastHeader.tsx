@@ -91,9 +91,17 @@ export const RoastHeader = ({
             : undefined;
     const batchTitle =
         review?.selection.identity?.title ??
-        (runningIdentity && !runningIdentity.edited
-            ? automaticBatchTitle(runningIdentity, batchTitleNumbering, nextNumbers)
-            : runningIdentity?.title);
+        (runningIdentity
+            ? automaticBatchTitle(
+                  {
+                      name: runningIdentity.edited
+                          ? (runningIdentity.title ?? runningIdentity.name)
+                          : runningIdentity.name,
+                  },
+                  batchTitleNumbering,
+                  nextNumbers,
+              )
+            : undefined);
     const phase = useRoastingStore((state) => state.phase);
     const scheduled = useRoastingStore((state) => Boolean(state.activeSelection?.planBatchHandoff));
     const sessionId = useRoastingStore((state) => state.sessionId);

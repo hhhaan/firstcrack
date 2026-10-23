@@ -9,6 +9,7 @@ export const useRoastTitleEdit = (sessionId: string, fallbackTitle: string) => {
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const review = useRoastingStore(selectReviewSnapshot);
     const sessionOwnerId = useRoastingStore((state) => state.sessionOwnerId);
+    const runningTitle = useRoastingStore((state) => state.activeSelection?.identity?.title);
     const reviewing = review?.sessionId === sessionId;
     const ownerId = reviewing ? review.sessionOwnerId : sessionOwnerId;
     const canWrite = isWorkspaceReady && !!workspaceOwnerId && ownerId === workspaceOwnerId;
@@ -35,5 +36,5 @@ export const useRoastTitleEdit = (sessionId: string, fallbackTitle: string) => {
         }
     };
 
-    return { title, canWrite, save, isPending, failed };
+    return { title, editableTitle: reviewing ? title : (runningTitle ?? title), canWrite, save, isPending, failed };
 };

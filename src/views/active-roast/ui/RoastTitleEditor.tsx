@@ -7,7 +7,7 @@ const titleCls =
 
 export const RoastTitleEditor = ({ sessionId, title: fallbackTitle }: { sessionId: string; title: string }) => {
     const { t } = useTranslation();
-    const { title, canWrite, save, isPending, failed } = useRoastTitleEdit(sessionId, fallbackTitle);
+    const { title, editableTitle, canWrite, save, isPending, failed } = useRoastTitleEdit(sessionId, fallbackTitle);
     const [draft, setDraft] = useState<string | null>(null);
     const dirty = useRef(false);
 
@@ -24,7 +24,7 @@ export const RoastTitleEditor = ({ sessionId, title: fallbackTitle }: { sessionI
                 setDraft(event.target.value);
             }}
             onBlur={() => {
-                if (dirty.current && draft.trim() !== title) void save(draft);
+                if (dirty.current && draft.trim() !== editableTitle) void save(draft);
                 dirty.current = false;
                 setDraft(null);
             }}
@@ -50,7 +50,7 @@ export const RoastTitleEditor = ({ sessionId, title: fallbackTitle }: { sessionI
                 title={t('activeRoast.header.batchTitle')}
                 onClick={() => {
                     dirty.current = false;
-                    setDraft(title);
+                    setDraft(editableTitle);
                 }}
                 className={`${titleCls} cursor-text`}
             >

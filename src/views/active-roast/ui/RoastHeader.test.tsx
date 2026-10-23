@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+
+import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -264,7 +266,7 @@ describe('inline running title edits', () => {
     });
     afterEach(() => act(() => root.unmount()));
 
-    it('previews cached profile counters and preserves edited titles across profile changes', () => {
+    it('updates profile numbers after a title edit without storing the preview suffix', () => {
         previewNumbers.enabled = true;
         act(() =>
             root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' })),
@@ -272,7 +274,7 @@ describe('inline running title edits', () => {
         expect(titleButton()?.textContent).toBe('마라닉 #3');
         expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('마라닉');
         click(titleButton());
-        expect(input()?.value).toBe('마라닉 #3');
+        expect(input()?.value).toBe('마라닉');
         act(() => input()?.blur());
         expect(useRoastingStore.getState().activeSelection?.identity?.edited).not.toBe(true);
         act(() =>
@@ -282,14 +284,48 @@ describe('inline running title edits', () => {
         click(titleButton());
         type('Morning roast');
         press('Enter');
+        expect(titleButton()?.textContent).toBe('Morning roast #8');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Morning roast');
         act(() =>
             root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' })),
         );
+        expect(titleButton()?.textContent).toBe('Morning roast #3');
+        click(titleButton());
+        expect(input()?.value).toBe('Morning roast');
+        act(() => input()?.blur());
+        act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-2' })));
         expect(titleButton()?.textContent).toBe('Morning roast');
         click(titleButton());
         type('');
         press('Enter');
-        expect(titleButton()?.textContent).toBe('마라닉 #3');
+        expect(titleButton()?.textContent).toBe('마라닉');
+    });
+
+    it.each(['none', 'total', 'both'] as const)('keeps %s numbering independent of the edited title', (mode) => {
+        const previous = getRoastSettings().batchTitleNumbering;
+        try {
+            previewNumbers.enabled = true;
+            act(() => {
+                updateRoastSettings({ batchTitleNumbering: mode });
+                useRoastingStore.getState().setRunningBatchTitle(sessionId, 'Morning roast');
+                root.render(
+                    createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' }),
+                );
+            });
+            expect(titleButton()?.textContent).toBe(
+                mode === 'none' ? 'Morning roast' : mode === 'total' ? 'Morning roast Σ#12' : 'Morning roast #3 · Σ#12',
+            );
+            act(() =>
+                root.render(
+                    createElement(RoastHeader, { ...props, targetProfileId: 'prof-2', selectedBeanId: 'bean-2' }),
+                ),
+            );
+            expect(titleButton()?.textContent).toBe(
+                mode === 'none' ? 'Morning roast' : mode === 'total' ? 'Morning roast Σ#12' : 'Morning roast #8 · Σ#12',
+            );
+        } finally {
+            act(() => updateRoastSettings({ batchTitleNumbering: previous }));
+        }
     });
 
     it.each(['Enter', 'blur'])('saves a clicked title on %s without renaming the bean', (commit) => {
