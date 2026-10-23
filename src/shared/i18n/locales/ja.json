@@ -950,7 +950,6 @@
         }
     },
     "activeRoast": {
-        "eventDetails": "イベント詳細",
         "batchTitleSettings": {
             "title": "バッチタイトルの番号",
             "description": "保存時に番号が確定し、同じワークスペースの全端末で引き継がれます。取消・破棄したローストには番号を使いません。",

@@ -58,7 +58,6 @@ import {
     useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChartEventDetails } from './ChartEventDetails';
 import { CurveSwatch } from './CurveSwatch';
 import { RoastNoteFields, type RoastNoteValues } from './RoastNoteFields';
 
@@ -1124,7 +1123,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 className="outline-none"
                 style={{ width: '100%', height: '100%', outline: 'none' }}
             />
-            <ChartEventDetails markers={eventMarkers} unit={temperatureUnit} />
             {noteForm && (
                 <form
                     ref={noteFormRef}

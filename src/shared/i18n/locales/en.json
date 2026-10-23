@@ -950,7 +950,6 @@
         }
     },
     "activeRoast": {
-        "eventDetails": "Event details",
         "batchTitleSettings": {
             "title": "Batch title numbering",
             "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",

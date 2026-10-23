@@ -4,14 +4,26 @@ import { E2E_USER } from '../fixtures/constants';
 test('history summary persists a blend source and can switch back to a single bean', async ({
     authedPage: page,
     db,
-}) => {
+}, testInfo) => {
     const bean = db.seedBean({ name: 'Single source', stockGrams: 1000 });
     const session = db.seedCompletedSession({ batch_name: 'Source correction', bean_id: bean.id, bean_label: null });
     db.blends.push({ id: 'blend-1', user_id: E2E_USER.id, name: 'House blend', blend_components: [] });
+    await page.reload();
     await goNav(page, 'history');
     await page.getByText('Source correction', { exact: true }).first().click();
     const source = page.getByTestId('history-bean').getByRole('combobox');
     await source.focus();
+    await expect(
+        page
+            .getByRole('group', { name: 'Single', exact: true })
+            .getByRole('option', { name: 'Single source', exact: true }),
+    ).toBeVisible();
+    await expect(
+        page
+            .getByRole('group', { name: 'Blend', exact: true })
+            .getByRole('option', { name: 'House blend', exact: true }),
+    ).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('history-source-groups.png'), animations: 'disabled' });
     await page.getByRole('option', { name: 'House blend', exact: true }).click();
     await expect.poll(() => db.sessions.find((row) => row.id === session.id)?.blend_id).toBe('blend-1');
     expect(session.bean_id).toBeNull();
@@ -43,6 +55,7 @@ test('Enter and blur preserve a saved blend when a bean has the same name', asyn
     db.seedBean({ name: 'House blend', stockGrams: 1000 });
     db.blends.push({ id: 'blend-1', user_id: E2E_USER.id, name: 'House blend', blend_components: [] });
     const session = db.seedCompletedSession({ batch_name: 'Same name', blend_id: 'blend-1' });
+    await page.reload();
     const writes: unknown[] = [];
     page.on('request', (request) => {
         if (request.url().includes('/rest/v1/roast_sessions') && request.method() === 'PATCH')
