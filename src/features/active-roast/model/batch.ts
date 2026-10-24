@@ -586,9 +586,16 @@ export const createBatchActions = (
             },
         });
     },
-    replaceReviewLog: (entries: LogEntry[]) => {
+    replaceReviewLog: (sessionId: string, ownerId: string | null, entries: LogEntry[]) => {
         const completed = get().completed;
-        if (!get().reviewSessionId || !completed) return;
+        if (
+            get().reviewSessionId !== sessionId ||
+            !completed ||
+            completed.snapshot.sessionId !== sessionId ||
+            completed.snapshot.sessionOwnerId !== ownerId ||
+            isChargedPhase(get().phase)
+        )
+            return;
         set({
             completed: {
                 ...completed,

@@ -608,7 +608,13 @@ describe('ActiveRoast running clock (#627)', () => {
             queryClient.setQueryData(roastSessionKeys.detail('', snapshot.sessionId), {
                 id: snapshot.sessionId,
                 user_id: 'owner',
-                events: serializeRoastEvents(snapshot.logEntries),
+                events: [
+                    { id: 'bbp-note', type: 'Note', time_sec: -90, note: 'soak', extra: 'keep' },
+                    { id: 'bbp-heat', type: 'Heater', time_sec: -60, note: '80%' },
+                    { id: 'bbp-control', type: 'Control', time_sec: -30, applied_control: { heater: 50 } },
+                    { id: 'history-note', type: 'Note', time_sec: 120, note: 'from History' },
+                    ...serializeRoastEvents(snapshot.logEntries),
+                ],
                 heater_events: null,
                 duration_seconds: 600,
                 drop_temp_celsius: 200,
@@ -647,6 +653,14 @@ describe('ActiveRoast running clock (#627)', () => {
             sessionId: snapshot.sessionId,
             events: expect.arrayContaining([expect.objectContaining({ type: 'Yellow', time_sec: 240 })]),
         });
+        expect(updateRecord.mock.calls[0]?.[0].events).toEqual(
+            expect.arrayContaining([
+                { id: 'bbp-note', type: 'Note', time_sec: -90, note: 'soak', extra: 'keep' },
+                { id: 'bbp-heat', type: 'Heater', time_sec: -60, note: '80%' },
+                { id: 'bbp-control', type: 'Control', time_sec: -30, applied_control: { heater: 50 } },
+                { id: 'history-note', type: 'Note', time_sec: 120, note: 'from History' },
+            ]),
+        );
         const after = useRoastingStore.getState();
         expect(after.completed?.snapshot.logEntries).toEqual(
             expect.arrayContaining([expect.objectContaining({ event: 'Yellow', timeSec: 240 })]),
@@ -709,13 +723,13 @@ describe('ActiveRoast running clock (#627)', () => {
 
             const review = useRoastingStore.getState().completed?.snapshot.logEntries ?? [];
             await act(async () => {
-                useRoastingStore
-                    .getState()
-                    .replaceReviewLog(
-                        review.map((entry) =>
-                            entry.event === 'FC Start' ? { ...entry, time: '9:00', timeSec: 540 } : entry,
-                        ),
-                    );
+                useRoastingStore.getState().replaceReviewLog(
+                    dropped?.snapshot.sessionId ?? '',
+                    'owner',
+                    review.map((entry) =>
+                        entry.event === 'FC Start' ? { ...entry, time: '9:00', timeSec: 540 } : entry,
+                    ),
+                );
             });
             expect(useRoastingStore.getState().logState.entries).toEqual([]);
             expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('10%');

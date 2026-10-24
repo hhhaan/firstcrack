@@ -36,5 +36,6 @@ export const reviewHeaterToSave = (
     previousLog: readonly LogEntry[] | null,
     nextLog: readonly LogEntry[],
     previousHeater: Json | null,
+    completeLog: readonly LogEntry[],
 ): Json | null =>
-    heaterSignature(previousLog) === heaterSignature(nextLog) ? previousHeater : heaterEventsFromLog(nextLog);
+    heaterSignature(previousLog) === heaterSignature(nextLog) ? previousHeater : heaterEventsFromLog(completeLog);

@@ -27,7 +27,7 @@ const MARK_RANK: Record<string, number> = {
 
 const NOTE_CONTROLS = ['gas', 'airflow', 'drum'] as const;
 
-export type ReviewEventReject = 'duplicate' | 'order' | 'protected';
+export type ReviewEventReject = 'duplicate' | 'order' | 'protected' | 'conflict';
 
 export type ReviewEventsResult =
     | { ok: true; events: Json; changed: boolean }
@@ -46,6 +46,13 @@ const sameNumber = (stored: unknown, next: number): boolean => typeof stored ===
 
 const sameTemp = (stored: unknown, next: number | null): boolean =>
     next == null ? stored == null : sameNumber(stored, next);
+
+const sameFieldValue = (left: unknown, right: unknown): boolean => {
+    if (left === right || (left == null && right == null)) return true;
+    if (typeof left === 'string' && typeof right === 'string') return left.trim() === right.trim();
+    if (!isRawEvent(left) || !isRawEvent(right)) return false;
+    return [...new Set([...Object.keys(left), ...Object.keys(right)])].every((key) => left[key] === right[key]);
+};
 
 const storedTime = (event: RawEvent): number =>
     typeof event.time_sec === 'number' && Number.isFinite(event.time_sec) ? event.time_sec : 0;
@@ -216,11 +223,15 @@ const orderBroken = (events: RawEvent[], storedById: Map<string, RawEvent>): boo
 };
 
 /**
- * Patch a saved `events` array from the review log.
+ * Apply only changes from the previous visible log to the complete saved record.
  * New key marks and custom names carry only id, type, time, and temperature — a null note is rejected.
  * Existing rows keep every other stored key. Several legal edits go out as one array.
  */
-export const reviewEventsFromLog = (storedEvents: unknown, logEntries: readonly LogEntry[]): ReviewEventsResult => {
+export const reviewEventsFromLog = (
+    storedEvents: unknown,
+    logEntries: readonly LogEntry[],
+    previousLog: readonly LogEntry[],
+): ReviewEventsResult => {
     const stored = Array.isArray(storedEvents) ? storedEvents.filter(isRawEvent) : [];
     const storedById = new Map(
         stored.flatMap((event) => {
@@ -229,22 +240,68 @@ export const reviewEventsFromLog = (storedEvents: unknown, logEntries: readonly 
         }),
     );
     const logById = new Map<string, LogEntry>();
+    const previousById = new Map(
+        previousLog.flatMap((entry) =>
+            entry.id && !entry.current && entry.event !== 'Now' ? [[entry.id, entry] as const] : [],
+        ),
+    );
     const added: LogEntry[] = [];
     for (const entry of logEntries) {
         if (entry.current || entry.event === 'Now') continue;
-        if (entry.id && storedById.has(entry.id)) logById.set(entry.id, entry);
-        else added.push(entry);
+        if (entry.id) logById.set(entry.id, entry);
+        if (!entry.id || !previousById.has(entry.id)) {
+            if (entry.id && storedById.has(entry.id)) return { ok: false, reason: 'conflict' };
+            added.push(entry);
+        }
     }
 
     const next: RawEvent[] = [];
     for (const event of stored) {
         const id = eventId(event);
+        const previous = id ? previousById.get(id) : undefined;
         const entry = id ? logById.get(id) : undefined;
-        if (!entry) {
-            if (UNDELETABLE_MARKS.has(eventType(event))) return { ok: false, reason: 'protected' };
+        if (!previous) {
+            next.push(event);
             continue;
         }
-        next.push(applyExisting(event, entry));
+        if (!entry) {
+            if (UNDELETABLE_MARKS.has(eventType(event))) return { ok: false, reason: 'protected' };
+            const before: RawEvent = {
+                ...applyExisting(event, previous),
+                time_sec: logEntryTimeSec(previous) ?? storedTime(event),
+            };
+            if (
+                [...new Set([...Object.keys(event), ...Object.keys(before)])].some(
+                    (key) => !sameFieldValue(event[key], before[key]),
+                )
+            )
+                return { ok: false, reason: 'conflict' };
+            continue;
+        }
+        const before = applyExisting(event, previous);
+        const after = applyExisting(event, entry);
+        const patched = { ...event };
+        for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+            if (sameFieldValue(before[key], after[key])) continue;
+            if (!sameFieldValue(event[key], before[key]) && !sameFieldValue(event[key], after[key]))
+                return { ok: false, reason: 'conflict' };
+            if (key in after) patched[key] = after[key];
+            else delete patched[key];
+        }
+        next.push(patched);
+    }
+
+    for (const [id, previous] of previousById) {
+        const entry = logById.get(id);
+        if (!entry || storedById.has(id)) continue;
+        const before = applyExisting({ type: previous.event }, previous);
+        const after = applyExisting({ type: previous.event }, entry);
+        if (
+            [...new Set([...Object.keys(before), ...Object.keys(after)])].some(
+                (key) => !sameFieldValue(before[key], after[key]),
+            )
+        )
+            return { ok: false, reason: 'conflict' };
     }
 
     const present = new Set(next.map(eventType));
