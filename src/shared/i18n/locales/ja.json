@@ -1079,6 +1079,8 @@
         },
         "summary": {
             "title": "ロースト完了",
+            "batchName": "ローストタイトル",
+            "batchNamePlaceholder": "空欄の場合は生豆名を使います",
             "totalTime": "総時間",
             "development": "開発",
             "finalBt": "最終BT",

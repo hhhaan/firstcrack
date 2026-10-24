@@ -1,10 +1,14 @@
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
+import { useRoastProfiles } from '@entities/roast-profile';
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
+import { useRoastSettings } from '@features/active-roast/model/settings';
+import { useRoastingStore } from '@features/active-roast/model/status';
 // import { useBbpStore } from '@features/active-roast/model/bbp';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
+import { sessionBatchNumberLabel } from '@shared/lib/sessionRoastTitle';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
@@ -81,6 +85,22 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
+    const snapshot = useRoastingStore((state) => state.completed?.snapshot);
+    const { batchTitleNumbering } = useRoastSettings();
+    const { batchCounters } = useRoastProfiles(open ? (snapshot?.sessionOwnerId ?? '') : '');
+    const profileId = snapshot?.selection.profileId;
+    const batchNumbers = batchCounters
+        ? sessionBatchNumberLabel({
+              profile_batch_number:
+                  profileId && (batchTitleNumbering === 'profile' || batchTitleNumbering === 'both')
+                      ? (batchCounters[profileId] ?? 0) + 1
+                      : null,
+              total_batch_number:
+                  batchTitleNumbering === 'total' || batchTitleNumbering === 'both'
+                      ? (batchCounters.total ?? 0) + 1
+                      : null,
+          })
+        : null;
     // const bbpLive = useBbpStore((s) => s.active && s.recording && s.startMs > 0);
     const hasHandoff = Boolean(planBatchHandoff);
     const {
@@ -221,6 +241,33 @@ export const RoastSummaryModal = ({
                             {ambientLine}
                         </p>
                     ) : null}
+
+                    <div className="mb-3.5">
+                        <label htmlFor="roast-summary-title" className={sectionLabelClass}>
+                            {t('activeRoast.summary.batchName')}
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                id="roast-summary-title"
+                                aria-describedby={batchNumbers ? 'roast-summary-batch-numbers' : undefined}
+                                data-testid="roast-summary-title"
+                                maxLength={120}
+                                autoComplete="off"
+                                {...register('batchName')}
+                                placeholder={displayName ?? t('activeRoast.summary.batchNamePlaceholder')}
+                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
+                            />
+                            {batchNumbers && (
+                                <span
+                                    id="roast-summary-batch-numbers"
+                                    data-testid="roast-summary-batch-numbers"
+                                    className="shrink-0 text-[13px] text-muted font-(--font-mono)"
+                                >
+                                    {batchNumbers}
+                                </span>
+                            )}
+                        </div>
+                    </div>
 
                     <div className="mb-3.5">
                         <div className={sectionLabelClass}>{t('activeRoast.summary.log')}</div>

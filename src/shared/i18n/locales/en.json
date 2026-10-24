@@ -1079,6 +1079,8 @@
         },
         "summary": {
             "title": "Roast Complete",
+            "batchName": "Roast title",
+            "batchNamePlaceholder": "Bean name is used if empty",
             "totalTime": "Total Time",
             "development": "Development",
             "finalBt": "Final BT",

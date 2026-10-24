@@ -93,8 +93,12 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const forcedProfileId = savedProfileIdRef.current?.();
             const profileId =
                 forcedProfileId !== undefined ? forcedProfileId : (snapshot?.selection ?? selection).profileId;
+            const batchName =
+                formData.batchName === undefined
+                    ? snapshot?.selection.identity?.title
+                    : formData.batchName?.trim() || null;
             return {
-                formData: { ...formData, batchName: formData.batchName?.trim() || snapshot?.selection.identity?.title },
+                formData: { ...formData, batchName },
                 userId: snapshot?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
                 elapsed: snapshot?.elapsed ?? state.elapsed,
                 roastStartTime: snapshot?.roastStartMs ?? useRoastingStore.getState().roastStartMs,
@@ -159,9 +163,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Durable intent: written BEFORE any auth gate so the roast survives
                 // an auth kick to the login screen, a crash, or a force quit.
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
+                const enteredTitle = formData.batchName?.trim();
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
-                    batchName: formData.batchName?.trim() || snapshot.selection.identity?.title,
+                    // Empty is an explicit clear. A missing field keeps the title from the roast header.
+                    batchName: enteredTitle || (formData.batchName == null ? snapshot.selection.identity?.title : null),
                     weightGrams: formData.weightGrams,
                     outputWeightKg: formData.outputWeightKg,
                     roastLevel: formData.roastLevel,

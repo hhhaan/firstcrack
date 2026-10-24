@@ -1079,6 +1079,8 @@
         },
         "summary": {
             "title": "烘焙完成",
+            "batchName": "烘焙标题",
+            "batchNamePlaceholder": "留空则使用生豆名称",
             "totalTime": "总时间",
             "development": "发展期",
             "finalBt": "最终 BT",

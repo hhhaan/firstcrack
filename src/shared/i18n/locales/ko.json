@@ -1471,6 +1471,8 @@
         },
         "summary": {
             "title": "로스팅 완료",
+            "batchName": "로스팅 제목",
+            "batchNamePlaceholder": "비워 두면 생두 이름을 사용합니다",
             "batchWeight": "생두 투입량",
             "finalBt": "최종 BT",
             "totalTime": "총 시간",

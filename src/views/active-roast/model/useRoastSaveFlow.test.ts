@@ -214,6 +214,20 @@ describe('roast save identity and Continue lifecycle', () => {
             formData: { batchName: 'Custom title' },
         });
     });
+
+    it('drops a cleared summary title instead of restoring the header title', async () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('workspace-a');
+        state.prepareBean('bean-a', 'Lot A');
+        const sessionId = state.startCharge(undefined, 'workspace-a');
+        if (!sessionId) throw new Error('Charge failed');
+        state.setRunningBatchTitle(sessionId, 'Morning production');
+        const h = renderFlow({ sessionId });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId }));
+        await act(async () => h.api.handleSave({ ...form, batchName: '   ' }));
+        expect(mocks.resumeSave.mock.calls[0][0].params.formData.batchName).toBeNull();
+        expect(mocks.resumeSave.mock.calls[0][0].params.batchTitleNumbering).toBe('profile');
+    });
     it('keeps the frozen header separate from a form-only selection after a failed save', async () => {
         const h = renderFlow({ sessionId: 's-a' });
         mocks.resumeSave.mockRejectedValueOnce(new Error('network'));
