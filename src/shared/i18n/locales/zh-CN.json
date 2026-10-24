@@ -499,7 +499,7 @@
                 "alertsEnabled": "启用警报",
                 "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
                 "alertSound": "警报声",
-                "alertSoundDescription": "警报首次触发时发出提示音。",
+                "alertSoundDescription": "检测到TP或警报首次触发时发出提示音。",
                 "alertSoundKind": "警报音色",
                 "alertSoundKindDescription": "请用试听确认在烘焙车间噪音中能否听清。",
                 "alertSoundPreview": "试听",
@@ -1397,7 +1397,9 @@
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
-        "batchNumbers": { "label": "批次编号" },
+        "batchNumbers": {
+            "label": "批次编号"
+        },
         "title": "烘焙记录",
         "subtitle": "{{count}}条记录",
         "subtitleLoading": "加载中...",

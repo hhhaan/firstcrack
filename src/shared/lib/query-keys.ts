@@ -25,6 +25,11 @@ export const beanQueryRoots = {
     all: ['beans'] as const,
 };
 
+/** Blend list — shared with the roast-session join on saved-source edits. */
+export const blendQueryRoots = {
+    all: ['blends'] as const,
+};
+
 /** Per-session “stock already booked” probe across both ledgers (History relink guard). */
 export const roastSessionStockKeys = {
     bySession: (sessionId: string) => ['roast-session-stock', sessionId] as const,

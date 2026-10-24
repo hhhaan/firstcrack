@@ -499,7 +499,7 @@
                 "alertsEnabled": "알람 사용",
                 "alertsEnabledDescription": "로스팅 중 경고와 시간 알림 배너 표시",
                 "alertSound": "알람 소리",
-                "alertSoundDescription": "새 알람 발생 시 소리 재생",
+                "alertSoundDescription": "TP 감지 및 새 알람 발생 시 소리 재생",
                 "alertSoundKind": "알람음",
                 "alertSoundKindDescription": "알람 발생 시 재생할 소리",
                 "alertSoundPreview": "미리듣기",
@@ -1053,7 +1053,9 @@
     },
     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
     "history": {
-        "batchNumbers": { "label": "배치 번호" },
+        "batchNumbers": {
+            "label": "배치 번호"
+        },
         "title": "Roast History",
         "subtitle": "{{count}}회 기록됨",
         "subtitleLoading": "불러오는 중...",

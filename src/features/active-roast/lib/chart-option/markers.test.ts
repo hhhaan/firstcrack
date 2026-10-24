@@ -11,8 +11,8 @@ import {
     buildMarkers,
     clampCurveLabelY,
     estimateLabelWidth,
+    eventLabelText,
     getMarkerLabelGeometry,
-    LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
     NOTE_LABEL_TOP_INSET_PX,
     nearestBtAt,
@@ -112,15 +112,35 @@ it.each([false, true])('renders event text and points with source opacity (refer
     ]);
 });
 
-describe('LABEL_BELOW_EVENTS', () => {
-    it('puts FC Rolling / FC End / TP below; FC Start / Yellow / Drop above', () => {
-        expect(LABEL_BELOW_EVENTS.has('FC Rolling')).toBe(true);
-        expect(LABEL_BELOW_EVENTS.has('FC End')).toBe(true);
-        expect(LABEL_BELOW_EVENTS.has('TP')).toBe(true);
-        expect(LABEL_BELOW_EVENTS.has('Drop')).toBe(false);
-        expect(LABEL_BELOW_EVENTS.has('FC Start')).toBe(false);
-        expect(LABEL_BELOW_EVENTS.has('Yellow')).toBe(false);
+it('stacks major event text at the plot top while keeping points on BT', () => {
+    const { curveLabels } = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'point',
+        xs: [60, 480],
+        btActual: [100, 200],
+        eventMarkers: [
+            { timeSec: 480, event: 'FC Start', color: '', timeStr: '', temp: '200°C' },
+            { timeSec: 60, event: 'Yellow', color: '', timeStr: '', temp: '100°C' },
+        ],
     });
+    const rendered = buildCurveLabelSeries(curveLabels).renderItem(
+        { dataIndex: 0, coordSys: { x: 0, y: 10, width: 700, height: 300 } },
+        { coord: ([time, bt]: number[]) => [time, bt], getWidth: () => 800, getHeight: () => 400 },
+    );
+    expect(rendered?.children).toEqual([
+        expect.objectContaining({ type: 'circle', shape: expect.objectContaining({ cx: 480, cy: 200 }) }),
+        expect.objectContaining({
+            type: 'text',
+            y: 10 + NOTE_LABEL_TOP_INSET_PX + MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX,
+            style: expect.objectContaining({ text: 'FC Start|08:00|200.0°C' }),
+        }),
+        expect.objectContaining({ type: 'circle', shape: expect.objectContaining({ cx: 60, cy: 100 }) }),
+        expect.objectContaining({
+            type: 'text',
+            y: 10 + NOTE_LABEL_TOP_INSET_PX,
+            style: expect.objectContaining({ text: 'Yellow|01:00|100.0°C' }),
+        }),
+    ]);
 });
 
 describe('FC band vs dual-mark Rolling', () => {
@@ -156,7 +176,7 @@ describe('FC band vs dual-mark Rolling', () => {
 
 describe('buildMarkers label position', () => {
     it.each(['point', 'tempLine', 'line'] as const)(
-        '%s: FC Start above BT, FC Rolling below BT',
+        '%s: FC Start and FC Rolling text start at the top independently of BT',
         (eventMarkerStyle) => {
             const { curveLabels, markPointData } = buildMarkers({
                 ...baseParams,
@@ -172,7 +192,8 @@ describe('buildMarkers label position', () => {
                     timeSec: 480,
                     y: 196,
                     text: 'FC Start|08:00|196.0°C',
-                    below: false,
+                    below: true,
+                    labelAtTop: true,
                     showDot: eventMarkerStyle === 'point',
                 }),
                 expect.objectContaining({
@@ -180,6 +201,7 @@ describe('buildMarkers label position', () => {
                     y: 200,
                     text: 'FC Rolling|08:40|200.0°C',
                     below: true,
+                    labelAtTop: true,
                     showDot: eventMarkerStyle === 'point',
                 }),
             ]);
@@ -297,6 +319,163 @@ describe('event marker visual grammar', () => {
 });
 
 describe('layoutCurveLabelBoxes', () => {
+    it.each([1, 1.5, 2])('stacks reference heat, events, notes, fan, and drum together at scale %s', (scale) => {
+        const { curveLabels } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'line',
+            fontScale: scale,
+            xs: [2, 3, 4, 5, 6, 8],
+            btActual: [180, 175, 170, 165, 160, 155],
+            eventMarkers: [
+                { timeSec: 2, event: 'Heater', note: '70%', tempC: 180, reference: true },
+                { timeSec: 3, event: 'Yellow' },
+                { timeSec: 4, event: 'Note', note: 'Check\naroma' },
+                { timeSec: 5, event: 'Fan', note: '50' },
+                { timeSec: 6, event: 'Drum', note: '55' },
+                { timeSec: 8, event: 'FC Start' },
+            ]
+                .reverse()
+                .map((marker) => ({ ...marker, color: '', timeStr: '', temp: '' })),
+        });
+        const rendered = buildCurveLabelSeries(curveLabels, scale).renderItem(
+            { dataIndex: 0, coordSys: { x: 0, y: 10, width: 700, height: 300 } },
+            { coord: ([time, bt]: number[]) => [time * 50, bt], getWidth: () => 800, getHeight: () => 400 },
+        );
+        const labels = rendered?.children.filter((child) => child.type === 'text').sort((a, b) => a.y - b.y);
+        expect(labels?.map((label) => label.style.text)).toEqual([
+            'Heater→70%|00:02|180.0°C',
+            'Yellow|00:03|175.0°C',
+            '00:04 | 170.0°C\nCheck\naroma',
+            'Fan 50|00:05',
+            'Drum 55|00:06',
+            'FC Start|00:08|155.0°C',
+        ]);
+        let top = 10 + NOTE_LABEL_TOP_INSET_PX * scale;
+        for (const label of labels ?? []) {
+            expect(label.y).toBe(top);
+            top += (MARKER_LABEL_STACK_PX * label.style.text.split('\n').length + MARKER_LABEL_GAP_PX) * scale;
+        }
+    });
+
+    it.each([1, 1.5, 2])('keeps nearby one-line event labels in chronological order at scale %s', (scale) => {
+        const boxes = layoutCurveLabelBoxes(
+            [
+                { timeSec: 8, xPx: 44, yPx: 192, text: eventLabelText('FC Start', 8, '190.7°C') },
+                { timeSec: 7, xPx: 40, yPx: 191, text: eventLabelText('Yellow', 7, '191.6°C') },
+            ].map((item) => ({ ...item, below: false, color: '#111', showDot: true })),
+            400,
+            scale,
+            300,
+        );
+        const [later, earlier] = boxes;
+        expect(earlier.text).toBe('Yellow|00:07|191.6°C');
+        expect(later.text).toBe('FC Start|00:08|190.7°C');
+        expect(earlier.bottom + MARKER_LABEL_GAP_PX * scale).toBeLessThanOrEqual(later.top);
+        expect(boxes.map((box) => box.anchorX)).toEqual([44, 40]);
+        expect(boxes.map((box) => box.anchorY)).toEqual([192, 191]);
+    });
+
+    it.each([0, 10, 290, 300])('keeps chronological labels on the canvas near y=%s', (yPx) => {
+        const boxes = layoutCurveLabelBoxes(
+            [
+                { timeSec: 7, text: 'Yellow|00:07|191.6°C', below: false },
+                { timeSec: 8, text: 'FC Start|00:08|190.7°C', below: false },
+                { timeSec: 9, text: 'FC Rolling|00:09|192.0°C', below: true },
+            ].map((item) => ({ ...item, xPx: 40, yPx, color: '#111', showDot: false })),
+            400,
+            1,
+            300,
+        );
+        for (let index = 0; index < boxes.length; index++) {
+            expect(boxes[index].top).toBeGreaterThanOrEqual(0);
+            expect(boxes[index].bottom).toBeLessThanOrEqual(300);
+            if (index) expect(boxes[index - 1].bottom + MARKER_LABEL_GAP_PX).toBeLessThanOrEqual(boxes[index].top);
+        }
+    });
+
+    it('packs neighboring oversized notes without overlapping their compact previews', () => {
+        const boxes = layoutCurveLabelBoxes(
+            [0, 1].map((timeSec) => ({
+                timeSec,
+                xPx: 100,
+                yPx: 150,
+                text: '한'.repeat(120),
+                below: true,
+                color: '#111',
+                showDot: false,
+            })),
+            220,
+            2,
+            300,
+        );
+        for (let i = 0; i < boxes.length; i++) {
+            expect(boxes[i].top).toBeGreaterThanOrEqual(0);
+            expect(boxes[i].bottom).toBeLessThanOrEqual(300);
+            for (let j = i + 1; j < boxes.length; j++) {
+                expect(boxes[i].bottom <= boxes[j].top || boxes[j].bottom <= boxes[i].top).toBe(true);
+            }
+        }
+    });
+
+    it.each([0, 13, 27, 28])('keeps the hit box inside a canvas only %spx high', (height) => {
+        const [box] = layoutCurveLabelBoxes(
+            [{ timeSec: 1, xPx: 100, yPx: 150, text: '한'.repeat(120), below: true, color: '#111', showDot: false }],
+            220,
+            2,
+            height,
+        );
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.bottom).toBeLessThanOrEqual(height);
+        expect(box.text).toBe(height < MARKER_LABEL_STACK_PX * 2 ? '' : '…');
+    });
+
+    it.each([false, true])('bounds an oversized CJK note at 2x scale (below=%s) and retains its content', (below) => {
+        const text = eventLabelText(
+            'Note',
+            61,
+            '123.4°C',
+            `Gas 0\nAirflow 1.234 kPa\nDrum 55.5 RPM\n${'한'.repeat(120)}`,
+        );
+        const [box] = layoutCurveLabelBoxes(
+            [{ timeSec: 61, xPx: 218, yPx: 190, text, below, color: '#111', showDot: false }],
+            220,
+            2,
+            300,
+        );
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.bottom).toBeLessThanOrEqual(300);
+        expect(box.text.endsWith('…')).toBe(true);
+        expect(box.fullText).toBe(text);
+        expect(box.bottom - box.top).toBe(MARKER_LABEL_STACK_PX * 2 * box.text.split('\n').length);
+    });
+
+    it.each([1, 1.5, 2])('wraps every compound note value within both canvas edges at scale %s', (scale) => {
+        const payload = 'Gas 0\nAirflow 1.234 kPa\nDrum 55.5 RPM\n한글메모 long-value-12345678901234567890';
+        const text = eventLabelText('Note', 61, '123.4°C', payload);
+        const boxes = layoutCurveLabelBoxes(
+            [
+                {
+                    timeSec: 61,
+                    xPx: 218,
+                    yPx: 190,
+                    text,
+                    below: true,
+                    color: '#111',
+                    showDot: false,
+                },
+            ],
+            220,
+            scale,
+            500,
+        );
+        const box = boxes[0];
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(220);
+        expect(box.top).toBeGreaterThanOrEqual(0);
+        expect(box.bottom).toBeLessThanOrEqual(500);
+        expect(box.text.replace(/\n/g, '')).toBe(text.replace(/\n/g, ''));
+        expect(box.bottom - box.top).toBe(MARKER_LABEL_STACK_PX * scale * box.text.split('\n').length);
+    });
     const item = (overrides: Partial<Parameters<typeof layoutCurveLabelBoxes>[0][number]>) => ({
         timeSec: 0,
         xPx: 100,
@@ -360,11 +539,11 @@ describe('layoutCurveLabelBoxes', () => {
             item({ timeSec: 490, text: 'FC Start | 08:10 | 185.8°C' }),
             item({ timeSec: 490, text: 'Heater→35%|08:10|185.8°C' }),
         ]);
-        expect(second.bottom).toBeLessThanOrEqual(first.top - MARKER_LABEL_GAP_PX);
-        expect(second.textY).toBe(first.textY - (MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX));
+        expect(first.bottom + MARKER_LABEL_GAP_PX).toBeLessThanOrEqual(second.top);
+        expect(second.textY).toBe(first.textY + (MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX));
     });
 
-    it('nudges a later Drop above the FC cluster instead of overlapping', () => {
+    it('keeps a later Drop below the earlier FC cluster instead of overlapping', () => {
         const boxes = layoutCurveLabelBoxes([
             item({ timeSec: 490, xPx: 800, yPx: 120, text: 'FC Start | 08:10 | 185.8°C' }),
             item({ timeSec: 490, xPx: 800, yPx: 120, text: 'Heater→35%|08:10|185.8°C' }),
@@ -381,7 +560,7 @@ describe('layoutCurveLabelBoxes', () => {
                 drop.bottom > other.top;
             expect(overlap).toBe(false);
         }
-        expect(drop.textY).toBeLessThan(90);
+        for (const other of others) expect(other.bottom + MARKER_LABEL_GAP_PX).toBeLessThanOrEqual(drop.top);
     });
 });
 

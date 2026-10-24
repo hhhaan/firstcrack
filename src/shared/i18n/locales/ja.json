@@ -499,7 +499,7 @@
                 "alertsEnabled": "警報を有効化",
                 "alertsEnabledDescription": "焙煎中に警告バナーを表示します。",
                 "alertSound": "警報音",
-                "alertSoundDescription": "警報が最初に発生したときに音で知らせます。",
+                "alertSoundDescription": "TPの検出時や警報が最初に発生したときに音で知らせます。",
                 "alertSoundKind": "警報音の種類",
                 "alertSoundKindDescription": "焙煎室の騒音の中で聞こえるか、試聴で確認してください。",
                 "alertSoundPreview": "試聴",
@@ -1397,7 +1397,9 @@
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
-        "batchNumbers": { "label": "バッチ番号" },
+        "batchNumbers": {
+            "label": "バッチ番号"
+        },
         "title": "焙煎履歴",
         "subtitle": "{{count}}件のセッション",
         "subtitleLoading": "読み込み中...",

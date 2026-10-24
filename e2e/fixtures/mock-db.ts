@@ -52,6 +52,10 @@ export type RoastSession = {
     ambient_humidity_pct: number | null;
     bean_id: string | null;
     profile_id: string | null;
+    blend_id?: string | null;
+    bean_label?: string | null;
+    color_whole?: string | null;
+    color_ground?: string | null;
     batch_name: string | null;
     profile_batch_number: number | null;
     total_batch_number: number | null;
@@ -78,6 +82,7 @@ export type RoastSession = {
         farm: string | null;
     } | null;
     roast_profiles?: { name: string; target_level: string | null } | null;
+    blends?: { name: string } | null;
 };
 
 export type PlanBatch = {
@@ -235,6 +240,7 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
 
 export class MockDb {
     beans: BeanRow[] = [];
+    blends: Array<{ id: string; user_id: string; name: string; blend_components: unknown[] }> = [];
     stockEvents: BeanStockEvent[] = [];
     sessions: RoastSession[] = [];
     private batchCounters = new Map<string, number>();
@@ -249,6 +255,7 @@ export class MockDb {
 
     reset() {
         this.beans = [];
+        this.blends = [];
         this.stockEvents = [];
         this.sessions = [];
         this.batchCounters.clear();
@@ -533,6 +540,8 @@ export class MockDb {
             ambient_humidity_pct: null,
             bean_id: null,
             profile_id: null,
+            blend_id: null,
+            bean_label: null,
             batch_name: null,
             profile_batch_number: null,
             total_batch_number: null,

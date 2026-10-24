@@ -1,0 +1,7 @@
+{
+    "extends": "./tsconfig.test.json",
+    "compilerOptions": {
+        "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    },
+    "include": ["src/vite-env.d.ts", "src/features/active-roast/lib/e2e-bridge.ts", "e2e/**/*.ts"]
+}

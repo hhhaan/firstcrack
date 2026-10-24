@@ -2,7 +2,7 @@ import type { RoastNoteControls } from '@shared/types/roast';
 import i18n from 'i18next';
 
 /** Display only: keep the original comment and manual control values separate in storage. */
-export const formatRoastNote = (entry: RoastNoteControls & { note?: string | null }): string =>
+export const formatRoastNote = (entry: RoastNoteControls & { note?: string | null }, separator = ' · '): string =>
     [
         entry.gas && `${i18n.t('activeRoast.noteEntry.gas', { defaultValue: 'Gas' }) ?? 'Gas'} ${entry.gas}`,
         entry.airflow &&
@@ -11,7 +11,7 @@ export const formatRoastNote = (entry: RoastNoteControls & { note?: string | nul
         entry.note,
     ]
         .filter(Boolean)
-        .join(' · ');
+        .join(separator);
 
 /** Fan and drum writes use the same `{name} {value}` text as a gas note. */
 export const controlChangeLabel = (role: 'fan' | 'drum', value: number): string => {

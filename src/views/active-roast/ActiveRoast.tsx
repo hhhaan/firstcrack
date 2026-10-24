@@ -105,7 +105,7 @@ import {
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { useLeadingLock } from './lib/leading-gate';
 import { resolveLiveChartView } from './lib/live-chart-view';
-import { buildReferenceLog } from './lib/reference-log';
+import { buildProfileReferenceLog, buildReferenceLog } from './lib/reference-log';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 import { useChartKeyboard } from './model/useChartKeyboard';
 import { useChartPipeline } from './model/useChartPipeline';
@@ -352,7 +352,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (!name) return undefined;
         return {
             name,
-            entries: buildReferenceLog(sourceEvents, backgroundCurvePoints, unit, heatEvents),
+            entries: reference
+                ? buildReferenceLog(sourceEvents, backgroundCurvePoints, unit, reference.heaterEvents)
+                : buildProfileReferenceLog(targetProfile, backgroundCurvePoints, unit),
             loading: reference ? historyCurve.isLoading : curveLoading,
             error: reference ? historyCurve.isError : curveError,
         };
@@ -362,7 +364,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         sourceEvents,
         backgroundCurvePoints,
         unit,
-        heatEvents,
         historyCurve.isLoading,
         historyCurve.isError,
         curveLoading,

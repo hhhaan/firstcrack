@@ -52,6 +52,7 @@ const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.ho
         resize: vi.fn(),
         setOption,
         getWidth: () => 1000,
+        getHeight: () => 300,
         getOption: vi.fn(() => ({})),
         getDataURL: vi.fn(() => 'data:image/png;base64,qq'),
     };
@@ -281,6 +282,17 @@ describe('RoastTempChart interactions', () => {
                         eventMarkerStyle: 'tempLine',
                         eventMarkers: [
                             {
+                                logId: 'reference-heat',
+                                reference: true,
+                                event: 'Heater',
+                                timeSec: 2,
+                                timeStr: '0:02',
+                                temp: '180°C',
+                                tempC: 180,
+                                note: '50%',
+                                color: '#888',
+                            },
+                            {
                                 logId: 'yellow-1',
                                 event: 'Yellow',
                                 timeSec: 5,
@@ -295,18 +307,35 @@ describe('RoastTempChart interactions', () => {
                 );
             });
             const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
+            vi.spyOn(chart, 'convertToPixel').mockImplementation((finder, value) => {
+                if (Array.isArray(value)) return Number.NaN;
+                return 'yAxisIndex' in finder && value === option.yAxis[0].max ? 0 : value * 10;
+            });
             const series = option.series.find((s: { id: string }) => s.id === 'event-curve-labels');
             const rendered = series.renderItem(
                 { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },
-                { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000 },
+                { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000, getHeight: chart.getHeight },
             );
-            const label = rendered.children.find((child: { type: string }) => child.type === 'text');
+            const label = rendered.children.find(
+                (child: { type: string; style?: { text?: string } }) =>
+                    child.type === 'text' && child.style?.text?.startsWith('Yellow'),
+            );
+            const reference = rendered.children.find(
+                (child: { type: string; style?: { text?: string } }) =>
+                    child.type === 'text' && child.style?.text?.startsWith('Heater'),
+            );
             const scale = fontScalePct / 100;
+            expect(label.style.text).toBe('Yellow|00:05|185.0°C');
             expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
             expect(label.x).toBe(50 + 4 * scale);
+            expect(reference.y).toBe(8 * scale);
+            expect(label.y).toBeCloseTo(24 * scale);
+            expect(ref.current?.hitTestMarker({ clientX: label.x + 100 * scale, clientY: reference.y + 1 })).toBe(
+                false,
+            );
             const point = {
                 clientX: label.x + label.style.text.length * 6 * scale - 1,
-                clientY: label.y - 14 * scale + 1,
+                clientY: label.y + 1,
             };
             expect(ref.current?.hitTestMarker(point)).toBe(true);
             expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
@@ -469,9 +498,11 @@ describe('RoastTempChart interactions', () => {
 
         act(() => zrHandlers.get('mousemove')?.({ offsetX: 50, offsetY: 20 }));
         expect(onCursorIdx).toHaveBeenLastCalledWith(1);
-        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 2500, pointerId: 5 })).toBe(true);
+        convertToPixel.mockReturnValueOnce(50).mockReturnValueOnce(250);
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 250, pointerId: 5 })).toBe(true);
+        expect(ref.current?.hitTestMarker({ clientX: 50, clientY: 301 })).toBe(false);
         chart.containPixel.mockReturnValueOnce(false);
-        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 500, pointerId: 6 })).toBe(false);
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 150, pointerId: 6 })).toBe(false);
     });
 
     it.each([

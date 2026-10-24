@@ -98,7 +98,7 @@ test('history compare: five batches, user colors, overlay channels and responsiv
     await expect(report.getByRole('checkbox', { name: 'Drum RPM', exact: true })).toBeChecked();
     await expect(report.getByRole('checkbox', { name: 'BT °C', exact: true })).toBeChecked();
     await expect(report.getByRole('checkbox', { name: 'BT RoR °C/min', exact: true })).toBeChecked();
-    await expect(report.getByRole('slider')).toHaveCount(0);
+    await expect(report.getByRole('slider', { name: 'Curve Overlay', exact: true })).toHaveCount(1);
     await expect(report.getByText('Sixth batch', { exact: true })).toHaveCount(0);
     const batchRgb = await page.evaluate(() => {
         const paint = (token: string) => {
@@ -189,6 +189,28 @@ test('history compare: five batches, user colors, overlay channels and responsiv
         await expect(report.getByRole('button', { name: 'Roast History', exact: true })).toBeInViewport();
         expect(await report.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     }
+    const scroller = report.getByRole('group', { name: 'Batch comparison', exact: true });
+    await scroller.scrollIntoViewIfNeeded();
+    await expect(scroller).toHaveCSS('scrollbar-width', 'auto');
+    const geometry = await scroller.evaluate((element) => ({
+        width: element.clientWidth,
+        content: element.scrollWidth,
+        scrollbar: getComputedStyle(element, '::-webkit-scrollbar').display,
+    }));
+    expect(geometry.content).toBeGreaterThan(geometry.width);
+    expect(geometry.scrollbar).toBe('block');
+    const scrollBox = await scroller.boundingBox();
+    if (!scrollBox) throw new Error('Comparison scrollbar is missing');
+    await page.mouse.move(scrollBox.x + 30, scrollBox.y + scrollBox.height - 7);
+    await page.mouse.down();
+    await page.mouse.move(scrollBox.x + scrollBox.width - 20, scrollBox.y + scrollBox.height - 7, { steps: 12 });
+    await page.mouse.up();
+    await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0);
+    await scroller.focus();
+    const beforeKeyScroll = await scroller.evaluate((element) => element.scrollLeft);
+    await scroller.press('ArrowLeft');
+    await expect.poll(() => scroller.evaluate((element) => element.scrollLeft)).toBeLessThan(beforeKeyScroll);
+    await expect(scroller).toBeFocused();
     await readout.scrollIntoViewIfNeeded();
     await page.screenshot({ path: testInfo.outputPath('compare-small.png'), animations: 'disabled' });
     await report.getByRole('button', { name: 'Roast History', exact: true }).click();

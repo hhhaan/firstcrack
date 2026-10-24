@@ -34,6 +34,9 @@ vi.mock('@entities/bean', () => ({
     }),
     useUpdateBean: () => ({ mutateAsync: updateBean, isPending: false }),
 }));
+vi.mock('@entities/blend', () => ({
+    useBlends: () => ({ data: [{ id: 'blend-1', name: 'House blend' }] }),
+}));
 vi.mock('@shared/store/auth', () => ({
     useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { id: 'owner' } }),
 }));
@@ -60,6 +63,53 @@ const session = {
 } as RoastSessionWithRelations;
 
 describe('SummaryMetaEditor', () => {
+    it('selects a pre-roast blend with its blend identifier and reloads its name', async () => {
+        await render({ ...session, batch_name: 'Batch C' });
+        await pickBean('House blend');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: null, blend_id: 'blend-1', bean_label: null });
+        await act(async () =>
+            root.render(
+                createElement(SummaryMetaEditor, {
+                    session: {
+                        ...session,
+                        bean_id: null,
+                        blend_id: 'blend-1',
+                        beans: null,
+                        blends: { name: 'House blend' },
+                    },
+                }),
+            ),
+        );
+        expect(beanInput().value).toBe('House blend');
+        expect(host.querySelector('[data-testid="history-origin"]')).toBeNull();
+    });
+
+    it('switches a blend back to a single bean while retaining the batch title', async () => {
+        await render({
+            ...session,
+            batch_name: null,
+            bean_id: null,
+            blend_id: 'blend-1',
+            beans: null,
+            blends: { name: 'House blend' },
+        });
+        await pickBean('Kenya Nyeri');
+        expect(updateSession).toHaveBeenCalledWith({
+            id: 's1',
+            bean_id: 'bean-2',
+            blend_id: null,
+            bean_label: null,
+            batch_name: 'House blend',
+        });
+    });
+
+    it('locks the blend source when stock has already moved', async () => {
+        stockRecorded.value = true;
+        await render({ ...session, bean_id: null, blend_id: 'blend-1', beans: null, blends: { name: 'House blend' } });
+        expect(beanInput().value).toBe('House blend');
+        expect(beanInput().disabled).toBe(true);
+        expect(updateSession).not.toHaveBeenCalled();
+    });
     let host: HTMLDivElement;
     let root: Root;
 
@@ -176,7 +226,7 @@ describe('SummaryMetaEditor', () => {
     it('relinks the roast to another green bean and drops the free-text label', async () => {
         await render({ ...session, bean_id: null, beans: null, bean_label: 'Sample bag', batch_name: 'Batch C' });
         await pickBean('Kenya Nyeri');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', blend_id: null, bean_label: null });
     });
 
     it('freezes the bean-derived title before relinking, so the title stops following the bean', async () => {
@@ -185,6 +235,7 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({
             id: 's1',
             bean_id: 'bean-2',
+            blend_id: null,
             bean_label: null,
             batch_name: 'Aricha',
         });
@@ -193,7 +244,7 @@ describe('SummaryMetaEditor', () => {
     it('keeps a stored title when the green bean changes', async () => {
         await render({ ...session, batch_name: 'Batch C' });
         await pickBean('Kenya Nyeri');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', blend_id: null, bean_label: null });
     });
 
     it('keeps a typed custom name as the bean label with no inventory link, freezing the old title', async () => {
@@ -202,6 +253,7 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({
             id: 's1',
             bean_id: null,
+            blend_id: null,
             bean_label: 'Sample bag',
             batch_name: 'Aricha',
         });
@@ -213,6 +265,7 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({
             id: 's1',
             bean_id: null,
+            blend_id: null,
             bean_label: null,
             batch_name: 'Aricha',
         });
@@ -230,7 +283,7 @@ describe('SummaryMetaEditor', () => {
     it('can link a green bean to a roast saved without one', async () => {
         await render({ ...session, bean_id: null, beans: null });
         await pickBean('Kenya Nyeri');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', blend_id: null, bean_label: null });
     });
 
     it('shows a saved free-text label in the bean field', async () => {
