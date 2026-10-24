@@ -93,6 +93,7 @@
         }
     },
     "updater": {
+        "finishRoastFirst": "ロースト終了後にアップデートしてください。",
         "update": "アップデート",
         "checking": "アップデートを確認中…",
         "downloading": "アップデートをダウンロード中…",

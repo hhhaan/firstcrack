@@ -1,6 +1,7 @@
 import { useRoastingStore } from '@features/active-roast';
 import { type UpdateState, useUpdater } from '@features/updater';
 import { useAppVersion } from '@shared/lib/useAppVersion';
+import { useToastStore } from '@shared/store/toast';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { useTranslation } from 'react-i18next';
 import { SettingsOptionRow, settingsOptionDescCls, settingsOptionLabelCls } from './SettingsOptionRow';
@@ -53,9 +54,13 @@ export const SoftwareSettingsTab = () => {
                             {statusText ? <div className={settingsOptionDescCls}>{statusText}</div> : null}
                         </div>
                         <SurfaceButton
-                            disabled={busy || (restart && !isRoastIdle)}
+                            disabled={busy}
                             onClick={() => {
                                 if (restart) {
+                                    if (!isRoastIdle) {
+                                        useToastStore.getState().show(t('updater.finishRoastFirst'), 'info');
+                                        return;
+                                    }
                                     void applyAndRelaunch();
                                     return;
                                 }

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { UpdateState } from '@features/updater';
+import { useToastStore } from '@shared/store/toast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -63,6 +64,7 @@ describe('SoftwareSettingsTab updates', () => {
 
     afterEach(() => {
         act(() => root.unmount());
+        for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
         container.remove();
     });
 
@@ -100,13 +102,16 @@ describe('SoftwareSettingsTab updates', () => {
         expect(container.querySelector('button')?.textContent).toBe('settings.tabs.software.check');
     });
 
-    it('restarts a ready update only when roasting is idle', () => {
+    it.each(['preheating', 'standby', 'roasting', 'ended'])('asks to finish %s before restarting', (phase) => {
         updater.state = { status: 'ready', version: '1.4.0', progress: 100, error: null };
-        updater.phase = 'roasting';
+        updater.phase = phase;
         render();
 
-        expect(container.querySelector('button')?.disabled).toBe(true);
+        expect(container.querySelector('button')?.disabled).toBe(false);
         act(() => container.querySelector('button')?.click());
+        expect(useToastStore.getState().toasts).toEqual([
+            expect.objectContaining({ message: 'updater.finishRoastFirst', tone: 'info' }),
+        ]);
         expect(updater.applyAndRelaunch).not.toHaveBeenCalled();
 
         updater.phase = 'idle';

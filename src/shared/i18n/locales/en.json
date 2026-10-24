@@ -93,6 +93,7 @@
         }
     },
     "updater": {
+        "finishRoastFirst": "Please finish roasting before applying the update.",
         "update": "Update",
         "checking": "Checking for updates…",
         "downloading": "Downloading update…",

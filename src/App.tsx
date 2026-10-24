@@ -2,6 +2,7 @@ import { cn } from '@shared/lib/cn';
 import { logger } from '@shared/lib/logger';
 import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
+import { useToastStore } from '@shared/store/toast';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
@@ -77,8 +78,6 @@ const AppShell = () => {
     const { state, applyAndRelaunch } = useUpdater();
     const { isDead: isSidecarDead } = useSidecarDeadListener();
 
-    // 로스팅 진행 중에는 재시작 버튼을 숨긴다 — 즉시 relaunch 시 라이브 세션이 소실되므로.
-    // 다운로드는 백그라운드에서 이미 완료되어, 로스팅 종료 후 앱을 다시 열면 자동 반영된다.
     const roastPhase = useRoastingStore((s) => s.phase);
     const isRoastIdle = roastPhase === 'idle';
 
@@ -370,10 +369,16 @@ const AppShell = () => {
                     </div>
                 )}
 
-                {state.status === 'ready' && isRoastIdle && (
+                {state.status === 'ready' && (
                     <button
                         type="button"
-                        onClick={() => void applyAndRelaunch()}
+                        onClick={() => {
+                            if (!isRoastIdle) {
+                                useToastStore.getState().show(t('updater.finishRoastFirst'), 'info');
+                                return;
+                            }
+                            void applyAndRelaunch();
+                        }}
                         style={{
                             position: 'fixed',
                             bottom: 24,

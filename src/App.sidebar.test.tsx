@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hooks = vi.hoisted(() => ({
     initTheme: vi.fn(),
+    phase: 'idle',
+    updateStatus: 'idle',
     checkAndDownload: vi.fn(() => Promise.resolve()),
     applyAndRelaunch: vi.fn(() => Promise.resolve()),
 }));
@@ -56,14 +58,14 @@ vi.mock('./shared/store/keyboard-shortcuts', () => ({
 vi.mock('./features/active-roast', () => ({
     useRoastingStore: (
         selector: (state: { phase: string; startBatch: () => void; completeBatch: () => void }) => unknown,
-    ) => selector({ phase: 'idle', startBatch: () => undefined, completeBatch: () => undefined }),
+    ) => selector({ phase: hooks.phase, startBatch: () => undefined, completeBatch: () => undefined }),
 }));
 vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined }));
 vi.mock('./features/sidecar', () => ({ useSidecarDeadListener: () => ({ isDead: false }) }));
 vi.mock('./features/updater', () => ({
     UpdateCheckerProvider: ({ children }: { children: ReactNode }) => children,
     useUpdater: () => ({
-        state: { status: 'idle', version: null, progress: 0, error: null },
+        state: { status: hooks.updateStatus, version: null, progress: 0, error: null },
         checkAndDownload: hooks.checkAndDownload,
         applyAndRelaunch: hooks.applyAndRelaunch,
     }),
@@ -105,6 +107,7 @@ vi.mock('./widgets/sidebar/ui/Sidebar', () => ({
 }));
 
 import { setSidebarCollapsed } from '@shared/store/sidebar-preferences';
+import { useToastStore } from '@shared/store/toast';
 import { App } from './App';
 
 declare global {
@@ -121,6 +124,9 @@ describe('App sidebar collapse', () => {
 
     beforeEach(() => {
         localStorage.clear();
+        vi.clearAllMocks();
+        hooks.phase = 'idle';
+        hooks.updateStatus = 'idle';
         setSidebarCollapsed(false);
         container = document.createElement('div');
         document.body.appendChild(container);
@@ -130,7 +136,33 @@ describe('App sidebar collapse', () => {
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
+        for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
     });
+
+    it.each(['preheating', 'standby', 'roasting', 'ended'])(
+        'keeps the update visible during %s and explains when to restart',
+        async (phase) => {
+            hooks.phase = phase;
+            hooks.updateStatus = 'ready';
+            await act(async () => root.render(createElement(App)));
+
+            const restartButton = () =>
+                Array.from(container.querySelectorAll('button')).find(
+                    (button) => button.textContent === 'updater.ready',
+                );
+            expect(restartButton()).toBeDefined();
+            act(() => restartButton()?.click());
+            expect(hooks.applyAndRelaunch).not.toHaveBeenCalled();
+            expect(useToastStore.getState().toasts).toEqual([
+                expect.objectContaining({ message: 'updater.finishRoastFirst', tone: 'info' }),
+            ]);
+
+            hooks.phase = 'idle';
+            await act(async () => root.render(createElement(App)));
+            act(() => restartButton()?.click());
+            expect(hooks.applyAndRelaunch).toHaveBeenCalledOnce();
+        },
+    );
 
     it('collapses the sidebar when the roast view opens and keeps a manual expand', async () => {
         await act(async () => {
