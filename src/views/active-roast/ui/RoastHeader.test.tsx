@@ -414,7 +414,12 @@ describe('inline running title edits', () => {
         click(target);
         expect(document.querySelector('[role="dialog"]')).not.toBeNull();
         reviewSaved();
-        expect(target?.disabled).toBe(true);
+        expect(host.querySelector('button[aria-label="activeRoast.header.target"]')).toBeNull();
+        expect(host.textContent).toContain('activeRoast.header.noTarget');
+        const targetRow = [...host.querySelectorAll('span')].find(
+            (span) => span.textContent === 'activeRoast.header.target',
+        )?.parentElement;
+        expect(targetRow?.querySelector('.lucide-chevron-down')).toBeNull();
         expect(document.querySelector('[role="dialog"]')).toBeNull();
         click(target);
         expect(document.querySelector('[role="dialog"]')).toBeNull();
