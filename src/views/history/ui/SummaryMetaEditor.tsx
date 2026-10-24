@@ -2,6 +2,7 @@ import { useBeans } from '@entities/bean';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
 import { useSetRoastLevel, useUpdateRoastSession } from '@entities/roast';
+import { useRoastStockRecorded } from '@features/active-roast/api/useRoastStockRecorded';
 import { useUpdateRoastBeanOrigin } from '@features/update-roast-bean-origin';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
@@ -10,7 +11,6 @@ import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useRoastStockRecorded } from '../hooks/useRoastStockRecorded';
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 

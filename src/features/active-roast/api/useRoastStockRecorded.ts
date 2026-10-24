@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 
 /**
  * A roast that already moved stock must not be relinked: the ledger rows keep their original
- * bean, so rewriting `roast_sessions.bean_id` alone would leave History and inventory disagreeing.
+ * bean, so rewriting `roast_sessions.bean_id` alone would leave the record and inventory disagreeing.
  * Plan-linked roasts deduct against the batch, so that reference counts too.
  */
 export const useRoastStockRecorded = (sessionId: string, planBatchId: string | null | undefined) =>

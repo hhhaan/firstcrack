@@ -12,7 +12,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('./OutputWeightEditor', () => ({ OutputWeightEditor: () => null }));
 vi.mock('./SessionScorecard', () => ({ SessionScorecard: () => null }));
 vi.mock('./HistorySessionChart', () => ({ HistorySessionChart: () => null }));
-vi.mock('../hooks/useRoastStockRecorded', () => ({
+vi.mock('@features/active-roast/api/useRoastStockRecorded', () => ({
     useRoastStockRecorded: () => ({ data: false, isPending: false }),
 }));
 vi.mock('../hooks/useRoastRecordSave', () => ({

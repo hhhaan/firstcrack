@@ -586,6 +586,21 @@ export const createBatchActions = (
             },
         });
     },
+    replaceReviewSource: (
+        sessionId: string,
+        ownerId: string,
+        source: Required<Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>>,
+    ) => {
+        const completed = get().completed;
+        if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)
+            return;
+        set({
+            completed: {
+                ...completed,
+                snapshot: { ...completed.snapshot, selection: { ...completed.snapshot.selection, ...source } },
+            },
+        });
+    },
     replaceReviewLog: (entries: LogEntry[]) => {
         const completed = get().completed;
         if (!get().reviewSessionId || !completed) return;

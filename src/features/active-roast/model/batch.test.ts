@@ -367,6 +367,25 @@ describe('saved roast review keeps collection independent', () => {
     beforeEach(() => {
         useRoastingStore.getState().reset();
     });
+    it('ignores stale record source updates and updates only the matching completed batch', () => {
+        charge();
+        const result = drop();
+        const state = useRoastingStore.getState();
+        const id = result?.snapshot.sessionId ?? '';
+        state.saveSucceeded('owner', id);
+        const before = useRoastingStore.getState();
+        const source = { beanId: 'bean-b', blendId: null, beanName: 'Corrected lot' };
+        state.replaceReviewSource('other-session', 'owner', source);
+        state.replaceReviewSource(id, 'other-owner', source);
+        expect(useRoastingStore.getState().completed).toBe(before.completed);
+        state.replaceReviewSource(id, 'owner', source);
+        const after = useRoastingStore.getState();
+        expect(after.completed?.snapshot.selection).toMatchObject(source);
+        expect(after.completed?.snapshot.selection.identity).toBe(before.completed?.snapshot.selection.identity);
+        expect(after.completed?.snapshot.livePoints).toBe(before.completed?.snapshot.livePoints);
+        expect(after.prepared).toBe(before.prepared);
+        expect(after.activeSelection).toBe(before.activeSelection);
+    });
     it('retains Drop and the curve after save; returning only dismisses the review', () => {
         charge();
         const result = drop();
