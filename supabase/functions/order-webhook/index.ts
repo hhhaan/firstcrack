@@ -11,9 +11,15 @@
  */
 import { corsHeaders, jsonResponse, serviceClient } from '../_shared/auth.ts';
 import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
-import { isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
+import { cafe24WebhookEventKey, isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
+import {
+    claimWebhookEventRun,
+    completeWebhookEventRun,
+    releaseWebhookEventClaim,
+    type WebhookEventRunClient,
+} from '../_shared/channels/webhook-event-run.ts';
 import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
 import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
@@ -314,26 +320,44 @@ serveWithSentry('order-webhook', async (req) => {
         const order = mapCafe24Order({ ...resource, order_id: resource.order_id ?? payload.order_id });
         if (!order) return jsonResponse({ ok: true, skipped: 'unparseable' });
 
-        await upsertCanonicalOrders(
-            admin,
-            {
-                userId: conn.user_id,
-                connectionId: conn.id,
-                platform: 'cafe24',
-                autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
-            },
-            [order],
-        );
-
-        const { error: runError } = await admin.from('order_sync_runs').insert({
-            connection_id: conn.id,
-            user_id: conn.user_id,
-            trigger: 'webhook',
-            status: 'success',
-            finished_at: new Date().toISOString(),
-            orders_upserted: 1,
+        const externalEventId = await cafe24WebhookEventKey(payload, rawBody);
+        const runs = admin as unknown as WebhookEventRunClient;
+        const claim = await claimWebhookEventRun(runs, {
+            connectionId: conn.id,
+            userId: conn.user_id,
+            externalEventId,
         });
-        if (runError) throw new Error('Failed to record webhook run', { cause: runError });
+        if (!claim.ok) {
+            if ('inProgress' in claim) {
+                return jsonResponse({ error: 'webhook claim in progress' }, 409);
+            }
+            if ('duplicate' in claim && claim.duplicate) {
+                return jsonResponse({ ok: true, skipped: 'duplicate delivery' });
+            }
+            if ('error' in claim) {
+                throw new Error(claim.error);
+            }
+            throw new Error('webhook claim failed');
+        }
+
+        try {
+            await upsertCanonicalOrders(
+                admin,
+                {
+                    userId: conn.user_id,
+                    connectionId: conn.id,
+                    platform: 'cafe24',
+                    autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
+                },
+                [order],
+            );
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            await releaseWebhookEventClaim(runs, claim.runId, msg);
+            throw e;
+        }
+
+        await completeWebhookEventRun(runs, claim.runId, 1);
 
         return jsonResponse({ ok: true, upserted: 1 });
     } catch (e) {

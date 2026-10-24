@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mapCafe24Order } from './cafe24.ts';
-import { isCafe24Uninstall } from './cafe24-webhook.ts';
+import { cafe24WebhookEventKey, isCafe24Uninstall } from './cafe24-webhook.ts';
 
 // Shape from https://developers.cafe24.com/ko/app/front/app/develop/webhook/sample (90077)
 const uninstallPayload = {
@@ -22,6 +22,41 @@ const orderPayload = {
         items: [{ order_item_code: '20260727-0000001-01', quantity: 1 }],
     },
 };
+
+describe('cafe24WebhookEventKey', () => {
+    const basePayload = { event_no: 90023, order_id: '20260727-0000001' };
+    const rawBody = JSON.stringify({ ...basePayload, resource: orderPayload.resource });
+
+    it('is deterministic for the same body', async () => {
+        const a = await cafe24WebhookEventKey(basePayload, rawBody);
+        const b = await cafe24WebhookEventKey(basePayload, rawBody);
+        expect(a).toBe(b);
+    });
+
+    it('changes when the raw body differs by one byte', async () => {
+        const a = await cafe24WebhookEventKey(basePayload, rawBody);
+        const b = await cafe24WebhookEventKey(basePayload, `${rawBody} `);
+        expect(a).not.toBe(b);
+    });
+
+    it('includes event_no and order_id in the key', async () => {
+        const key = await cafe24WebhookEventKey(basePayload, rawBody);
+        expect(key.startsWith('cafe24:90023:20260727-0000001:')).toBe(true);
+        expect(key.split(':').length).toBe(4);
+    });
+
+    it('uses na placeholders when event_no and order_id are missing', async () => {
+        const key = await cafe24WebhookEventKey({}, rawBody);
+        expect(key.startsWith('cafe24:na:na:')).toBe(true);
+    });
+
+    it('reads order_id from resource when top-level order_id is absent', async () => {
+        const payload = { event_no: 90023, resource: orderPayload.resource };
+        const body = JSON.stringify(payload);
+        const key = await cafe24WebhookEventKey(payload, body);
+        expect(key.startsWith('cafe24:90023:20260727-0000001:')).toBe(true);
+    });
+});
 
 describe('isCafe24Uninstall', () => {
     it('detects event_no 90077', () => {
