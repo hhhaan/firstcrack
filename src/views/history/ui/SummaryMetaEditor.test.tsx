@@ -19,7 +19,7 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('@features/update-roast-bean-origin', () => ({
     useUpdateRoastBeanOrigin: () => ({ mutateAsync: updateBean, isPending: false }),
 }));
-vi.mock('@features/active-roast/api/useRoastStockRecorded', () => ({
+vi.mock('../hooks/useRoastStockRecorded', () => ({
     useRoastStockRecorded: () => ({ data: stockRecorded.value, isPending: false }),
 }));
 vi.mock('@entities/organization', () => ({

@@ -14,7 +14,6 @@ import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useReviewSourceEdit } from '../model/useReviewSourceEdit';
 import { RoastTitleEditor } from './RoastTitleEditor';
 import { TargetMenu } from './TargetMenu';
 
@@ -67,17 +66,8 @@ export const RoastHeader = ({
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
     const review = useRoastingStore(selectReviewSnapshot);
-    const reviewSource = useReviewSourceEdit();
-    const selectedBeanId = review
-        ? reviewSource.session
-            ? reviewSource.session.bean_id
-            : review.selection.beanId
-        : currentBeanId;
-    const selectedBlendId = review
-        ? reviewSource.session
-            ? reviewSource.session.blend_id
-            : review.selection.blendId
-        : currentBlendId;
+    const selectedBeanId = review ? review.selection.beanId : currentBeanId;
+    const selectedBlendId = review ? review.selection.blendId : currentBlendId;
     const fallbackBeanName = review ? review.selection.beanName : currentBeanName;
     const runningIdentity = useRoastingStore((state) => state.activeSelection?.identity);
     const runningSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
@@ -116,11 +106,11 @@ export const RoastHeader = ({
     const scheduled = useRoastingStore((state) => Boolean(state.activeSelection?.planBatchHandoff));
     const sessionId = useRoastingStore((state) => state.sessionId);
     const [pendingSource, setPendingSource] = useState<{ value: string; sessionId: string | null } | null>(null);
-    const canSelectSource = review
-        ? reviewSource.canWrite && !reviewSource.isPending
-        : isWorkspaceReady &&
-          !!workspaceOwnerId &&
-          (!charged || (phase === 'roasting' && sessionOwnerId === workspaceOwnerId));
+    const canSelectSource =
+        !review &&
+        isWorkspaceReady &&
+        !!workspaceOwnerId &&
+        (!charged || (phase === 'roasting' && sessionOwnerId === workspaceOwnerId));
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
     const beanVisibility = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'beans');
@@ -141,10 +131,6 @@ export const RoastHeader = ({
         const name = bean
             ? joinDisplay([bean.origin, bean.region], ' ') || bean.name
             : (sourceCandidates.find((source) => source.beanId && source.beanId === id)?.name ?? null);
-        if (review) {
-            void reviewSource.save({ beanId: id, blendId: null, beanName: name });
-            return;
-        }
         onBeanChange(id, name);
         // 원두 기본값은 기기별 취향이라 localStorage에만 저장 (프로파일과 달리 DB 동기화 불필요)
         if (id) localStorage.setItem(DEFAULT_BEAN_KEY, id);
@@ -158,10 +144,6 @@ export const RoastHeader = ({
         if (value.startsWith('blend:')) {
             const id = value.slice(6);
             const name = blends.find((b) => b.id === id)?.name ?? null;
-            if (review) {
-                void reviewSource.save({ beanId: null, blendId: id, beanName: name });
-                return;
-            }
             onBlendChange?.(id, name);
             localStorage.removeItem(DEFAULT_BEAN_KEY);
         } else handleBeanChange(value || null);
@@ -270,15 +252,6 @@ export const RoastHeader = ({
                         <ChevronDown size={18} className="pointer-events-none text-muted" />
                     </div>
                 </div>
-
-                {review && reviewSource.stockRecorded && (
-                    <p className="mb-1.5 text-xs text-muted">{t('history.expanded.beanLocked')}</p>
-                )}
-                {review && reviewSource.failed && (
-                    <p role="alert" className="mb-1.5 text-xs text-red-400">
-                        {t('history.edit.saveFailed')}
-                    </p>
-                )}
 
                 {pendingSource !== null && pendingSource.sessionId === sessionId && charged && scheduled && (
                     <div

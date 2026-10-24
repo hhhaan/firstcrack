@@ -27,31 +27,8 @@ const profileMutate = vi.hoisted(() => vi.fn());
 const savedTitle = vi.hoisted(() => ({ value: 'Saved roast' }));
 const updateSession = vi.hoisted(() => vi.fn());
 const previewNumbers = vi.hoisted(() => ({ enabled: false }));
-const stockCheck = vi.hoisted((): { value: boolean | undefined } => ({ value: false }));
-const savedRecord = vi.hoisted(() => ({ loaded: true, legacyTitle: false }));
-vi.mock('@features/active-roast/api/useRoastStockRecorded', () => ({
-    useRoastStockRecorded: () => ({ data: stockCheck.value }),
-}));
 vi.mock('@entities/roast', () => ({
-    useRoastSession: (_owner: string, id: string) => {
-        const source = useRoastingStore.getState().completed?.snapshot.selection;
-        return {
-            data:
-                id && savedRecord.loaded
-                    ? {
-                          id,
-                          user_id: 'user-1',
-                          batch_name: savedRecord.legacyTitle ? null : savedTitle.value,
-                          bean_id: source?.beanId ?? null,
-                          blend_id: source?.blendId ?? null,
-                          bean_label: null,
-                          plan_batch_id: null,
-                          beans: { name: '마라닉' },
-                          blends: null,
-                      }
-                    : undefined,
-        };
-    },
+    useRoastSession: () => ({ data: { batch_name: savedTitle.value } }),
     useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
 }));
 
@@ -82,9 +59,6 @@ vi.mock('react-i18next', () => ({
 
 afterEach(() => {
     previewNumbers.enabled = false;
-    stockCheck.value = false;
-    savedRecord.loaded = true;
-    savedRecord.legacyTitle = false;
     updateSession.mockReset();
     localStorage.removeItem(DEFAULT_BEAN_KEY);
     useRoastingStore.getState().reset();
@@ -454,11 +428,11 @@ describe('inline running title edits', () => {
         expect(document.querySelector('[role="dialog"]')).toBeNull();
     });
 
-    it('edits the saved snapshot title without changing the next batch', async () => {
+    it('edits only the saved snapshot title while keeping its source locked', async () => {
         updateSession.mockResolvedValue({});
         reviewSaved();
         expect(titleButton()?.textContent).toBe('Saved roast');
-        expect(host.querySelector('select')?.disabled).toBe(false);
+        expect(host.querySelector('select')?.disabled).toBe(true);
         expect(host.querySelector('select')?.value).toBe('bean-2');
         click(titleButton());
         type('  Reviewed roast  ');
@@ -471,16 +445,12 @@ describe('inline running title edits', () => {
         expect(state.prepared.beanName).toBe('Next bean');
     });
 
-    it.each([
-        { value: 'bean-1', beanId: 'bean-1', blendId: null, beanName: 'Colombia Santander' },
-        { value: 'blend:blend-1', beanId: null, blendId: 'blend-1', beanName: 'Modern' },
-    ])('updates the saved snapshot source to $value without changing the next batch', async (source) => {
-        updateSession.mockResolvedValue({});
+    it.each(['bean-1', 'blend:blend-1', ''])('rejects snapshot source changes to %s', (value) => {
         reviewSaved();
         const before = useRoastingStore.getState();
-        localStorage.setItem(DEFAULT_BEAN_KEY, 'bean-2');
         const onBeanChange = vi.fn();
         const onBlendChange = vi.fn();
+        localStorage.setItem(DEFAULT_BEAN_KEY, 'bean-2');
         act(() =>
             root.render(
                 createElement(RoastHeader, {
@@ -492,85 +462,23 @@ describe('inline running title edits', () => {
             ),
         );
         const select = host.querySelector('select');
-        expect(select?.disabled).toBe(false);
+        expect(select?.disabled).toBe(true);
         expect(select?.value).toBe('bean-2');
-        await act(async () => {
-            if (select) select.value = source.value;
+        act(() => {
+            if (select) select.value = value;
             select?.dispatchEvent(new Event('change', { bubbles: true }));
         });
-        expect(updateSession).toHaveBeenCalledWith({
-            id: sessionId,
-            bean_id: source.beanId,
-            blend_id: source.blendId,
-            bean_label: null,
-        });
-        const after = useRoastingStore.getState();
-        expect(after.completed?.snapshot.selection).toMatchObject({
-            beanId: source.beanId,
-            blendId: source.blendId,
-            beanName: source.beanName,
-        });
-        expect(after.completed?.snapshot.livePoints).toBe(before.completed?.snapshot.livePoints);
-        expect(after.completed?.snapshot.logEntries).toBe(before.completed?.snapshot.logEntries);
-        expect(after.completed?.snapshot.selection.identity).toBe(before.completed?.snapshot.selection.identity);
-        expect(after.prepared).toBe(before.prepared);
         expect(onBeanChange).not.toHaveBeenCalled();
         expect(onBlendChange).not.toHaveBeenCalled();
+        expect(updateSession).not.toHaveBeenCalled();
+        expect(useRoastingStore.getState().completed).toBe(before.completed);
+        expect(useRoastingStore.getState().prepared).toBe(before.prepared);
         expect(localStorage.getItem(DEFAULT_BEAN_KEY)).toBe('bean-2');
-        expect(host.querySelector('select')?.value).toBe(source.value);
         expect(titleButton()?.textContent).toBe('Saved roast');
         act(() => {
             useRoastingStore.getState().startCharge(undefined, 'user-1');
         });
         expect(useRoastingStore.getState().activeSelection?.beanId).toBe('bean-1');
-    });
-
-    it('preserves a legacy record title when changing its bean', async () => {
-        savedRecord.legacyTitle = true;
-        updateSession.mockResolvedValue({});
-        reviewSaved();
-        const select = host.querySelector('select');
-        await act(async () => {
-            if (select) select.value = 'bean-1';
-            select?.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        expect(updateSession).toHaveBeenCalledWith(expect.objectContaining({ batch_name: '마라닉' }));
-    });
-
-    it.each([true, undefined])('locks snapshot source edits when stock is %s', async (recorded) => {
-        stockCheck.value = recorded;
-        reviewSaved();
-        expect(host.querySelector('select')?.disabled).toBe(true);
-        expect(host.textContent.includes('history.expanded.beanLocked')).toBe(recorded === true);
-        expect(updateSession).not.toHaveBeenCalled();
-    });
-
-    it('locks source selection until the saved record loads', () => {
-        savedRecord.loaded = false;
-        reviewSaved();
-        expect(host.querySelector('select')?.disabled).toBe(true);
-    });
-
-    it('keeps the snapshot bean and next preparation when saving fails', async () => {
-        updateSession.mockRejectedValueOnce(new Error('offline'));
-        reviewSaved();
-        const before = useRoastingStore.getState();
-        const select = host.querySelector('select');
-        await act(async () => {
-            if (select) select.value = 'bean-1';
-            select?.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-        expect(useRoastingStore.getState().completed).toBe(before.completed);
-        expect(useRoastingStore.getState().prepared).toBe(before.prepared);
-        expect(select?.value).toBe('bean-2');
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('history.edit.saveFailed');
-        act(() => {
-            const state = useRoastingStore.getState();
-            const nextId = state.startCharge(undefined, 'user-1');
-            state.abortRoast(200, 'C');
-            state.saveSucceeded('user-1', nextId);
-        });
-        expect(host.querySelector('[role="alert"]')).toBeNull();
     });
 
     it('keeps the saved title and shows an error when the snapshot update fails', async () => {
