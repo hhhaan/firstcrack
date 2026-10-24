@@ -282,6 +282,17 @@ describe('RoastTempChart interactions', () => {
                         eventMarkerStyle: 'tempLine',
                         eventMarkers: [
                             {
+                                logId: 'reference-heat',
+                                reference: true,
+                                event: 'Heater',
+                                timeSec: 2,
+                                timeStr: '0:02',
+                                temp: '180°C',
+                                tempC: 180,
+                                note: '50%',
+                                color: '#888',
+                            },
+                            {
                                 logId: 'yellow-1',
                                 event: 'Yellow',
                                 timeSec: 5,
@@ -305,12 +316,23 @@ describe('RoastTempChart interactions', () => {
                 { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },
                 { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000, getHeight: chart.getHeight },
             );
-            const label = rendered.children.find((child: { type: string }) => child.type === 'text');
+            const label = rendered.children.find(
+                (child: { type: string; style?: { text?: string } }) =>
+                    child.type === 'text' && child.style?.text?.startsWith('Yellow'),
+            );
+            const reference = rendered.children.find(
+                (child: { type: string; style?: { text?: string } }) =>
+                    child.type === 'text' && child.style?.text?.startsWith('Heater'),
+            );
             const scale = fontScalePct / 100;
             expect(label.style.text).toBe('Yellow|00:05|185.0°C');
             expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
             expect(label.x).toBe(50 + 4 * scale);
-            expect(label.y).toBe(8 * scale);
+            expect(reference.y).toBe(8 * scale);
+            expect(label.y).toBeCloseTo(24 * scale);
+            expect(ref.current?.hitTestMarker({ clientX: label.x + 100 * scale, clientY: reference.y + 1 })).toBe(
+                false,
+            );
             const point = {
                 clientX: label.x + label.style.text.length * 6 * scale - 1,
                 clientY: label.y + 1,

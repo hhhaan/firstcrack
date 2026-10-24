@@ -644,11 +644,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
-                    if (marker.reference) return [];
                     if (hideChargeLabel && marker.event === 'Charge') return [];
-                    if (!isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual)) return [];
+                    const visible = marker.reference
+                        ? Number.isFinite(marker.timeSec) && marker.timeSec >= xMin && marker.timeSec <= xMax
+                        : isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual);
+                    if (!visible) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
-                    const nearest = nearestBtAt(xs, btActual, marker.timeSec);
+                    const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
                     const atTop = noteAnchoredAtTop(marker.event);
                     const displayY = atTop
                         ? axisTop
@@ -675,12 +677,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 temp,
                                 marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
                             ),
-                            below: marker.event !== 'Heater',
-                            labelTopPx:
-                                !atTop && marker.event !== 'Heater'
-                                    ? (scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN)
-                                    : undefined,
-                            topInsetPx: noteLabelTopInsetPx(marker.event !== 'Heater', fontScale),
+                            below: true,
+                            labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
+                            topInsetPx: noteLabelTopInsetPx(true, fontScale),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
@@ -720,6 +719,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale, chart.getHeight());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
+                if (marker.reference) return [];
                 if (!marker?.logId || marker.event === 'Charge' || (savedReview && marker.event === 'Drop')) return [];
                 const x = input.xPx;
                 const anchorY = input.yPx;

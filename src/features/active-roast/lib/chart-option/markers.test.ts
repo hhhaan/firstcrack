@@ -319,36 +319,42 @@ describe('event marker visual grammar', () => {
 });
 
 describe('layoutCurveLabelBoxes', () => {
-    it('starts major labels at the top even when an earlier heater label is on BT below them', () => {
-        const [heater, yellow, fc] = layoutCurveLabelBoxes(
-            [
-                { timeSec: 0, xPx: 40, yPx: 200, text: 'Heater→70|00:00|190°C', below: false },
-                {
-                    timeSec: 60,
-                    xPx: 44,
-                    yPx: 120,
-                    text: 'Yellow|01:00|150°C',
-                    below: true,
-                    labelTopPx: 10,
-                    topInsetPx: 8,
-                },
-                {
-                    timeSec: 480,
-                    xPx: 400,
-                    yPx: 100,
-                    text: 'FC Start|08:00|190°C',
-                    below: true,
-                    labelTopPx: 10,
-                    topInsetPx: 8,
-                },
-            ].map((item) => ({ ...item, color: '#111', showDot: false })),
-            800,
-            1,
-            300,
+    it.each([1, 1.5, 2])('stacks reference heat, events, notes, fan, and drum together at scale %s', (scale) => {
+        const { curveLabels } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'line',
+            fontScale: scale,
+            xs: [2, 3, 4, 5, 6, 8],
+            btActual: [180, 175, 170, 165, 160, 155],
+            eventMarkers: [
+                { timeSec: 2, event: 'Heater', note: '70%', tempC: 180, reference: true },
+                { timeSec: 3, event: 'Yellow' },
+                { timeSec: 4, event: 'Note', note: 'Check\naroma' },
+                { timeSec: 5, event: 'Fan', note: '50' },
+                { timeSec: 6, event: 'Drum', note: '55' },
+                { timeSec: 8, event: 'FC Start' },
+            ]
+                .reverse()
+                .map((marker) => ({ ...marker, color: '', timeStr: '', temp: '' })),
+        });
+        const rendered = buildCurveLabelSeries(curveLabels, scale).renderItem(
+            { dataIndex: 0, coordSys: { x: 0, y: 10, width: 700, height: 300 } },
+            { coord: ([time, bt]: number[]) => [time * 50, bt], getWidth: () => 800, getHeight: () => 400 },
         );
-        expect(heater.bottom).toBe(200);
-        expect(yellow.top).toBe(18);
-        expect(fc.top).toBe(18 + MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX);
+        const labels = rendered?.children.filter((child) => child.type === 'text').sort((a, b) => a.y - b.y);
+        expect(labels?.map((label) => label.style.text)).toEqual([
+            'Heater→70%|00:02|180.0°C',
+            'Yellow|00:03|175.0°C',
+            '00:04 | 170.0°C\nCheck\naroma',
+            'Fan 50|00:05',
+            'Drum 55|00:06',
+            'FC Start|00:08|155.0°C',
+        ]);
+        let top = 10 + NOTE_LABEL_TOP_INSET_PX * scale;
+        for (const label of labels ?? []) {
+            expect(label.y).toBe(top);
+            top += (MARKER_LABEL_STACK_PX * label.style.text.split('\n').length + MARKER_LABEL_GAP_PX) * scale;
+        }
     });
 
     it.each([1, 1.5, 2])('keeps nearby one-line event labels in chronological order at scale %s', (scale) => {

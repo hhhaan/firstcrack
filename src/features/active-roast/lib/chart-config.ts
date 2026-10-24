@@ -32,7 +32,7 @@ export const PHASE_BAR_FONT_WEIGHT = 600;
 export const AXIS_LABEL_FONT = { fontSize: 12, fontWeight: 500, fontFamily: 'monospace' as const } as const;
 export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
 
-// ── Major event labels (`이름|mm:ss|온도`) stack from the plot top in time order.
+// ── Event labels stack from the plot top in time order; compound notes keep their line breaks.
 export const MARKER_LABEL_FONT_SIZE = 10;
 export const MARKER_LABEL_FONT_WEIGHT = 600;
 export const MARKER_LABEL_FONT_FAMILY = 'monospace';

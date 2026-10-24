@@ -171,7 +171,7 @@ export interface CurveLabelItem {
     opacity?: number;
     below: boolean;
     showDot: boolean;
-    /** Major event text starts at the plot top; its point stays at y. */
+    /** Event text starts at the plot top; its point stays at y. */
     labelAtTop?: boolean;
     /** Extra pixels below the anchor. Notes use this to clear the top axis line. */
     topInsetPx?: number;
@@ -503,10 +503,10 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                 ),
                 color: markerLabelColor(m.event),
                 opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
-                below: m.event !== 'Heater',
+                below: true,
                 showDot: m.event === 'Charge' ? false : showDot,
-                labelAtTop: !atTop && m.event !== 'Heater',
-                topInsetPx: noteLabelTopInsetPx(m.event !== 'Heater', fontScale),
+                labelAtTop: true,
+                topInsetPx: noteLabelTopInsetPx(true, fontScale),
             };
         }),
         ...visibleTurningPoints.map((tp) => ({
