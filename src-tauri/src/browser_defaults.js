@@ -1,8 +1,14 @@
-// Keep browser print dialogs off the webview that owns live collection.
+// Browser printing and reloads can interrupt the webview that owns live collection.
 window.addEventListener(
     'keydown',
     (event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        const key = event.key.toLowerCase();
+        if (
+            key === 'f5' ||
+            key === 'browserrefresh' ||
+            ((event.metaKey || (event.ctrlKey && !event.altKey)) &&
+                (['p', 'r'].includes(key) || ['KeyP', 'KeyR'].includes(event.code)))
+        ) {
             event.preventDefault();
         }
     },
