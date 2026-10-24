@@ -408,8 +408,8 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
         const laid = layoutCurveLabelBoxes(
             items.flatMap((item) => {
                 const point = api.coord([item.timeSec, item.y]) as number[];
-                const yPx = clampCurveLabelY(point[1], plotY, plotHeight);
-                if (!Number.isFinite(point[0]) || yPx == null) return [];
+                const yPx = clampCurveLabelY(point[1], plotY, plotHeight) ?? (item.labelAtTop ? point[1] : null);
+                if (!Number.isFinite(point[0]) || yPx == null || !Number.isFinite(yPx)) return [];
                 if (point[0] < plotX || point[0] > plotX + plotWidth) return [];
                 return [
                     {
@@ -422,6 +422,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
                         opacity: item.opacity,
                         showDot: item.showDot,
                         topInsetPx: item.topInsetPx,
+                        labelTopPx: item.labelAtTop ? plotY : undefined,
                     },
                 ];
             }),
@@ -435,7 +436,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
         // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children
         const children: any[] = [];
         for (const box of laid) {
-            if (box.showDot) {
+            if (box.showDot && box.anchorY >= plotY && box.anchorY <= plotY + plotHeight) {
                 children.push({
                     type: 'circle',
                     shape: { cx: box.anchorX, cy: box.anchorY, r: scale === 1 ? 2.5 : scaleChartPx(3, scale) },

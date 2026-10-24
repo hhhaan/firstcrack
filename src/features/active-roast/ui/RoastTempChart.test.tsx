@@ -296,6 +296,10 @@ describe('RoastTempChart interactions', () => {
                 );
             });
             const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
+            vi.spyOn(chart, 'convertToPixel').mockImplementation((finder, value) => {
+                if (Array.isArray(value)) return Number.NaN;
+                return 'yAxisIndex' in finder && value === option.yAxis[0].max ? 0 : value * 10;
+            });
             const series = option.series.find((s: { id: string }) => s.id === 'event-curve-labels');
             const rendered = series.renderItem(
                 { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },
@@ -303,18 +307,14 @@ describe('RoastTempChart interactions', () => {
             );
             const label = rendered.children.find((child: { type: string }) => child.type === 'text');
             const scale = fontScalePct / 100;
-            expect(label.style.text).toBe('Yellow\n00:05\n185.0°C');
+            expect(label.style.text).toBe('Yellow|00:05|185.0°C');
             expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
             expect(label.x).toBe(50 + 4 * scale);
+            expect(label.y).toBe(8 * scale);
             const point = {
-                clientX: label.x + 7 * 6 * scale - 1,
-                clientY: label.y - 14 * scale + 1,
+                clientX: label.x + label.style.text.length * 6 * scale - 1,
+                clientY: label.y + 1,
             };
-            for (const row of [0, 1, 2]) {
-                expect(
-                    ref.current?.hitTestMarker({ clientX: label.x + 1, clientY: label.y - (row + 1) * 14 * scale + 1 }),
-                ).toBe(true);
-            }
             expect(ref.current?.hitTestMarker(point)).toBe(true);
             expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
             act(() => expect(ref.current?.openMarkerEdit(point)).toBe(true));

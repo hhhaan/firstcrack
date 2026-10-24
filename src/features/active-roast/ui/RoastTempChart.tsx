@@ -15,7 +15,6 @@ import {
     eventLabelText,
     isCurveMarkerVisible,
     isEventMarkerVisible,
-    LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
     nearestBtAt,
     noteAnchoredAtTop,
@@ -676,8 +675,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 temp,
                                 marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
                             ),
-                            below: atTop || LABEL_BELOW_EVENTS.has(marker.event),
-                            topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
+                            below: marker.event !== 'Heater',
+                            labelTopPx:
+                                !atTop && marker.event !== 'Heater'
+                                    ? (scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN)
+                                    : undefined,
+                            topInsetPx: noteLabelTopInsetPx(marker.event !== 'Heater', fontScale),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
@@ -706,6 +709,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             yPx: y ?? Number.NaN,
                             text: eventLabelText('TP', tp.timeSec, temp),
                             below: true,
+                            labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
+                            topInsetPx: noteLabelTopInsetPx(true, fontScale),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
