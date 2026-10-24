@@ -4,7 +4,6 @@ import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
 import { useToastStore } from '@shared/store/toast';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { Download } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
@@ -284,19 +283,6 @@ const AppShell = () => {
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                     {view !== 'settings' && (
                         <Sidebar
-                            footerAction={
-                                hasUpdate && roastPhase === 'standby' ? (
-                                    <button
-                                        type="button"
-                                        aria-label={updateLabel}
-                                        title={updateLabel}
-                                        onClick={handleUpdate}
-                                        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-palette-blue text-white transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-                                    >
-                                        <Download size={20} aria-hidden="true" />
-                                    </button>
-                                ) : undefined
-                            }
                             activeView={view}
                             onNavigate={setView}
                             collapsed={sidebarCollapsed}

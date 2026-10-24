@@ -39,7 +39,6 @@ it('keeps keyboard focus on the same toggle across collapse and expand', async (
             collapsed,
             onNavigate,
             onOpenSettings,
-            footerAction: createElement('button', { type: 'button', 'aria-label': 'Update ready' }, 'Update'),
             onToggleCollapse: () => setCollapsed((value) => !value),
         });
     }
@@ -48,13 +47,11 @@ it('keeps keyboard focus on the same toggle across collapse and expand', async (
         await act(async () => root.render(createElement(TestSidebar)));
         const toggle = container.querySelector<HTMLButtonElement>('button[aria-expanded]');
         expect(toggle).not.toBeNull();
-        expect(container.querySelector('button[aria-label="Update ready"]')).not.toBeNull();
         toggle?.focus();
 
         for (const expanded of ['false', 'true']) {
             await act(async () => toggle?.click());
             expect(container.querySelector('button[aria-expanded]')).toBe(toggle);
-            expect(container.querySelector('button[aria-label="Update ready"]')).not.toBeNull();
             expect(document.activeElement).toBe(toggle);
             expect(toggle?.getAttribute('aria-expanded')).toBe(expanded);
             expect(toggle?.getAttribute('aria-label')).toBe(

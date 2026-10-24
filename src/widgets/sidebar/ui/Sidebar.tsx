@@ -7,7 +7,7 @@ import { useThemeStore } from '@shared/store/theme';
 import type { View } from '@shared/types/view';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { Check, Settings } from 'lucide-react';
-import { type ReactNode, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../entities/profile';
 import { SidebarNav } from './SidebarNav';
@@ -19,7 +19,6 @@ interface SidebarProps {
     rail?: boolean;
     onToggleCollapse: () => void;
     onOpenSettings: (tab?: string) => void;
-    footerAction?: ReactNode;
 }
 
 export const Sidebar = ({
@@ -29,7 +28,6 @@ export const Sidebar = ({
     rail = false,
     onToggleCollapse,
     onOpenSettings,
-    footerAction,
 }: SidebarProps) => {
     const { t } = useTranslation();
     const [isHeaderHovered, setIsHeaderHovered] = useState(false);
@@ -215,7 +213,6 @@ export const Sidebar = ({
                     rail ? 'px-3' : edgePad,
                 )}
             >
-                {footerAction && <div className="mb-3 flex h-9 items-center">{footerAction}</div>}
                 <button
                     type="button"
                     aria-label={t('sidebar.settings')}
