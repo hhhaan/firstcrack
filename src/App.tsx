@@ -76,12 +76,14 @@ const AppShell = () => {
     useEffect(() => setSentryIdentity(user?.id, workspaceOwnerId), [user?.id, workspaceOwnerId]);
 
     const { t } = useTranslation();
-    const { state, applyAndRelaunch } = useUpdater();
+    const { state, checkAndDownload, applyAndRelaunch } = useUpdater();
     const { isDead: isSidecarDead } = useSidecarDeadListener();
 
     const roastPhase = useRoastingStore((s) => s.phase);
     const isRoastIdle = roastPhase === 'idle';
-    const handleUpdateRestart = () => {
+    const hasUpdate = state.status === 'available' || state.status === 'ready';
+    const updateLabel = t(state.status === 'ready' ? 'updater.ready' : 'updater.available', { version: state.version });
+    const handleUpdate = () => {
         if (!isRoastIdle) {
             useToastStore
                 .getState()
@@ -91,7 +93,11 @@ const AppShell = () => {
                 );
             return;
         }
-        void applyAndRelaunch();
+        if (state.status === 'available') {
+            void checkAndDownload();
+        } else if (state.status === 'ready') {
+            void applyAndRelaunch();
+        }
     };
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
@@ -279,12 +285,12 @@ const AppShell = () => {
                     {view !== 'settings' && (
                         <Sidebar
                             footerAction={
-                                state.status === 'ready' && roastPhase === 'standby' ? (
+                                hasUpdate && roastPhase === 'standby' ? (
                                     <button
                                         type="button"
-                                        aria-label={t('updater.ready', { version: state.version })}
-                                        title={t('updater.ready', { version: state.version })}
-                                        onClick={handleUpdateRestart}
+                                        aria-label={updateLabel}
+                                        title={updateLabel}
+                                        onClick={handleUpdate}
                                         className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-palette-blue text-white transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                                     >
                                         <Download size={20} aria-hidden="true" />
@@ -395,10 +401,10 @@ const AppShell = () => {
                     </div>
                 )}
 
-                {state.status === 'ready' && roastPhase !== 'standby' && (
+                {hasUpdate && roastPhase !== 'standby' && (
                     <button
                         type="button"
-                        onClick={handleUpdateRestart}
+                        onClick={handleUpdate}
                         style={{
                             position: 'fixed',
                             bottom: 24,
@@ -415,7 +421,7 @@ const AppShell = () => {
                             boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
                         }}
                     >
-                        {t('updater.ready', { version: state.version })}
+                        {updateLabel}
                     </button>
                 )}
 

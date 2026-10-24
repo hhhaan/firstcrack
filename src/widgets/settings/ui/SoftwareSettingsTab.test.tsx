@@ -102,8 +102,12 @@ describe('SoftwareSettingsTab updates', () => {
         expect(container.querySelector('button')?.textContent).toBe('settings.tabs.software.check');
     });
 
-    it.each(['preheating', 'standby', 'roasting', 'ended'])('asks to finish %s before restarting', (phase) => {
-        updater.state = { status: 'ready', version: '1.4.0', progress: 100, error: null };
+    it.each(
+        ['preheating', 'standby', 'roasting', 'ended'].flatMap((phase) =>
+            (['available', 'ready'] satisfies UpdateState['status'][]).map((status) => ({ phase, status })),
+        ),
+    )('blocks $status updates during $phase', ({ phase, status }) => {
+        updater.state = { status, version: '1.4.0', progress: 100, error: null };
         updater.phase = phase;
         render();
 
@@ -116,12 +120,16 @@ describe('SoftwareSettingsTab updates', () => {
             }),
         ]);
         expect(updater.applyAndRelaunch).not.toHaveBeenCalled();
+        expect(updater.checkAndDownload).not.toHaveBeenCalled();
 
         updater.phase = 'idle';
         render();
-        expect(container.querySelector('button')?.textContent).toBe('updater.restart');
+        expect(container.querySelector('button')?.textContent).toBe(
+            status === 'ready' ? 'updater.restart' : 'updater.update',
+        );
         act(() => container.querySelector('button')?.click());
-        expect(updater.applyAndRelaunch).toHaveBeenCalledOnce();
+        expect(status === 'ready' ? updater.applyAndRelaunch : updater.checkAndDownload).toHaveBeenCalledOnce();
+        expect(status === 'ready' ? updater.checkAndDownload : updater.applyAndRelaunch).not.toHaveBeenCalled();
     });
 
     it('shows checking and disables the button while a check is in flight', () => {

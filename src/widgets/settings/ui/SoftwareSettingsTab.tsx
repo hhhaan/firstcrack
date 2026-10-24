@@ -57,20 +57,20 @@ export const SoftwareSettingsTab = () => {
                         <SurfaceButton
                             disabled={busy}
                             onClick={() => {
+                                if ((restart || available) && !isRoastIdle) {
+                                    useToastStore
+                                        .getState()
+                                        .show(
+                                            t(
+                                                roastPhase === 'roasting'
+                                                    ? 'updater.finishRoastFirst'
+                                                    : 'updater.disconnectMachineFirst',
+                                            ),
+                                            'info',
+                                        );
+                                    return;
+                                }
                                 if (restart) {
-                                    if (!isRoastIdle) {
-                                        useToastStore
-                                            .getState()
-                                            .show(
-                                                t(
-                                                    roastPhase === 'roasting'
-                                                        ? 'updater.finishRoastFirst'
-                                                        : 'updater.disconnectMachineFirst',
-                                                ),
-                                                'info',
-                                            );
-                                        return;
-                                    }
                                     void applyAndRelaunch();
                                     return;
                                 }

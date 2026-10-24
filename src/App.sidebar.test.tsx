@@ -148,41 +148,44 @@ describe('App sidebar collapse', () => {
         for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
     });
 
-    it.each(['preheating', 'standby', 'roasting', 'ended'])(
-        'keeps the update visible during %s and explains when to restart',
-        async (phase) => {
-            hooks.phase = phase;
-            hooks.updateStatus = 'ready';
-            await act(async () => root.render(createElement(App)));
+    it.each(
+        ['preheating', 'standby', 'roasting', 'ended'].flatMap((phase) =>
+            ['available', 'ready'].map((status) => ({ phase, status })),
+        ),
+    )('blocks $status updates during $phase and permits them when idle', async ({ phase, status }) => {
+        hooks.phase = phase;
+        hooks.updateStatus = status;
+        const label = status === 'ready' ? 'updater.ready' : 'updater.available';
+        await act(async () => root.render(createElement(App)));
 
-            const restartButton = () =>
-                Array.from(container.querySelectorAll('button')).find(
-                    (button) =>
-                        button.textContent === 'updater.ready' || button.getAttribute('aria-label') === 'updater.ready',
-                );
-            expect(restartButton()).toBeDefined();
-            if (phase === 'standby') {
-                expect(container.querySelector('[data-testid="app-sidebar"]')?.contains(restartButton() ?? null)).toBe(
-                    true,
-                );
-                expect(restartButton()?.textContent).toBe('');
-                expect(container.textContent).not.toContain('updater.ready');
-            }
-            act(() => restartButton()?.click());
-            expect(hooks.applyAndRelaunch).not.toHaveBeenCalled();
-            expect(useToastStore.getState().toasts).toEqual([
-                expect.objectContaining({
-                    message: phase === 'roasting' ? 'updater.finishRoastFirst' : 'updater.disconnectMachineFirst',
-                    tone: 'info',
-                }),
-            ]);
+        const restartButton = () =>
+            Array.from(container.querySelectorAll('button')).find(
+                (button) => button.textContent === label || button.getAttribute('aria-label') === label,
+            );
+        expect(restartButton()).toBeDefined();
+        if (phase === 'standby') {
+            expect(container.querySelector('[data-testid="app-sidebar"]')?.contains(restartButton() ?? null)).toBe(
+                true,
+            );
+            expect(restartButton()?.textContent).toBe('');
+            expect(container.textContent).not.toContain(label);
+        }
+        act(() => restartButton()?.click());
+        expect(hooks.applyAndRelaunch).not.toHaveBeenCalled();
+        expect(hooks.checkAndDownload).not.toHaveBeenCalled();
+        expect(useToastStore.getState().toasts).toEqual([
+            expect.objectContaining({
+                message: phase === 'roasting' ? 'updater.finishRoastFirst' : 'updater.disconnectMachineFirst',
+                tone: 'info',
+            }),
+        ]);
 
-            hooks.phase = 'idle';
-            await act(async () => root.render(createElement(App)));
-            act(() => restartButton()?.click());
-            expect(hooks.applyAndRelaunch).toHaveBeenCalledOnce();
-        },
-    );
+        hooks.phase = 'idle';
+        await act(async () => root.render(createElement(App)));
+        act(() => restartButton()?.click());
+        expect(status === 'ready' ? hooks.applyAndRelaunch : hooks.checkAndDownload).toHaveBeenCalledOnce();
+        expect(status === 'ready' ? hooks.checkAndDownload : hooks.applyAndRelaunch).not.toHaveBeenCalled();
+    });
 
     it('collapses the sidebar when the roast view opens and keeps a manual expand', async () => {
         await act(async () => {

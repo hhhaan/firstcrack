@@ -9,12 +9,12 @@ export function UpdateCheckerProvider({ children }: { children: ReactNode }) {
     const checker = useUpdateChecker();
 
     useEffect(() => {
-        void checker.checkAndDownload();
+        void checker.checkForUpdate();
         const id = setInterval(() => {
-            void checker.checkAndDownload();
+            void checker.checkForUpdate();
         }, CHECK_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [checker.checkAndDownload]);
+    }, [checker.checkForUpdate]);
 
     return <UpdaterContext.Provider value={checker}>{children}</UpdaterContext.Provider>;
 }

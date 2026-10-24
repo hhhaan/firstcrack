@@ -62,7 +62,7 @@ describe('UpdateCheckerProvider', () => {
         vi.unstubAllEnvs();
     });
 
-    it('checks on startup and downloads automatically after four hours', async () => {
+    it('checks on startup and every four hours without downloading or installing', async () => {
         expect(native.check).toHaveBeenCalledOnce();
         const available = update();
         native.check.mockResolvedValue(available);
@@ -70,10 +70,26 @@ describe('UpdateCheckerProvider', () => {
         await act(async () => vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000));
 
         expect(native.check).toHaveBeenCalledTimes(2);
-        expect(available.downloadAndInstall).toHaveBeenCalledOnce();
-        expect(api().state.status).toBe('ready');
+        expect(available.download).not.toHaveBeenCalled();
+        expect(available.downloadAndInstall).not.toHaveBeenCalled();
+        expect(available.install).not.toHaveBeenCalled();
+        expect(api().state.status).toBe('available');
         await act(async () => vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000));
-        expect(native.check).toHaveBeenCalledTimes(2);
+        expect(native.check).toHaveBeenCalledTimes(3);
+        expect(available.download).not.toHaveBeenCalled();
+        expect(available.install).not.toHaveBeenCalled();
+    });
+
+    it('only announces an available update on startup', async () => {
+        act(() => root.unmount());
+        root = createRoot(container);
+        const available = update();
+        native.check.mockResolvedValue(available);
+        await act(async () => root.render(createElement(UpdateCheckerProvider, null, createElement(Consumer))));
+        expect(api().state.status).toBe('available');
+        expect(available.download).not.toHaveBeenCalled();
+        expect(available.downloadAndInstall).not.toHaveBeenCalled();
+        expect(available.install).not.toHaveBeenCalled();
     });
 
     it.each(['macos', 'windows'])('checks manually and reuses the %s update path', async (os) => {
@@ -90,17 +106,28 @@ describe('UpdateCheckerProvider', () => {
         await act(async () => api().checkAndDownload());
 
         expect(api().state.status).toBe('ready');
-        expect(os === 'windows' ? available.download : available.downloadAndInstall).toHaveBeenCalledOnce();
+        expect(available.download).toHaveBeenCalledOnce();
+        expect(available.downloadAndInstall).not.toHaveBeenCalled();
+        expect(available.install).not.toHaveBeenCalled();
 
         await act(async () => api().applyAndRelaunch());
 
+        expect(available.install).toHaveBeenCalledOnce();
         if (os === 'windows') {
-            expect(available.install).toHaveBeenCalledOnce();
             expect(native.invoke).not.toHaveBeenCalled();
         } else {
             expect(native.invoke).toHaveBeenCalledWith('relaunch_for_update');
-            expect(available.install).not.toHaveBeenCalled();
         }
+    });
+
+    it('does not relaunch when installation fails', async () => {
+        const available = update();
+        available.install.mockRejectedValue(new Error('Installation failed'));
+        native.check.mockResolvedValue(available);
+        await act(async () => api().checkAndDownload());
+        await act(async () => api().applyAndRelaunch());
+        expect(api().state).toMatchObject({ status: 'error', error: 'Installation failed' });
+        expect(native.invoke).not.toHaveBeenCalled();
     });
 
     it('reports the installed version as current when no update exists', async () => {

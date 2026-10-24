@@ -30,9 +30,9 @@ export interface UseUpdateCheckerReturn {
     state: UpdateState;
     /** 버전만 확인한다. 다운로드하지 않는다. */
     checkForUpdate: () => Promise<void>;
-    /** 자동 확인 또는 수동 업데이트 버튼에서 체크 후 다운로드. DEV에서는 건너뛴다. */
+    /** 수동 업데이트 버튼에서 체크 후 다운로드만 한다. DEV에서는 건너뛴다. */
     checkAndDownload: () => Promise<void>;
-    /** 앱 재시작 (업데이트 적용) */
+    /** 다운로드한 업데이트 설치 후 앱 재시작 */
     applyAndRelaunch: () => Promise<void>;
     /** DEV 전용: ready 상태를 강제로 만들어 dialog/UI 미리보기 */
     mockReady: (version: string) => void;
@@ -184,46 +184,29 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
                         return;
                     }
 
-                    // retry: 아래로 fall-through → downloadAndInstall 재시도
+                    // retry: 아래로 fall-through → 다운로드 재시도
                 }
 
-                // 새 버전 발견 — 백그라운드 다운로드 시작
+                // 사용자 요청으로 다운로드 시작 — 설치는 재시작 버튼에서 수행한다.
                 downloadedRef.current = 0;
                 totalRef.current = undefined;
                 statusRef.current = 'downloading';
                 setState({ status: 'downloading', version: update.version, progress: 0, error: null });
 
-                const isWindows = platform() === 'windows';
-                if (isWindows) {
-                    updateRef.current = update;
-                    await update.download((event: DownloadEvent) => {
-                        if (event.event === 'Started') {
-                            totalRef.current = event.data.contentLength;
-                        } else if (event.event === 'Progress') {
-                            downloadedRef.current += event.data.chunkLength;
-                            const total = totalRef.current;
-                            const pct =
-                                total && total > 0
-                                    ? Math.round((downloadedRef.current / total) * 100)
-                                    : Math.min(downloadedRef.current / 1024 / 50, 95);
-                            setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
-                        }
-                    });
-                } else {
-                    await update.downloadAndInstall((event: DownloadEvent) => {
-                        if (event.event === 'Started') {
-                            totalRef.current = event.data.contentLength;
-                        } else if (event.event === 'Progress') {
-                            downloadedRef.current += event.data.chunkLength;
-                            const total = totalRef.current;
-                            const pct =
-                                total && total > 0
-                                    ? Math.round((downloadedRef.current / total) * 100)
-                                    : Math.min(downloadedRef.current / 1024 / 50, 95);
-                            setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
-                        }
-                    });
-                }
+                updateRef.current = update;
+                await update.download((event: DownloadEvent) => {
+                    if (event.event === 'Started') {
+                        totalRef.current = event.data.contentLength;
+                    } else if (event.event === 'Progress') {
+                        downloadedRef.current += event.data.chunkLength;
+                        const total = totalRef.current;
+                        const pct =
+                            total && total > 0
+                                ? Math.round((downloadedRef.current / total) * 100)
+                                : Math.min(downloadedRef.current / 1024 / 50, 95);
+                        setState((prev) => ({ ...prev, progress: Math.min(pct, 99) }));
+                    }
+                });
 
                 versionRef.current = update.version;
                 clearRetryAttempts();
@@ -253,15 +236,10 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
         statusRef.current = 'applying';
         setState((prev) => ({ ...prev, status: 'applying', error: null }));
         try {
-            const isWindows = platform() === 'windows';
-            if (isWindows) {
-                writeLastDownloadedVersion(versionRef.current ?? '');
-                await updateRef.current?.install();
-                // Windows: install() 시점에 앱 강제 종료됨 — 아래 코드는 도달하지 않음
-            } else {
-                writeLastDownloadedVersion(versionRef.current ?? '');
-                await invoke('relaunch_for_update');
-            }
+            writeLastDownloadedVersion(versionRef.current ?? '');
+            await updateRef.current?.install();
+            // Windows는 install()에서 앱을 종료한다.
+            if (platform() !== 'windows') await invoke('relaunch_for_update');
         } catch (error) {
             clearLastDownloadedVersion();
             const msg = error instanceof Error ? error.message : 'updater.relaunchError';
