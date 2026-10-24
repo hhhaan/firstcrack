@@ -93,6 +93,7 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "请断开设备连接后再进行更新。",
         "finishRoastFirst": "请在烘焙结束后进行更新。",
         "update": "更新",
         "checking": "正在检查更新…",

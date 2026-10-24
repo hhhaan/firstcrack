@@ -4,6 +4,7 @@ import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
 import { useToastStore } from '@shared/store/toast';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { Download } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
@@ -80,6 +81,18 @@ const AppShell = () => {
 
     const roastPhase = useRoastingStore((s) => s.phase);
     const isRoastIdle = roastPhase === 'idle';
+    const handleUpdateRestart = () => {
+        if (!isRoastIdle) {
+            useToastStore
+                .getState()
+                .show(
+                    t(roastPhase === 'roasting' ? 'updater.finishRoastFirst' : 'updater.disconnectMachineFirst'),
+                    'info',
+                );
+            return;
+        }
+        void applyAndRelaunch();
+    };
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
     useEffect(() => {
@@ -265,6 +278,19 @@ const AppShell = () => {
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                     {view !== 'settings' && (
                         <Sidebar
+                            footerAction={
+                                state.status === 'ready' && roastPhase === 'standby' ? (
+                                    <button
+                                        type="button"
+                                        aria-label={t('updater.ready', { version: state.version })}
+                                        title={t('updater.ready', { version: state.version })}
+                                        onClick={handleUpdateRestart}
+                                        className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-palette-blue text-white transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                    >
+                                        <Download size={20} aria-hidden="true" />
+                                    </button>
+                                ) : undefined
+                            }
                             activeView={view}
                             onNavigate={setView}
                             collapsed={sidebarCollapsed}
@@ -369,16 +395,10 @@ const AppShell = () => {
                     </div>
                 )}
 
-                {state.status === 'ready' && (
+                {state.status === 'ready' && roastPhase !== 'standby' && (
                     <button
                         type="button"
-                        onClick={() => {
-                            if (!isRoastIdle) {
-                                useToastStore.getState().show(t('updater.finishRoastFirst'), 'info');
-                                return;
-                            }
-                            void applyAndRelaunch();
-                        }}
+                        onClick={handleUpdateRestart}
                         style={{
                             position: 'fixed',
                             bottom: 24,

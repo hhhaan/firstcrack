@@ -93,6 +93,7 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "Please disconnect the machine before applying the update.",
         "finishRoastFirst": "Please finish roasting before applying the update.",
         "update": "Update",
         "checking": "Checking for updates…",

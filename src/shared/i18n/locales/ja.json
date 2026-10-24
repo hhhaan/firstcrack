@@ -93,6 +93,7 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "機器の接続を解除してからアップデートしてください。",
         "finishRoastFirst": "ロースト終了後にアップデートしてください。",
         "update": "アップデート",
         "checking": "アップデートを確認中…",

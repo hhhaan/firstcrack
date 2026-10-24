@@ -34,7 +34,8 @@ export const SoftwareSettingsTab = () => {
     const { t } = useTranslation();
     const version = useAppVersion();
     const { state, checkForUpdate, checkAndDownload, applyAndRelaunch } = useUpdater();
-    const isRoastIdle = useRoastingStore((s) => s.phase === 'idle');
+    const roastPhase = useRoastingStore((s) => s.phase);
+    const isRoastIdle = roastPhase === 'idle';
     const statusText = updateStatusText(t, state);
     const busy = state.status === 'checking' || state.status === 'downloading' || state.status === 'applying';
     const restart = state.status === 'ready';
@@ -58,7 +59,16 @@ export const SoftwareSettingsTab = () => {
                             onClick={() => {
                                 if (restart) {
                                     if (!isRoastIdle) {
-                                        useToastStore.getState().show(t('updater.finishRoastFirst'), 'info');
+                                        useToastStore
+                                            .getState()
+                                            .show(
+                                                t(
+                                                    roastPhase === 'roasting'
+                                                        ? 'updater.finishRoastFirst'
+                                                        : 'updater.disconnectMachineFirst',
+                                                ),
+                                                'info',
+                                            );
                                         return;
                                     }
                                     void applyAndRelaunch();

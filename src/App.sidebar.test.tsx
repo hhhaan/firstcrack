@@ -94,10 +94,19 @@ vi.mock('./views/profiles/Profiles', () => ({ Profiles: () => null }));
 vi.mock('./views/schedule/Schedule', () => ({ Schedule: () => null }));
 vi.mock('./views/settings/Settings', () => ({ Settings: () => null }));
 vi.mock('./widgets/sidebar/ui/Sidebar', () => ({
-    Sidebar: ({ collapsed, onNavigate }: { collapsed: boolean; onNavigate: (view: string) => void }) =>
+    Sidebar: ({
+        collapsed,
+        onNavigate,
+        footerAction,
+    }: {
+        collapsed: boolean;
+        onNavigate: (view: string) => void;
+        footerAction?: ReactNode;
+    }) =>
         createElement(
             'div',
             { 'data-testid': 'app-sidebar', 'data-collapsed': String(collapsed) },
+            footerAction,
             createElement(
                 'button',
                 { type: 'button', 'data-testid': 'nav-roast', onClick: () => onNavigate('roast') },
@@ -148,13 +157,24 @@ describe('App sidebar collapse', () => {
 
             const restartButton = () =>
                 Array.from(container.querySelectorAll('button')).find(
-                    (button) => button.textContent === 'updater.ready',
+                    (button) =>
+                        button.textContent === 'updater.ready' || button.getAttribute('aria-label') === 'updater.ready',
                 );
             expect(restartButton()).toBeDefined();
+            if (phase === 'standby') {
+                expect(container.querySelector('[data-testid="app-sidebar"]')?.contains(restartButton() ?? null)).toBe(
+                    true,
+                );
+                expect(restartButton()?.textContent).toBe('');
+                expect(container.textContent).not.toContain('updater.ready');
+            }
             act(() => restartButton()?.click());
             expect(hooks.applyAndRelaunch).not.toHaveBeenCalled();
             expect(useToastStore.getState().toasts).toEqual([
-                expect.objectContaining({ message: 'updater.finishRoastFirst', tone: 'info' }),
+                expect.objectContaining({
+                    message: phase === 'roasting' ? 'updater.finishRoastFirst' : 'updater.disconnectMachineFirst',
+                    tone: 'info',
+                }),
             ]);
 
             hooks.phase = 'idle';

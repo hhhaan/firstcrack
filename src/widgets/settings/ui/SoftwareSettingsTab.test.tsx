@@ -110,7 +110,10 @@ describe('SoftwareSettingsTab updates', () => {
         expect(container.querySelector('button')?.disabled).toBe(false);
         act(() => container.querySelector('button')?.click());
         expect(useToastStore.getState().toasts).toEqual([
-            expect.objectContaining({ message: 'updater.finishRoastFirst', tone: 'info' }),
+            expect.objectContaining({
+                message: phase === 'roasting' ? 'updater.finishRoastFirst' : 'updater.disconnectMachineFirst',
+                tone: 'info',
+            }),
         ]);
         expect(updater.applyAndRelaunch).not.toHaveBeenCalled();
 

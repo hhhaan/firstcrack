@@ -93,6 +93,7 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "장비 연결을 해제한 후 업데이트를 진행해 주세요.",
         "finishRoastFirst": "로스팅 종료 후 업데이트를 진행해 주세요.",
         "update": "업데이트",
         "checking": "업데이트 확인 중…",
