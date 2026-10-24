@@ -1123,6 +1123,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
 
     return (
         <div
+            data-app-context-menu
             data-tour="active-roast-chart"
             style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}
         >

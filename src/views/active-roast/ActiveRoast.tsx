@@ -61,12 +61,10 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ask } from '@tauri-apps/plugin-dialog';
 import { type HistoryReference, HistoryReferencePicker } from '@widgets/history-reference/ui/HistoryReferencePicker';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -141,10 +139,6 @@ const chartOnlyPreheatBootMs = Date.now();
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     const { t } = useTranslation();
-    const tRef = useRef(t);
-    useEffect(() => {
-        tRef.current = t;
-    }, [t]);
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -270,19 +264,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
 
     // ── UI 상태 ───────────────────────────────────────────────────
-    // 진행 중은 phase === 'roasting'. 화면 로컬 boolean을 두지 않는다.
-    const isRunning = phase === 'roasting';
-    const isRunningRef = useRef(isRunning);
-    useEffect(() => {
-        isRunningRef.current = isRunning;
-    }, [isRunning]);
-
-    // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
-    const hasUnsavedRoastRef = useRef(false);
-    useEffect(() => {
-        hasUnsavedRoastRef.current = isRunning || phase === 'ended' || awaitingNextCharge;
-    }, [isRunning, phase, awaitingNextCharge]);
-
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
@@ -744,72 +725,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }),
         [setLogEntries, chart.setZoomRange, chart.setHoveredChartIndex],
     );
-
-    // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
-    useEffect(() => {
-        if (!('__TAURI_INTERNALS__' in window)) return;
-        const win = getCurrentWindow();
-        let unlisten: (() => void) | undefined;
-        let active = true;
-        let prompting = false;
-        void win
-            .onCloseRequested(async (e) => {
-                if (!hasUnsavedRoastRef.current) return;
-                // 다이얼로그가 떠 있는 동안의 재진입은 닫지 않는다.
-                if (prompting) {
-                    e.preventDefault();
-                    return;
-                }
-                prompting = true;
-                try {
-                    const running = isRunningRef.current;
-                    const translate = tRef.current;
-                    const ok = await ask(
-                        running
-                            ? translate('activeRoast.dialogs.roastInProgressMsg')
-                            : translate('activeRoast.dialogs.unsavedCloseMsg'),
-                        {
-                            title: translate('activeRoast.dialogs.roastInProgressTitle'),
-                            kind: 'warning',
-                            okLabel: translate('activeRoast.dialogs.end'),
-                            cancelLabel: translate('activeRoast.dialogs.cancel'),
-                        },
-                    );
-                    if (!ok) {
-                        e.preventDefault();
-                        return;
-                    }
-                    const sid = useRoastingStore.getState().sessionId;
-                    if (sid) {
-                        try {
-                            await flushTsv(sid);
-                        } catch (err) {
-                            logger.capture(err, { scope: 'activeRoast.flushOnClose' });
-                            // flush failure must not block window close
-                        }
-                    }
-                    // 확인이면 preventDefault 하지 않는다. Tauri 2는 JS 리스너가 있으면
-                    // 네이티브 close를 이미 취소하고, preventDefault가 없을 때만 destroy() 한다.
-                    // close()+unlisten()은 리스너만 지워서 이후 빨간 버튼/Cmd+W가 무시된다.
-                } catch (err) {
-                    e.preventDefault();
-                    logger.capture(err, { scope: 'activeRoast.closePrompt' });
-                } finally {
-                    prompting = false;
-                }
-            })
-            .then((fn) => {
-                if (active) {
-                    unlisten = fn;
-                } else {
-                    fn();
-                }
-            });
-        return () => {
-            active = false;
-            unlisten?.();
-        };
-    }, []);
 
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {

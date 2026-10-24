@@ -229,7 +229,9 @@ describe('RoastSidePanel live readings (#358)', () => {
         const onMarkEvent = vi.fn();
         const onCycleFc = vi.fn();
         try {
-            updateRoastSettings({ eventButtons: { custom: [{ id: 'aroma', name: 'Aroma', enabled: true }] } });
+            updateRoastSettings({
+                eventButtons: { ...previous, custom: [{ id: 'aroma', name: 'Aroma', enabled: true }] },
+            });
             renderPanel({
                 reviewing: true,
                 phase: 'standby',

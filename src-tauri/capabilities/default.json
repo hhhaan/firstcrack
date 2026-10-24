@@ -20,8 +20,6 @@
     "dialog:allow-confirm",
     "dialog:allow-save",
     "updater:default",
-    "process:allow-exit",
-    "process:allow-restart",
     "fs:allow-applocaldata-read-recursive",
     "fs:allow-applocaldata-write-recursive",
     "fs:allow-read-text-file",
