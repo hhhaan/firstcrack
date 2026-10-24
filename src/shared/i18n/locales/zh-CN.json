@@ -93,9 +93,14 @@
         }
     },
     "updater": {
+        "update": "更新",
         "checking": "正在检查更新…",
         "downloading": "正在下载更新…",
+        "downloadingProgress": "正在下载更新… {{progress}}%",
         "ready": "更新已就绪 (v{{version}}) · 重启",
+        "restart": "重启",
+        "upToDate": "已是最新版本",
+        "available": "有新版本 (v{{version}})",
         "applying": "正在重新启动…",
         "checkError": "检查更新时出错。",
         "relaunchError": "重启失败。",
@@ -664,7 +669,8 @@
                 "title": "软件信息",
                 "description": "查看当前应用版本和软件详细信息。",
                 "version": "应用版本",
-                "versionDescription": "当前安装的应用版本。"
+                "versionDescription": "当前安装的应用版本。",
+                "check": "检查更新"
             },
             "feedback": {
                 "label": "反馈",

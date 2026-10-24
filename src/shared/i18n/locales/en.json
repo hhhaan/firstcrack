@@ -93,9 +93,14 @@
         }
     },
     "updater": {
-        "checking": "Checking for update…",
+        "update": "Update",
+        "checking": "Checking for updates…",
         "downloading": "Downloading update…",
+        "downloadingProgress": "Downloading update… {{progress}}%",
         "ready": "Update ready (v{{version}}) · Restart",
+        "restart": "Restart",
+        "upToDate": "You're up to date",
+        "available": "Update available (v{{version}})",
         "applying": "Restarting…",
         "checkError": "An error occurred while checking for updates.",
         "relaunchError": "Failed to restart.",
@@ -664,7 +669,8 @@
                 "title": "Software Info",
                 "description": "View the current app version and software details.",
                 "version": "App Version",
-                "versionDescription": "Currently installed app version."
+                "versionDescription": "Currently installed app version.",
+                "check": "Check for updates"
             },
             "feedback": {
                 "label": "Feedback",

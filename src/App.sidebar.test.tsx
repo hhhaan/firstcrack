@@ -61,7 +61,8 @@ vi.mock('./features/active-roast', () => ({
 vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined }));
 vi.mock('./features/sidecar', () => ({ useSidecarDeadListener: () => ({ isDead: false }) }));
 vi.mock('./features/updater', () => ({
-    useUpdateChecker: () => ({
+    UpdateCheckerProvider: ({ children }: { children: ReactNode }) => children,
+    useUpdater: () => ({
         state: { status: 'idle', version: null, progress: 0, error: null },
         checkAndDownload: hooks.checkAndDownload,
         applyAndRelaunch: hooks.applyAndRelaunch,

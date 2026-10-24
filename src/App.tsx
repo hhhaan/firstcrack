@@ -13,7 +13,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useActiveWorkspace } from './entities/organization';
 import { useSidecarDeadListener } from './features/sidecar';
-import { useUpdateChecker } from './features/updater';
+import { UpdateCheckerProvider, useUpdater } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
 import {
     SHORTCUT_HOTKEY_OPTIONS,
@@ -49,7 +49,13 @@ import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
 const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
-export const App = () => {
+export const App = () => (
+    <UpdateCheckerProvider>
+        <AppShell />
+    </UpdateCheckerProvider>
+);
+
+const AppShell = () => {
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
     const loading = useAuthStore((s) => s.loading);
@@ -67,26 +73,14 @@ export const App = () => {
     // 로그아웃/워크스페이스 미확정 시 초기화되어 다음 사용자에게 새지 않는다.
     useEffect(() => setSentryIdentity(user?.id, workspaceOwnerId), [user?.id, workspaceOwnerId]);
 
-    // Auto-updater: silent background download → system notification
     const { t } = useTranslation();
-    const { state, checkAndDownload, applyAndRelaunch } = useUpdateChecker();
+    const { state, applyAndRelaunch } = useUpdater();
     const { isDead: isSidecarDead } = useSidecarDeadListener();
 
     // 로스팅 진행 중에는 재시작 버튼을 숨긴다 — 즉시 relaunch 시 라이브 세션이 소실되므로.
     // 다운로드는 백그라운드에서 이미 완료되어, 로스팅 종료 후 앱을 다시 열면 자동 반영된다.
     const roastPhase = useRoastingStore((s) => s.phase);
     const isRoastIdle = roastPhase === 'idle';
-
-    useEffect(() => {
-        void checkAndDownload();
-        const id = setInterval(
-            () => {
-                void checkAndDownload();
-            },
-            4 * 60 * 60 * 1000,
-        );
-        return () => clearInterval(id);
-    }, [checkAndDownload]);
 
     // dev mode: Google OAuth 콜백 처리 (PKCE: ?code= / implicit: #access_token=)
     useEffect(() => {
