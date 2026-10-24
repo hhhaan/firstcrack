@@ -39,7 +39,11 @@ import {
 import { dropControlRole, parseControlMarkerLogId } from '@features/active-roast/lib/fan-drum-markers';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
-import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
+import {
+    isReviewDeletableEvent,
+    isReviewEditableEvent,
+    reviewMarkToAdd,
+} from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
@@ -1127,11 +1131,14 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
 
     const handleChartEvent = useCallback(
-        (event: string, timeSec: number) => {
+        (event: string, timeSec: number, enteredTempC?: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (frozen) {
+                if (!reviewMarkToAdd(frozen.logEntries, event, false)) return;
                 const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
-                const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
+                const tempC =
+                    enteredTempC ??
+                    (nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null);
                 frozenLogEdit(appendReviewEntry(frozen.logEntries, event, '', timeSec, tempC, unit));
                 return;
             }
@@ -1534,6 +1541,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     />
 
                     <RoastSidePanel
+                        key={reviewSnapshot?.sessionId ?? 'live'}
                         rawBT={rawBT}
                         rawET={rawET}
                         displayRoR={displayRoR}
@@ -1562,6 +1570,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}
                         onMarkEvent={markEvent}
+                        onAddEvent={handleChartEvent}
                         onCycleFc={cycleFc}
                         onHandleDrop={markDrop}
                         onRemoveLogEntry={removeCurveEntry}
