@@ -35,11 +35,11 @@ const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.reg
 export const RoastHeader = ({
     phase: _phase,
     targetProfileId,
-    selectedBeanId: currentBeanId,
-    selectedBlendId: currentBlendId = null,
+    selectedBeanId,
+    selectedBlendId = null,
     onBlendChange,
     sourceCandidates = [],
-    fallbackBeanName: currentBeanName,
+    fallbackBeanName,
     onTargetProfileChange,
     onBeanChange,
     onOpenRoastSettings,
@@ -66,9 +66,6 @@ export const RoastHeader = ({
     // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
     const review = useRoastingStore(selectReviewSnapshot);
-    const selectedBeanId = review ? review.selection.beanId : currentBeanId;
-    const selectedBlendId = review ? review.selection.blendId : currentBlendId;
-    const fallbackBeanName = review ? review.selection.beanName : currentBeanName;
     const runningIdentity = useRoastingStore((state) => state.activeSelection?.identity);
     const runningSessionId = useRoastingStore((state) => (state.phase === 'roasting' ? state.sessionId : null));
     const editingSessionId = review?.sessionId ?? runningSessionId;
@@ -107,9 +104,9 @@ export const RoastHeader = ({
     const sessionId = useRoastingStore((state) => state.sessionId);
     const [pendingSource, setPendingSource] = useState<{ value: string; sessionId: string | null } | null>(null);
     const canSelectSource =
-        !review &&
         isWorkspaceReady &&
         !!workspaceOwnerId &&
+        (!review || review.sessionOwnerId === workspaceOwnerId) &&
         (!charged || (phase === 'roasting' && sessionOwnerId === workspaceOwnerId));
     const { data: blends = [] } = useBlends(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);

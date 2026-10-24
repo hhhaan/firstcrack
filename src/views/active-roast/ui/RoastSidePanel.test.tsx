@@ -210,7 +210,7 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(onHandleDrop).not.toHaveBeenCalled();
     });
 
-    it('saved-curve review deletes phase marks, end, notes, and custom marks', () => {
+    it('saved-curve review deletes phase marks, notes, and custom marks but protects End', () => {
         renderPanel({
             reviewing: true,
             phase: 'standby',
@@ -229,9 +229,18 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(side.querySelector('[aria-label="Delete yellow"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete note"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete 시바"]')).not.toBeNull();
-        expect(side.querySelector('[aria-label="Delete end"]')).not.toBeNull();
+        expect(side.querySelector('[aria-label="Delete end"]')).toBeNull();
         expect(side.querySelector('[aria-label="Delete charge"]')).toBeNull();
         expect(side.querySelector('[aria-label="Delete drop"]')).toBeNull();
+    });
+
+    it('disables End Roast while reviewing a completed snapshot', () => {
+        const onEndRoast = vi.fn();
+        renderPanel({ reviewing: true, roastEnded: true, onEndRoast });
+        const end = container.querySelector<HTMLButtonElement>('[data-testid="roast-end"]');
+        expect(end?.disabled).toBe(true);
+        act(() => end?.click());
+        expect(onEndRoast).not.toHaveBeenCalled();
     });
 
     it('saved-curve review leaves the yellow button disabled', () => {

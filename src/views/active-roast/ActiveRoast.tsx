@@ -39,7 +39,7 @@ import {
 import { dropControlRole, parseControlMarkerLogId } from '@features/active-roast/lib/fan-drum-markers';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
-import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
+import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
@@ -917,6 +917,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 이벤트 핸들러 ─────────────────────────────────────────────
     const handleEndRoastClick = useCallback(() => {
+        if (selectReviewSnapshot(useRoastingStore.getState())) return;
         if (saveFlow.flow.summaryData) {
             saveFlow.flow.reopenSummary();
             return;
@@ -979,7 +980,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     return;
                 }
                 const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
-                if (!target || target.event === 'Charge' || target.event === 'Drop') return;
+                if (!target || !isReviewEditableEvent(target.event)) return;
                 frozenLogEdit(
                     applyEventMarkerEdit(
                         frozen.logEntries,
@@ -1026,7 +1027,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     return;
                 }
                 const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
-                if (!target || target.event === 'Charge' || target.event === 'Drop') return;
+                if (!target || !isReviewEditableEvent(target.event)) return;
                 frozenLogEdit(
                     applyEventMarkerEdit(frozen.logEntries, logId, patch, frozen.livePoints, unit, frozen.elapsed),
                 );
@@ -1108,7 +1109,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const handleReviewMoveEvent = useCallback(
         (event: string, timeSec: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
-            if (!frozen || event === 'Charge' || event === 'Drop') return;
+            if (!frozen || !isReviewEditableEvent(event)) return;
             const target = frozen.logEntries.find((entry) => entry.event === event && entry.id);
             if (!target?.id) return;
             frozenLogEdit(

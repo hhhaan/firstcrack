@@ -425,11 +425,11 @@ describe('inline running title edits', () => {
         expect(document.querySelector('[role="dialog"]')).toBeNull();
     });
 
-    it('edits the saved snapshot title and locks its source without changing the next batch', async () => {
+    it('edits the saved snapshot title without changing the next batch', async () => {
         updateSession.mockResolvedValue({});
         reviewSaved();
         expect(titleButton()?.textContent).toBe('Saved roast');
-        expect(host.querySelector('select')?.disabled).toBe(true);
+        expect(host.querySelector('select')?.disabled).toBe(false);
         expect(host.querySelector('select')?.value).toBe('bean-2');
         click(titleButton());
         type('  Reviewed roast  ');
@@ -440,6 +440,36 @@ describe('inline running title edits', () => {
         expect(state.completed?.snapshot.selection.beanId).toBe('bean-2');
         expect(state.prepared.beanId).toBe('bean-1');
         expect(state.prepared.beanName).toBe('Next bean');
+    });
+
+    it('selects the next batch bean while keeping the saved snapshot unchanged', () => {
+        reviewSaved();
+        const snapshot = useRoastingStore.getState().completed?.snapshot;
+        act(() =>
+            root.render(
+                createElement(RoastHeader, {
+                    ...props,
+                    selectedBeanId: 'bean-2',
+                    onBeanChange: useRoastingStore.getState().prepareBean,
+                }),
+            ),
+        );
+        const select = host.querySelector('select');
+        expect(select?.disabled).toBe(false);
+        act(() => {
+            if (select) select.value = 'bean-1';
+            select?.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        expect(useRoastingStore.getState().prepared.beanId).toBe('bean-1');
+        expect(useRoastingStore.getState().prepared.beanName).toBe('Colombia Santander');
+        expect(useRoastingStore.getState().completed?.snapshot).toBe(snapshot);
+        act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-1' })));
+        expect(host.querySelector('select')?.value).toBe('bean-1');
+        expect(titleButton()?.textContent).toBe('Saved roast');
+        act(() => {
+            useRoastingStore.getState().startCharge(undefined, 'user-1');
+        });
+        expect(useRoastingStore.getState().activeSelection?.beanId).toBe('bean-1');
     });
 
     it('keeps the saved title and shows an error when the snapshot update fails', async () => {

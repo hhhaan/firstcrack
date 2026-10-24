@@ -429,7 +429,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDrag).toHaveBeenCalledWith('tp', 8);
     });
 
-    it('does not drag Drop on a saved curve', () => {
+    it.each(['Drop', 'End'])('does not drag %s on a saved curve', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDrag = vi.fn();
         act(() => {
@@ -441,7 +441,7 @@ describe('RoastTempChart interactions', () => {
                     xs: [0, 5, 8],
                     eventMarkerStyle: 'line',
                     eventMarkers: [
-                        { logId: 'drop-1', event: 'Drop', timeSec: 5, timeStr: '0:05', temp: '210°C', color: '#888' },
+                        { logId: 'drop-1', event, timeSec: 5, timeStr: '0:05', temp: '210°C', color: '#888' },
                     ],
                     onEventMarkerDrag,
                     onEventMarkerEdit: vi.fn(),
@@ -1147,7 +1147,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDelete).not.toHaveBeenCalled();
     });
 
-    it.each(['FC Start', 'End'])('saved review deletes a %s marker', (event) => {
+    it.each(['FC Start'])('saved review deletes a %s marker', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDelete = vi.fn();
         act(() => {
@@ -1183,7 +1183,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDelete).toHaveBeenCalledWith('mark-1');
     });
 
-    it('saved review does not open Drop for drag or edit', () => {
+    it.each(['Drop', 'End'])('saved review does not open %s for drag or edit', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         act(() => {
             root.render(
@@ -1196,7 +1196,7 @@ describe('RoastTempChart interactions', () => {
                     eventMarkers: [
                         {
                             logId: 'drop-1',
-                            event: 'Drop',
+                            event,
                             timeSec: 5,
                             timeStr: '0:05',
                             temp: '180°C',

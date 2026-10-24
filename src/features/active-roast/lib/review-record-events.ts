@@ -65,14 +65,12 @@ const controlValue = (entry: LogEntry, key: (typeof NOTE_CONTROLS)[number]): str
     return value || undefined;
 };
 
-/** Saved-curve review may remove phase marks, End, heater log rows, notes, and custom names. Charge, the turning point, and Drop stay. */
+export const isReviewEditableEvent = (event: string): boolean =>
+    event !== 'Charge' && event !== 'Drop' && event !== 'End';
+
+/** Saved-curve review may remove phase marks, heater log rows, notes, and custom names. Boundary marks and the turning point stay. */
 export const isReviewDeletableEvent = (event: string): boolean =>
-    event !== 'TP' &&
-    (event === 'Note' ||
-        event === 'End' ||
-        event === 'Heater' ||
-        ADDABLE_MARKS.has(event) ||
-        isCustomRoastEvent(event));
+    event !== 'TP' && (event === 'Note' || event === 'Heater' || ADDABLE_MARKS.has(event) || isCustomRoastEvent(event));
 
 export type ReviewMarkAction = { kind: 'add'; event: string } | { kind: 'remove'; event: string };
 

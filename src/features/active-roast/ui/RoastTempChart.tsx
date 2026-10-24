@@ -25,7 +25,7 @@ import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
-import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
+import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TurningPoint } from '@features/active-roast/lib/turningPoints';
@@ -720,7 +720,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
                 if (marker.reference) return [];
-                if (!marker?.logId || marker.event === 'Charge' || (savedReview && marker.event === 'Drop')) return [];
+                if (
+                    !marker?.logId ||
+                    marker.event === 'Charge' ||
+                    (savedReview && !isReviewEditableEvent(marker.event))
+                )
+                    return [];
                 const x = input.xPx;
                 const anchorY = input.yPx;
                 if (!Number.isFinite(x)) return [];

@@ -1,7 +1,7 @@
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
-import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
+import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
@@ -128,7 +128,7 @@ export const RoastSidePanel = ({
     const marksEnabled = canMark && !reviewing;
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
-    const endDisabled = !charged && !roastEnded;
+    const endDisabled = reviewing || (!charged && !roastEnded);
     const curves = useCurveStyles();
     const eventButtons = useRoastSettings().eventButtons;
     const shortcutBindings = useShortcutStore((state) => state.bindings);
@@ -142,7 +142,7 @@ export const RoastSidePanel = ({
             onRemoveLogEntry={onRemoveLogEntry}
             logEditOptions={logEditOptions}
             deletableEvent={reviewing ? isReviewDeletableEvent : undefined}
-            editableEvent={reviewing ? (event) => event !== 'Charge' && event !== 'Drop' : undefined}
+            editableEvent={reviewing ? isReviewEditableEvent : undefined}
         >
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
