@@ -14,12 +14,14 @@ export const TargetMenu = ({
     profiles,
     targetProfileId,
     historyReferenceName = null,
+    disabled = false,
     onProfileChange,
     onChooseHistory,
 }: {
     profiles: { id: string; name: string }[];
     targetProfileId: string | null;
     historyReferenceName?: string | null;
+    disabled?: boolean;
     onProfileChange: (id: string | null) => void;
     onChooseHistory?: () => void;
 }) => {
@@ -39,12 +41,13 @@ export const TargetMenu = ({
     };
 
     return (
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={!disabled && open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
                 <button
                     type="button"
+                    disabled={disabled}
                     aria-label={t('activeRoast.header.target')}
-                    className="inline-flex max-w-full cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-primary outline-none focus-visible:ring-1 focus-visible:ring-primary/20"
+                    className="inline-flex max-w-full cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-primary outline-none focus-visible:ring-1 focus-visible:ring-primary/20 disabled:cursor-default"
                 >
                     <span className="min-w-0 truncate text-[13px] font-medium tracking-[0.14px]">{label}</span>
                     <ChevronDown size={12} className="shrink-0 text-muted" />

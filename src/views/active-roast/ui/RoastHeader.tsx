@@ -286,6 +286,7 @@ export const RoastHeader = ({
 
                     <span className="text-[13px] text-muted tracking-[0.14px]">{t('activeRoast.header.target')}</span>
                     <TargetMenu
+                        disabled={Boolean(review)}
                         profiles={sortedProfiles.map((profile) => ({ id: profile.id, name: profile.name }))}
                         targetProfileId={targetProfileId}
                         historyReferenceName={historyReferenceName}

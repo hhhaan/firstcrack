@@ -408,6 +408,18 @@ describe('inline running title edits', () => {
         });
     };
 
+    it('locks the profile and history selector when a running batch becomes a snapshot', () => {
+        const target = host.querySelector<HTMLButtonElement>('button[aria-label="activeRoast.header.target"]');
+        expect(target?.disabled).toBe(false);
+        click(target);
+        expect(document.querySelector('[role="dialog"]')).not.toBeNull();
+        reviewSaved();
+        expect(target?.disabled).toBe(true);
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        click(target);
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+    });
+
     it('edits the saved snapshot title and locks its source without changing the next batch', async () => {
         updateSession.mockResolvedValue({});
         reviewSaved();
