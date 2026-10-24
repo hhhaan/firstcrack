@@ -99,12 +99,14 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
             : note?.trim() || event;
         return `${body}|${formatMarkerTime(timeSec)}`;
     }
-    const name =
-        event === 'Note'
-            ? note?.trim() || event
-            : event === 'Heater' && note
-              ? `${event}→${note}`
-              : roastEventLabel(event);
+    let name: string;
+    if (event === 'Note') {
+        name = note?.trim() || event;
+    } else if (event === 'Heater' && note) {
+        name = `${event}→${note}`;
+    } else {
+        name = roastEventLabel(event);
+    }
     const time = formatMarkerTime(timeSec);
     if (event === 'Note' && name.includes('\n')) {
         return `${hasMarkerTemp(temp) ? `${time} | ${temp}` : time}\n${name}`;
@@ -239,8 +241,11 @@ const makeLabelBox = (
     const lines = wrapMarkerLabel(item.text, width, scale).split('\n');
     const maxLines = Math.max(0, Math.floor(canvasHeight / stack));
     // Oversized labels leave room for other marks. The event-details panel retains every value.
-    const visible =
-        lines.length > maxLines ? (maxLines > 0 ? [...lines.slice(0, Math.min(2, maxLines - 1)), '…'] : []) : lines;
+    let visible = lines;
+    if (lines.length > maxLines) {
+        visible = [];
+        if (maxLines > 0) visible = [...lines.slice(0, Math.min(2, maxLines - 1)), '…'];
+    }
     const text = visible.join('\n');
     const height = stack * visible.length;
     textY = item.below
