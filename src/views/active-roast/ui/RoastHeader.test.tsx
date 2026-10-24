@@ -24,13 +24,7 @@ vi.mock('@entities/organization', () => ({
 }));
 
 const profileMutate = vi.hoisted(() => vi.fn());
-const savedTitle = vi.hoisted(() => ({ value: 'Saved roast' }));
-const updateSession = vi.hoisted(() => vi.fn());
 const previewNumbers = vi.hoisted(() => ({ enabled: false }));
-vi.mock('@entities/roast', () => ({
-    useRoastSession: () => ({ data: { batch_name: savedTitle.value } }),
-    useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
-}));
 
 vi.mock('@entities/profile', () => ({
     useProfile: () => ({ data: { default_roast_profile_id: 'prof-1' } }),
@@ -59,7 +53,6 @@ vi.mock('react-i18next', () => ({
 
 afterEach(() => {
     previewNumbers.enabled = false;
-    updateSession.mockReset();
     localStorage.removeItem(DEFAULT_BEAN_KEY);
     useRoastingStore.getState().reset();
     document.body.replaceChildren();
@@ -406,6 +399,7 @@ describe('inline running title edits', () => {
         act(() => {
             const state = useRoastingStore.getState();
             state.abortRoast(200, 'C');
+            state.replaceReviewTitle(sessionId, 'user-1', 'Saved roast');
             state.saveSucceeded('user-1', sessionId);
             state.prepareBean('bean-1', 'Next bean');
         });
@@ -428,24 +422,24 @@ describe('inline running title edits', () => {
         expect(document.querySelector('[role="dialog"]')).toBeNull();
     });
 
-    it('edits only the saved snapshot title while keeping its source locked', async () => {
-        updateSession.mockResolvedValue({});
+    it('shows a saved snapshot title as plain text without an editor or dropdown', () => {
         reviewSaved();
-        expect(titleButton()?.textContent).toBe('Saved roast');
-        expect(host.querySelector('select')?.disabled).toBe(true);
-        expect(host.querySelector('select')?.value).toBe('bean-2');
-        click(titleButton());
-        type('  Reviewed roast  ');
-        await act(async () => press('Enter'));
-        expect(updateSession).toHaveBeenLastCalledWith({ id: sessionId, batch_name: 'Reviewed roast' });
+        expect(host.textContent).toContain('Saved roast');
+        expect(titleButton()).toBeNull();
+        expect(input()).toBeNull();
+        expect(host.querySelector('select')).toBeNull();
+        expect(host.querySelector('.lucide-chevron-down')).toBeNull();
+        const title = [...host.querySelectorAll('span')].find((span) => span.textContent === 'Saved roast');
+        click(title);
+        expect(input()).toBeNull();
         const state = useRoastingStore.getState();
-        expect(state.completed?.snapshot.selection.identity?.title).toBe('Reviewed roast');
+        expect(state.completed?.snapshot.selection.identity?.title).toBe('Saved roast');
         expect(state.completed?.snapshot.selection.beanId).toBe('bean-2');
         expect(state.prepared.beanId).toBe('bean-1');
         expect(state.prepared.beanName).toBe('Next bean');
     });
 
-    it.each(['bean-1', 'blend:blend-1', ''])('rejects snapshot source changes to %s', (value) => {
+    it('hides snapshot source selection and restores running title and source controls on the next Charge', () => {
         reviewSaved();
         const before = useRoastingStore.getState();
         const onBeanChange = vi.fn();
@@ -461,35 +455,19 @@ describe('inline running title edits', () => {
                 }),
             ),
         );
-        const select = host.querySelector('select');
-        expect(select?.disabled).toBe(true);
-        expect(select?.value).toBe('bean-2');
-        act(() => {
-            if (select) select.value = value;
-            select?.dispatchEvent(new Event('change', { bubbles: true }));
-        });
+        expect(host.querySelector('select')).toBeNull();
         expect(onBeanChange).not.toHaveBeenCalled();
         expect(onBlendChange).not.toHaveBeenCalled();
-        expect(updateSession).not.toHaveBeenCalled();
         expect(useRoastingStore.getState().completed).toBe(before.completed);
         expect(useRoastingStore.getState().prepared).toBe(before.prepared);
         expect(localStorage.getItem(DEFAULT_BEAN_KEY)).toBe('bean-2');
-        expect(titleButton()?.textContent).toBe('Saved roast');
+        expect(host.textContent).toContain('Saved roast');
         act(() => {
             useRoastingStore.getState().startCharge(undefined, 'user-1');
         });
         expect(useRoastingStore.getState().activeSelection?.beanId).toBe('bean-1');
-    });
-
-    it('keeps the saved title and shows an error when the snapshot update fails', async () => {
-        updateSession.mockRejectedValueOnce(new Error('offline'));
-        reviewSaved();
-        click(titleButton());
-        type('Failed title');
-        await act(async () => press('Enter'));
-        expect(titleButton()?.textContent).toBe('Saved roast');
-        expect(host.querySelector('[role="alert"]')?.textContent).toBe('history.edit.saveFailed');
-        expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.title).toBe('마라닉');
+        expect(host.querySelector('select')?.disabled).toBe(false);
+        expect(titleButton()).not.toBeNull();
     });
 
     it('does not edit a snapshot belonging to another workspace', () => {
@@ -502,6 +480,6 @@ describe('inline running title edits', () => {
                 });
         });
         expect(titleButton()).toBeNull();
-        expect(host.querySelector('select')?.disabled).toBe(true);
+        expect(host.querySelector('select')).toBeNull();
     });
 });
