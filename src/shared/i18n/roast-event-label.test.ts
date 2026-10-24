@@ -51,7 +51,7 @@ describe('roast event locale labels', () => {
         expect(roastEventLabel('TP')).toBe('터닝 포인트');
         expect(markDropLabel()).toBe('배출');
         expect(roastReadyLabel()).toBe('로스팅 준비');
-        expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('1차크랙|08:00|196.0°C');
+        expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('1차크랙\n08:00\n196.0°C');
         expect(roastEventLabel('Mystery')).toBe('Mystery');
 
         await i18n.changeLanguage('ja');
@@ -65,7 +65,7 @@ describe('roast event locale labels', () => {
         expect(markDropLabel()).toBe('Mark Drop');
 
         await i18n.changeLanguage('en');
-        expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('FC Start|08:00|196.0°C');
+        expect(eventLabelText('FC Start', 480, '196.0°C')).toBe('FC Start\n08:00\n196.0°C');
     });
 
     it('sizes Hangul at one em so the label box matches the canvas glyph', () => {

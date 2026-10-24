@@ -938,11 +938,11 @@ describe('buildRoastChartOption', () => {
         });
         const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 800, height: 420 });
         chart.setOption(full);
-        expect(chart.renderToSVGString()).toContain('TP|02:02');
+        expect(chart.renderToSVGString()).toContain('>TP</text>');
         chart.setOption(zoomed);
-        expect(chart.renderToSVGString()).not.toContain('TP|02:02');
+        expect(chart.renderToSVGString()).not.toContain('>TP</text>');
         chart.setOption(full);
-        expect(chart.renderToSVGString()).toContain('TP|02:02');
+        expect(chart.renderToSVGString()).toContain('>TP</text>');
         chart.dispose();
     });
 

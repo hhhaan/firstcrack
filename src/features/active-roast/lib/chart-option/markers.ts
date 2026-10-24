@@ -109,7 +109,8 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
     if (event === 'Note' && name.includes('\n')) {
         return `${hasMarkerTemp(temp) ? `${time} | ${temp}` : time}\n${name}`;
     }
-    return hasMarkerTemp(temp) ? `${name}|${time}|${temp}` : `${name}|${time}`;
+    const separator = event === 'Note' || event === 'Heater' ? '|' : '\n';
+    return [name, time, ...(hasMarkerTemp(temp) ? [temp] : [])].join(separator);
 };
 
 export const markerLabelDy = (below: boolean, rank = 0, scale = 1) => {

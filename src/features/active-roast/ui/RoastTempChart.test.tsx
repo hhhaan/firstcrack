@@ -303,12 +303,18 @@ describe('RoastTempChart interactions', () => {
             );
             const label = rendered.children.find((child: { type: string }) => child.type === 'text');
             const scale = fontScalePct / 100;
+            expect(label.style.text).toBe('Yellow\n00:05\n185.0°C');
             expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
             expect(label.x).toBe(50 + 4 * scale);
             const point = {
-                clientX: label.x + label.style.text.length * 6 * scale - 1,
+                clientX: label.x + 7 * 6 * scale - 1,
                 clientY: label.y - 14 * scale + 1,
             };
+            for (const row of [0, 1, 2]) {
+                expect(
+                    ref.current?.hitTestMarker({ clientX: label.x + 1, clientY: label.y - (row + 1) * 14 * scale + 1 }),
+                ).toBe(true);
+            }
             expect(ref.current?.hitTestMarker(point)).toBe(true);
             expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
             act(() => expect(ref.current?.openMarkerEdit(point)).toBe(true));
