@@ -86,7 +86,7 @@ describe('SetpointControl interaction-end (#269)', () => {
         });
 
         expect(send).toHaveBeenCalledTimes(1);
-        expect(send).toHaveBeenCalledWith({ heater: 40 });
+        expect(send).toHaveBeenCalledWith({ heater: 40 }, undefined, 'manual', undefined);
         unmount();
     });
 

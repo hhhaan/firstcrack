@@ -8,6 +8,7 @@ import {
     type AutoDropMode,
     createAutoChargeDetector,
     createAutoDropDetector,
+    type RawTemperatureSample,
 } from '../lib/autoCharge';
 import { detectTurningPoints, type TurningPoint } from '../lib/turningPoints';
 import type { PollIntervalMs, TemperatureUnit } from './settings';
@@ -92,7 +93,7 @@ export type AutoDropOnset = { timeSec: number; bt: number };
 export type UseAutoDetectionOptions = {
     /** `bt` is the display EMA. TP/Yellow read `btRaw` only. */
     livePoints: (RawPoint & { bt: number })[];
-    onAutoCharge: (bt: number, chargeTimeMs?: number) => void;
+    onAutoCharge: (bt: number, sample?: RawTemperatureSample) => void;
     onAutoDrop: (onset?: AutoDropOnset) => void;
     onTurningPoint: (tp: TurningPoint) => void;
     autoChargeEnabled: boolean;
@@ -218,7 +219,7 @@ export const useAutoDetection = ({
             const onset = detector.push(sample);
             if (!sample || !onset) return;
             autoChargedRef.current = true;
-            onAutoChargeRef.current(onset.bt, sample.receivedAtMs - (sample.timestamp - onset.timestamp) * 1000);
+            onAutoChargeRef.current(onset.bt, onset);
         });
         return () => {
             unsubscribe();

@@ -26,6 +26,9 @@ import sentry_config
 sentry_config.init()
 
 import logging
+from heater_control_session import CurveError
+from roast_target import TargetValidationError
+
 import math
 import os
 import sys
@@ -34,6 +37,7 @@ from typing import Any
 
 from aiohttp import web
 
+from heater_control_session import ControlUncertain
 import control_guard
 import pid_runner
 from manager import RoasterManager
@@ -173,6 +177,8 @@ async def handle_connect(request: web.Request) -> web.Response:
         return web.json_response({"error": "roaster field required"}, status=400)
     try:
         await manager.connect(roaster_key, body, machine_id)
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     return web.json_response(manager.status())
@@ -180,7 +186,10 @@ async def handle_connect(request: web.Request) -> web.Response:
 
 async def handle_disconnect(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
-    await manager.disconnect()
+    try:
+        await manager.disconnect()
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     return web.json_response(manager.status())
 
 
@@ -195,6 +204,9 @@ async def handle_temperatures(request: web.Request) -> web.Response:
     pid_state = manager.pid_state()
     if pid_state is not None:
         data = {**data, "pid": pid_state}
+    curve = manager._heat.curve_snapshot()
+    if curve is not None:
+        data = {**data, "curve": curve}
     return web.json_response(data)
 
 
@@ -206,14 +218,28 @@ async def handle_standby(request: web.Request) -> web.Response:
 
 async def handle_start(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
-    await manager.start_roast()
-    return web.json_response({"ok": True})
+    try:
+        raw = await request.read()
+        body = await request.json() if raw else None
+        if raw and not isinstance(body, dict):
+            raise CurveError("invalid_request", status=400)
+        return web.json_response(await manager.start_roast(body))
+    except web.HTTPRequestEntityTooLarge:
+        raise
+    except (ValueError, TypeError) as exc:
+        if not isinstance(exc, TargetValidationError):
+            exc = CurveError("invalid_request", status=400)
+        return _pid_error_response(exc, manager, event="start_failed", route="/start")
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="start_failed", route="/start")
 
 
 async def handle_reset(request: web.Request) -> web.Response:
     manager: RoasterManager = request.app["manager"]
     try:
         await manager.reset_roast()
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     except Exception as exc:
         _log.error("reset 실패: %s", exc, exc_info=True)
         body = manager.status()
@@ -258,14 +284,17 @@ async def handle_control(request: web.Request) -> web.Response:
     try:
         # 빈 요청은 연결 여부와 무관하게 no-op — 검증은 쓸 값이 있을 때만 의미가 있다.
         cmd = control_guard.parse_command(body)
+        ownership = control_guard.parse_ownership(body)
         if not cmd:
             return web.json_response({"ok": True, "applied": {}})
         retry_epoch = control_guard.parse_retry_epoch(body)
-        applied = await manager.control(**cmd, retry_epoch=retry_epoch)
+        applied = await manager.control(**cmd, retry_epoch=retry_epoch, **ownership)
     except control_guard.ControlRangeError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     except control_guard.ControlUnavailable as exc:
         return web.json_response({"error": str(exc)}, status=409)
+    except ControlUncertain as exc:
+        return web.json_response({"error": str(exc), "uncertain": True}, status=504)
     except Exception as exc:
         # exc_info=True 먼저 쓰면 LoggingIntegration이 태그 없는 이벤트를 만들고 dedupe가
         # 아래 tagged capture를 삭제한다 (#771).
@@ -273,6 +302,30 @@ async def handle_control(request: web.Request) -> web.Response:
         _log.warning("control 실패 (%s)", type(exc).__name__, exc_info=True)
         return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
     return web.json_response({"ok": True, "applied": applied})
+
+
+async def handle_replay_claim(request: web.Request) -> web.Response:
+    manager = request.app["manager"]
+    try:
+        body = await request.json()
+        ticket = await manager.claim_replay(**control_guard.parse_ticket(body))
+        return web.json_response({"ok": True, "ticket": ticket})
+    except (ValueError, TypeError) as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="control_write_failed", route="replay_claim")
+
+
+async def handle_replay_release(request: web.Request) -> web.Response:
+    manager = request.app["manager"]
+    try:
+        body = await request.json()
+        await manager.release_replay(**control_guard.parse_ticket(body))
+        return web.json_response({"ok": True})
+    except (ValueError, TypeError) as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="control_write_failed", route="replay_release")
 
 
 def _pid_error_response(
@@ -283,6 +336,13 @@ def _pid_error_response(
     route: str,
     once: bool = False,
 ) -> web.Response:
+    if isinstance(exc, CurveError):
+        return web.json_response({"error": str(exc), "code": exc.code}, status=exc.status)
+    if isinstance(exc, TargetValidationError):
+        return web.json_response({"error": str(exc), "code": exc.code, "field": exc.field},
+                                 status=409 if exc.code == "machine_mismatch" else 400)
+    if isinstance(exc, ControlUncertain):
+        return web.json_response({"error": str(exc), "code": "write_uncertain", "uncertain": True}, status=504)
     if isinstance(exc, control_guard.ControlRangeError):
         return web.json_response({"error": str(exc)}, status=400)
     if isinstance(exc, control_guard.ControlUnavailable):
@@ -314,10 +374,16 @@ def _parse_sv(body: Any) -> float:
 async def handle_pid_on(request: web.Request) -> web.Response:
     try:
         body = await request.json()
+    except web.HTTPRequestEntityTooLarge:
+        raise
     except Exception:
         return web.Response(status=400, text="invalid json")
     manager: RoasterManager = request.app["manager"]
     try:
+        if isinstance(body, dict) and body.get("mode") == "curve":
+            return web.json_response(await manager._heat.start_curve(body))
+        if isinstance(body, dict) and body.get("mode") not in (None, "fixed"):
+            raise CurveError("invalid_request", status=400)
         state = await manager.pid_start(_parse_sv(body))
     except Exception as exc:
         return _pid_error_response(exc, manager, event="pid_on_failed", route="/pid/on", once=True)
@@ -325,20 +391,53 @@ async def handle_pid_on(request: web.Request) -> web.Response:
 
 
 async def handle_pid_off(request: web.Request) -> web.Response:
-    # 바디는 선택 — 없으면 hold(현재 화력 유지)
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
-    mode = body.get("mode") if isinstance(body, dict) else None
-    if mode not in (pid_runner.STOP_HOLD, pid_runner.STOP_ZERO, None):
-        return web.json_response({"error": f"알 수 없는 mode: {mode}"}, status=400)
     manager: RoasterManager = request.app["manager"]
     try:
+        body = await request.json() if await request.read() else {}
+    except web.HTTPRequestEntityTooLarge:
+        raise
+    except Exception:
+        return web.json_response({"error": "invalid json", "code": "invalid_request"}, status=400)
+    if not isinstance(body, dict):
+        return web.json_response({"error": "invalid request", "code": "invalid_request"}, status=400)
+    mode = body.get("mode")
+    try:
+        if mode == "curve":
+            return web.json_response(await manager._heat.stop_curve(body))
+        if mode not in (pid_runner.STOP_HOLD, pid_runner.STOP_ZERO, None):
+            raise CurveError("invalid_request", status=400)
         state = await manager.pid_stop(mode or pid_runner.STOP_HOLD)
     except Exception as exc:
         return _pid_error_response(exc, manager, event="pid_request_failed", route="/pid/off", once=True)
-    return web.json_response({"ok": True, "pid": state})
+    return web.json_response({"ok": True, "pid": state, "curve": manager._heat.curve_snapshot(),
+                              "server_time": time.monotonic()})
+
+
+async def handle_pid_renew(request: web.Request) -> web.Response:
+    manager: RoasterManager = request.app["manager"]
+    try:
+        body = await request.json()
+    except web.HTTPRequestEntityTooLarge:
+        raise
+    except Exception:
+        return web.json_response({"error": "invalid json", "code": "invalid_request"}, status=400)
+    try:
+        return web.json_response(manager._heat.renew(body))
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="pid_request_failed", route="/pid/renew")
+
+
+async def handle_pid_receipts(request: web.Request) -> web.Response:
+    manager: RoasterManager = request.app["manager"]
+    try:
+        if set(request.query) - {"charge_id", "after", "limit"}:
+            raise ValueError()
+        return web.json_response(manager._heat.receipts(request.query.get("charge_id", ""),
+                                 int(request.query.get("after", "0")), int(request.query.get("limit", "256"))))
+    except ValueError:
+        return web.json_response({"error": "invalid cursor", "code": "invalid_request"}, status=400)
+    except Exception as exc:
+        return _pid_error_response(exc, manager, event="pid_request_failed", route="/pid/receipts")
 
 
 async def handle_pid_sv(request: web.Request) -> web.Response:
@@ -497,7 +596,7 @@ def create_app() -> web.Application:
     else:
         _log.info("SIDECAR_TOKEN 미설정 — HTTP 토큰 인증 비활성 (dev 모드)")
 
-    app = web.Application(middlewares=middlewares)
+    app = web.Application(middlewares=middlewares, client_max_size=8 * 1024 * 1024)
     app["manager"] = RoasterManager()
 
     async def _start_watchdog(app: web.Application) -> None:
@@ -536,8 +635,12 @@ def create_app() -> web.Application:
     app.router.add_post("/reset", handle_reset)
     app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)
+    app.router.add_post("/control/replay/claim", handle_replay_claim)
+    app.router.add_post("/control/replay/release", handle_replay_release)
     app.router.add_post("/pid/on", handle_pid_on)
     app.router.add_post("/pid/off", handle_pid_off)
+    app.router.add_post("/pid/renew", handle_pid_renew)
+    app.router.add_get("/pid/receipts", handle_pid_receipts)
     app.router.add_post("/pid/sv", handle_pid_sv)
     app.router.add_get("/debug/trace", handle_debug_trace_get)
     app.router.add_post("/debug/trace", handle_debug_trace_post)

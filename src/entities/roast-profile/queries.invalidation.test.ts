@@ -35,7 +35,14 @@ const profile = (overrides: Partial<RoastProfile> = {}): RoastProfile =>
 
 const listRow = (overrides: Partial<RoastProfileWithSource> = {}): RoastProfileWithSource => ({
     ...profile(overrides),
-    source_session: { tsv_path: 'r2/s1.tsv', events: null },
+    source_session: {
+        tsv_path: 'r2/s1.tsv',
+        events: null,
+        machine_id: null,
+        machine_name: null,
+        machine_roaster_key: null,
+        machine_protocol: null,
+    },
     default_bean: null,
     default_blend: null,
     ...overrides,

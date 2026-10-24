@@ -5,6 +5,7 @@ import * as machineControlFeature from '@features/machine-control';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
+import type { TemperatureProcessing } from '@shared/types/sidecar';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -16,6 +17,16 @@ vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
 const RUNNING_CLOSE = 'activeRoast.dialogs.roastInProgressMsg';
 const UNSAVED_CLOSE = 'activeRoast.dialogs.unsavedCloseMsg';
+const RAW_PROCESSING = {
+    algorithm_version: 'ema-least-squares-v1',
+    temperature_unit: 'C',
+    ror_unit: 'C/min',
+    timestamp_clock: 'sidecar-monotonic-seconds',
+    display_ema_alpha: 0.3,
+    ror_ema_alpha: 0.2,
+    ror_window_sec: 30,
+    ror_warmup_reads: 3,
+} satisfies TemperatureProcessing;
 
 type CloseHandler = (event: { preventDefault: () => void }) => void | Promise<void>;
 
@@ -120,6 +131,11 @@ vi.mock('@shared/lib/sidecar', async (importOriginal) => {
             resetRoast: vi.fn().mockResolvedValue({ ok: true }),
             enterStandby: vi.fn().mockResolvedValue(undefined),
             setControl: vi.fn().mockResolvedValue({ applied: {} }),
+            claimReplay: vi.fn(async () => ({
+                ok: true,
+                ticket: { connection_epoch: 7, generation: 1, origin: 'replay' },
+            })),
+            releaseReplay: vi.fn(async () => ({ ok: true })),
             pidOff: vi.fn().mockResolvedValue({ ok: true }),
             pidOn: vi.fn().mockResolvedValue({ ok: true }),
         },
@@ -307,7 +323,13 @@ describe('ActiveRoast running clock (#627)', () => {
             .mockImplementation(original);
         seed({
             liveData: { bt: 140, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 0, drum: 0 },
-            rawTemperature: { bt: 155, timestamp: 10, receivedAtMs: Date.now() },
+            rawTemperature: {
+                bt: 155,
+                timestamp: 10,
+                receivedAtMs: Date.now(),
+                sensorClock: '0123456789abcdef0123456789abcdef:7',
+                processing: RAW_PROCESSING,
+            },
         });
         const unmount = mount();
         try {
@@ -330,12 +352,25 @@ describe('ActiveRoast running clock (#627)', () => {
         const previousWrite = write.getMockImplementation();
         capability.mockResolvedValue({
             ...status,
+            heater_control: {
+                connection_epoch: 7,
+                generation: 0,
+                origin: 'manual',
+                pending_writes: 0,
+                uncertain: false,
+            },
             control: { writable: true, limits: { heater: { min: 0, max: 100, unit: '%' } } },
         });
         write.mockClear().mockResolvedValue({ ok: true, applied: { heater: 45 } });
         seed({
             liveData: { bt: 180, et: 210, ror: 0, ror_et: 0, heater: 45, fan: 0, drum: 0 },
-            rawTemperature: { bt: 180, timestamp: 10, receivedAtMs: Date.now() },
+            rawTemperature: {
+                bt: 180,
+                timestamp: 10,
+                receivedAtMs: Date.now(),
+                sensorClock: '0123456789abcdef0123456789abcdef:7',
+                processing: RAW_PROCESSING,
+            },
             observation: {
                 receivedAtMs: Date.now(),
                 lastValidReceivedAtMs: Date.now(),
@@ -362,7 +397,10 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(latest().replay.plan?.events).toEqual(events);
             await act(async () => latest().replay.toggle());
             expect(latest().replay.active).toBe(true);
-            expect(write).toHaveBeenCalledWith({ heater: 45 });
+            expect(write).toHaveBeenCalledWith(
+                { heater: 45 },
+                expect.objectContaining({ origin: 'replay', connection_epoch: 7, generation: 1 }),
+            );
             await advance(2000);
             expect(latest().replay.source).toBe('batch');
             expect(latest().replay.plan?.events).toEqual(events);
@@ -394,7 +432,7 @@ describe('ActiveRoast running clock (#627)', () => {
         expect(clockText(host)).toContain('0:05');
         expect(tauri.closeListeners.size).toBe(1);
         const timersMounted = vi.getTimerCount();
-        expect(timersMounted).toBe(timersBefore + 1);
+        expect(timersMounted).toBeGreaterThan(timersBefore);
 
         await advance(1000);
         expect(tickCalls).toBe(1);

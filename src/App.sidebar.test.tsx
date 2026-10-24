@@ -108,7 +108,7 @@ import { App } from './App';
 
 declare global {
     interface Window {
-        __FC_E2E__?: { remountRoast?: () => void };
+        __FC_E2E__?: { remountRoast?: () => void; failRoastView?: () => void };
     }
 }
 

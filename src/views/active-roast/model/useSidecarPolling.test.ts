@@ -8,12 +8,28 @@ import { parseTsv } from '@shared/lib/tsv';
 import { writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useToastStore } from '@shared/store/toast';
 import { ErrorBoundary } from '@shared/ui/ErrorBoundary';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ActiveRoastRuntime } from '../ActiveRoastRuntime';
 import { useSidecarPolling } from './useSidecarPolling';
 import hookSrc from './useSidecarPolling.ts?raw';
+
+const processing = {
+    algorithm_version: 'ema-least-squares-v1',
+    temperature_unit: 'C',
+    ror_unit: 'C/min',
+    timestamp_clock: 'sidecar-monotonic-seconds',
+    display_ema_alpha: 0.4,
+    ror_ema_alpha: 0.3,
+    ror_window_sec: 30,
+    ror_warmup_reads: 3,
+} as const;
+const rawProvenance = {
+    sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+    processing,
+};
 
 const mocks = vi.hoisted(() => ({
     enqueueTsvRow: vi.fn(),
@@ -198,13 +214,18 @@ it('continues recording through a screen crash and restores the curve on retry',
         return null;
     };
     const caught = vi.fn();
+    const receiptClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const root = createRoot(document.createElement('div'), { onCaughtError: caught });
     const render = () =>
         root.render(
             createElement(
                 StrictMode,
                 null,
-                createElement(ActiveRoastRuntime, { isActive: true }),
+                createElement(
+                    QueryClientProvider,
+                    { client: receiptClient },
+                    createElement(ActiveRoastRuntime, { isActive: true }),
+                ),
                 createElement(ErrorBoundary, {
                     // biome-ignore lint/correctness/noChildrenProp: createElement requires the class's children prop for type checking.
                     children: createElement(Screen),
@@ -623,12 +644,10 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
                 resolveReading = resolve;
             }),
         );
-        useRoastingStore.setState({
-            phase: 'roasting',
-            sessionId: 'bbp-433',
-            roastStartMs: Date.now() - lagMs,
+        act(() => {
+            useRoastingStore.getState().startCharge(Date.now() - lagMs, undefined, { bt: 210.1, unit: 'C' });
+            root.render(createElement(Probe, { phase: 'roasting' }));
         });
-        act(() => root.render(createElement(Probe, { phase: 'roasting' })));
         expect(livePoints).toEqual([
             {
                 time: 0,
@@ -649,7 +668,7 @@ it.each([0, 3000])('seeds Charge BT at 00:00 before polling resolves (onset lag 
             },
         ]);
         expect(mocks.enqueueTsvRow).toHaveBeenCalledWith(
-            'bbp-433',
+            useRoastingStore.getState().sessionId,
             '0.00\t210.1\t210\t\t80\t40\t60\t\t\t\t\t\t\t\n',
             undefined,
         );
@@ -675,6 +694,7 @@ it('publishes raw sample timestamps separately and clears stale or missing input
         bt: 200,
         bt_raw: 198,
         timestamp: 10,
+        ...rawProvenance,
         stale: false,
         et: 210,
         ror: 5,
@@ -728,7 +748,13 @@ it('serializes polls and clears raw input on HTTP failure, releasing the lock', 
         await flushReady();
         await act(async () => vi.advanceTimersByTimeAsync(1500));
         expect(mocks.getTemperatures).toHaveBeenCalledTimes(1);
-        useRoastingStore.getState().updateRawTemperature({ timestamp: 1, receivedAtMs: Date.now(), bt: 200 });
+        useRoastingStore.getState().updateRawTemperature({
+            timestamp: 1,
+            sensorClock: rawProvenance.sensor_clock,
+            receivedAtMs: Date.now(),
+            bt: 200,
+            processing,
+        });
         await act(async () => rejectRead(new Error('timeout')));
         expect(useRoastingStore.getState().rawTemperature).toBeNull();
         stubTemps();
@@ -754,7 +780,18 @@ it('drops an in-flight response from before sidecar-ready and resumes with fresh
         }),
     );
     const root = renderProbe(500);
-    const reading = { bt: 200, bt_raw: 199, timestamp: 1, et: null, ror: 0, ror_et: 0, heater: 0, fan: 0, drum: 0 };
+    const reading = {
+        bt: 200,
+        bt_raw: 199,
+        timestamp: 1,
+        et: null,
+        ror: 0,
+        ror_et: 0,
+        heater: 0,
+        fan: 0,
+        drum: 0,
+        ...rawProvenance,
+    };
     try {
         await flushReady();
         act(() => ready());
@@ -779,6 +816,7 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
             bt: 200,
             bt_raw: 200 - Math.max(0, i - 4),
             timestamp: i / 2,
+            ...rawProvenance,
             et: null,
             ror: 0,
             ror_et: 0,
@@ -806,9 +844,13 @@ it('publishes automatic Charge after standby work, initializes TSV then seeds ex
         points = polling.livePoints;
         useAutoDetection({
             livePoints: points,
-            onAutoCharge: (bt, time) => {
+            onAutoCharge: (bt, sample) => {
                 chargeBt = bt;
-                useRoastingStore.getState().startCharge(time);
+                useRoastingStore.getState().startCharge(sample?.receivedAtMs, undefined, {
+                    bt,
+                    unit: 'C',
+                    sample,
+                });
             },
             onAutoDrop: () => {},
             onTurningPoint: () => {},
@@ -854,7 +896,275 @@ const reading = (over: Record<string, unknown> = {}) => ({
     heater: 80,
     fan: 40,
     drum: 60,
+    ...rawProvenance,
     ...over,
+});
+
+it('waits for the accepted Charge before archiving from its exact sample origin', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    let payload = reading({ timestamp: 100, bt: 190, bt_raw: 189 });
+    mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
+    useRoastingStore.setState({ phase: 'standby', sidecarConnected: true, sessionId: null, roastStartMs: 0 });
+    const root = createRoot(document.createElement('div'));
+    let points: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
+    const Probe = () => {
+        const phase = useRoastingStore((state) => state.phase);
+        const sessionId = useRoastingStore((state) => state.sessionId);
+        points = useSidecarPolling({
+            isActive: true,
+            phase,
+            pollIntervalMs: 500,
+            enterPreheating: () => {},
+            setConnected: useRoastingStore.getState().setConnected,
+            sessionId,
+            chargeBt: 190,
+        }).livePoints;
+        return null;
+    };
+
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        const sample = {
+            timestamp: 100,
+            sensorClock: rawProvenance.sensor_clock,
+            receivedAtMs: Date.now() - 2_000,
+            bt: 189,
+            processing,
+        };
+        let sessionId = '';
+        await act(async () => {
+            sessionId =
+                useRoastingStore.getState().startCharge(sample.receivedAtMs, undefined, {
+                    bt: sample.bt,
+                    unit: 'C',
+                    sample,
+                    awaitSidecar: true,
+                }) ?? '';
+        });
+        mocks.enqueueTsvRow.mockClear();
+
+        payload = reading({
+            timestamp: 100.5,
+            sensor_clock: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:1',
+            bt: 190,
+            bt_raw: 189,
+        });
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        payload = reading({ timestamp: 101, bt: 190, bt_raw: 189 });
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(points).toEqual([]);
+        expect(mocks.enqueueTsvRow).not.toHaveBeenCalled();
+
+        await act(async () => {
+            useRoastingStore.getState().settleSidecarCharge(
+                sessionId,
+                {
+                    ok: true,
+                    charge: {
+                        session_id: sessionId,
+                        charge_id: 'charge-1',
+                        machine: { machine_id: 'machine-1', roaster_key: 'virtual', protocol: 'virtual' },
+                        sensor_clock: sample.sensorClock,
+                        connection_epoch: 1,
+                        acquired_at: sample.timestamp,
+                        anchor: { sensor_clock: sample.sensorClock, acquired_at: sample.timestamp },
+                        origin_kind: 'sample',
+                        accepted_at: 102,
+                        state: 'open',
+                        closed_reason: null,
+                    },
+                    server_time: 102,
+                    elapsed_sec: 2,
+                },
+                Date.now(),
+            );
+        });
+        expect(points).toEqual([
+            expect.objectContaining({
+                time: 0,
+                bt: 190,
+                btRaw: 189,
+                sensorTimestamp: sample.timestamp,
+                sensorClock: sample.sensorClock,
+                processing,
+            }),
+            expect.objectContaining({
+                time: 1,
+                bt: 190,
+                btRaw: 189,
+                sensorTimestamp: 101,
+                sensorClock: sample.sensorClock,
+                processing,
+            }),
+        ]);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(2);
+
+        payload.timestamp = 102;
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(points.map((point) => point.time)).toEqual([0, 1, 2]);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(3);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('keeps manual-now acquisitions across a pending-request remount and aligns them after acceptance', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const payload = reading({ timestamp: 101, bt: 190, bt_raw: 189 });
+    mocks.getTemperatures.mockImplementation(async () => ({ ...payload }));
+    useRoastingStore.setState({ phase: 'standby', sidecarConnected: true, sessionId: null, roastStartMs: 0 });
+    let points: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
+    const Probe = () => {
+        const phase = useRoastingStore((state) => state.phase);
+        const sessionId = useRoastingStore((state) => state.sessionId);
+        points = useSidecarPolling({
+            isActive: true,
+            phase,
+            pollIntervalMs: 500,
+            enterPreheating: () => {},
+            setConnected: useRoastingStore.getState().setConnected,
+            sessionId,
+            chargeBt: 190,
+        }).livePoints;
+        return null;
+    };
+    let root = createRoot(document.createElement('div'));
+
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        let sessionId = '';
+        await act(async () => {
+            sessionId =
+                useRoastingStore.getState().startCharge(undefined, undefined, {
+                    bt: 190,
+                    unit: 'C',
+                    awaitSidecar: true,
+                }) ?? '';
+        });
+        payload.timestamp = 102;
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(useRoastingStore.getState().unalignedChargePoints?.map((point) => point.sensorTimestamp)).toEqual([
+            101, 102,
+        ]);
+
+        act(() => root.unmount());
+        payload.timestamp = 103;
+        root = createRoot(document.createElement('div'));
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        expect(useRoastingStore.getState().unalignedChargePoints?.map((point) => point.sensorTimestamp)).toEqual([
+            101, 102, 103,
+        ]);
+
+        await act(async () => {
+            useRoastingStore.getState().settleSidecarCharge(
+                sessionId,
+                {
+                    ok: true,
+                    charge: {
+                        session_id: sessionId,
+                        charge_id: 'charge-now',
+                        machine: { machine_id: 'machine-1', roaster_key: 'virtual', protocol: 'virtual' },
+                        sensor_clock: rawProvenance.sensor_clock,
+                        connection_epoch: 1,
+                        acquired_at: 101,
+                        anchor: null,
+                        origin_kind: 'now',
+                        accepted_at: 101,
+                        state: 'open',
+                        closed_reason: null,
+                    },
+                    server_time: 103,
+                    elapsed_sec: 2,
+                },
+                Date.now(),
+            );
+        });
+        expect(points.map((point) => [point.time, point.sensorTimestamp])).toEqual([
+            [0, 101],
+            [1, 102],
+            [2, 103],
+        ]);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(3);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('continues a cancelled Drop archive from the accepted sensor origin after wall time advances', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-20T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const state = useRoastingStore.getState();
+    const sessionId = state.startCharge(Date.now() - 60_000, 'owner', { bt: 190, unit: 'C', awaitSidecar: true }) ?? '';
+    state.settleSidecarCharge(
+        sessionId,
+        {
+            ok: true,
+            charge: {
+                session_id: sessionId,
+                charge_id: 'charge-drop',
+                machine: { machine_id: 'machine-1', roaster_key: 'virtual', protocol: 'virtual' },
+                sensor_clock: rawProvenance.sensor_clock,
+                connection_epoch: 1,
+                acquired_at: 100,
+                anchor: null,
+                origin_kind: 'now',
+                accepted_at: 100,
+                state: 'open',
+                closed_reason: null,
+            },
+            server_time: 160,
+            elapsed_sec: 60,
+        },
+        Date.now(),
+    );
+    useRoastingStore.setState({
+        unalignedChargePoints: null,
+        livePoints: [
+            {
+                ...reading({ timestamp: 160 }),
+                time: 60,
+                label: '1:00',
+                sensorTimestamp: 160,
+                sensorClock: rawProvenance.sensor_clock,
+                processing,
+            },
+        ],
+    });
+    const dropped = state.drop({ rawBT: 190, unit: 'C', replayActive: false });
+    vi.setSystemTime(new Date('2026-09-20T12:02:00Z'));
+    expect(state.cancelDrop(dropped?.sessionId)).not.toBeNull();
+    const payload = reading({ timestamp: 161, bt: 191, bt_raw: 190 });
+    mocks.getTemperatures.mockResolvedValue(payload);
+    let points: ReturnType<typeof useSidecarPolling>['livePoints'] = [];
+    const Probe = () => {
+        const current = useRoastingStore();
+        points = useSidecarPolling({
+            isActive: true,
+            phase: current.phase,
+            pollIntervalMs: 500,
+            enterPreheating: () => {},
+            setConnected: current.setConnected,
+            sessionId: current.sessionId,
+        }).livePoints;
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        expect(useRoastingStore.getState().acceptedCharge?.acquired_at).toBe(100);
+        expect(points.map((point) => point.time)).toEqual([60, 61]);
+    } finally {
+        act(() => root.unmount());
+    }
 });
 
 const startMutablePoll = async () => {

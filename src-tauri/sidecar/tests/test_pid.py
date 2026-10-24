@@ -1,8 +1,13 @@
 """SoftwarePid 순수 계산 테스트 — 시계 없이 now를 직접 넘긴다."""
 
+import math
+import random
+
 import pytest
 
+from adapters.thermal_model import FirstOrderThermalModel
 from pid import PidGains, SoftwarePid
+from roast_target import RawObservation, advance_filter
 
 
 def make_pid(kp=2.0, ki=0.0, kd=0.0, **kw) -> SoftwarePid:
@@ -275,3 +280,112 @@ class TestEngageRelease:
         pid.resume(now=6.0)          # 5초 공백
         pid.update(190.0, 7.0)       # dt = 1초로 재기준
         assert pid.snapshot()["i"] == pytest.approx(before + 10.0)
+
+
+class TestActuatorBounds:
+    def test_requested_output_precedes_actuator_clamp_and_back_calculation(self):
+        pid = make_pid(kp=0, ki=1)
+        pid.set_target(150)
+        pid.engage(0)
+        assert pid.update(100, 1, output_bounds=(0, 10)) == 10
+        assert pid.requested_output == 50
+        assert pid.snapshot()["i"] == 30
+
+    def test_previous_slew_bounds_stop_windup_even_after_window_moves(self):
+        pid = make_pid(kp=0, ki=1)
+        pid.set_target(150)
+        pid.engage(0)
+        pid.update(100, 1, output_bounds=(0, 10))
+        assert pid.update(100, 2, output_bounds=(0, 100)) == 30
+
+    def test_narrow_window_preserves_absolute_integral_band(self):
+        pid = make_pid(kp=0, ki=0)
+        pid.set_target(150)
+        pid.engage(0, seed_output=70)
+        assert pid.update(150, 1, output_bounds=(65, 75)) == 70
+        assert pid.snapshot()["i"] == 70
+
+    def test_bounds_intersect_absolute_limits(self):
+        pid = make_pid(kp=20)
+        pid.set_target(200)
+        pid.engage(0)
+        assert pid.update(100, 1, output_bounds=(-10, 150)) == 100
+
+    @pytest.mark.parametrize("bounds", [(60, 50), (101, 120), (-10, -1), (0, math.inf), (True, 10)])
+    def test_invalid_bounds_reject_before_progression(self, bounds):
+        pid = make_pid()
+        pid.set_target(200)
+        pid.engage(0, seed_output=50)
+        with pytest.raises(ValueError):
+            pid.update(195, 1, output_bounds=bounds)
+        assert pid.update(195, 1) == 50
+
+    def test_omitting_bounds_after_curve_tick_preserves_fixed_integration(self):
+        pid = make_pid(kp=0, ki=1)
+        pid.set_target(150)
+        pid.engage(0)
+        pid.update(100, 1, output_bounds=(0, 10))
+        assert pid.update(100, 2) == 80
+
+
+@pytest.mark.parametrize("gains,noise,delay", [
+    ((4, 0.3, 2), 0, 0), ((4, 0.3, 2), 0.3, 2), ((20, 0.01, 3), 0, 0),
+])
+def test_declared_600_tick_saturation_recovery(gains, noise, delay):
+    """Frozen fsd02-contract fixture; these are synthetic, not physical, limits."""
+    rng = random.Random(216)
+    plant = FirstOrderThermalModel(tau=40, heater_gain=2.4, ambient=25, bt0=150)
+    pid = SoftwarePid(PidGains(*gains))
+    pid.set_target(150)
+    duty = (150 - 25) / 2.4
+    pid.engage(0, seed_output=duty)
+    clock = "a" * 32 + ":1"
+    filtered = advance_filter(None, RawObservation(clock, 0, 0, 150))
+    samples = [150] * (delay + 1)
+    rows = []
+    for t in range(1, 601):
+        samples.append(plant.step(duty, 1) + rng.uniform(-noise, noise))
+        filtered = advance_filter(filtered, RawObservation(clock, t, t, samples[-1 - delay]))
+        target = 250 if 20 <= t < 80 else 150
+        pid.set_target(target)
+        output = pid.update(filtered.value, t, output_bounds=(max(0, duty - 5), min(100, duty + 5)))
+        assert output is not None and math.isfinite(output) and 0 <= output <= 100
+        assert abs(output - duty) <= 5 + 1e-9
+        assert math.isfinite(pid._i_term) and 0 <= pid._i_term <= 100
+        duty = output
+        rows.append((t, target - filtered.value, duty))
+    recovery = next((t - 80 for index, (t, _, _) in enumerate(rows)
+                     if t >= 80 and len(rows[index:index + 30]) == 30
+                     and all(abs(error) <= 5 for _, error, _ in rows[index:index + 30])), None)
+    rmse = math.sqrt(sum(error**2 for _, error, _ in rows[-60:]) / 60)
+    assert max(duty for _, _, duty in rows[20:79]) >= 99.9
+    assert recovery is not None and recovery <= 120
+    assert rmse <= 1
+    print(f"saturation gains={gains} noise={noise} delay={delay} recovery={recovery}s final_rmse={rmse:.6f}C")
+
+
+@pytest.mark.parametrize("noise,delay", [(0, 0), (0.3, 2)])
+def test_600_tick_rising_target_with_noise_and_observation_delay(noise, delay):
+    rng = random.Random(216)
+    plant = FirstOrderThermalModel(bt0=150)
+    pid = make_pid(kp=4, ki=0.3, kd=2)
+    pid.set_target(150)
+    duty = (150 - 25) / 2.4
+    pid.engage(0, seed_output=duty)
+    clock = "a" * 32 + ":1"
+    filtered = advance_filter(None, RawObservation(clock, 0, 0, 150))
+    samples = [150] * (delay + 1)
+    errors = []
+    for t in range(1, 601):
+        samples.append(plant.step(duty, 1) + rng.uniform(-noise, noise))
+        filtered = advance_filter(filtered, RawObservation(clock, t, t, samples[-1 - delay]))
+        target = 150 + t / 10
+        pid.set_target(target)
+        output = pid.update(filtered.value, t, output_bounds=(max(0, duty - 5), min(100, duty + 5)))
+        assert output is not None and math.isfinite(output) and 0 <= output <= 100
+        assert abs(output - duty) <= 5 + 1e-9
+        assert 0 <= pid._i_term <= 100
+        errors.append(target - filtered.value)
+        duty = output
+    assert max(abs(error) for error in errors) <= 5
+    assert math.sqrt(sum(error**2 for error in errors[-60:]) / 60) <= 1

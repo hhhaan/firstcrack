@@ -14,6 +14,7 @@ import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
 import type { MachineControlComposition } from '../model/useMachineControlComposition';
 import { CollapsedControlStatus } from './CollapsedControlStatus';
+import { FsdControlPanel } from './FsdControlPanel';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 import { MachineControlChannels } from './MachineControlChannels';
 import { PidControlPanel } from './PidControlPanel';
@@ -50,7 +51,7 @@ export const MachineControlPanel = ({
     commandsLocked = false,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
-    const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
+    const { machine, pid, replay, fsd, pidActive, changeManual, commitManual } = model;
     const { writable, limits, desired, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
     const [heatEditorOpen, setHeatEditorOpen] = useState(false);
@@ -58,7 +59,8 @@ export const MachineControlPanel = ({
     const shortcutsBlocked = useShortcutStore((state) => state.recording || state.dialogOpen);
 
     const hasChannel = MACHINE_CONTROL_CHANNEL_ROLES.some((role) => limits[role] != null);
-    const panelVisible = isMachineControlPanelShown({ pidActive, entitled, writable, hasChannel });
+    const panelVisible =
+        Boolean(fsd?.available) || isMachineControlPanelShown({ pidActive, entitled, writable, hasChannel });
     useHotkeys(
         shortcutHotkeys(toggleControlKeys),
         (e) => {
@@ -75,7 +77,7 @@ export const MachineControlPanel = ({
 
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에
     // PID가 덮어써서 "슬라이더가 말을 안 듣는" 상태가 된다. 소유권을 명확히 한다.
-    const pidHoldsHeater = pid.engaged;
+    const pidHoldsHeater = pid.engaged || Boolean(fsd?.active || fsd?.busy);
     return (
         <div
             className={
@@ -101,7 +103,7 @@ export const MachineControlPanel = ({
                 >
                     {collapsed ? <ChevronLeft size={14} strokeWidth={2} /> : <ChevronRight size={14} strokeWidth={2} />}
                 </button>
-                {collapsed && <CollapsedControlStatus pidState={pid.state} replay={replay} />}
+                {collapsed && <CollapsedControlStatus pidState={pid.state} replay={replay} fsd={fsd} />}
             </div>
 
             {/* 접혀도 트리 유지 — 표시 전환이 PID/Replay 패널을 언마운트하지 않는다 */}
@@ -110,21 +112,31 @@ export const MachineControlPanel = ({
                     limits={limits}
                     desired={desired}
                     liveData={liveData}
-                    writable={writable && !commandsLocked}
+                    writable={writable && entitled && !commandsLocked}
                     sending={sending}
                     pidHoldsHeater={pidHoldsHeater}
                     replayActive={replay.active}
                     onChange={changeManual}
                     onCommit={commitManual}
                 />
+                {fsd && (
+                    <FsdControlPanel
+                        fsd={fsd}
+                        unit={temperatureUnit}
+                        heaterUnit={limits.heater?.unit ?? '%'}
+                        commandsLocked={commandsLocked}
+                    />
+                )}
                 <ReplayControlPanel
                     replay={replay}
                     unit={temperatureUnit}
                     heaterUnit={limits.heater?.unit ?? '%'}
-                    commandsLocked={commandsLocked}
-                    onEditHeat={commandsLocked ? undefined : () => setHeatEditorOpen(true)}
+                    commandsLocked={
+                        commandsLocked || (!entitled && !replay.active) || Boolean(fsd?.active || fsd?.busy)
+                    }
+                    onEditHeat={commandsLocked || !entitled ? undefined : () => setHeatEditorOpen(true)}
                 />
-                {heatEditorOpen && !commandsLocked && (
+                {heatEditorOpen && !commandsLocked && entitled && (
                     <HeaterEventsEditor
                         mode="batch"
                         events={replay.plan?.events ?? []}
@@ -145,7 +157,9 @@ export const MachineControlPanel = ({
                     />
                 )}
                 {/* PID 진입 UI는 임시 숨김. 이미 작동 중이면 해제·오류 확인은 유지한다. */}
-                {pidActive && <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />}
+                {pidActive && !fsd?.active && (
+                    <PidControlPanel pid={pid} dropBehavior={pidDropBehavior} replayActive={replay.active} />
+                )}
             </div>
         </div>
     );

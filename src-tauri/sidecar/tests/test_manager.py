@@ -9,6 +9,8 @@ import pytest
 
 import config
 from adapters.base import Reading
+from control_guard import ControlUnavailable
+from heater_control_session import PidOperation
 from manager import RoasterManager, _merge_connect_params
 from roaster_registry import ROASTER_REGISTRY
 from tests.conftest import FakeAdapter, make_reading
@@ -160,16 +162,21 @@ class TestStatus:
         order: list[str] = []
 
         class _Pid:
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+            state_name = "running"
+
+            def state(self):
+                return {"state": self.state_name, "error": None}
+            async def stop(self, reason: str = "user", *, mode: str = "hold", write_final=None, force=False) -> None:
                 order.append(f"stop:{reason}:{mode}:connected={manager._connected}")
                 await fake.control(heater=0.0)
 
-        manager._pid = _Pid()
+        manager._heat.runner = _Pid()
+        manager._heat._operation = PidOperation(manager._heat.ticket, manager._heat.runner, "active")
         await manager.disconnect()
 
         assert order == [f"stop:disconnect:{STOP_ZERO}:connected=True"]
         assert fake.control_calls[-1]["heater"] == 0.0
-        assert manager._pid is None
+        assert manager._heat.runner is None
         assert manager.status()["connected"] is False
 
     async def test_disconnect_continues_if_pid_stop_raises(self, manager):
@@ -178,10 +185,11 @@ class TestStatus:
             await manager.connect("virtual", {})
 
         class _Pid:
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+            async def stop(self, reason: str = "user", *, mode: str = "hold", write_final=None, force=False) -> None:
                 raise RuntimeError("adapter gone")
 
-        manager._pid = _Pid()
+        manager._heat.runner = _Pid()
+        manager._heat._operation = PidOperation(manager._heat.ticket, manager._heat.runner, "active")
         await manager.disconnect()
         assert manager.status()["connected"] is False
         assert fake.disconnected is True
@@ -263,7 +271,8 @@ class TestReadTemperatures:
         assert reading["processing"]["display_ema_alpha"] == alpha
         assert reading["processing"]["et_display_ema_alpha"] == 1.0
         # _pv_snapshot reuses the last sample and must retain the original control EMA.
-        pv = await manager._pv_snapshot()
+        with patch("manager.time.monotonic", return_value=11.0):
+            pv = await manager._pv_snapshot()
         assert pv.bt == 198.4
         manager.update_settings({"bt_display_ema_alpha": 0.16})
         expected = round((200.0 - 10.0 * alpha) * 0.84 + 180.0 * 0.16, 1)
@@ -556,7 +565,7 @@ class TestRorAccumulation:
         assert isinstance(ror, float)
 
     async def test_ror_increases_with_rising_temp(self, manager):
-        t0 = time.monotonic()
+        t0 = time.monotonic() - 72
         warmup = make_reading(bt=150.0, ts=t0)
         readings = [make_reading(bt=150.0 + i * 1.0, ts=t0 + i * 6.0) for i in range(1, 12)]
         fake = FakeAdapter(readings=[warmup] + readings)
@@ -612,7 +621,7 @@ class FlakyConnectAdapter:
     async def read(self):
         raise RuntimeError("not used")
 
-    async def control(self, heater=None, fan=None, drum=None) -> None:
+    async def control(self, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None) -> None:
         self.control_calls = getattr(self, "control_calls", [])
         self.control_calls.append({"heater": heater, "fan": fan, "drum": drum})
 
@@ -670,12 +679,17 @@ class TestInfiniteReconnect:
             state_name = "fault"
             stopped: tuple[str, str] | None = None
 
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+            def state(self):
+                return {"state": self.state_name, "error": None}
+
+            async def stop(self, reason: str = "user", *, mode: str = "hold", write_final=None, force=False) -> None:
+                await write_final(0)
                 self.stopped = (reason, mode)
                 self.state_name = "off"
 
         pid = _FaultPid()
-        manager._pid = pid
+        manager._heat.runner = pid
+        manager._heat._operation = PidOperation(manager._heat.ticket, pid, "fault")
         manager._reconnect_task = asyncio.create_task(manager._reconnect_loop())
         await asyncio.wait_for(manager._reconnect_task, timeout=2.0)
 
@@ -1001,7 +1015,7 @@ class TestDisconnectRace:
         class ControlFailsAfterDisconnect:
             connected = True
 
-            async def control(inner, heater=None, fan=None, drum=None):
+            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None):
                 manager._adapter = None
                 raise ConnectionError("cable pulled")
 
@@ -1009,14 +1023,15 @@ class TestDisconnectRace:
         manager._connected = True
         manager._protocol = "virtual"
         manager._merged_params = {"write_map": {"heater": {"min": 0, "max": 100}}}
-        assert await manager.control(heater=50) == {}  # 예외가 새어나오지 않아야 한다
+        with pytest.raises(ConnectionError):
+            await manager.control(heater=50)
 
     async def test_control_success_after_disconnect_does_not_restore_setpoint(self, manager):
         started = asyncio.Event()
         release = asyncio.Event()
 
         class DelayedControl:
-            async def control(inner, heater=None, fan=None, drum=None):
+            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None):
                 started.set()
                 await release.wait()
 
@@ -1030,15 +1045,13 @@ class TestDisconnectRace:
 
         control_task = asyncio.create_task(manager.control(heater=73))
         await started.wait()
-        await manager.disconnect()
-        assert manager.last_applied() == {}
-
-        with patch("manager.make_adapter", return_value=FakeAdapter()):
-            await manager.connect("virtual", {})
-        assert manager.last_applied() == {}
-
+        disconnect = asyncio.create_task(manager.disconnect())
+        await asyncio.sleep(0)
+        assert not disconnect.done()
         release.set()
-        assert await control_task == {}
+        with pytest.raises(ControlUnavailable):
+            await control_task
+        await disconnect
         assert manager.last_applied() == {}
 
     async def test_control_breadcrumb_has_roaster_protocol_roles_not_values(self, manager):
@@ -1063,7 +1076,7 @@ class TestDisconnectRace:
 
     async def test_control_write_failure_breadcrumb_omits_values(self, manager):
         class Boom:
-            async def control(inner, heater=None, fan=None, drum=None):
+            async def control(inner, heater=None, fan=None, drum=None, *, _is_current=None, _confirm_first=False, _heater_observer=None):
                 raise OSError("PLC unreachable")
 
         manager._adapter = Boom()
@@ -1261,13 +1274,14 @@ class TestHardwareAlertDedupe:
 
     async def test_pid_stop_success_allows_next_incident(self, manager):
         class _Pid:
-            async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+            state_name = "off"
+            async def stop(self, reason: str = "user", *, mode: str = "hold", write_final=None, force=False) -> None:
                 return None
 
             def state(self):
                 return {"state": "off", "error": None}
 
-        manager._pid = _Pid()
+        manager._heat.runner = _Pid()
         manager._hw_alerts_sent.add("pid_request_failed")
         await manager.pid_stop("zero")
         assert "pid_request_failed" not in manager._hw_alerts_sent
@@ -1321,8 +1335,15 @@ class TestSafetyAfterReconnect:
             self.state_name = state
             self.stopped: list[tuple[str, str]] = []
 
-        async def stop(self, reason: str = "user", *, mode: str = "hold") -> None:
+        def state(self):
+            return {"state": self.state_name, "error": None}
+
+        def invalidate(self, error=None):
+            self.state_name = "fault" if error else "off"
+
+        async def stop(self, reason: str = "user", *, mode: str = "hold", write_final=None, force=False) -> None:
             self.stopped.append((reason, mode))
+            await write_final(0)
 
     async def _connected(self, manager):
         fake = FakeAdapter(readings=[make_reading(ts=time.monotonic())])
@@ -1338,7 +1359,7 @@ class TestSafetyAfterReconnect:
     async def test_pid_stopped_keeps_heater(self, manager):
         fake = await self._connected(manager)
         pid = self._Pid("off")
-        manager._pid = pid
+        manager._heat.runner = pid
         await manager._safety_after_reconnect()
         assert fake.control_calls == []
         assert pid.stopped == []
@@ -1346,14 +1367,16 @@ class TestSafetyAfterReconnect:
     async def test_pid_running_is_zeroed(self, manager):
         fake = await self._connected(manager)
         pid = self._Pid("running")
-        manager._pid = pid
+        manager._heat.runner = pid
+        manager._heat._operation = PidOperation(manager._heat.ticket, pid, "active")
         await manager._safety_after_reconnect()
         assert pid.stopped == [("reconnect", "zero")]
         assert fake.control_calls == [{"heater": 0.0, "fan": None, "drum": None}]
 
     async def test_failed_fallback_zero_reports_once_until_a_success(self, manager):
         fake = await self._connected(manager)
-        manager._pid = self._Pid("running")
+        manager._heat.runner = self._Pid("running")
+        manager._heat._operation = PidOperation(manager._heat.ticket, manager._heat.runner, "active")
         manager._last_applied = {"heater": 70.0}
         failure = OSError("write failed")
         fake.control = AsyncMock(side_effect=[failure, failure, None, failure])
@@ -1369,19 +1392,22 @@ class TestSafetyAfterReconnect:
                 assert manager._last_applied == {"heater": 70.0}
             await manager._safety_after_reconnect()
             assert manager._last_applied == {"heater": 0.0}
+            manager._heat._operation = PidOperation(manager._heat.ticket, manager._heat.runner, "active")
             await manager._safety_after_reconnect()
             assert scope.capture_exception.call_count == 2
-        assert fake.control.call_args_list == [call(heater=0.0)] * 4
-        assert manager._pid.stopped == [("reconnect", "zero")] * 4
+        assert [c.kwargs["heater"] for c in fake.control.call_args_list] == [0.0] * 4
+        assert manager._heat.runner.stopped == [("reconnect", "zero")] * 4
         scope.set_tag.assert_any_call("event", "reconnect_safe_off_failed")
 
     async def test_failed_fallback_zero_is_still_swallowed_when_sentry_raises(self, manager):
         fake = await self._connected(manager)
-        manager._pid = self._Pid("running")
+        manager._heat.runner = self._Pid("running")
+        manager._heat._operation = PidOperation(manager._heat.ticket, manager._heat.runner, "active")
         manager._last_applied = {"heater": 70.0}
         fake.control = AsyncMock(side_effect=OSError("write failed"))
         with patch("manager.sentry_sdk.new_scope", side_effect=RuntimeError("Sentry unavailable")):
             await manager._safety_after_reconnect()
-        fake.control.assert_awaited_once_with(heater=0.0)
+        assert fake.control.await_count == 1
+        assert fake.control.call_args.kwargs["heater"] == 0.0
         assert manager._connected
         assert manager._last_applied == {"heater": 70.0}

@@ -131,4 +131,19 @@ describe('usePidControl DROP 자동 해제 (#269)', () => {
         expect(pidOff).not.toHaveBeenCalled();
         hook.unmount();
     });
+    it('never sends fixed PID commands while curve mode owns the heater', async () => {
+        vi.mocked(sidecar.pidOn).mockClear();
+        vi.mocked(sidecar.pidSetSv).mockClear();
+        const hook = await renderPid({ ...base, runtime: runtime('running'), roastFinished: true, curveOwned: true });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(6000);
+            await hook.get().turnOn();
+            await hook.get().turnOff('zero');
+            await hook.get().commitSv(210);
+        });
+        expect(sidecar.pidOn).not.toHaveBeenCalled();
+        expect(sidecar.pidOff).not.toHaveBeenCalled();
+        expect(sidecar.pidSetSv).not.toHaveBeenCalled();
+        hook.unmount();
+    });
 });

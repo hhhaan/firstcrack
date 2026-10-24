@@ -5,8 +5,20 @@ import { logger } from '@shared/lib/logger';
 import { bbpTsvPath } from '@shared/lib/tsv-writer';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import { BaseDirectory, exists } from '@tauri-apps/plugin-fs';
-import { clearPendingRoastSave, type PendingRoastSave, writePendingRoastSave } from '../model/pendingRoastSave';
+import {
+    markReceiptSessionSaved,
+    receiptLogsForSave,
+    recoverPendingReceiptCollection,
+    syncSavedControlReceipts,
+} from '../model/controlReceiptCollector';
+import {
+    clearPendingRoastSave,
+    type PendingRoastSave,
+    readPendingRoastSave,
+    writePendingRoastSave,
+} from '../model/pendingRoastSave';
 import type { SaveRoastParams, SaveRoastResult, SyncRoastCurve } from '../model/save-roast-types';
+import { mergeReceiptLogs } from './control-receipts';
 import { isFixablePlanBatchIdError, isPermanentSaveError } from './saveErrorClassification';
 import type { ResolveForRoastFn } from './startNextFromContinue';
 import { toPlanBatchHandoff } from './toPlanBatchHandoff';
@@ -49,13 +61,24 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
     const { sessionId, userId } = pending.params;
     let saved: RoastSession | null = null;
     const checkpoint = (patch: Partial<PendingRoastSave>) => {
-        pending = { ...pending, ...patch };
+        const next = { ...pending, ...patch };
+        const retained =
+            readPendingRoastSave(userId, sessionId)?.params.logEntries.filter((entry) => entry.controlReceipt) ?? [];
+        pending = {
+            ...next,
+            params: {
+                ...next.params,
+                logEntries: receiptLogsForSave(sessionId ?? '', mergeReceiptLogs(next.params.logEntries, retained)),
+            },
+        };
         writePendingRoastSave(pending);
     };
     const verify = (row: RoastSession | null) => {
         if (row && (row.id !== sessionId || row.user_id !== userId || row.status !== 'completed')) {
             throw attention('Saved session identity or status conflicts with this roast');
         }
+        // A verified commit is durable even if the save response was lost; uploads may still block.
+        if (row && sessionId) markReceiptSessionSaved(sessionId);
         return row;
     };
     // Persist submitted intent before auth, materialization, F3 or any network request.
@@ -63,6 +86,7 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
     try {
         if (!sessionId || !userId || userId !== deps.ownerId) throw attention('Roast owner/session needs confirmation');
         await deps.ensureAccess();
+        recoverPendingReceiptCollection(sessionId, userId, pending.params.logEntries);
         saved = verify(await deps.findSession(sessionId));
         if (pending.legacyBbpUnknown) {
             const recorded =
@@ -143,6 +167,7 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
             if (!saved) throw new Error('Roast save returned no session');
         }
         checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
+        await syncSavedControlReceipts(sessionId);
         const t0 = Date.now();
         // A lost RPC response also skips cache invalidation for unlinked roasts.
         await deps.syncBatch(saved);

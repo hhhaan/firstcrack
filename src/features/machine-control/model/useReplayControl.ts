@@ -1,3 +1,4 @@
+import type { ReplayHeaterTicket } from '@shared/types/sidecar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
@@ -72,10 +73,12 @@ export interface ReplayControlInputs {
     /** Wall-clock for last-valid age. Omit with lastValid to skip long-gap stop in tests. */
     nowMs?: number | null;
     /** 논리 명령 응답(지원 맵은 설정값 읽기 검증 포함). 요청값 불일치·null은 실패, 실측 확인은 별도. */
-    writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
+    writeHeater: (value: number, origin?: ControlOrigin, ticket?: ReplayHeaterTicket) => Promise<number | null>;
     /** Guarded retry: confirm the command first where supported, then resend only if needed. */
-    retryHeater?: (value: number) => Promise<number | null>;
+    retryHeater?: (value: number, ticket?: ReplayHeaterTicket) => Promise<number | null>;
     connectionEpoch?: number;
+    activateOwnership?: () => Promise<ReplayHeaterTicket | false>;
+    releaseOwnership?: () => void;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
      */
@@ -187,6 +190,8 @@ export const useReplayControl = ({
     writeHeater,
     retryHeater,
     connectionEpoch,
+    activateOwnership,
+    releaseOwnership,
     cancelUnsentHeater,
     heaterMax,
     heaterMin,
@@ -289,6 +294,33 @@ export const useReplayControl = ({
      * 덮거나 새 요청의 writing을 풀면 안 된다 (#368 R02).
      */
     const [writing, setWriting] = useState(false);
+    const [ownershipTicket, setOwnershipTicket] = useState<ReplayHeaterTicket | null>(null);
+    useEffect(() => {
+        if (!active || !activateOwnership) return;
+        let cancelled = false;
+        setOwnershipTicket(null);
+        void activateOwnership()
+            .then((accepted) => {
+                if (cancelled) return;
+                if (accepted) setOwnershipTicket(accepted);
+                else {
+                    setActive(false);
+                    setStopReason('writeFailed');
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setActive(false);
+                    setStopReason('writeFailed');
+                }
+            });
+        return () => {
+            cancelled = true;
+            releaseOwnership?.();
+            setOwnershipTicket(null);
+        };
+    }, [active, activateOwnership, releaseOwnership]);
+
     const [deliveryAttempt, setDeliveryAttempt] = useState(0);
     const deliveryController = useRef<AbortController | null>(null);
     const writeGenRef = useRef(0);
@@ -565,6 +597,7 @@ export const useReplayControl = ({
     // 무효인 채 elapsed만 흘러도 낡은 last-good으로 쓰지 않는다. 정상 복귀 후 이
     // effect가 다시 돌면 기존 Level/순서/catch-up이 최신 정상 샘플로 재평가한다.
     useEffect(() => {
+        if (activateOwnership && !ownershipTicket) return;
         if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
         if (observationQuality !== 'valid') return;
         if (writing) return;
@@ -586,8 +619,8 @@ export const useReplayControl = ({
         deliveryController.current = controller;
         void deliverReplayStep({
             target: heater,
-            write: writeHeater,
-            retry: retryHeater,
+            write: ownershipTicket ? (value) => writeHeater(value, 'replay', ownershipTicket) : writeHeater,
+            retry: ownershipTicket && retryHeater ? (value) => retryHeater(value, ownershipTicket) : retryHeater,
             signal: controller.signal,
             onAttempt: setDeliveryAttempt,
         }).then((confirmed) => {
@@ -616,6 +649,8 @@ export const useReplayControl = ({
         observationQuality,
         writeHeater,
         retryHeater,
+        activateOwnership,
+        ownershipTicket,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;

@@ -1,10 +1,13 @@
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { roastProfileQueryRoots } from '@shared/lib/query-keys';
+import { fetchTsvFromR2 } from '@shared/lib/r2';
 import { curveQueryConfig } from '@shared/lib/roast-curve';
 import type { Json, RoastProfile } from '@shared/types/database.types';
+import type { FrozenReference } from '@shared/types/sidecar';
 import { type QueryClient, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { type RoastProfileWithSource, roastProfileApi } from './api';
+import { buildFsdReference, type FsdReferenceReason } from './lib/fsd-reference';
 import { resolveSourceSession } from './lib/resolve-source-session';
 
 export type ProfileCurveSource = 'session' | 'synthetic' | 'none';
@@ -100,6 +103,47 @@ export const useDeleteRoastProfile = (userId: string) => {
 };
 
 export const useRoastProfileCurve = (tsvPath: string | null | undefined) => useQuery(curveQueryConfig(tsvPath));
+
+export const useFsdReference = (
+    profile: RoastProfileWithSource | null,
+): {
+    reference: FrozenReference | null;
+    reason: FsdReferenceReason | null;
+    isLoading: boolean;
+    referenceTpTime?: number;
+} => {
+    const source = resolveSourceSession(profile?.source_session);
+    const tsvPath = source?.tsv_path ?? null;
+    const query = useQuery({
+        queryKey: [
+            ...roastProfileKeys.all(profile?.user_id ?? ''),
+            'fsd-reference',
+            profile?.source_session_id,
+            tsvPath,
+        ],
+        queryFn: () => fetchTsvFromR2(tsvPath ?? ''),
+        enabled: !!profile?.source_session_id && !!tsvPath,
+        staleTime: Infinity,
+        gcTime: Infinity,
+    });
+    return useMemo(() => {
+        if (!profile) return { reference: null, reason: 'no_profile', isLoading: false };
+        if (!profile.source_session_id || !source) {
+            return { reference: null, reason: 'synthetic_source', isLoading: false };
+        }
+        if (!tsvPath) return { reference: null, reason: 'legacy_source', isLoading: false };
+        if (query.isLoading) return { reference: null, reason: null, isLoading: true };
+        if (query.isError || query.data === undefined)
+            return { reference: null, reason: 'download_failed', isLoading: false };
+        const built = buildFsdReference(profile, query.data);
+        return {
+            reference: built.reference,
+            reason: built.reason,
+            isLoading: false,
+            ...(built.reference && { referenceTpTime: built.diagnostics.reference_tp_elapsed_sec }),
+        };
+    }, [profile, query.data, query.isError, query.isLoading, source, tsvPath]);
+};
 
 /** ProfileDetail roast log. History record edits invalidate it via the roast_profiles root. */
 export const useSourceSessionEvents = (sessionId: string | null) =>

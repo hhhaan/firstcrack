@@ -6,6 +6,7 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatSignedElapsed } from '@shared/lib/format';
 import { parseEditTime } from '@shared/lib/time-edit';
 import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
+import { parseControlReceipt } from './control-receipts';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
     tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
@@ -28,6 +29,7 @@ export const serializeRoastEvents = (logEntries: LogEntry[]): StoredRoastEvent[]
                     time_sec: timeSec,
                     temp_c: e.tempC ?? null,
                     note: e.note || null,
+                    ...(e.controlReceipt ? { control_receipt: e.controlReceipt } : {}),
                     ...(e.appliedControl ? { applied_control: e.appliedControl } : {}),
                     ...(e.gas ? { gas: e.gas } : {}),
                     ...(e.airflow ? { airflow: e.airflow } : {}),
@@ -67,7 +69,9 @@ export const parseStoredRoastEvents = (raw: unknown): StoredRoastEvent[] => {
                 if (typeof value === 'number' && Number.isFinite(value)) appliedControl[role] = value;
             }
         }
+        const controlReceipt = parseControlReceipt(o.control_receipt);
         out.push({
+            ...(controlReceipt ? { control_receipt: controlReceipt } : {}),
             id: typeof o.id === 'string' ? o.id : crypto.randomUUID(),
             type,
             time_sec: timeSec,

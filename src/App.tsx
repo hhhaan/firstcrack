@@ -49,6 +49,11 @@ import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
 const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
+const RoastViewFault = ({ active }: { active: boolean }) => {
+    if (active) throw new Error('FSD view fixture failure');
+    return null;
+};
+
 export const App = () => {
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
@@ -116,11 +121,16 @@ export const App = () => {
 
     const [view, setView] = useState<View>('dashboard');
     const [roastMount, setRoastMount] = useState(0);
+    const [roastViewFault, setRoastViewFault] = useState(false);
     useEffect(() => {
         if (import.meta.env.VITE_E2E !== '1' && import.meta.env.VITE_E2E !== 'true') return;
         const bridge = window.__FC_E2E__;
         if (!bridge) return;
-        bridge.remountRoast = () => setRoastMount((n) => n + 1);
+        bridge.remountRoast = () => {
+            setRoastViewFault(false);
+            setRoastMount((n) => n + 1);
+        };
+        bridge.failRoastView = () => setRoastViewFault(true);
     }, []);
     const { collapsed: sidebarCollapsed } = useSidebarPreferences();
     // 로스팅 탭에 들어올 때만 접는다. 탭 안에서 다시 펼치면 그대로 둔다.
@@ -318,6 +328,7 @@ export const App = () => {
                         >
                             <ActiveRoastRuntime isActive={view === 'roast'} />
                             <ViewErrorBoundary>
+                                <RoastViewFault active={roastViewFault} />
                                 <ActiveRoast
                                     key={roastMount}
                                     isActive={view === 'roast'}

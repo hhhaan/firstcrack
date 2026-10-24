@@ -1,14 +1,17 @@
 import type { PidRuntime } from '@entities/machine';
+import type { ReplayHeaterTicket } from '@shared/types/sidecar';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
+import { curveOwnsHeater, type FsdControlInput, useFsdControl } from './useFsdControl';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
 
 export interface MachineControlCompositionInput {
+    fsd?: FsdControlInput;
     sidecarConnected: boolean;
     /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
     reconnecting: boolean;
@@ -73,6 +76,7 @@ export const useMachineControlComposition = ({
     onCommitted,
     onApplied,
     diagnostics,
+    fsd: fsdInput,
 }: MachineControlCompositionInput) => {
     const gasOffDiagnostics = useMemo(() => createGasOffDiagnostics(), []);
     const heaterUnitRef = useRef('%');
@@ -104,20 +108,15 @@ export const useMachineControlComposition = ({
     }, [machine.limits.heater?.unit]);
 
     // PID lifetime includes DROP safe-off. It stays mounted when the panel is hidden (#269).
-    const pid = usePidControl({
-        sidecarConnected,
-        capability: machine.pidCapability,
-        runtime: pidRuntime,
-        roastFinished,
-        dropBehavior: pidDropBehavior,
-    });
-    const pidActive = (pidRuntime?.state ?? 'off') !== 'off';
+    const curve = machine.connectionStatus?.curve;
+    const curveOwned = curveOwnsHeater(curve);
+    const pidActive = (pidRuntime?.state ?? 'off') !== 'off' || curveOwned;
 
     // Replay writes only through setValue + commitNow. A drag preview is not a send.
     const writeHeater = useCallback(
-        async (value: number, origin: ControlOrigin = 'replay') => {
+        async (value: number, origin: ControlOrigin = 'replay', ticket?: ReplayHeaterTicket) => {
             machine.setValue('heater', value);
-            const applied = await machine.commitNow(origin);
+            const applied = await machine.commitNow(origin, undefined, ticket);
             return applied?.heater ?? null;
         },
         [machine.setValue, machine.commitNow],
@@ -127,10 +126,10 @@ export const useMachineControlComposition = ({
     }, [machine.commitNow]);
     const retryEpoch = machine.connectionStatus?.connection_epoch;
     const retryHeater = useCallback(
-        async (value: number) => {
+        async (value: number, ticket?: ReplayHeaterTicket) => {
             if (retryEpoch == null) return null;
             machine.setValue('heater', value);
-            return (await machine.commitNow('replay', { connectionEpoch: retryEpoch }))?.heater ?? null;
+            return (await machine.commitNow('replay', { connectionEpoch: retryEpoch }, ticket))?.heater ?? null;
         },
         [retryEpoch, machine.setValue, machine.commitNow],
     );
@@ -159,22 +158,45 @@ export const useMachineControlComposition = ({
         writeHeater,
         retryHeater: retryEpoch == null ? undefined : retryHeater,
         connectionEpoch: retryEpoch,
+        activateOwnership: machine.activateReplay,
+        releaseOwnership: machine.releaseReplay,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,
         heaterMin: machine.limits.heater?.min,
         heaterStep: numericHeaterStep((machine.limits.heater as { step?: unknown } | undefined)?.step),
     });
 
+    const fsd = useFsdControl({
+        input: fsdInput,
+        status: machine.connectionStatus,
+        healthy: machine.statusHealthy && sidecarConnected && !reconnecting,
+        fixedActive: !curveOwned && pidActive,
+        replayActive: replay.active,
+        roastFinished,
+    });
+
+    const pid = usePidControl({
+        curveOwned: curveOwned || fsd.active || fsd.busy,
+        sidecarConnected,
+        capability: machine.pidCapability,
+        runtime: pidRuntime,
+        roastFinished,
+        dropBehavior: pidDropBehavior,
+    });
+
     // Manual heater edits stop Replay. Replay's own setValue must not stop itself.
     const changeManual = useCallback(
         (role: ControlRole, value: number) => {
-            if (role === 'heater') replay.stop();
+            if (role === 'heater') {
+                if (fsd.active || fsd.busy) return;
+                replay.stop();
+            }
             machine.setValue(role, value);
         },
-        [replay.stop, machine.setValue],
+        [replay.stop, machine.setValue, fsd.active, fsd.busy],
     );
 
-    return { machine, pid, replay, pidActive, changeManual, commitManual };
+    return { machine, pid, replay, fsd, pidActive, changeManual, commitManual };
 };
 
 export type MachineControlComposition = ReturnType<typeof useMachineControlComposition>;

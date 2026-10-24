@@ -7,6 +7,7 @@ import { startSelectedContinueBatch } from '@features/active-roast/lib/startNext
 import { toPlanBatchHandoff } from '@features/active-roast/lib/toPlanBatchHandoff';
 import { type CompletedRoastSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { discardReceiptSession } from '@features/active-roast/model/controlReceiptCollector';
 import {
     clearPendingRoastSave,
     createPendingRoastSave,
@@ -137,6 +138,31 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const epoch = flowEpoch.current;
             try {
                 const frozen = flow.summaryData;
+                const recordingPending = () => {
+                    const completed = useRoastingStore.getState().completed;
+                    const recording = completed?.snapshot;
+                    return (
+                        Boolean(completed?.summary) &&
+                        !completed?.submitted &&
+                        recording?.sessionId === frozen?.sessionId &&
+                        (recording?.chargeRequestPending || Boolean(recording?.unalignedChargePoints?.length))
+                    );
+                };
+                if (recordingPending()) {
+                    await new Promise<void>((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            unsubscribe();
+                            reject(new Error(i18n.t('activeRoast.dialogs.chargeRecordingPending')));
+                        }, 10_000);
+                        const unsubscribe = useRoastingStore.subscribe(() => {
+                            if (recordingPending()) return;
+                            clearTimeout(timeout);
+                            unsubscribe();
+                            resolve();
+                        });
+                    });
+                }
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 const completed = useRoastingStore.getState().completed;
                 if (!frozen?.sessionId || completed?.snapshot.sessionId !== frozen.sessionId || !completed.summary)
                     return;
@@ -268,6 +294,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 }
                 onResetActiveRoast();
             } catch (err) {
+                if (epoch !== flowEpoch.current || flowOwner.current !== workspaceOwnerId) return;
                 logger.capture(err, { context: 'roastSummary save' });
                 const detail = formatRoastSaveError(err);
                 await message(i18n.t('activeRoast.dialogs.saveFailedMsg', { error: detail }), {
@@ -359,6 +386,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
         )
             return;
         clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
+        discardReceiptSession(sessionId);
         flow.discardSummary(summaryOwnerId, sessionId);
     }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
 

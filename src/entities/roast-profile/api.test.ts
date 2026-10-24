@@ -25,7 +25,14 @@ describe('roastProfileCopyInsert', () => {
             machine_roaster_key: null,
             default_bean_id: 'bean',
             default_blend_id: null,
-            source_session: { tsv_path: 'session.tsv', events: null },
+            source_session: {
+                tsv_path: 'session.tsv',
+                events: null,
+                machine_id: 'machine',
+                machine_name: 'Virtual Machine',
+                machine_roaster_key: null,
+                machine_protocol: null,
+            },
             default_bean: { id: 'bean', name: 'Bean' },
             default_blend: null,
         } satisfies RoastProfileWithSource;

@@ -2,6 +2,8 @@ import type { MachineSnapshot } from '@entities/machine';
 import { formatElapsed } from '@shared/lib/format';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
+import type { Charge, TemperatureProcessing } from '@shared/types/sidecar';
+import type { RawTemperatureSample } from '../lib/autoCharge';
 import { automaticBatchTitle, type RoastBatchIdentity } from '../lib/batch-title';
 import { buildDropSummary, type DropOnset, planDropTransition } from '../lib/drop-transition';
 import { formatTemp } from '../lib/temperature';
@@ -30,6 +32,11 @@ export interface LastAdhocSave {
     weightKg: number;
     roastLevel: string | null;
 }
+export type UnalignedRoastPoint = Omit<LiveRoastPoint, 'label' | 'sensorTimestamp' | 'sensorClock' | 'processing'> & {
+    sensorTimestamp: number;
+    sensorClock: string;
+    processing: TemperatureProcessing;
+};
 export interface RoastSummaryData {
     batchName?: string;
     totalTime: string;
@@ -53,6 +60,10 @@ export interface CompletedRoastRestore {
     replayActive: boolean;
     selection: RoastSelection;
     machineSnapshot: MachineSnapshot | null;
+    acceptedCharge: Charge | null;
+    chargeSample: RawTemperatureSample | null;
+    chargeRequestPending: boolean;
+    unalignedChargePoints: UnalignedRoastPoint[] | null;
 }
 export interface CompletedRoastSnapshot {
     sessionId: string;
@@ -65,6 +76,10 @@ export interface CompletedRoastSnapshot {
     logEntries: LogEntry[];
     livePoints: LiveRoastPoint[];
     machineSnapshot: MachineSnapshot | null;
+    acceptedCharge: Charge | null;
+    chargeSample: RawTemperatureSample | null;
+    chargeRequestPending: boolean;
+    unalignedChargePoints: UnalignedRoastPoint[] | null;
 }
 export interface CompletedRoast {
     summary: RoastSummaryData | null;
@@ -78,6 +93,10 @@ export interface BatchState {
     sessionOwnerId: string | null;
     elapsed: number;
     roastStartMs: number;
+    acceptedCharge: Charge | null;
+    chargeSample: RawTemperatureSample | null;
+    chargeRequestPending: boolean;
+    unalignedChargePoints: UnalignedRoastPoint[] | null;
     logState: { entries: LogEntry[]; unwind: boolean };
     livePoints: LiveRoastPoint[];
     machineSnapshot: MachineSnapshot | null;
@@ -139,6 +158,23 @@ const copySelection = (selection: RoastSelection): RoastSelection =>
         planBatchHandoff: selection.planBatchHandoff,
         ...(selection.identity && { identity: selection.identity }),
     });
+const retainChargePoints = (
+    points: LiveRoastPoint[],
+    sample: RawTemperatureSample | undefined,
+): UnalignedRoastPoint[] => {
+    if (!sample) return [];
+    return points.flatMap(({ time: _time, label: _label, sensorTimestamp, sensorClock, processing, ...point }) =>
+        typeof sensorTimestamp === 'number' &&
+        Number.isFinite(sensorTimestamp) &&
+        sensorTimestamp >= sample.timestamp &&
+        sensorClock === sample.sensorClock &&
+        processing &&
+        typeof point.btRaw === 'number' &&
+        Number.isFinite(point.btRaw)
+            ? [{ ...point, time: sensorTimestamp - sample.timestamp, sensorTimestamp, sensorClock, processing }]
+            : [],
+    );
+};
 const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: number | null): CompletedRoastSnapshot => ({
     sessionId: summary.sessionId ?? state.sessionId ?? crypto.randomUUID(),
     curveRecorded: Boolean(summary.sessionId || state.sessionId),
@@ -156,6 +192,10 @@ const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: numb
     logEntries: structuredClone(summary.logEntries),
     livePoints: structuredClone(state.livePoints),
     machineSnapshot: structuredClone(state.machineSnapshot),
+    acceptedCharge: structuredClone(state.acceptedCharge),
+    chargeSample: structuredClone(state.chargeSample),
+    chargeRequestPending: state.chargeRequestPending,
+    unalignedChargePoints: structuredClone(state.unalignedChargePoints),
 });
 const summaryForSnapshot = (summary: RoastSummaryData, snapshot: CompletedRoastSnapshot): RoastSummaryData => ({
     ...summary,
@@ -382,7 +422,16 @@ export const createBatchActions = (
         identity.title = title.trim().slice(0, 120) || automaticBatchTitle(identity);
         set({ activeSelection: { ...selection, identity } });
     },
-    startCharge: (originMs?: number, ownerId?: string, charge?: { bt: number | null; unit: TemperatureUnit }) => {
+    startCharge: (
+        originMs?: number,
+        ownerId?: string,
+        charge?: {
+            bt: number | null;
+            unit: TemperatureUnit;
+            sample?: RawTemperatureSample;
+            awaitSidecar?: boolean;
+        },
+    ) => {
         const state = get();
         if (isChargedPhase(state.phase)) return null;
         const now = Date.now();
@@ -394,6 +443,10 @@ export const createBatchActions = (
             sessionId,
             sessionOwnerId: ownerId || null,
             roastStartMs: origin,
+            acceptedCharge: null,
+            chargeSample: charge?.sample ?? null,
+            chargeRequestPending: charge?.awaitSidecar ?? false,
+            unalignedChargePoints: retainChargePoints(state.livePoints, charge?.sample),
             elapsed: Math.floor((now - origin) / 1000),
             awaitingNextCharge: false,
             heatHoldAfterDrop: false,
@@ -533,6 +586,10 @@ export const createBatchActions = (
             livePoints: restore.livePoints,
             activeSelection: copySelection(restore.selection),
             machineSnapshot: restore.machineSnapshot,
+            acceptedCharge: restore.acceptedCharge,
+            chargeSample: restore.chargeSample,
+            chargeRequestPending: restore.chargeRequestPending,
+            unalignedChargePoints: restore.unalignedChargePoints,
             completed: null,
         });
         return restore;

@@ -126,8 +126,7 @@ async def test_retry_cannot_override_an_intervening_owner(verified, boundary):
     elif boundary == "connection":
         manager._connection_epoch += 1
     elif boundary == "pid":
-        manager._pid = MagicMock()
-        manager._pid.state.return_value = {"state": "running"}
+        manager._heat.revoke("pid")
     else:
         manager._resetting = True
     sent = plc.db_write.call_count
@@ -143,7 +142,7 @@ async def test_owner_change_during_retry_preflight_prevents_resend(verified):
         await manager.control(heater=0)
 
     def preflight(db, offset, size):
-        manager._heater_command_version += 1
+        manager._heat._command += 1
         return registers[(db, offset)][:size]
 
     plc.db_read.side_effect = preflight
@@ -207,3 +206,26 @@ async def test_old_command_waiting_for_io_lock_cannot_write_to_new_connection(ve
     plc.db_write.assert_not_called()
     adapter._plc.db_write.assert_not_called()
     assert manager.last_applied() == {"heater": 35}
+
+
+async def test_heater_observer_records_write_then_readback_on_event_loop(verified):
+    _, adapter, _, _ = verified
+    facts = []
+    event_thread = threading.get_ident()
+    await adapter.control(heater=35, _heater_observer=lambda evidence, value:
+                          facts.append((evidence, value, threading.get_ident())))
+    assert facts == [("register_written", 35, event_thread), ("register_readback", 35, event_thread)]
+
+
+async def test_heater_observer_survives_later_fan_write_failure(verified):
+    _, adapter, plc, registers = verified
+    adapter._write_map["fan"] = {"db": 2, "offset": 16, "type": 0, "min": 0, "max": 100}
+    facts = []
+    def write(db, offset, payload):
+        if offset == 16:
+            raise OSError("fan write failed")
+        registers[(db, offset)] = bytearray(payload)
+    plc.db_write.side_effect = write
+    with pytest.raises(OSError):
+        await adapter.control(heater=35, fan=20, _heater_observer=lambda *fact: facts.append(fact))
+    assert facts == [("register_written", 35), ("register_readback", 35)]

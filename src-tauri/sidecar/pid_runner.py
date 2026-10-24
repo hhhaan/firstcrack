@@ -19,6 +19,7 @@ FAULT 진입 시 연결이 살아 있으면 heater 0을 시도한다. 해제는 
 """
 
 import logging
+import math
 import time
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
@@ -27,6 +28,7 @@ import sentry_sdk  # init 전/비활성이면 전부 no-op — 주입 없이 그
 
 import config
 from pid import PidGains, SoftwarePid
+from roast_target import CurveConfig, RoastTarget, ControlFilter
 
 _log = logging.getLogger(__name__)
 
@@ -48,6 +50,16 @@ class PvSample:
     ts: float
     stale: bool
     connected: bool
+    sample_id: tuple[str, float] | None = None
+
+
+@dataclass(frozen=True)
+class CurveRuntime:
+    target: RoastTarget
+    config: CurveConfig
+    charge_at: float
+    filtered: Callable[[], ControlFilter | None]
+    terminate: Callable[[str], Awaitable[None]]
 
 
 class PidRunner:
@@ -56,14 +68,25 @@ class PidRunner:
         *,
         read_pv: Callable[[], Awaitable[PvSample]],
         write_duty: Callable[[float], Awaitable[None]],
+        write_final: Callable[[float], Awaitable[None]] | None = None,
+        is_current: Callable[[], bool] = lambda: True,
         read_feedback: Callable[[], Awaitable[float | None]] | None = None,
         gains: PidGains,
         clock: Callable[[], float] = time.monotonic,
+        curve: CurveRuntime | None = None,
         duty_deadband: float = config.PID_DUTY_DEADBAND,
         resend_every_n_ticks: int = config.PID_RESEND_EVERY_N_TICKS,
     ) -> None:
+        self.curve = curve
+        self._last_command_at = 0.0
+        self._last_command = 0.0
         self._read_pv = read_pv
         self._write_duty = write_duty
+        self._write_final = write_final or write_duty
+        self._is_current = is_current
+        self._revision = 0
+        self._sample_id: tuple[str, float] | None = None
+        self._sample_ts: float | None = None
         self._read_feedback = read_feedback
         self._clock = clock
         self._duty_deadband = duty_deadband
@@ -105,7 +128,8 @@ class PidRunner:
 
         FAULT였더라도 사용자가 명시적으로 다시 켜는 것이므로 상태를 초기화한다.
         """
-        now = self._clock()
+        self._revision += 1
+        revision = self._revision
         seed = None
         if self._read_feedback is not None:
             try:
@@ -113,6 +137,11 @@ class PidRunner:
             except Exception as exc:  # 피드백 실패는 치명적이지 않다 — 0에서 시작
                 _log.warning("PID engage: heater 피드백 읽기 실패 — %s", exc)
 
+        if revision != self._revision or not self._is_current():
+            return
+        now = self._clock()
+        self._sample_id = None
+        self._sample_ts = None
         self._pid.reset()
         self._pid.set_target(sv)
         self._pid.engage(now, seed_output=seed)
@@ -124,15 +153,41 @@ class PidRunner:
         self._hold_since = None
         _log.info("PID 시작: SV=%.1f°C seed=%s", sv, seed)
 
-    async def stop(self, reason: str = "user", *, mode: str = STOP_HOLD) -> None:
+    def start_curve(self, seed: float, seed_at: float) -> None:
+        assert self.curve is not None
+        self._revision += 1
+        self._pid.reset()
+        self._pid.set_target(self.curve.target.at(self._clock() - self.curve.charge_at))
+        self._pid.engage(self._clock(), seed_output=seed)
+        self._last_command, self._last_command_at = seed, seed_at
+        self._last_duty = seed
+        self._state = RUNNING
+        self._error = None
+
+    @property
+    def requested_output(self) -> float | None:
+        return self._pid.requested_output if self.curve is not None else self._last_duty
+
+    def invalidate(self, error: str | None = None) -> None:
+        self._revision += 1
+        self._pid.release()
+        self._state = FAULT if error else OFF
+        self._error = error
+
+    async def stop(self, reason: str = "user", *, mode: str = STOP_HOLD,
+                   write_final: Callable[[float], Awaitable[None]] | None = None,
+                   force: bool = False) -> None:
         """제어 중단.
 
         mode=hold: 머신이 보고하는 현재 duty를 세트포인트에 되써서 화력을 유지한다.
           Artisan이 PID를 끌 때 하는 동작과 같다. 연속 배치에서 재승온 시간을 아낀다.
         mode=zero: heater 0.
         """
-        if self._state == OFF:
+        if self._state == OFF and not force:
             return
+        self._revision += 1
+        revision = self._revision
+        finalize = write_final or self._write_final
         self._pid.release()
         # 마무리 쓰기 전에 먼저 OFF — 아래 await 도중 tick이 duty를 덧쓰지 못하게 한다
         self._state = OFF
@@ -140,17 +195,21 @@ class PidRunner:
         self._hold_since = None
         try:
             if mode == STOP_ZERO:
-                await self._write_duty(0.0)
+                await finalize(0.0)
                 self._last_duty = 0.0
             elif self._read_feedback is not None:
                 feedback = await self._read_feedback()
+                if revision != self._revision:
+                    return
                 if feedback is not None:
-                    await self._write_duty(feedback)
+                    await finalize(feedback)
                     self._last_duty = feedback
         except Exception as exc:
             # 쓰기 실패를 OFF(성공)로 축소하면 프런트 자동 재시도가 죽고, 머신은
             # 마지막 duty로 계속 가열한다(#269). FAULT로 남기고 예외를 전파해
             # /pid/off가 비-200을 반환하게 한다 — 재시도가 다시 이 경로로 들어온다.
+            if revision != self._revision:
+                raise
             self._state = FAULT
             self._error = "PID 해제 중 화력을 쓰지 못했습니다 — 머신에서 직접 확인하세요."
             _log.error("PID stop(%s) 마무리 쓰기 실패: %s", mode, exc)
@@ -169,22 +228,40 @@ class PidRunner:
         if self._state not in (RUNNING, HOLDING):
             return
 
-        now = self._clock()
+        if self.curve is not None:
+            await self._tick_curve()
+            return
+
+        revision = self._revision
         try:
             pv = await self._read_pv()
         except Exception as exc:
+            if revision != self._revision or not self._is_current():
+                return
             await self._fault(f"PV 읽기 실패: {exc}", attempt_safe_off=True)
             return
 
+        if revision != self._revision or not self._is_current():
+            return
+        now = self._clock()
         if not pv.connected:
             # 연결이 없으면 쓸 수 있는 경로도 없다 — 시도하지 않는다
             await self._fault("머신 연결이 끊겼습니다.", attempt_safe_off=False)
             return
 
-        if pv.bt is None or pv.stale or (now - pv.ts) > config.PID_PV_MAX_AGE_S:
+        if (pv.bt is None or not math.isfinite(pv.bt) or pv.stale
+                or not math.isfinite(pv.ts) or pv.ts > now
+                or (now - pv.ts) > config.PID_PV_MAX_AGE_S
+                or (self._sample_ts is not None and pv.ts < self._sample_ts)
+                or (self._sample_id is not None and pv.sample_id is not None
+                    and pv.sample_id[0] != self._sample_id[0])):
             await self._enter_or_continue_hold(now)
             return
 
+        if self._sample_ts == pv.ts or (pv.sample_id is not None and pv.sample_id == self._sample_id):
+            return
+        self._sample_id = pv.sample_id
+        self._sample_ts = pv.ts
         self._last_pv = pv.bt
         if pv.bt > config.SAFETY_MAX_BT_C:
             await self._fault(
@@ -199,11 +276,81 @@ class PidRunner:
             self._state = RUNNING
             self._hold_since = None
 
-        duty = self._pid.update(pv.bt, now)
+        duty = self._pid.update(pv.bt, pv.ts)
         if duty is None:
             return
         self._last_duty = duty
         await self._emit(duty)
+
+    async def _tick_curve(self) -> None:
+        curve = self.curve
+        assert curve is not None
+        if self._clock() - curve.charge_at >= curve.target.end_sec:
+            await curve.terminate("reference_exhausted")
+            return
+        revision = self._revision
+        try:
+            pv = await self._read_pv()
+        except Exception:
+            if revision == self._revision and self._is_current():
+                await self._curve_hold()
+            return
+        if revision != self._revision or not self._is_current():
+            return
+        now = self._clock()
+        if not pv.connected:
+            await curve.terminate("disconnected")
+            return
+        if now - curve.charge_at >= curve.target.end_sec:
+            await curve.terminate("reference_exhausted")
+            return
+        filtered = curve.filtered()
+        if pv.bt is not None and math.isfinite(pv.bt) and pv.bt > config.SAFETY_MAX_BT_C:
+            await curve.terminate("temperature_limit")
+            return
+        if (filtered is None or filtered.warmup_remaining_sec > 0 or pv.stale
+                or pv.bt is None or not math.isfinite(pv.bt) or pv.bt < 0
+                or not math.isfinite(pv.ts) or not 0 <= now - pv.ts <= 3
+                or filtered.sample.acquired_at != pv.ts):
+            await self._curve_hold()
+            return
+        if self._sample_ts == pv.ts:
+            return
+        if self._state == HOLDING:
+            if self._hold_since is not None and now - self._hold_since >= 5:
+                await curve.terminate("sample_fault")
+                return
+            self._pid.resume(pv.ts)
+            self._state, self._hold_since = RUNNING, None
+        self._sample_ts = pv.ts
+        self._sample_id = pv.sample_id
+        self._last_pv = filtered.value
+        self._pid.set_target(curve.target.at(now - curve.charge_at))
+        radius = curve.config.slew_per_sec * max(0.0, now - self._last_command_at)
+        bounds = (max(curve.config.out_min, self._last_command - radius),
+                  min(curve.config.out_max, self._last_command + radius))
+        duty = self._pid.update(filtered.value, pv.ts, output_bounds=bounds)
+        if duty is None:
+            return
+        self._last_duty = duty
+        try:
+            await self._write_duty(duty)
+        except Exception:
+            if revision == self._revision and self._is_current():
+                await curve.terminate("write_fault")
+            return
+        if revision == self._revision and self._is_current():
+            self._last_command, self._last_command_at = duty, self._clock()
+            self._last_sent = duty
+
+    async def _curve_hold(self) -> None:
+        assert self.curve is not None
+        now = self._clock()
+        if self._hold_since is None:
+            self._hold_since = now
+            self._state = HOLDING
+        elif now - self._hold_since >= 5:
+            await self.curve.terminate("sample_fault")
 
     # ── 내부 ───────────────────────────────────────────────────────────────
 
@@ -227,9 +374,12 @@ class PidRunner:
         if not should_send:
             self._ticks_since_send += 1
             return
+        revision = self._revision
         try:
             await self._write_duty(duty)
         except Exception as exc:
+            if revision != self._revision or not self._is_current():
+                return
             self._write_failures += 1
             _log.warning(
                 "PID duty 쓰기 실패 (%d/%d): %s",
@@ -238,11 +388,16 @@ class PidRunner:
             if self._write_failures >= config.PID_WRITE_FAIL_LIMIT:
                 await self._fault("머신에 제어값을 쓰지 못했습니다.", attempt_safe_off=True)
             return
+        if revision != self._revision or not self._is_current():
+            return
         self._write_failures = 0
         self._last_sent = duty
         self._ticks_since_send = 0
 
     async def _fault(self, message: str, *, attempt_safe_off: bool) -> None:
+        if not self._is_current():
+            return
+        revision = self._revision
         self._pid.release()
         self._state = FAULT
         self._error = message
@@ -254,10 +409,14 @@ class PidRunner:
             return
         for attempt in range(config.PID_SAFE_OFF_RETRIES):
             try:
-                await self._write_duty(0.0)
+                await self._write_final(0.0)
+                if revision != self._revision:
+                    return
                 self._last_duty = 0.0
                 return
             except Exception as exc:
+                if revision != self._revision:
+                    return
                 _log.error(
                     "PID 안전 정지 쓰기 실패 (%d/%d): %s",
                     attempt + 1, config.PID_SAFE_OFF_RETRIES, exc,

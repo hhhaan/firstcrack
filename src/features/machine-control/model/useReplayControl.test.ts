@@ -156,7 +156,7 @@ describe('Replay diagnostics preserve control behavior', () => {
         };
         const h = await renderReplay(inputs);
         await act(async () => h.get().toggle());
-        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        expect(send).toHaveBeenCalledExactlyOnceWith({ heater: 0 }, undefined, 'replay', undefined);
         expect(logger.capture).toHaveBeenCalledTimes(1);
         expect(h.get().active).toBe(false);
         expect(h.get().stopReason).toBe('writeFailed');
@@ -489,7 +489,7 @@ describe('useReplayControl', () => {
         expect(h.get().stopReason).toBeNull();
         expect(h.get().nextEvent?.heater).toBe(80);
         await h.rerender({ ...inputs, observationQuality: 'valid', elapsed: 2 });
-        expect(send).toHaveBeenLastCalledWith({ heater: 80 });
+        expect(send).toHaveBeenLastCalledWith({ heater: 80 }, undefined, 'replay', undefined);
         expect(h.get().nextEvent?.heater).toBe(60);
         h.unmount();
     });

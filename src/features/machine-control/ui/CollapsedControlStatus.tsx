@@ -5,6 +5,7 @@ import {
     type ReplayTpWaitFacts,
     resolveReplayTpWait,
 } from '../lib/replayStatus';
+import type { useFsdControl } from '../model/useFsdControl';
 import { REPLAY_OBSERVATION_HOLD_TEXT } from './ReplayControlPanel';
 
 const PID_DOT: Record<string, string> = {
@@ -17,8 +18,10 @@ const PID_DOT: Record<string, string> = {
 export const CollapsedControlStatus = ({
     pidState,
     replay,
+    fsd,
 }: {
     pidState: string;
+    fsd?: Pick<ReturnType<typeof useFsdControl>, 'curve' | 'active' | 'failure'>;
     replay: ReplayTpWaitFacts & { observationHold: boolean };
 }) => {
     const { t } = useTranslation();
@@ -31,6 +34,14 @@ export const CollapsedControlStatus = ({
 
     return (
         <>
+            {(fsd?.active || fsd?.failure) && (
+                <span
+                    role="img"
+                    className={`h-2 w-2 rounded-full ${fsd.failure || fsd.curve?.phase === 'fault' ? 'bg-red-500' : fsd.curve?.runner_state === 'running' ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                    title={`FSD ${fsd.failure ? t(`fsd.reasons.${fsd.failure}`) : t(`fsd.states.${fsd.curve?.phase === 'active' ? fsd.curve.runner_state : fsd.curve?.phase}`)}`}
+                    aria-label={`FSD ${fsd.failure ? t(`fsd.reasons.${fsd.failure}`) : t(`fsd.states.${fsd.curve?.phase === 'active' ? fsd.curve.runner_state : fsd.curve?.phase}`)}`}
+                />
+            )}
             {statusDot && (
                 <span
                     role="img"

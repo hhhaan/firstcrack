@@ -1,3 +1,5 @@
+import type { ReplayHeaterTicket } from '@shared/types/sidecar';
+
 export type ControlRole = 'heater' | 'fan' | 'drum';
 export type ControlCommand = Partial<Record<ControlRole, number>>;
 /** commit 출처 — Replay 자동화 중단 시 미전송 heater만 고른다. safety는 DROP zero. */
@@ -39,7 +41,12 @@ export const settledRoles = (
     });
 
 interface Options {
-    send: (cmd: ControlCommand, retry?: ControlRetry) => Promise<ControlCommand>;
+    send: (
+        cmd: ControlCommand,
+        retry?: ControlRetry,
+        heaterOrigin?: ControlOrigin,
+        ticket?: ReplayHeaterTicket,
+    ) => Promise<ControlCommand>;
     observer?: ControlSendObserver;
     /** 사용자가 전송을 확정한 값. 전송 성공 여부와 무관하게 commit당 한 번 호출한다. */
     onCommitted?: (committed: ControlCommand) => void;
@@ -53,6 +60,7 @@ interface Waiter {
     requested: ControlCommand;
     origin: ControlOrigin;
     retry?: ControlRetry;
+    ticket?: ReplayHeaterTicket;
     resolve: (result: ControlCommand | null) => void;
     settled: boolean;
 }
@@ -80,6 +88,7 @@ const keepLeftover = (waiter: Waiter, leftover: ControlCommand, into: Waiter[]) 
         requested: leftover,
         origin: waiter.origin,
         retry: waiter.retry,
+        ticket: waiter.ticket,
         resolve: () => {},
         settled: true,
     });
@@ -159,7 +168,8 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
         notify(() => onSendingChange?.(true));
         notify(() => transmissionObserver?.dispatched(cmd, origins));
         try {
-            const applied = await (retry ? send(cmd, retry) : send(cmd));
+            const heaterWaiter = [...sentWaiters].reverse().find((waiter) => waiter.requested.heater != null);
+            const applied = await send(cmd, retry, origins.heater, heaterWaiter?.ticket);
             if (gen === generation) {
                 notify(() => transmissionObserver?.applied(cmd, applied));
                 for (const waiter of sentWaiters) {
@@ -185,6 +195,9 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
     };
 
     return {
+        get hasDraftHeater(): boolean {
+            return draft.heater != null;
+        },
         /** 값 변경 — 화면만 따라가고 전송은 하지 않는다. 보내려면 commitNow. */
         queue(role: ControlRole, value: number): void {
             draft = { ...draft, [role]: value };
@@ -195,7 +208,11 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
          * 같은 role 일부만 대체되면 겹친 role은 성공이 아니고, 남은 role은 실제 전송 결과에 귀속한다.
          * 빈 commit은 즉시 `{}` — 대기 중인 다른 요청의 성공을 만들지 않는다.
          */
-        commitNow(origin: ControlOrigin = 'manual', retry?: ControlRetry): Promise<ControlCommand | null> {
+        commitNow(
+            origin: ControlOrigin = 'manual',
+            retry?: ControlRetry,
+            ticket?: ReplayHeaterTicket,
+        ): Promise<ControlCommand | null> {
             const snapshot = retry ? (draft.heater == null ? {} : { heater: draft.heater }) : draft;
             draft = retry ? omitRoles(draft, new Set(['heater'])) : {};
             if (Object.keys(snapshot).length === 0) {
@@ -219,7 +236,7 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
                 remaining.push(waiter);
             }
             return new Promise((resolve) => {
-                remaining.push({ requested: snapshot, origin, retry, resolve, settled: false });
+                remaining.push({ requested: snapshot, origin, retry, ticket, resolve, settled: false });
                 queuedWaiters = remaining;
                 committed = mergeQueued(queuedWaiters);
                 void flush();

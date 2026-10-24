@@ -26,7 +26,16 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@shared/lib/sidecar', () => ({
     subscribeSidecarSettings: vi.fn(() => () => {}),
-    sidecar: { getStatus: vi.fn(), setControl: vi.fn(), pidOff: vi.fn() },
+    sidecar: {
+        getStatus: vi.fn(),
+        setControl: vi.fn(),
+        pidOff: vi.fn(),
+        claimReplay: vi.fn(async () => ({
+            ok: true,
+            ticket: { connection_epoch: 7, generation: 1, origin: 'replay' },
+        })),
+        releaseReplay: vi.fn(async () => ({ ok: true })),
+    },
 }));
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
@@ -368,4 +377,77 @@ describe('MachineControlPanel fold keeps the control hook', () => {
         act(() => root.unmount());
         host.remove();
     });
+});
+
+it('keeps manual Gas disabled without entitlement while showing FSD status', () => {
+    flags.entitled = false;
+    const model = panelModel();
+    model.fsd = {
+        available: true,
+        active: false,
+        busy: false,
+        failure: null,
+        failureDetail: null,
+        reason: 'entitlement',
+        curve: null,
+        start: async () => {},
+        stop: async () => true,
+        receiptStatus: undefined,
+    };
+    const rendered = renderPanel(model);
+    try {
+        const plus = rendered.host.querySelector<HTMLButtonElement>('[aria-label="Heater plus 5"]');
+        expect(plus?.disabled).toBe(true);
+    } finally {
+        rendered.unmount();
+    }
+});
+
+it('keeps FSD ownership visible when the control panel is collapsed', () => {
+    flags.entitled = true;
+    const model = panelModel({ pidActive: true });
+    model.fsd = {
+        available: true,
+        active: true,
+        busy: false,
+        failure: null,
+        failureDetail: null,
+        reason: 'already_active',
+        curve: null,
+        start: async () => {},
+        stop: async () => true,
+        receiptStatus: undefined,
+    };
+    const rendered = renderPanel(model);
+    try {
+        act(() => rendered.host.querySelector<HTMLButtonElement>('[aria-label="Collapse machine control"]')?.click());
+        expect(rendered.host.querySelector('[role="img"][aria-label^="FSD"]')).not.toBeNull();
+    } finally {
+        rendered.unmount();
+    }
+});
+
+it('keeps active Replay stop accessible after entitlement is lost', () => {
+    flags.entitled = false;
+    const model = panelModel({ replayActive: true });
+    model.fsd = {
+        available: true,
+        active: false,
+        busy: false,
+        failure: null,
+        failureDetail: null,
+        reason: 'entitlement',
+        curve: null,
+        start: async () => {},
+        stop: async () => true,
+        receiptStatus: undefined,
+    };
+    const rendered = renderPanel(model);
+    try {
+        const toggle = rendered.host.querySelector<HTMLInputElement>('input[type="checkbox"]');
+        expect(toggle?.checked).toBe(true);
+        expect(toggle?.disabled).toBe(false);
+    } finally {
+        rendered.unmount();
+    }
 });

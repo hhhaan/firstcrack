@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ChargeRequest, CurveAuthority, CurveStartRequest } from '../types/sidecar';
 
 vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn().mockResolvedValue('test-token'),
@@ -23,19 +24,18 @@ describe('sidecar.waitUntilReady', () => {
         vi.unstubAllGlobals();
     });
 
-    it.each([undefined, { connectionEpoch: 0 }, { connectionEpoch: 7 }])(
-        'binds a control retry to its original epoch %j',
-        async (retry) => {
-            const fetchMock = vi
-                .fn()
-                .mockResolvedValue(new Response(JSON.stringify({ ok: true, applied: { heater: 0 } }), { status: 200 }));
-            vi.stubGlobal('fetch', fetchMock);
-            await sidecar.setControl({ heater: 0 }, retry);
-            expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(
-                retry ? { heater: 0, retry_epoch: retry.connectionEpoch } : { heater: 0 },
-            );
-        },
-    );
+    it.each([
+        undefined,
+        { origin: 'replay', connection_epoch: 0, generation: 1, retry_epoch: 0 } as const,
+        { origin: 'replay', connection_epoch: 7, generation: 2, retry_epoch: 7 } as const,
+    ])('binds a control retry to its original epoch %j', async (retry) => {
+        const fetchMock = vi
+            .fn()
+            .mockResolvedValue(new Response(JSON.stringify({ ok: true, applied: { heater: 0 } }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+        await sidecar.setControl({ heater: 0 }, retry);
+        expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ heater: 0, ...retry });
+    });
 
     it('retries startup failures and returns the first healthy status', async () => {
         let sidecarCalls = 0;
@@ -84,6 +84,77 @@ describe('sidecar.waitUntilReady', () => {
         } finally {
             unsubscribe();
         }
+    });
+
+    it('serializes the Charge and curve-control protocol without changing fixed PID calls', async () => {
+        const fetchMock = vi
+            .fn()
+            .mockImplementation(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+        vi.stubGlobal('fetch', fetchMock);
+        const charge = {
+            session_id: 'session-1',
+            sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1',
+            connection_epoch: 1,
+            expected_generation: 2,
+            origin: {
+                kind: 'sample',
+                sample: { sensor_clock: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1', acquired_at: 10 },
+            },
+        } satisfies ChargeRequest;
+        const authority = {
+            session_id: charge.session_id,
+            charge_id: 'charge-1',
+            run_id: 'run-1',
+            sensor_clock: charge.sensor_clock,
+            connection_epoch: charge.connection_epoch,
+            generation: 3,
+        } satisfies CurveAuthority;
+        const curve = {
+            mode: 'curve',
+            session_id: charge.session_id,
+            charge_id: authority.charge_id,
+            request_id: 'request-1',
+            sensor_clock: charge.sensor_clock,
+            connection_epoch: charge.connection_epoch,
+            expected_generation: 2,
+            machine: { machine_id: 'machine-1', roaster_key: 'virtual', protocol: 'virtual' },
+            config_id: 'virtual-v1',
+            reference: {
+                version: 'raw-bt-reference-v1',
+                source: 'recorded_session',
+                source_session_id: 'source-1',
+                source_machine: { machine_id: 'machine-1', roaster_key: 'virtual', protocol: 'virtual' },
+                temperature_unit: 'C',
+                control_filter_version: 'raw-bt-dt-ema-v1',
+                charge: { event_id: 'event-charge', elapsed_sec: 0 },
+                drop: { event_id: 'event-drop', elapsed_sec: 60 },
+                points: [],
+            },
+        } satisfies CurveStartRequest;
+
+        await sidecar.startRoast();
+        await sidecar.startRoast(charge);
+        await sidecar.pidOn(180);
+        await sidecar.pidOn(curve);
+        await sidecar.pidRenew(authority);
+        await sidecar.pidOff({ mode: 'curve', authority, reason: 'user' });
+        await sidecar.getPidReceipts(authority.charge_id, 4, 64);
+
+        expect(
+            fetchMock.mock.calls.map(([url, init]) => [
+                String(url).replace('http://127.0.0.1:9999', ''),
+                init.method ?? 'GET',
+                init.body ? JSON.parse(String(init.body)) : undefined,
+            ]),
+        ).toEqual([
+            ['/start', 'POST', undefined],
+            ['/start', 'POST', charge],
+            ['/pid/on', 'POST', { sv: 180 }],
+            ['/pid/on', 'POST', curve],
+            ['/pid/renew', 'POST', authority],
+            ['/pid/off', 'POST', { mode: 'curve', authority, reason: 'user' }],
+            ['/pid/receipts?charge_id=charge-1&after=4&limit=64', 'GET', undefined],
+        ]);
     });
 
     it('reports a fixed sidecar event for retryable 5xx responses', async () => {

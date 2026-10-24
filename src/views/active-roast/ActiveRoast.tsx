@@ -5,6 +5,7 @@ import { useBbpCurve } from '@entities/roast';
 import {
     profileHeaterEvents,
     resolveSourceSession,
+    useFsdReference,
     useResolvedProfileCurve,
     useRoastProfileCurve,
     useRoastProfiles,
@@ -15,6 +16,7 @@ import {
     computePhaseSegments,
     formatTemp,
     isRoastShortcutBaseEnabled,
+    type RawTemperatureSample,
     useBbpStore,
     useBbpTimer,
     useEffectivePollIntervalMs,
@@ -30,6 +32,7 @@ import {
 } from '@features/active-roast/lib/bbp-events';
 import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { isRemovableLogEvent, isToggleableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
+import { unresolvedReceiptAttempts } from '@features/active-roast/lib/control-receipts';
 import {
     applyEventMarkerEdit,
     type EventMarkerPatch,
@@ -43,6 +46,7 @@ import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
+import { useControlReceiptStore } from '@features/active-roast/model/controlReceiptCollector';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
@@ -171,6 +175,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         elapsed,
         liveData,
         pid: pidRuntime,
+        acceptedCharge,
         sessionId,
         sidecarConnected,
         reconnecting,
@@ -185,6 +190,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             elapsed: s.elapsed,
             liveData: s.liveData,
             pid: s.pid,
+            acceptedCharge: s.acceptedCharge,
             sessionId: s.sessionId,
             sidecarConnected: s.sidecarConnected,
             reconnecting: s.reconnecting,
@@ -224,6 +230,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // ── 프로파일/원두 선택 ─────────────────────────────────────────
     const { data: beans = [], isSuccess: beansReady } = useBeans(workspaceOwnerId);
     const replayActiveRef = useRef(false);
+    const onFsdDropRef = useRef<() => void>(() => {});
     const replayStopRef = useRef<(reason?: ReplayStopReason) => void>(() => {});
     const profileChangeGenRef = useRef(0);
     const pendingProfileChangeRef = useRef<{ resolve: (ok: boolean) => void; gen: number } | null>(null);
@@ -313,6 +320,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         isLoading: curveLoading,
         isError: curveError,
     } = useResolvedProfileCurve(targetProfile);
+    const fsdReference = useFsdReference(reference ? null : targetProfile);
+    const machineControlEntitled = useFeature(FEATURE.machineControl);
     const historyPoints = historyCurve.data ?? [];
     const backgroundCurvePoints = reference ? historyPoints : targetCurvePoints;
     const replayPoints = replayPointsForProfile(
@@ -485,7 +494,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const disableAutoChargeRef = useRef<() => void>(() => {});
     const disableAutoDropRef = useRef<() => void>(() => {});
     const rearmAutoChargeRef = useRef<() => void>(() => {});
-    const triggerChargeRef = useRef<(bt?: number | null, chargeTimeMs?: number) => void>(() => {});
+    const triggerChargeRef = useRef<(bt?: number | null, origin?: number | RawTemperatureSample) => void>(() => {});
 
     const lifecycle = useRoastLifecycle({
         phase,
@@ -502,6 +511,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         setHoveredChartIndex: chart.setHoveredChartIndex,
         triggerChargeRef,
         replayActiveRef,
+        onFsdDropRef,
     });
 
     // ── 날씨 데이터 ───────────────────────────────────────────────
@@ -536,8 +546,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
 
     const triggerCharge = useCallback(
-        (bt?: number | null, chargeTimeMs?: number) => {
-            startChargeAction(bt, chargeTimeMs);
+        (bt?: number | null, origin?: number | RawTemperatureSample) => {
+            startChargeAction(bt, origin);
             // Rearm auto Drop for this batch only. Drop's reset would re-arm too early (#484).
             resetAutoDetectionRef.current?.();
         },
@@ -1087,7 +1097,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 if (entry) useBbpStore.getState().setEvents((prev) => [...prev, entry]);
                 return;
             }
-            if (!charged) return;
+            if (!charged || useRoastingStore.getState().acceptedCharge) return;
             const entries = useRoastingStore.getState().logState.entries;
             if (isRepeatHeaterCommit(entries, value)) return;
             markEvent('Heater', `${value}${heaterUnit}`);
@@ -1195,6 +1205,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }
             const state = useRoastingStore.getState();
             if (state.sessionId !== sessionId || state.phase !== 'roasting') return;
+            if (state.acceptedCharge) delete commanded.heater;
+            if (Object.keys(commanded).length === 0) return;
             const timeSec =
                 state.roastStartMs > 0 ? Math.max(0, (Date.now() - state.roastStartMs) / 1000) : state.elapsed;
             setLogEntries((entries) => {
@@ -1218,7 +1230,26 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [bbpActive, bbpNowSec, sessionId, setLogEntries, unit],
     );
 
+    const receiptCollection = useControlReceiptStore((state) => (sessionId ? state.collections[sessionId] : undefined));
     const machineControl = useMachineControlComposition({
+        fsd: {
+            reference: fsdReference.reference,
+            receiptStatus: receiptCollection
+                ? {
+                      unavailable: receiptCollection.unavailable,
+                      gaps: receiptCollection.entries.filter((entry) => entry.controlReceipt?.kind === 'gap').length,
+                      unresolved: unresolvedReceiptAttempts(receiptCollection.entries),
+                  }
+                : undefined,
+            referenceReason: reference ? 'no_profile' : fsdReference.reason,
+            referenceLoading: fsdReference.isLoading,
+            referenceTpTime: fsdReference.referenceTpTime ?? null,
+            acceptedCharge,
+            sessionId,
+            workspaceId: workspaceOwnerId,
+            visible: isActive && !reviewing,
+            entitled: machineControlEntitled,
+        },
         sidecarConnected,
         reconnecting,
         liveData,
@@ -1250,9 +1281,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         if (reviewing) machineControl.replay.stop();
     }, [reviewing, machineControl.replay.stop]);
     useLayoutEffect(() => {
+        onFsdDropRef.current = () => {
+            void machineControl.fsd.stop('drop');
+        };
         replayActiveRef.current = machineControl.replay.active;
         replayStopRef.current = machineControl.replay.stop;
-    }, [machineControl.replay.active, machineControl.replay.stop]);
+    }, [machineControl.replay.active, machineControl.replay.stop, machineControl.fsd.stop]);
 
     const handleCancelDrop = useCallback(() => {
         const sessionId = saveFlow.flow.summaryData?.sessionId;

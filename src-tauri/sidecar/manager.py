@@ -13,7 +13,9 @@ import config
 from adapters import WRITABLE_PROTOCOLS, make_adapter
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
-from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
+from pid_runner import STOP_HOLD, STOP_ZERO, PvSample
+from heater_control_session import HeaterControlSession, ControlUncertain, CurveError
+from roast_target import MachineIdentity
 from roaster_registry import ROASTER_REGISTRY
 
 _log = logging.getLogger(__name__)
@@ -397,15 +399,18 @@ class RoasterManager:
         self._connection_epoch: int = 0
         self._sensor_clock_id = uuid.uuid4().hex
         # role → 이 연결에서 마지막으로 어댑터에 쓴(클램프 후) 값. /temperatures의
-        # heater_set 출처. 수동·Replay·PID 쓰기가 전부 control()을 지나므로 여기서 잡힌다.
-        # 본체 조작반에서 돌린 값은 모른다 — 세트포인트 셀 readback이 붙기 전까지.
+        # 본체 조작반에서 바꾼 값은 포함하지 않는다.
         self._last_applied: dict[str, float] = {}
-        self._heater_command_version = 0
-        self._heater_request: tuple[int, float] | None = None
-        self._heater_retry_count = 0
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
-        self._pid: PidRunner | None = None
-        self._pid_task: asyncio.Task[None] | None = None
+        self._heat = HeaterControlSession(
+            epoch=lambda: self._connection_epoch, adapter=lambda: self._adapter,
+            available=lambda: self._connected and not self._resetting and self._adapter is not None,
+            read_pv=self._pv_snapshot, read_feedback=self._heater_feedback,
+            limits=self.write_limits, machine=self.machine_identity,
+            sensor_clock=lambda: f"{self._sensor_clock_id}:{self._connection_epoch}",
+            curve_capability=self.curve_capability, read_raw=self._raw_pv_snapshot,
+            applied=lambda values: self._last_applied.update(clamp_command(values, self.write_limits())),
+        )
         # reset_roast 구간. control/PID write만 막는다 — PID 루프 전체를
         # connect lock에 넣지 않는다 (#270).
         self._resetting: bool = False
@@ -586,6 +591,10 @@ class RoasterManager:
                 self._capture_hardware_error(exc, "connect_failed")
 
     async def disconnect(self) -> None:
+        if self._heat.is_curve():
+            self._heat._begin_curve_end("disconnected")
+        else:
+            self._heat.close_charge("disconnected")
         # 락을 잡기 **전에** 취소한다. connect/재연결이 핸드셰이크 내내 같은 락을
         # 쥐고 있어(Kaleido 15s, Phidget 10s), 락을 먼저 기다리면 프론트 요청이
         # 타임아웃돼 "해제 버튼이 안 먹는다"가 된다. async with는 CancelledError
@@ -596,26 +605,18 @@ class RoasterManager:
             self._machine_id = None
 
     async def _disconnect_internal(self) -> None:
+        try:
+            await self._heat.stop("disconnect", mode=STOP_ZERO, clear=True)
+        except ControlUncertain:
+            raise
+        except Exception:
+            _log.exception("PID stop failed during disconnect")
         self._connection_epoch += 1
-        # Heater 0 before closing the write gate. control() refuses writes once
-        # _connected is False, so STOP_ZERO must run first (#219).
-        if self._pid is not None:
-            try:
-                await self._pid.stop("disconnect", mode=STOP_ZERO)
-            except Exception:
-                _log.exception("pid.stop() failed during disconnect [%s]", self._roaster_key)
-                pass
-        # 쓰기 게이트를 첫 await보다 먼저 닫는다. cancel()은 기다리지 않으므로
-        # 이미 control() 안에 진입한 tick이 아래 await 도중 재개해 한 번 더 쓸 수 있다.
         self._connected = False
-        # PID를 먼저 세운다 — 연결이 사라진 뒤 duty를 쓰려 드는 tick을 막는다
-        if self._pid_task is not None and not self._pid_task.done():
-            self._pid_task.cancel()
-        self._pid_task = None
-        self._pid = None
         if self._reconnect_task is not None and not self._reconnect_task.done():
             self._reconnect_task.cancel()
             self._reconnect_task = None
+        await self._heat.retire_connection()
         if self._adapter is not None:
             try:
                 await self._adapter.disconnect()
@@ -662,6 +663,9 @@ class RoasterManager:
                         return
                     try:
                         _log.info("자동 재연결 시도 (%d): %s", attempt, self._roaster_key)
+                        self._heat.close_charge("disconnected")
+                        self._heat.revoke()
+                        await self._heat.drain()
                         self._connection_epoch += 1
                         try:
                             await self._adapter.disconnect()
@@ -673,6 +677,7 @@ class RoasterManager:
                         self._consecutive_errors = 0
                         self._error = None
                         self._reset_probe_filters()
+                        self._last_good = None
                         self._ror_warmup = config.ROR_WARMUP_READS
                         self._hw_alerts_sent.discard("reconnect_failed")
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
@@ -707,23 +712,9 @@ class RoasterManager:
 
     async def _safety_after_reconnect(self) -> None:
         """Reconnect must not leave FAULT PID or last heater duty stuck (#205)."""
-        # PID를 켠 적 없거나 껐다 둔 수동/Replay 로스팅의 화력을 덮어쓰면 안 된다 (#317).
-        # pid_stop은 _pid를 지우지 않으므로 객체 유무만 보면 "켰다 끈 세션"이 순단마다
-        # heater 0 안전 정지를 맞는다 — running/holding/fault만 정지 대상이다.
-        if self._pid is None or self._pid.state_name == "off":
-            return
         try:
-            if self._pid is not None and self._pid.state_name != "off":
-                await self._pid.stop("reconnect", mode=STOP_ZERO)
-        except Exception:
-            _log.exception("pid.stop() failed during _safety_after_reconnect [%s]", self._roaster_key)
-            pass
-        try:
-            if self._adapter is not None:
-                await self._adapter.control(heater=0.0)
-                # control()을 우회하는 쓰기 — heater_set도 같이 맞춘다 (어댑터와 같은 클램프)
-                self._last_applied.update(clamp_command({"heater": 0.0}, self.write_limits()))
-                self._hw_alerts_sent.discard("reconnect_safe_off_failed")
+            await self._heat.stop("reconnect", mode=STOP_ZERO)
+            self._hw_alerts_sent.discard("reconnect_safe_off_failed")
         except Exception as exc:
             self._capture_hardware_error(exc, "reconnect_safe_off_failed", once=True)
 
@@ -759,7 +750,8 @@ class RoasterManager:
         """
         async with self._read_lock:
             if max_age > 0 and self._last_good is not None:
-                if (time.monotonic() - self._last_good_ts) <= max_age:
+                if (self._connected and 0 <= time.monotonic() - self._last_good_ts <= max_age
+                        and self._last_good.get("sensor_clock") == f"{self._sensor_clock_id}:{self._connection_epoch}"):
                     return self._last_good
             return await self._refresh_reading()
 
@@ -767,6 +759,7 @@ class RoasterManager:
         reconnecting = self._reconnecting()
         # await 도중 disconnect/재연결로 self._adapter가 교체될 수 있어 스냅샷을 잡는다 (H4)
         adapter = self._adapter
+        epoch = self._connection_epoch
         if not self._connected or adapter is None:
             return self._null_payload(reconnecting)
         try:
@@ -775,6 +768,9 @@ class RoasterManager:
             reading = await asyncio.wait_for(adapter.read(), timeout=config.READ_TIMEOUT)
             # 예외 없이 돌아온 센티넬/NaN도 실패로 승격 — 아래 except가 stale/재연결을 담당 (H1)
             _validate_bt(reading.bt)
+            if (not math.isfinite(reading.timestamp) or reading.timestamp > time.monotonic()
+                    or (self._last_good is not None and reading.timestamp < self._last_good_ts)):
+                raise ValueError("Invalid sensor acquisition timestamp")
             for role in ("heater", "fan", "drum"):
                 value = getattr(reading, role)
                 if value is not None and not math.isfinite(value):
@@ -806,7 +802,6 @@ class RoasterManager:
                     "bt_raw": None,
                     "et_raw": None,
                     "reconnecting": reconnecting,
-                    "timestamp": time.monotonic(),
                 }
             # 첫 read부터 실패(유지할 이전 값이 없음) = 연결은 됐지만 설정 불일치 의심.
             # 정상 동작 중 끊김(하드웨어/케이블 가능성)과 Sentry에서 구분 집계한다.
@@ -829,7 +824,7 @@ class RoasterManager:
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return self._null_payload(reconnecting=True)
 
-        if self._adapter is not adapter:
+        if self._adapter is not adapter or self._connection_epoch != epoch or not self._connected:
             # 성공 응답이 disconnect 이후에 도착 — _last_good/에러 카운터를 오염시키지 않는다 (H4)
             return self._null_payload(self._reconnecting())
 
@@ -840,6 +835,9 @@ class RoasterManager:
                 level="info",
             )
         self._consecutive_errors = 0
+
+        if self._last_good is not None and reading.timestamp == self._last_good_ts:
+            return self._last_good
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
@@ -896,8 +894,9 @@ class RoasterManager:
         extra_readings = _serialize_extra_readings(reading.extra_readings)
         if extra_readings:
             payload["extra_readings"] = extra_readings
+        self._heat.observe_raw(payload)
         self._last_good = payload
-        self._last_good_ts = time.monotonic()
+        self._last_good_ts = reading.timestamp
         return payload
 
     def read_channels(self) -> dict[str, dict[str, Any]]:
@@ -952,6 +951,8 @@ class RoasterManager:
         drum: float | None = None,
         *,
         retry_epoch: int | None = None,
+        origin: str = "manual", takeover: bool = False,
+        generation: int | None = None, connection_epoch: int | None = None,
     ) -> dict[str, float]:
         """어댑터 제어 완료 후 클램프한 논리 명령값을 돌려준다.
 
@@ -985,50 +986,27 @@ class RoasterManager:
             )
 
         applied = clamp_command({k: float(v) for k, v in requested.items()}, write_map)
-        epoch = self._connection_epoch
-        if retry_epoch is not None:
-            if (
-                retry_epoch != epoch or set(applied) != {"heater"}
-                or self._heater_request != (epoch, applied["heater"])
-                or self._heater_retry_count >= 2
-                or (self._pid is not None and self._pid.state().get("state") != "off")
-            ):
-                raise ControlUnavailable("재시도할 화력 명령의 연결 또는 제어권이 변경되었습니다.")
-            self._heater_retry_count += 1
-        elif "heater" in applied:
-            self._heater_command_version += 1
-            self._heater_request = (epoch, applied["heater"])
-            self._heater_retry_count = 0
         if retry_epoch is None:
             self._hw_alerts_sent.discard("control_write_failed")
-        command_version = self._heater_command_version
-
-        def retry_is_current() -> bool:
-            return (
-                self._adapter is adapter and self._connected and not self._resetting
-                and self._connection_epoch == epoch
-                and self._heater_command_version == command_version
-                and (self._pid is None or self._pid.state().get("state") == "off")
-            )
-
         try:
-            retry_control = getattr(adapter, "retry_control", None)
-            if retry_epoch is not None and callable(retry_control):
-                await retry_control(applied["heater"], retry_is_current)
-            else:
-                await adapter.control(**applied)
+            result = await self._heat.control(
+                applied, origin=origin, takeover=takeover, generation=generation,
+                connection_epoch=connection_epoch, retry_epoch=retry_epoch,
+            )
         except Exception:
-            if self._adapter is not adapter:
-                return {}
             self._control_breadcrumb(applied, ok=False)
             raise
-        if self._adapter is not adapter or not self._connected or self._resetting or self._connection_epoch != epoch:
-            return {}
-        if retry_epoch is not None and not retry_is_current():
-            return {}
         self._control_breadcrumb(applied, ok=True)
-        self._last_applied.update(applied)
-        return applied
+        return result
+
+    async def claim_replay(self, connection_epoch: int, generation: int) -> dict[str, Any]:
+        if not self._connected or "heater" not in self.write_limits() or not self._control_writable():
+            raise ControlUnavailable("Heater is unavailable.")
+        from dataclasses import asdict
+        return asdict(await self._heat.claim_replay(connection_epoch, generation))
+
+    async def release_replay(self, connection_epoch: int, generation: int) -> None:
+        await self._heat.release_replay(connection_epoch, generation)
 
     def _control_breadcrumb(self, applied: dict[str, float], *, ok: bool) -> None:
         """제어 쓰기 궤적 — 에러 이벤트에 첨부될 문맥. 값 시계열은 남기지 않는다."""
@@ -1045,6 +1023,33 @@ class RoasterManager:
 
     # ── 소프트웨어 PID ─────────────────────────────────────────────────────
 
+    def machine_identity(self) -> MachineIdentity | None:
+        if not self._machine_id:
+            return None
+        return MachineIdentity(self._machine_id, self._roaster_key, self._protocol)
+
+    def curve_capability(self) -> dict[str, Any]:
+        heater = self.write_limits().get("heater", {})
+        if self._protocol != "virtual":
+            reason = "physical_unqualified"
+        elif self._merged_params.get("sim") != "thermal" or getattr(self._adapter, "_sim", None) != "thermal":
+            reason = "scripted_virtual"
+        elif self.machine_identity() is None:
+            reason = "machine_identity_missing"
+        elif (heater.get("unit") != "%" or heater.get("min") != 0 or heater.get("max") != 100
+              or not self._control_writable()):
+            reason = "heater_unavailable"
+        else:
+            reason = "ready"
+        return {"supported": reason == "ready", "reason": reason,
+                "config_id": "virtual-v1" if reason == "ready" else None}
+
+    async def _raw_pv_snapshot(self) -> PvSample:
+        payload = await self.read_temperatures(max_age=config.READING_MAX_AGE_S)
+        return PvSample(bt=payload.get("bt_raw"), ts=payload["timestamp"],
+                        stale=bool(payload.get("stale")), connected=self._connected,
+                        sample_id=(payload.get("sensor_clock", ""), payload["timestamp"]))
+
     def pid_capability(self) -> dict[str, Any]:
         """PID 지원 여부(정적). 게인 + heater 쓰기 + 실제 쓰기 프로토콜."""
         reg = ROASTER_REGISTRY.get(self._roaster_key, {})
@@ -1058,10 +1063,11 @@ class RoasterManager:
             "supported": supported,
             "sv_min": config.PID_SV_MIN_C,
             "sv_max": config.PID_SV_MAX_C,
+            "curve": self.curve_capability(),
         }
 
     def pid_state(self) -> dict[str, Any] | None:
-        return self._pid.state() if self._pid is not None else None
+        return self._heat.runner.state() if self._heat.runner is not None else None
 
     async def _pv_snapshot(self) -> PvSample:
         """PID 표본은 기존 고정 EMA를 쓴다. 표시 강도 조절은 제어에 영향을 주지 않는다."""
@@ -1069,17 +1075,13 @@ class RoasterManager:
         bt = self._bt_pid_ema if payload.get("bt") is not None else None
         return PvSample(
             bt=round(bt, 1) if bt is not None else None,
-            ts=time.monotonic(),
+            ts=payload["timestamp"],
             stale=bool(payload.get("stale")),
             connected=self._connected,
+            sample_id=(payload.get("sensor_clock", f"{self._sensor_clock_id}:{self._connection_epoch}"), payload["timestamp"]),
         )
 
-    async def _pid_write_duty(self, duty: float) -> None:
-        applied = await self.control(heater=duty)
-        if not applied:
-            raise RuntimeError("duty 쓰기가 적용되지 않았습니다.")
-
-    async def _pid_read_feedback(self) -> float | None:
+    async def _heater_feedback(self) -> float | None:
         """머신이 보고하는 현재 heater 값. bumpless engage와 graceful stop에 쓴다."""
         payload = await self.read_temperatures(max_age=config.READING_MAX_AGE_S)
         value = payload.get("heater")
@@ -1096,63 +1098,33 @@ class RoasterManager:
                 f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
             )
 
-        self._heater_command_version += 1
-        self._heater_request = None
-        gains_cfg = ROASTER_REGISTRY[self._roaster_key]["pid"]
-        if self._pid is None:
-            self._pid = PidRunner(
-                read_pv=self._pv_snapshot,
-                write_duty=self._pid_write_duty,
-                read_feedback=self._pid_read_feedback,
-                gains=PidGains(
-                    kp=float(gains_cfg["Kp"]),
-                    ki=float(gains_cfg["Ki"]),
-                    kd=float(gains_cfg["Kd"]),
-                ),
-            )
-        await self._pid.start(sv)
-        if self._pid_task is None or self._pid_task.done():
-            # 태스크 참조를 self에 보관해야 GC가 가져가지 않는다 (재연결 태스크와 동일 패턴)
-            self._pid_task = asyncio.create_task(self._pid_loop())
+        gains = ROASTER_REGISTRY[self._roaster_key]["pid"]
+        result = await self._heat.start_fixed(sv, PidGains(
+            kp=float(gains["Kp"]), ki=float(gains["Ki"]), kd=float(gains["Kd"]),
+        ))
         self._hw_alerts_sent.discard("pid_on_failed")
-        return self._pid.state()
+        return result
 
     async def pid_stop(self, mode: str = STOP_HOLD) -> dict[str, Any]:
-        if self._pid is None:
-            return {"state": "off", "error": None}
-        await self._pid.stop("user", mode=mode)
-        # 다음 사고는 다시 알릴 수 있게 — 재시도 루프가 끝난 뒤에만 여기 온다
+        result = await self._heat.stop(mode=mode)
         self._hw_alerts_sent.discard("pid_request_failed")
-        return self._pid.state()
+        return result
 
     async def pid_set_sv(self, sv: float) -> dict[str, Any]:
+        if self._heat.is_curve():
+            raise CurveError("stale_authority", "A curve target is immutable")
         cap = self.pid_capability()
-        if self._pid is None:
+        runner = self._heat.runner
+        if runner is None:
             raise ControlUnavailable("PID가 실행 중이 아닙니다.")
         if not (cap["sv_min"] <= sv <= cap["sv_max"]):
-            raise ControlRangeError(
-                f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
-            )
+            raise ControlRangeError("목표 온도가 지원 범위를 벗어났습니다.")
         try:
-            await self._pid.set_sv(sv)
+            await runner.set_sv(sv)
         except RuntimeError as exc:
             raise ControlUnavailable(str(exc)) from exc
         self._hw_alerts_sent.discard("pid_sv_failed")
-        return self._pid.state()
-
-    async def _pid_loop(self) -> None:
-        """고정 주기 제어 루프. 프론트 폴링 주기와 독립이다 — 폴링은 idle에서 멈춘다."""
-        try:
-            while True:
-                await asyncio.sleep(config.PID_TICK_S)
-                if self._pid is None:
-                    return
-                try:
-                    await self._pid.tick()
-                except Exception as exc:  # 루프는 어떤 경우에도 죽지 않는다
-                    _log.error("PID tick 실패: %s", exc, exc_info=True)
-        except asyncio.CancelledError:
-            raise
+        return runner.state()
 
     async def enter_standby(self) -> None:
         """UI의 READY 버튼과 연동. 어댑터가 지원하면 standby 진입을 알린다."""
@@ -1164,33 +1136,38 @@ class RoasterManager:
             ):
                 await self._adapter.enter_standby()
 
-    async def start_roast(self) -> None:
-        """UI의 Charge 버튼과 연동. 어댑터가 지원하면 타이머를 리셋하고, RoR 윈도우를 초기화."""
-        async with self._lock:
-            self._reset_probe_filters()
-            self._ror_warmup = config.ROR_WARMUP_READS
-            if self._adapter is not None and hasattr(self._adapter, "start_roast"):
-                await self._adapter.start_roast()
+    async def start_roast(self, request: dict[str, Any] | None = None) -> dict[str, Any]:
+        if request is not None:
+            response, notify = self._heat.accept_charge(request)
+            if not notify:
+                return response
+        elif self._heat._charge is not None and self._heat._charge["state"] == "open":
+            raise CurveError("charge_conflict", "Legacy start cannot retime an accepted Charge")
+        try:
+            async with self._lock:
+                self._reset_probe_filters()
+                self._ror_warmup = config.ROR_WARMUP_READS
+                if self._adapter is not None and hasattr(self._adapter, "start_roast"):
+                    await self._adapter.start_roast()
+        except Exception:
+            if request is not None:
+                self._heat.charge_notification_failed()
+            raise
+        return self._heat.charge_response() if request is not None else {"ok": True, "charge": None, "curve_eligible": False}
 
     async def reset_roast(self) -> None:
         """배치 계산/PID 상태를 초기화한다. 재연결을 통한 예열 복귀는 가상 머신만 한다."""
+        if self._heat.is_curve():
+            self._heat._begin_curve_end("reset")
+        else:
+            self._heat.close_charge("reset")
         async with self._lock:
             self._reset_probe_filters()
             self._ror_warmup = config.ROR_WARMUP_READS
             if self._adapter is None:
                 return
 
-            # 히터 0은 쓰기 게이트를 닫기 전에. control()은 _resetting/_connected
-            # 이후 거절한다 (#219와 같은 순서).
-            if self._pid is not None:
-                try:
-                    await self._pid.stop("reset", mode=STOP_ZERO)
-                except Exception:
-                    pass
-            if self._pid_task is not None and not self._pid_task.done():
-                self._pid_task.cancel()
-            self._pid_task = None
-            self._pid = None
+            await self._heat.stop("reset", mode=STOP_ZERO, clear=True)
 
             # 실제 장비 연결은 배치 경계와 무관하게 유지한다.
             if self._protocol != "virtual":
@@ -1254,6 +1231,8 @@ class RoasterManager:
             "connected": self._connected,
             "machine_id": self._machine_id,
             "connection_epoch": self._connection_epoch,
+            "heater_control": self._heat.state(),
+            **self._heat.status_fields(),
             "reconnecting": reconnecting,
             "reconnect_attempt": self._reconnect_attempt,
             "roaster": self._roaster_key,

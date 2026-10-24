@@ -15,6 +15,11 @@ vi.mock('@shared/lib/sidecar', () => ({
     subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
         getStatus: vi.fn(),
+        claimReplay: vi.fn(async () => ({
+            ok: true,
+            ticket: { connection_epoch: 7, generation: 1, origin: 'replay' },
+        })),
+        releaseReplay: vi.fn(async () => ({ ok: true })),
         setControl: vi.fn(),
         pidOn: vi.fn(),
         pidOff: vi.fn(),
@@ -66,6 +71,7 @@ const renderRig = async (
     getStatus.mockReset();
     setControl.mockReset();
     getStatus.mockResolvedValue({
+        heater_control: { connection_epoch: 7, generation: 0, origin: 'manual', pending_writes: 0, uncertain: false },
         control: { writable: true, limits: { heater: { min: 0, max: heaterMax } } },
     } as Awaited<ReturnType<typeof sidecar.getStatus>>);
     setControl.mockImplementation(async (cmd) => ({ applied: cmd }) as Awaited<ReturnType<typeof sidecar.setControl>>);
