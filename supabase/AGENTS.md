@@ -18,6 +18,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 |----------|------|------|-----------|
 | `get-upload-url` | user JWT | R2 PUT presign (`profile`/`bbp`); owner or `has_workspace_access` | `functions/get-upload-url/index.ts`, `_shared/r2.ts` |
 | `get-download-url` | user JWT | R2 GET presign; key must match owned profile shape | `functions/get-download-url/index.ts` |
+| `firstcrack-mcp` | dedicated reader JWT + scope; disabled by default | Read-only account/workspace tools; OAuth and DB activation pending review | `functions/firstcrack-mcp/`, `../docs/agent/firstcrack-mcp.md` |
 | `channel-connect` | user JWT | Validate Naver/Shopify creds; store connection + secrets (service role) | `functions/channel-connect/` |
 | `channel-disconnect` | user JWT | Delete connection (orders kept) | `functions/channel-disconnect/` |
 | `channel-products` | user JWT | List a connection's platform catalog for SKU mapping (#131); secrets stay server-side, Naver returns `[]` | `functions/channel-products/` |

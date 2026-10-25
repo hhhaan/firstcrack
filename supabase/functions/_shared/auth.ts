@@ -14,22 +14,37 @@ export const jsonResponse = (body: unknown, status = 200): Response =>
 
 export const createUserClient = (req: Request) => {
     const authHeader = req.headers.get('Authorization') ?? '';
-    return createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        { global: { headers: { Authorization: authHeader } } },
-    );
+    return createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_ANON_KEY') ?? '', {
+        global: { headers: { Authorization: authHeader } },
+    });
 };
 
 export const getAuthenticatedUser = async (req: Request) => {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) return null;
+    const bearer = /^Bearer ([^\s,]+)$/i.exec(authHeader ?? '');
+    if (!bearer) return null;
 
     const supabase = createUserClient(req);
 
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) return null;
-    return data.user;
+    // Existing privileged functions accept first-party sessions only. Integration
+    // tokens must never reach service-role writes through these handlers.
+    try {
+        const { data: verified, error: claimsError } = await supabase.auth.getClaims(bearer[1]);
+        if (
+            claimsError ||
+            !verified?.claims ||
+            verified.claims.role !== 'authenticated' ||
+            verified.claims.client_id != null
+        )
+            return null;
+
+        const { data, error } = await supabase.auth.getUser();
+        if (error || !data.user) return null;
+        return data.user;
+    } catch {
+        // Expired/malformed JWTs can reject rather than return an AuthError.
+        return null;
+    }
 };
 
 export const serviceClient = () =>
