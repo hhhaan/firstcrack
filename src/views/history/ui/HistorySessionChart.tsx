@@ -10,6 +10,7 @@ import {
     toDisplayRoR,
     toDisplayTemp,
     useCurveStyles,
+    useRoastingStore,
     useRoastSettings,
 } from '@features/active-roast';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
@@ -314,6 +315,8 @@ export function HistorySessionChart({
     const roastStatus = roastChartStatusKey(roast.isLoading, roast.isError);
     const referenceStatus = referenceStatusKey(orNull(profile?.name), targetBbp.isLoading, targetBbp.isError);
     const chartRef = useRef<RoastTempChartHandle>(null);
+    // 로스팅 중 PDF 비활성화는 임시. 나중에 변경 예정.
+    const roasting = useRoastingStore((s) => s.phase === 'roasting');
     const { canExport, onExportPdf } = useHistoryPdfExport({
         session,
         chartRef,
@@ -321,6 +324,7 @@ export function HistorySessionChart({
         hasTarget: target.points.length > 0,
         unit,
         canCapture: points.length > 0,
+        roasting,
     });
 
     return (

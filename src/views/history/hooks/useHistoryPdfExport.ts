@@ -17,14 +17,24 @@ type Args = {
     hasTarget?: boolean;
     unit: TemperatureUnit;
     canCapture: boolean;
+    roasting?: boolean;
 };
 
-export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget = false, unit, canCapture }: Args) => {
+export const useHistoryPdfExport = ({
+    session,
+    chartRef,
+    hasControls,
+    hasTarget = false,
+    unit,
+    canCapture,
+    roasting = false,
+}: Args) => {
     const { t } = useTranslation();
     const exportPdf = useExportHistoryPdf();
     const [exporting, setExporting] = useState(false);
 
     const onExportPdf = useCallback(async () => {
+        if (roasting) return;
         // Lay out in PDF points so chart text prints at its configured point size.
         const chartDataUrl = chartRef.current?.getDataURL({ ...historyPdfChartBox(true), pixelRatio: 200 / 72 });
         if (!chartDataUrl) {
@@ -63,7 +73,7 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
         } finally {
             setExporting(false);
         }
-    }, [chartRef, exportPdf, hasControls, hasTarget, session, t, unit]);
+    }, [chartRef, exportPdf, hasControls, hasTarget, roasting, session, t, unit]);
 
-    return { exporting, canExport: canCapture && !exporting, onExportPdf };
+    return { exporting, canExport: canCapture && !exporting && !roasting, onExportPdf };
 };

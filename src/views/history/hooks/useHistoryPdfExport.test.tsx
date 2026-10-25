@@ -108,3 +108,34 @@ it('exports the selected batch title in the filename and PDF header while retain
         act(() => root.unmount());
     }
 });
+
+it('disables PDF export while a roast is in progress', async () => {
+    mocks.exportPdf.mockClear();
+    const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
+    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
+    const session = { roasted_at: '2026-10-19T14:35:47' } as unknown as RoastSessionWithRelations;
+    let latest!: ReturnType<typeof useHistoryPdfExport>;
+    const Probe = ({ roasting }: { roasting: boolean }) => {
+        latest = useHistoryPdfExport({
+            session,
+            chartRef,
+            hasControls: false,
+            unit: 'C',
+            canCapture: true,
+            roasting,
+        });
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        await act(async () => root.render(createElement(Probe, { roasting: true })));
+        expect(latest.canExport).toBe(false);
+        await act(async () => latest.onExportPdf());
+        expect(getDataURL).not.toHaveBeenCalled();
+        expect(mocks.exportPdf).not.toHaveBeenCalled();
+        await act(async () => root.render(createElement(Probe, { roasting: false })));
+        expect(latest.canExport).toBe(true);
+    } finally {
+        act(() => root.unmount());
+    }
+});
