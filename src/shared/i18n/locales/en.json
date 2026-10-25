@@ -93,9 +93,16 @@
         }
     },
     "updater": {
-        "checking": "Checking for update…",
+        "disconnectMachineFirst": "Please disconnect the machine before applying the update.",
+        "finishRoastFirst": "Please finish roasting before applying the update.",
+        "update": "Update",
+        "checking": "Checking for updates…",
         "downloading": "Downloading update…",
+        "downloadingProgress": "Downloading update… {{progress}}%",
         "ready": "Update ready (v{{version}}) · Restart",
+        "restart": "Restart",
+        "upToDate": "You're up to date",
+        "available": "Update available (v{{version}})",
         "applying": "Restarting…",
         "checkError": "An error occurred while checking for updates.",
         "relaunchError": "Failed to restart.",
@@ -664,7 +671,8 @@
                 "title": "Software Info",
                 "description": "View the current app version and software details.",
                 "version": "App Version",
-                "versionDescription": "Currently installed app version."
+                "versionDescription": "Currently installed app version.",
+                "check": "Check for updates"
             },
             "feedback": {
                 "label": "Feedback",
@@ -846,6 +854,8 @@
         "previousClose": "Previous close",
         "lastSixMonths": "Last 6 months",
         "thisMonth": "This month",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
         "refresh": "Refresh futures price",
         "greeting": {
             "morning": "Good morning",
@@ -855,6 +865,7 @@
         "viewActiveRoast": "View Active Roast",
         "kpi": {
             "batchesThisMonth": "Batches This Month",
+            "batchesInMonth": "Batches in {{month}}",
             "beansRoasted": "Beans roasted",
             "avgRoastTime": "Avg Roast Time",
             "successRate": "Success Rate",
@@ -1071,6 +1082,8 @@
         },
         "summary": {
             "title": "Roast Complete",
+            "batchName": "Roast title",
+            "batchNamePlaceholder": "Bean name is used if empty",
             "totalTime": "Total Time",
             "development": "Development",
             "finalBt": "Final BT",
@@ -1158,9 +1171,10 @@
             }
         },
         "dialogs": {
-            "roastInProgressTitle": "Roast in Progress",
-            "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",
-            "unsavedCloseMsg": "You have an unsaved roast. End without saving?",
+            "unsavedCloseTitle": "Confirm Quit",
+            "unsavedCloseMsg": "If you quit without saving, this roast record will not be saved. Do you want to quit?",
+            "closeWithoutSaving": "Quit Without Saving",
+            "keepUsing": "Keep Using",
             "end": "End",
             "cancel": "Cancel",
             "machineRequiredTitle": "Connect a machine",

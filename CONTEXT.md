@@ -169,7 +169,11 @@ _Avoid_: Cooling the roasted coffee.
 
 **Saved-roast correction**:
 An operator's correction to an already saved roast's charge weight, measured output, or roast level. Measured output takes precedence over an estimate; correcting a roast does not repeat its plan-batch stock deduction.
-_Avoid_: A new roast save, or a rewrite of the recorded measurement series.
+_Avoid_: A new roast save, a rewrite of the recorded measurement series, or a Saved-record edit.
+
+**Saved-record edit**:
+An operator's change to an already saved roast's phase marks, notes, airflow, drum speed, or recorded Heater rows and their Heat set. A review edit and a history edit are both Saved-record edits.
+_Avoid_: Saved-roast correction. A new roast save. A rewrite of the probe measurement series.
 
 **Development time**:
 1차 크랙 이후 배출까지의 시간.

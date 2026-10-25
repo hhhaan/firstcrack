@@ -35,6 +35,7 @@ export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMar
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
     const {
         report = false,
+        print = false,
         xs,
         btActual,
         etActual,
@@ -67,7 +68,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showControlDrum,
         showControlHeat,
         showControlFan,
-        controlChartHeightPct,
+        controlChartHeightPct: configuredControlChartHeightPct,
         mergeControlChart = false,
         controlYMin,
         controlYMax,
@@ -85,6 +86,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
     } = params;
+    const controlChartHeightPct = print
+        ? Math.max(35, configuredControlChartHeightPct)
+        : configuredControlChartHeightPct;
     const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
 
     const fontScale = chartFontScale(fontScaleRaw);
@@ -224,7 +228,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         : null;
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
-    const curveLabelSeries = buildCurveLabelSeries(curveLabels, fontScale);
+    const curveLabelSeries = buildCurveLabelSeries(curveLabels, fontScale, print ? '#ffffff' : undefined);
 
     if (hasControlSeries && controlData) {
         // Controls keep their own value axes, including when sharing the temperature grid.

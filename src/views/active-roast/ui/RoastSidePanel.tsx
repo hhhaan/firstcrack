@@ -1,17 +1,23 @@
 import { PHASE_COLORS, SENSOR_COLORS } from '@features/active-roast/lib/colors';
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { fcDualButtonLabel, getFcDualStage } from '@features/active-roast/lib/fc-dual-mark';
-import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
+import {
+    isReviewDeletableEvent,
+    isReviewEditableEvent,
+    reviewMarkToAdd,
+} from '@features/active-roast/lib/review-record-events';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
-import type { RoastLogEditOptions } from '@features/active-roast/ui/RoastLogEntryEditor';
+import { type RoastLogEditOptions, RoastLogEntryEditor } from '@features/active-roast/ui/RoastLogEntryEditor';
 import { endRoastLabel, markDropLabel, roastEventLabel, roastReadyLabel } from '@shared/i18n/roast-event-label';
+import { formatElapsed } from '@shared/lib/format';
 import { useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
@@ -57,6 +63,7 @@ interface RoastSidePanelProps {
     onNoteChange: (value: string) => void;
     onNoteSubmit: () => void;
     onMarkEvent: (event: string, note: string, pressKey?: string) => void;
+    onAddEvent?: (event: string, timeSec: number, tempC?: number) => void;
     onCycleFc: () => void;
     onHandleDrop: () => void;
     onRemoveLogEntry: (id: string) => void;
@@ -105,6 +112,7 @@ export const RoastSidePanel = ({
     onNoteChange,
     onNoteSubmit,
     onMarkEvent,
+    onAddEvent,
     onCycleFc,
     onHandleDrop,
     onRemoveLogEntry,
@@ -125,10 +133,30 @@ export const RoastSidePanel = ({
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const canMark = isRoastEventMarkEnabled(phase);
-    const marksEnabled = canMark && !reviewing;
+    const marksEnabled = reviewing ? Boolean(onAddEvent && logEditOptions) : canMark;
+    const [eventDraft, setEventDraft] = useState<LogEntry | null>(null);
+    const requestMark = (event: string, note: string, pressKey: string) => {
+        if (!marksEnabled) return;
+        if (!reviewing) {
+            if (event === 'FC Start' && fcDualMarkEnabled) onCycleFc();
+            else onMarkEvent(event, note, pressKey);
+            return;
+        }
+        const next = reviewMarkToAdd(logEntries, event, fcDualMarkEnabled);
+        if (!next) return;
+        setEventDraft({
+            id: crypto.randomUUID(),
+            event: next,
+            time: formatElapsed(logEditOptions?.maxTimeSec ?? 0),
+            timeSec: logEditOptions?.maxTimeSec ?? 0,
+            temp: '',
+            tempC: null,
+            note: '',
+        });
+    };
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
-    const endDisabled = !charged && !roastEnded;
+    const endDisabled = reviewing || (!charged && !roastEnded);
     const curves = useCurveStyles();
     const eventButtons = useRoastSettings().eventButtons;
     const shortcutBindings = useShortcutStore((state) => state.bindings);
@@ -142,7 +170,7 @@ export const RoastSidePanel = ({
             onRemoveLogEntry={onRemoveLogEntry}
             logEditOptions={logEditOptions}
             deletableEvent={reviewing ? isReviewDeletableEvent : undefined}
-            editableEvent={reviewing ? (event) => event !== 'Charge' && event !== 'Drop' : undefined}
+            editableEvent={reviewing ? isReviewEditableEvent : undefined}
         >
             <RoastAlertBanner alerts={activeAlerts} />
             {/* ET */}
@@ -384,10 +412,8 @@ export const RoastSidePanel = ({
                                       event: 'Yellow',
                                       shortcutId: 'yellow' as const,
                                       pressKey: 'Mark Yellow',
-                                      onClick: () => {
-                                          if (!canMark) return;
-                                          onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
-                                      },
+                                      disabled: reviewing && reviewMarkToAdd(logEntries, 'Yellow', false) == null,
+                                      onClick: () => requestMark('Yellow', 'Color change visible', 'Mark Yellow'),
                                   },
                               ]
                             : []),
@@ -396,17 +422,16 @@ export const RoastSidePanel = ({
                                   {
                                       label: roastEventLabel(
                                           fcDualStage != null
-                                              ? fcDualButtonLabel(fcDualStage, fcDualUnwind)
+                                              ? fcDualButtonLabel(fcDualStage, reviewing ? false : fcDualUnwind)
                                               : 'FC Start',
                                       ),
                                       event: 'FC Start',
                                       shortcutId: 'fcStart' as const,
                                       pressKey: 'Mark FC Start',
-                                      onClick: () => {
-                                          if (!canMark) return;
-                                          if (fcDualMarkEnabled) onCycleFc();
-                                          else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
-                                      },
+                                      disabled:
+                                          reviewing &&
+                                          reviewMarkToAdd(logEntries, 'FC Start', fcDualMarkEnabled) == null,
+                                      onClick: () => requestMark('FC Start', 'First crack started', 'Mark FC Start'),
                                       dualStage: fcDualStage,
                                   },
                               ]
@@ -418,10 +443,8 @@ export const RoastSidePanel = ({
                                       event: 'FC End',
                                       shortcutId: 'fcEnd' as const,
                                       pressKey: 'Mark FC End',
-                                      onClick: () => {
-                                          if (!canMark) return;
-                                          onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
-                                      },
+                                      disabled: reviewing && reviewMarkToAdd(logEntries, 'FC End', false) == null,
+                                      onClick: () => requestMark('FC End', 'First crack ended', 'Mark FC End'),
                                   },
                               ]
                             : []),
@@ -435,8 +458,7 @@ export const RoastSidePanel = ({
                                     pressKey: item.id,
                                     ...(shortcut ? { shortcutKeys: [shortcut] } : {}),
                                     onClick: () => {
-                                        if (!canMark) return;
-                                        onMarkEvent(item.name, '', item.id);
+                                        requestMark(item.name, '', item.id);
                                     },
                                 };
                             }),
@@ -445,14 +467,34 @@ export const RoastSidePanel = ({
                             event: 'Drop',
                             shortcutId: 'drop' as const,
                             pressKey: 'Mark Drop',
-                            disabled: !canMark,
+                            disabled: reviewing || !canMark,
                             onClick: () => {
-                                if (!canMark) return;
+                                if (reviewing || !canMark) return;
                                 onHandleDrop();
                             },
                         },
                     ]}
                 />
+                {reviewing && eventDraft && logEditOptions && onAddEvent && (
+                    <div
+                        className="mt-2 rounded border border-border-subtle p-2"
+                        role="group"
+                        aria-label={roastEventLabel(eventDraft.event)}
+                    >
+                        <p className="m-0 text-xs text-primary">{roastEventLabel(eventDraft.event)}</p>
+                        <RoastLogEntryEditor
+                            key={eventDraft.id}
+                            entry={eventDraft}
+                            options={{
+                                ...logEditOptions,
+                                onEditEntry: (_id, patch) => {
+                                    if (patch.timeSec != null) onAddEvent(eventDraft.event, patch.timeSec, patch.tempC);
+                                },
+                            }}
+                            onClose={() => setEventDraft(null)}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Add Note */}

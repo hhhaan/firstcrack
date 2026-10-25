@@ -28,9 +28,8 @@ vi.mock('@features/export-history-pdf', async () => ({
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it('exports the selected batch title in the filename and PDF header while retaining the actual bean', async () => {
-    const chartRef = { current: { getDataURL: () => 'data:image/png;base64,AA==' } } as Parameters<
-        typeof useHistoryPdfExport
-    >[0]['chartRef'];
+    const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
+    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
     const session = {
         batch_name: 'Batch A',
         profile_batch_number: 9,
@@ -47,6 +46,7 @@ it('exports the selected batch title in the filename and PDF header while retain
     try {
         await act(async () => root.render(createElement(Probe, { value: session })));
         await act(async () => latest.onExportPdf());
+        expect(getDataURL).toHaveBeenCalledWith({ width: 100, height: 100, pixelRatio: 200 / 72 });
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('batch-a'),

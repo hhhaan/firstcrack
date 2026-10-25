@@ -5,12 +5,12 @@ export const HISTORY_PDF_PAGE_PX = { width: 2339, height: 1654 } as const;
 /** 12mm at 200 dpi. */
 export const HISTORY_PDF_MARGIN_PX = 94;
 
-const COLOR_PRIMARY = '#171717';
-const COLOR_MUTED = '#777169';
-const COLOR_BORDER = '#e5e5e5';
+const COLOR_PRIMARY = '#101828';
+const COLOR_MUTED = '#4a5565';
+const COLOR_BORDER = '#e5e7eb';
 const FONT_FAMILY = 'Inter, SUIT, system-ui, sans-serif';
-const FONT_UI = `500 24px ${FONT_FAMILY}`;
-const FONT_VALUE = `500 36px ${FONT_FAMILY}`;
+const FONT_UI = `500 30px ${FONT_FAMILY}`;
+const FONT_VALUE = `500 42px ${FONT_FAMILY}`;
 
 export type HistoryPdfHeader = {
     bean: string;
@@ -68,8 +68,8 @@ const fitText = (ctx: CanvasRenderingContext2D, value: string, width: number) =>
     return `${chars.join('')}…`;
 };
 
-export const HISTORY_PDF_HEADER_PX = 364;
-export const HISTORY_PDF_LEGEND_PX = 64;
+export const HISTORY_PDF_HEADER_PX = 400;
+export const HISTORY_PDF_LEGEND_PX = 80;
 export const HISTORY_PDF_FOOTER_PX = 80;
 
 export const historyPdfChartBox = (hasLegend: boolean) => {
@@ -87,19 +87,18 @@ export const historyPdfChartBox = (hasLegend: boolean) => {
 };
 
 /**
- * Paint header + chart (+ optional Drum/Heat/Fan legend) onto an A4 landscape
- * JPEG. Unicode comes from canvas, not PDF fonts.
- * The chart image fills the leftover box so the control band stays ~21% of that area.
+ * Paint a header, chart and optional series legend onto an A4 landscape JPEG.
+ * Unicode comes from canvas, not PDF fonts.
  */
 export const composeHistoryPdfJpeg = async (
     input: ComposeHistoryPdfInput,
 ): Promise<{ jpeg: Uint8Array; width: number; height: number }> => {
     // Explicitly load both bundled fonts: canvas text alone does not trigger font loading.
     await Promise.all([
-        document.fonts.load('500 24px Inter'),
-        document.fonts.load('600 54px Inter'),
-        document.fonts.load('500 24px SUIT'),
-        document.fonts.load('600 54px SUIT'),
+        document.fonts.load('500 30px Inter'),
+        document.fonts.load('600 56px Inter'),
+        document.fonts.load('500 30px SUIT'),
+        document.fonts.load('600 56px SUIT'),
     ]);
     const { width, height } = HISTORY_PDF_PAGE_PX;
     const canvas = document.createElement('canvas');
@@ -118,24 +117,22 @@ export const composeHistoryPdfJpeg = async (
         ctx.fillStyle = COLOR_BORDER;
         ctx.fillRect(margin, y, innerW, 2);
     };
-    ctx.font = `600 24px ${FONT_FAMILY}`;
+    ctx.font = `600 30px ${FONT_FAMILY}`;
     ctx.fillStyle = COLOR_PRIMARY;
     ctx.fillText('FIRST CRACK', margin, margin);
     ctx.font = FONT_UI;
     ctx.fillStyle = COLOR_MUTED;
     ctx.textAlign = 'right';
-    ctx.fillText(input.title ?? 'Roast profile', width - margin, margin);
+    ctx.fillText(fitText(ctx, input.title ?? 'Roast profile', innerW - 340), width - margin, margin);
     ctx.textAlign = 'left';
-    line(margin + 48);
+    line(margin + 56);
 
-    ctx.fillStyle = COLOR_MUTED;
-    ctx.font = FONT_UI;
-    ctx.fillText(input.header.labels.roastTitle ?? input.header.labels.bean, margin, margin + 76);
-    ctx.font = `600 54px ${FONT_FAMILY}`;
+    ctx.font = `600 56px ${FONT_FAMILY}`;
     ctx.fillStyle = COLOR_PRIMARY;
     const heading = (input.header.roastTitle ?? input.header.bean).replace(/\s+/g, ' ').trim();
+    let beanY = margin + 154;
     if (ctx.measureText(heading).width <= innerW) {
-        ctx.fillText(heading, margin, margin + 113);
+        ctx.fillText(heading, margin, margin + 76);
     } else {
         const chars = Array.from(heading);
         let end = chars.length;
@@ -144,12 +141,22 @@ export const composeHistoryPdfJpeg = async (
         const first = chars.slice(0, end).join('');
         const space = first.lastIndexOf(' ');
         if (space > first.length / 2) end = Array.from(first.slice(0, space)).length;
-        ctx.fillText(chars.slice(0, end).join(''), margin, margin + 113);
-        ctx.fillText(fitText(ctx, chars.slice(end).join('').trim(), innerW), margin, margin + 177);
+        ctx.fillText(chars.slice(0, end).join(''), margin, margin + 76);
+        ctx.fillText(fitText(ctx, chars.slice(end).join('').trim(), innerW), margin, margin + 144);
+        beanY += 68;
+    }
+
+    if (input.header.roastTitle != null) {
+        ctx.font = FONT_UI;
+        ctx.fillStyle = COLOR_MUTED;
+        const label = fitText(ctx, input.header.labels.bean, innerW / 4);
+        ctx.fillText(label, margin, beanY);
+        const valueX = margin + ctx.measureText(label).width + 20;
+        ctx.fillStyle = COLOR_PRIMARY;
+        ctx.fillText(fitText(ctx, input.header.bean, width - margin - valueX), valueX, beanY);
     }
 
     const fields = [
-        ...(input.header.roastTitle != null ? [{ label: input.header.labels.bean, value: input.header.bean }] : []),
         { label: input.header.labels.date, value: input.header.date },
         { label: input.header.labels.duration, value: input.header.duration },
         { label: input.header.labels.charge, value: input.header.charge },
@@ -160,15 +167,16 @@ export const composeHistoryPdfJpeg = async (
         const x = margin + i * colW;
         if (i) {
             ctx.fillStyle = COLOR_BORDER;
-            ctx.fillRect(x - 28, margin + 258, 2, 68);
+            ctx.fillRect(x - 24, margin + 280, 2, 88);
         }
         ctx.fillStyle = COLOR_MUTED;
         ctx.font = FONT_UI;
-        ctx.fillText(fitText(ctx, field.label, colW - 56), x, margin + 252);
+        ctx.fillText(fitText(ctx, field.label, colW - 48), x, margin + 280);
         ctx.fillStyle = COLOR_PRIMARY;
         ctx.font = FONT_VALUE;
-        ctx.fillText(fitText(ctx, field.value, colW - 56), x, margin + 288);
+        ctx.fillText(fitText(ctx, field.value, colW - 48), x, margin + 326);
     });
+    line(margin + HISTORY_PDF_HEADER_PX - 20);
 
     const hasLegend = Boolean(input.legend?.length);
     const chartBox = historyPdfChartBox(hasLegend);
@@ -180,22 +188,24 @@ export const composeHistoryPdfJpeg = async (
         let lx = margin;
         const ly = chartTop + chartBox.height + 16;
         ctx.font = FONT_UI;
-        // The export supplies at most seven series; equal slots keep long translations bounded.
-        const slot = innerW / input.legend.length;
-        for (const item of input.legend) {
+        const labelWidths = input.legend.map((item) => ctx.measureText(item.label).width);
+        const labelSpace = innerW - input.legend.length * 52 - (input.legend.length - 1) * 40;
+        const labelScale = Math.min(1, labelSpace / labelWidths.reduce((sum, value) => sum + value, 0));
+        for (const [i, item] of input.legend.entries()) {
+            const labelWidth = labelWidths[i] * labelScale;
             ctx.save();
             ctx.globalAlpha = item.opacity ?? 1;
             ctx.strokeStyle = item.color;
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 5;
             ctx.setLineDash(legendLineDash(item));
             ctx.beginPath();
-            ctx.moveTo(lx, ly + 14);
-            ctx.lineTo(lx + 40, ly + 14);
+            ctx.moveTo(lx, ly + 18);
+            ctx.lineTo(lx + 40, ly + 18);
             ctx.stroke();
             ctx.restore();
             ctx.fillStyle = COLOR_MUTED;
-            ctx.fillText(fitText(ctx, item.label, slot - 76), lx + 52, ly);
-            lx += slot;
+            ctx.fillText(fitText(ctx, item.label, labelWidth), lx + 52, ly);
+            lx += 52 + labelWidth + 40;
         }
     }
 
@@ -203,13 +213,10 @@ export const composeHistoryPdfJpeg = async (
     line(footerY + 20);
     ctx.font = FONT_UI;
     ctx.fillStyle = COLOR_MUTED;
-    ctx.fillText('First Crack', margin, footerY + 44);
-    if (input.header.batchNumbers)
-        ctx.fillText(
-            `${input.header.labels.batchNumbers ?? ''}: ${input.header.batchNumbers}`,
-            margin + 200,
-            footerY + 44,
-        );
+    const footer = input.header.batchNumbers
+        ? `${input.header.labels.batchNumbers ? `${input.header.labels.batchNumbers}: ` : ''}${input.header.batchNumbers}`
+        : 'First Crack';
+    ctx.fillText(fitText(ctx, footer, innerW - 128), margin, footerY + 44);
     ctx.textAlign = 'right';
     ctx.fillText('1 / 1', width - margin, footerY + 44);
 

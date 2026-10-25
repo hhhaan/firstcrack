@@ -31,6 +31,7 @@ describe('filterSessions', () => {
             filterSessions(records, {
                 search: 'Batch C',
                 levelFilter: 'all',
+                profileFilter: 'all',
                 originFilter: 'all',
                 fromYM: '',
                 toYM: '',
@@ -56,6 +57,7 @@ describe('filterSessions', () => {
                 levelFilter: 'all',
                 fromYM: '',
                 toYM: '',
+                profileFilter: 'all',
                 originFilter: 'all',
             }),
         ).toHaveLength(3);
@@ -68,6 +70,7 @@ describe('filterSessions', () => {
                 levelFilter: 'all',
                 fromYM: '',
                 toYM: '',
+                profileFilter: 'all',
                 originFilter: 'all',
             }),
         ).toEqual([sessions[2]]);
@@ -80,6 +83,7 @@ describe('filterSessions', () => {
                 levelFilter: 'Dark',
                 fromYM: '',
                 toYM: '',
+                profileFilter: 'all',
                 originFilter: 'Colombia',
             }),
         ).toEqual([sessions[1]]);
@@ -92,9 +96,32 @@ describe('filterSessions', () => {
                 levelFilter: 'all',
                 fromYM: '2025-06',
                 toYM: '2025-06',
+                profileFilter: 'all',
                 originFilter: 'all',
             }),
         ).toEqual([sessions[0], sessions[1]]);
+    });
+
+    it('combines profile ID with the other filters and keeps same-name profiles separate', () => {
+        const matching = session({ profile_id: 'profile-a' });
+        const records = [
+            matching,
+            session({ profile_id: 'profile-b' }),
+            session({ profile_id: null, roast_profiles: null }),
+            session({ profile_id: 'profile-a', roasted_at: '2024-01-10T10:00:00Z' }),
+            session({ profile_id: 'profile-a', roast_level: 'Dark' }),
+            session({ profile_id: 'profile-a', beans: bean('Colombia', 'Colombia') }),
+        ];
+        expect(
+            filterSessions(records, {
+                search: 'Yirgacheffe',
+                profileFilter: 'profile-a',
+                levelFilter: 'Medium',
+                originFilter: 'Ethiopia',
+                fromYM: '2025-06',
+                toYM: '2025-06',
+            }),
+        ).toEqual([matching]);
     });
 });
 

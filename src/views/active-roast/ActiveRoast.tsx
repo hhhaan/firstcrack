@@ -39,7 +39,11 @@ import {
 import { dropControlRole, parseControlMarkerLogId } from '@features/active-roast/lib/fan-drum-markers';
 import { withoutLogEvent } from '@features/active-roast/lib/fc-dual-mark';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
-import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
+import {
+    isReviewDeletableEvent,
+    isReviewEditableEvent,
+    reviewMarkToAdd,
+} from '@features/active-roast/lib/review-record-events';
 import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
@@ -57,12 +61,10 @@ import { FEATURE, useFeature } from '@shared/lib/features';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ask } from '@tauri-apps/plugin-dialog';
 import { type HistoryReference, HistoryReferencePicker } from '@widgets/history-reference/ui/HistoryReferencePicker';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -137,10 +139,6 @@ const chartOnlyPreheatBootMs = Date.now();
 
 export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
     const { t } = useTranslation();
-    const tRef = useRef(t);
-    useEffect(() => {
-        tRef.current = t;
-    }, [t]);
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -266,19 +264,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     });
 
     // ── UI 상태 ───────────────────────────────────────────────────
-    // 진행 중은 phase === 'roasting'. 화면 로컬 boolean을 두지 않는다.
-    const isRunning = phase === 'roasting';
-    const isRunningRef = useRef(isRunning);
-    useEffect(() => {
-        isRunningRef.current = isRunning;
-    }, [isRunning]);
-
-    // 미저장 로스트(진행 중 or ended 요약) — 창 닫기 가드용 (#177)
-    const hasUnsavedRoastRef = useRef(false);
-    useEffect(() => {
-        hasUnsavedRoastRef.current = isRunning || phase === 'ended' || awaitingNextCharge;
-    }, [isRunning, phase, awaitingNextCharge]);
-
     const [isFullscreen, setIsFullscreen] = useState(false);
     const toggleFullscreen = useCallback(() => setIsFullscreen((prev) => !prev), []);
     const exitFullscreen = useCallback(() => setIsFullscreen(false), []);
@@ -298,9 +283,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewSnapshot = useRoastingStore(selectReviewSnapshot);
     const reviewing = reviewSnapshot != null;
     const reviewSessionId = reviewSnapshot?.sessionId ?? null;
-    const { applyReviewLog, reviewSaveError, reviewHeaterEvents } = useReviewCurveEdit(reviewSessionId);
+    const { applyReviewLog, getReviewLog, reviewLogEntries, reviewSaveError, reviewHeaterEvents } = useReviewCurveEdit(
+        reviewSessionId,
+        unit,
+    );
     const curvePoints = reviewSnapshot?.livePoints ?? livePoints;
-    const curveEntries = reviewSnapshot?.logEntries ?? logEntries;
+    const curveEntries = reviewing ? (reviewLogEntries ?? reviewSnapshot.logEntries) : logEntries;
     const curveElapsed = reviewSnapshot?.elapsed ?? elapsed;
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
@@ -741,72 +729,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [setLogEntries, chart.setZoomRange, chart.setHoveredChartIndex],
     );
 
-    // ── Effect: 로스팅 중 / ended 미저장 창 닫기 확인 (#177) ──────
-    useEffect(() => {
-        if (!('__TAURI_INTERNALS__' in window)) return;
-        const win = getCurrentWindow();
-        let unlisten: (() => void) | undefined;
-        let active = true;
-        let prompting = false;
-        void win
-            .onCloseRequested(async (e) => {
-                if (!hasUnsavedRoastRef.current) return;
-                // 다이얼로그가 떠 있는 동안의 재진입은 닫지 않는다.
-                if (prompting) {
-                    e.preventDefault();
-                    return;
-                }
-                prompting = true;
-                try {
-                    const running = isRunningRef.current;
-                    const translate = tRef.current;
-                    const ok = await ask(
-                        running
-                            ? translate('activeRoast.dialogs.roastInProgressMsg')
-                            : translate('activeRoast.dialogs.unsavedCloseMsg'),
-                        {
-                            title: translate('activeRoast.dialogs.roastInProgressTitle'),
-                            kind: 'warning',
-                            okLabel: translate('activeRoast.dialogs.end'),
-                            cancelLabel: translate('activeRoast.dialogs.cancel'),
-                        },
-                    );
-                    if (!ok) {
-                        e.preventDefault();
-                        return;
-                    }
-                    const sid = useRoastingStore.getState().sessionId;
-                    if (sid) {
-                        try {
-                            await flushTsv(sid);
-                        } catch (err) {
-                            logger.capture(err, { scope: 'activeRoast.flushOnClose' });
-                            // flush failure must not block window close
-                        }
-                    }
-                    // 확인이면 preventDefault 하지 않는다. Tauri 2는 JS 리스너가 있으면
-                    // 네이티브 close를 이미 취소하고, preventDefault가 없을 때만 destroy() 한다.
-                    // close()+unlisten()은 리스너만 지워서 이후 빨간 버튼/Cmd+W가 무시된다.
-                } catch (err) {
-                    e.preventDefault();
-                    logger.capture(err, { scope: 'activeRoast.closePrompt' });
-                } finally {
-                    prompting = false;
-                }
-            })
-            .then((fn) => {
-                if (active) {
-                    unlisten = fn;
-                } else {
-                    fn();
-                }
-            });
-        return () => {
-            active = false;
-            unlisten?.();
-        };
-    }, []);
-
     // ── Effect: 타이틀바에 실시간 온도 표시 ─────────────────────
     useEffect(() => {
         if (!('__TAURI_INTERNALS__' in window)) return;
@@ -917,6 +839,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
 
     // ── 이벤트 핸들러 ─────────────────────────────────────────────
     const handleEndRoastClick = useCallback(() => {
+        if (selectReviewSnapshot(useRoastingStore.getState())) return;
         if (saveFlow.flow.summaryData) {
             saveFlow.flow.reopenSummary();
             return;
@@ -968,21 +891,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             if (frozen) {
                 if (logId === TP_MARKER_ID) {
                     frozenLogEdit(
-                        upsertReviewTurningPoint(
-                            frozen.logEntries,
-                            newTimeSec,
-                            frozen.livePoints,
-                            unit,
-                            frozen.elapsed,
-                        ),
+                        upsertReviewTurningPoint(getReviewLog(), newTimeSec, frozen.livePoints, unit, frozen.elapsed),
                     );
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
-                if (!target || target.event === 'Charge' || target.event === 'Drop') return;
+                const target = getReviewLog().find((entry) => entry.id === markerRowId(logId));
+                if (!target || !isReviewEditableEvent(target.event)) return;
                 frozenLogEdit(
                     applyEventMarkerEdit(
-                        frozen.logEntries,
+                        getReviewLog(),
                         logId,
                         { timeSec: newTimeSec },
                         frozen.livePoints,
@@ -1004,7 +921,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 applyEventMarkerEdit(prev, logId, { timeSec: newTimeSec }, livePoints, unit, elapsed),
             );
         },
-        [bbpActive, editBbpMarkers, elapsed, frozenLogEdit, livePoints, placeTurningPoint, setLogEntries, unit],
+        [
+            bbpActive,
+            editBbpMarkers,
+            elapsed,
+            frozenLogEdit,
+            getReviewLog,
+            livePoints,
+            placeTurningPoint,
+            setLogEntries,
+            unit,
+        ],
     );
 
     const handleEventMarkerEdit = useCallback(
@@ -1015,7 +942,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     if (patch.timeSec != null) {
                         frozenLogEdit(
                             upsertReviewTurningPoint(
-                                frozen.logEntries,
+                                getReviewLog(),
                                 patch.timeSec,
                                 frozen.livePoints,
                                 unit,
@@ -1025,10 +952,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     }
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
-                if (!target || target.event === 'Charge' || target.event === 'Drop') return;
+                const target = getReviewLog().find((entry) => entry.id === markerRowId(logId));
+                if (!target || !isReviewEditableEvent(target.event)) return;
                 frozenLogEdit(
-                    applyEventMarkerEdit(frozen.logEntries, logId, patch, frozen.livePoints, unit, frozen.elapsed),
+                    applyEventMarkerEdit(getReviewLog(), logId, patch, frozen.livePoints, unit, frozen.elapsed),
                 );
                 return;
             }
@@ -1042,7 +969,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }
             setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
         },
-        [bbpActive, editBbpMarkers, elapsed, frozenLogEdit, livePoints, placeTurningPoint, setLogEntries, unit],
+        [
+            bbpActive,
+            editBbpMarkers,
+            elapsed,
+            frozenLogEdit,
+            getReviewLog,
+            livePoints,
+            placeTurningPoint,
+            setLogEntries,
+            unit,
+        ],
     );
 
     const handleChartNote = useCallback(
@@ -1051,7 +988,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             if (frozen) {
                 const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
                 const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
-                frozenLogEdit(appendReviewEntry(frozen.logEntries, 'Note', body, timeSec, tempC, unit, controls));
+                frozenLogEdit(appendReviewEntry(getReviewLog(), 'Note', body, timeSec, tempC, unit, controls));
                 return;
             }
             if (bbpActive) {
@@ -1072,7 +1009,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
             markEvent('Note', body, undefined, { timeSec, tempC }, controls);
         },
-        [bbpActive, chartView.eventTimeOrigin, chartView.livePoints, frozenLogEdit, livePoints, markEvent, unit],
+        [
+            bbpActive,
+            chartView.eventTimeOrigin,
+            chartView.livePoints,
+            frozenLogEdit,
+            getReviewLog,
+            livePoints,
+            markEvent,
+            unit,
+        ],
     );
 
     const handleHeaterCommitted = useCallback(
@@ -1108,30 +1054,26 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const handleReviewMoveEvent = useCallback(
         (event: string, timeSec: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
-            if (!frozen || event === 'Charge' || event === 'Drop') return;
-            const target = frozen.logEntries.find((entry) => entry.event === event && entry.id);
+            if (!frozen || !isReviewEditableEvent(event)) return;
+            const target = getReviewLog().find((entry) => entry.event === event && entry.id);
             if (!target?.id) return;
             frozenLogEdit(
-                applyEventMarkerEdit(
-                    frozen.logEntries,
-                    target.id,
-                    { timeSec },
-                    frozen.livePoints,
-                    unit,
-                    frozen.elapsed,
-                ),
+                applyEventMarkerEdit(getReviewLog(), target.id, { timeSec }, frozen.livePoints, unit, frozen.elapsed),
             );
         },
-        [frozenLogEdit, unit],
+        [frozenLogEdit, getReviewLog, unit],
     );
 
     const handleChartEvent = useCallback(
-        (event: string, timeSec: number) => {
+        (event: string, timeSec: number, enteredTempC?: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (frozen) {
+                if (!reviewMarkToAdd(getReviewLog(), event, false)) return;
                 const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
-                const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
-                frozenLogEdit(appendReviewEntry(frozen.logEntries, event, '', timeSec, tempC, unit));
+                const tempC =
+                    enteredTempC ??
+                    (nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null);
+                frozenLogEdit(appendReviewEntry(getReviewLog(), event, '', timeSec, tempC, unit));
                 return;
             }
             if (!charged || roastEnded || bbpActive) return;
@@ -1139,7 +1081,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
             markEvent(event, '', undefined, { timeSec, tempC });
         },
-        [bbpActive, charged, frozenLogEdit, livePoints, markEvent, roastEnded, unit],
+        [bbpActive, charged, frozenLogEdit, getReviewLog, livePoints, markEvent, roastEnded, unit],
     );
 
     const removeCurveEntry = useCallback(
@@ -1155,7 +1097,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 return;
             }
             if (parseControlMarkerLogId(id)) {
-                const source = frozen?.logEntries ?? useRoastingStore.getState().logState.entries;
+                const source = frozen ? getReviewLog() : useRoastingStore.getState().logState.entries;
                 const next = dropControlRole(source, id);
                 if (!next) return;
                 if (frozen) frozenLogEdit(next);
@@ -1163,18 +1105,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 return;
             }
             if (frozen) {
-                const target = frozen.logEntries.find((entry) => entry.id === id);
+                const target = getReviewLog().find((entry) => entry.id === id);
                 if (!target || !isReviewDeletableEvent(target.event)) return;
                 frozenLogEdit(
                     isToggleableLogEvent(target.event)
-                        ? withoutLogEvent(frozen.logEntries, target.event)
-                        : frozen.logEntries.filter((entry) => entry.id !== id),
+                        ? withoutLogEvent(getReviewLog(), target.event)
+                        : getReviewLog().filter((entry) => entry.id !== id),
                 );
                 return;
             }
             removeLogEntry(id);
         },
-        [bbpActive, frozenLogEdit, removeLogEntry, setLogEntries],
+        [bbpActive, frozenLogEdit, getReviewLog, removeLogEntry, setLogEntries],
     );
 
     const handleControlApplied = useCallback(
@@ -1275,7 +1217,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const timeSec = Math.max(0, frozen.elapsed);
             const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
             const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
-            frozenLogEdit(appendReviewEntry(frozen.logEntries, 'Note', body, timeSec, tempC, unit));
+            frozenLogEdit(appendReviewEntry(getReviewLog(), 'Note', body, timeSec, tempC, unit));
             setNoteInput('');
             return;
         }
@@ -1295,6 +1237,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         chartView.eventTimeOrigin,
         chartView.livePoints,
         frozenLogEdit,
+        getReviewLog,
         markEvent,
         noteInput,
         rawBT,
@@ -1316,10 +1259,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
     const reviewChartTurningPoints = useMemo(() => {
         if (!reviewSnapshot) return [];
-        const logged = reviewSnapshot.logEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
+        const logged = curveEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
         const loggedTime = logged ? logEntryTimeSec(logged) : null;
         if (logged?.tempC != null && loggedTime != null) return [{ timeSec: loggedTime, temp: logged.tempC }];
-        const drop = reviewSnapshot.logEntries.find((entry) => entry.event === 'Drop');
+        const drop = curveEntries.find((entry) => entry.event === 'Drop');
         const limit = (drop ? logEntryTimeSec(drop) : null) ?? reviewSnapshot.elapsed;
         const xs: number[] = [];
         const bt: number[] = [];
@@ -1331,7 +1274,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         return detectTurningPoints(xs, bt)
             .slice(0, 1)
             .map(({ timeSec, temp }) => ({ timeSec, temp }));
-    }, [reviewSnapshot]);
+    }, [reviewSnapshot, curveEntries]);
     const reviewHeatSet = useMemo(() => {
         if (!reviewing || reviewHeaterEvents == null) return chart.visibleHeatSet;
         const drop = curveEntries.find((entry) => entry.event === 'Drop');
@@ -1505,7 +1448,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         phaseSegments={chartFrame.phaseSegments}
                         showFcBand={chartFrame.showFcBand}
                         unit={unit}
-                        targetProfileName={reference?.name ?? targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={chartFrame.onEventMarkerDrag}
                         onEventMarkerEdit={chartFrame.onEventMarkerEdit}
@@ -1533,6 +1475,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     />
 
                     <RoastSidePanel
+                        key={reviewSnapshot?.sessionId ?? 'live'}
                         rawBT={rawBT}
                         rawET={rawET}
                         displayRoR={displayRoR}
@@ -1561,6 +1504,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}
                         onMarkEvent={markEvent}
+                        onAddEvent={handleChartEvent}
                         onCycleFc={cycleFc}
                         onHandleDrop={markDrop}
                         onRemoveLogEntry={removeCurveEntry}

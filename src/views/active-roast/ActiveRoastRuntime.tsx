@@ -1,10 +1,12 @@
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useEffectivePollIntervalMs } from '@features/active-roast/model/useEffectivePollInterval';
 import { useEffect } from 'react';
+import { useRoastCloseGuard } from './model/useRoastCloseGuard';
 import { useSidecarPolling } from './model/useSidecarPolling';
 
 /** Keep collection alive while the roast screen's error boundary recovers. */
 export const ActiveRoastRuntime = ({ isActive }: { isActive: boolean }) => {
+    useRoastCloseGuard();
     const phase = useRoastingStore((state) => state.phase);
     const sessionId = useRoastingStore((state) => state.sessionId);
     const tick = useRoastingStore((state) => state.tick);

@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
+import { roastSessionKeys } from '@entities/roast';
+import type { roastSessionApi } from '@entities/roast/api';
+import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import { sidecar } from '@shared/lib/sidecar';
-import { _resetTsvWriterForTests } from '@shared/lib/tsv-writer';
+import { _resetTsvWriterForTests, initSessionTsv } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -14,7 +17,6 @@ import { ActiveRoastRuntime } from './ActiveRoastRuntime';
 
 vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
-const RUNNING_CLOSE = 'activeRoast.dialogs.roastInProgressMsg';
 const UNSAVED_CLOSE = 'activeRoast.dialogs.unsavedCloseMsg';
 
 type CloseHandler = (event: { preventDefault: () => void }) => void | Promise<void>;
@@ -27,6 +29,13 @@ const tauri = vi.hoisted(() => {
 const dialog = vi.hoisted(() => ({
     ask: vi.fn((_message: string) => Promise.resolve(false)),
 }));
+
+const workspace = vi.hoisted(() => ({ owner: '', ready: false }));
+const updateRecord = vi.hoisted(() => vi.fn());
+vi.mock('@entities/roast/api', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@entities/roast/api')>();
+    return { ...actual, roastSessionApi: { ...actual.roastSessionApi, updateRecord } };
+});
 
 const chart = vi.hoisted(() => ({
     containPixel: vi.fn(() => true),
@@ -59,7 +68,7 @@ vi.mock('@entities/organization', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/organization')>();
     return {
         ...actual,
-        useActiveWorkspace: () => ({ workspaceOwnerId: '' }),
+        useActiveWorkspace: () => ({ workspaceOwnerId: workspace.owner, isWorkspaceReady: workspace.ready }),
     };
 });
 
@@ -233,6 +242,13 @@ describe('ActiveRoast running clock (#627)', () => {
         tauri.closeListeners.clear();
         dialog.ask.mockClear();
         dialog.ask.mockResolvedValue(false);
+        workspace.owner = '';
+        workspace.ready = false;
+        updateRecord.mockReset();
+        updateRecord.mockImplementation(async (payload: Parameters<typeof roastSessionApi.updateRecord>[0]) => ({
+            events: payload.events,
+            heater_events: payload.heaterEvents,
+        }));
         _resetTsvWriterForTests({
             write: async () => undefined,
             remove: async () => undefined,
@@ -403,11 +419,11 @@ describe('ActiveRoast running clock (#627)', () => {
 
         const runningClose = await closeOnce();
         expect(dialog.ask).toHaveBeenCalledWith(
-            RUNNING_CLOSE,
+            UNSAVED_CLOSE,
             expect.objectContaining({
-                title: 'activeRoast.dialogs.roastInProgressTitle',
-                okLabel: 'activeRoast.dialogs.end',
-                cancelLabel: 'activeRoast.dialogs.cancel',
+                title: 'activeRoast.dialogs.unsavedCloseTitle',
+                okLabel: 'activeRoast.dialogs.closeWithoutSaving',
+                cancelLabel: 'activeRoast.dialogs.keepUsing',
             }),
         );
         expect(runningClose.preventDefault).toHaveBeenCalledTimes(1);
@@ -471,7 +487,11 @@ describe('ActiveRoast running clock (#627)', () => {
         const waitClose = await closeOnce();
         expect(dialog.ask).toHaveBeenCalledWith(
             UNSAVED_CLOSE,
-            expect.objectContaining({ title: 'activeRoast.dialogs.roastInProgressTitle' }),
+            expect.objectContaining({
+                title: 'activeRoast.dialogs.unsavedCloseTitle',
+                okLabel: 'activeRoast.dialogs.closeWithoutSaving',
+                cancelLabel: 'activeRoast.dialogs.keepUsing',
+            }),
         );
         expect(waitClose.preventDefault).toHaveBeenCalledTimes(1);
         unmountWait();
@@ -491,6 +511,73 @@ describe('ActiveRoast running clock (#627)', () => {
         expect(endedClose.preventDefault).toHaveBeenCalledTimes(1);
     });
 
+    it('keeps the close guard when only the runtime survives a roast screen failure', async () => {
+        seed({ phase: 'ended', awaitingNextCharge: false });
+        mount();
+        act(() => {
+            root.render(
+                createElement(
+                    QueryClientProvider,
+                    { client: queryClient },
+                    createElement(ActiveRoastRuntime, { isActive: true }),
+                ),
+            );
+        });
+        await flushMicrotasks();
+        const event = await closeOnce();
+        expect(dialog.ask).toHaveBeenCalledWith(UNSAVED_CLOSE, expect.objectContaining({ kind: 'warning' }));
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    });
+
+    it('confirms exit without retrying pending storage writes or saving the roast', async () => {
+        seed({ phase: 'ended', awaitingNextCharge: false });
+        mount();
+        await flushMicrotasks();
+        const write = vi.fn(async () => undefined);
+        write.mockRejectedValueOnce(new Error('Storage temporarily unavailable'));
+        _resetTsvWriterForTests({ write, remove: async () => undefined });
+        await expect(initSessionTsv('pending-record')).rejects.toThrow('Storage temporarily unavailable');
+        write.mockClear();
+        dialog.ask.mockResolvedValue(true);
+
+        const event = await closeOnce();
+        expect(dialog.ask).toHaveBeenCalledWith(UNSAVED_CLOSE, expect.any(Object));
+        expect(event.preventDefault).not.toHaveBeenCalled();
+        expect(write).not.toHaveBeenCalled();
+        expect(updateRecord).not.toHaveBeenCalled();
+    });
+
+    it('blocks repeated close requests while confirmation is pending', async () => {
+        seed({ phase: 'roasting' });
+        mount();
+        await flushMicrotasks();
+        let resolvePrompt: (confirmed: boolean) => void = () => undefined;
+        dialog.ask.mockImplementationOnce(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    resolvePrompt = resolve;
+                }),
+        );
+        const handler = [...tauri.closeListeners][0];
+        const first = { preventDefault: vi.fn() };
+        const closing = Promise.resolve(handler(first));
+        const repeated = await closeOnce();
+        expect(dialog.ask).toHaveBeenCalledTimes(1);
+        expect(repeated.preventDefault).toHaveBeenCalledTimes(1);
+        resolvePrompt(false);
+        await closing;
+        expect(first.preventDefault).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not authorize a canceled close', async () => {
+        seed({ phase: 'roasting' });
+        mount();
+        await flushMicrotasks();
+        const event = await closeOnce();
+        expect(dialog.ask).toHaveBeenCalledWith(UNSAVED_CLOSE, expect.any(Object));
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+    });
+
     it('does not warn on close when nothing is roasting or unsaved', async () => {
         seed({
             phase: 'idle',
@@ -507,6 +594,94 @@ describe('ActiveRoast running clock (#627)', () => {
         const event = await closeOnce();
         expect(dialog.ask).not.toHaveBeenCalled();
         expect(event.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('adds a snapshot event through the saved-record RPC without changing live collection or the next batch', async () => {
+        seed({
+            elapsed: 600,
+            logState: {
+                unwind: false,
+                entries: [
+                    { id: 'charge', time: '0:00', timeSec: 0, event: 'Charge', temp: '180', tempC: 180, note: '' },
+                    { id: 'fc', time: '8:00', timeSec: 480, event: 'FC Start', temp: '190', tempC: 190, note: '' },
+                ],
+            },
+        });
+        const state = useRoastingStore.getState();
+        const dropped = state.drop({ rawBT: 200, unit: 'C', replayActive: false, onset: { timeSec: 600, bt: 200 } });
+        const snapshot = dropped?.snapshot;
+        if (!snapshot) throw new Error('Missing completed snapshot');
+        state.saveSucceeded('owner', snapshot.sessionId);
+        useRoastingStore.setState({ prepared: { ...useRoastingStore.getState().prepared, workspaceOwnerId: 'owner' } });
+        workspace.owner = 'owner';
+        workspace.ready = true;
+        mount();
+        await act(async () => {
+            queryClient.setQueryData(roastSessionKeys.detail('owner', snapshot.sessionId), {
+                id: snapshot.sessionId,
+                status: 'completed',
+                user_id: 'owner',
+                events: [
+                    { id: 'bbp-note', type: 'Note', time_sec: -90, note: 'soak', extra: 'keep' },
+                    { id: 'bbp-heat', type: 'Heater', time_sec: -60, note: '80%' },
+                    { id: 'bbp-control', type: 'Control', time_sec: -30, applied_control: { heater: 50 } },
+                    { id: 'history-note', type: 'Note', time_sec: 120, note: 'from History' },
+                    ...serializeRoastEvents(snapshot.logEntries),
+                ],
+                heater_events: null,
+                duration_seconds: 600,
+                drop_temp_celsius: 200,
+                charge_temp_celsius: 180,
+            });
+            await new Promise((resolve) => setTimeout(resolve, 0));
+        });
+        const before = useRoastingStore.getState();
+        vi.mocked(sidecar.setControl).mockClear();
+        const yellow = [...host.querySelectorAll('button')].find((button) =>
+            button.textContent?.includes(roastEventLabel('Yellow')),
+        );
+        expect(yellow?.disabled).toBe(false);
+        act(() => yellow?.click());
+        const invalidTime = host.querySelector<HTMLInputElement>('input[name="time"]');
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(invalidTime, '9:00');
+            invalidTime?.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () => {
+            invalidTime?.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        });
+        expect(updateRecord).not.toHaveBeenCalled();
+        expect(useRoastingStore.getState().completed?.snapshot.logEntries).toBe(snapshot.logEntries);
+        expect(host.textContent).toContain('history.edit.invalidOrder');
+        act(() => yellow?.click());
+        const time = host.querySelector<HTMLInputElement>('input[name="time"]');
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(time, '4:00');
+            time?.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        await act(async () => {
+            time?.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+        });
+        expect(updateRecord.mock.calls[0]?.[0]).toMatchObject({
+            sessionId: snapshot.sessionId,
+            events: expect.arrayContaining([expect.objectContaining({ type: 'Yellow', time_sec: 240 })]),
+        });
+        expect(updateRecord.mock.calls[0]?.[0].events).toEqual(
+            expect.arrayContaining([
+                { id: 'bbp-note', type: 'Note', time_sec: -90, note: 'soak', extra: 'keep' },
+                { id: 'bbp-heat', type: 'Heater', time_sec: -60, note: '80%' },
+                { id: 'bbp-control', type: 'Control', time_sec: -30, applied_control: { heater: 50 } },
+                { id: 'history-note', type: 'Note', time_sec: 120, note: 'from History' },
+            ]),
+        );
+        const after = useRoastingStore.getState();
+        expect(after.completed?.snapshot.logEntries).toBe(snapshot.logEntries);
+        expect(queryClient.getQueryData(roastSessionKeys.detail('owner', snapshot.sessionId))).toMatchObject({
+            events: expect.arrayContaining([expect.objectContaining({ type: 'Yellow', time_sec: 240 })]),
+        });
+        expect(after.logState).toBe(before.logState);
+        expect(after.prepared).toBe(before.prepared);
+        expect(vi.mocked(sidecar.setControl)).not.toHaveBeenCalled();
     });
 
     it('keeps Dev, DTR, and the phase bar from the ended log (#865)', async () => {
@@ -560,15 +735,18 @@ describe('ActiveRoast running clock (#627)', () => {
             });
             expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20%');
 
-            const review = useRoastingStore.getState().completed?.snapshot.logEntries ?? [];
+            const review = dropped?.snapshot.logEntries ?? [];
             await act(async () => {
-                useRoastingStore
-                    .getState()
-                    .replaceReviewLog(
+                queryClient.setQueryData(roastSessionKeys.detail('', dropped?.snapshot.sessionId ?? ''), {
+                    id: dropped?.snapshot.sessionId,
+                    events: serializeRoastEvents(
                         review.map((entry) =>
                             entry.event === 'FC Start' ? { ...entry, time: '9:00', timeSec: 540 } : entry,
                         ),
-                    );
+                    ),
+                    heater_events: null,
+                });
+                await new Promise((resolve) => setTimeout(resolve, 0));
             });
             expect(useRoastingStore.getState().logState.entries).toEqual([]);
             expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('10%');

@@ -14,12 +14,14 @@ export const TargetMenu = ({
     profiles,
     targetProfileId,
     historyReferenceName = null,
+    disabled = false,
     onProfileChange,
     onChooseHistory,
 }: {
     profiles: { id: string; name: string }[];
     targetProfileId: string | null;
     historyReferenceName?: string | null;
+    disabled?: boolean;
     onProfileChange: (id: string | null) => void;
     onChooseHistory?: () => void;
 }) => {
@@ -28,6 +30,10 @@ export const TargetMenu = ({
     const profileName =
         profiles.find((profile) => profile.id === targetProfileId)?.name ?? t('activeRoast.header.noTarget');
     const label = historyReferenceName ?? profileName;
+
+    if (disabled) {
+        return <span className="min-w-0 truncate text-[13px] font-medium tracking-[0.14px] text-primary">{label}</span>;
+    }
 
     const choose = (id: string | null) => {
         setOpen(false);

@@ -1,4 +1,5 @@
 mod app_nap;
+mod browser_defaults;
 #[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
@@ -494,7 +495,6 @@ pub fn run() {
                 }
             }
         }))
-        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::default().build())
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
@@ -508,6 +508,7 @@ pub fn run() {
         ]);
 
     let mut builder = builder
+        .plugin(browser_defaults::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
@@ -525,6 +526,9 @@ pub fn run() {
 
     let app = builder
         .setup(|app| {
+            browser_defaults::create_main_window(app)?;
+            #[cfg(target_os = "macos")]
+            browser_defaults::configure_quit_menu(app)?;
             #[cfg(desktop)]
             {
                 configure_main_window(app);
@@ -542,9 +546,12 @@ pub fn run() {
     app.run(|_app, event| {
         #[cfg(target_os = "macos")]
         if let RunEvent::ExitRequested { code: None, api, .. } = &event {
-            if _app.get_webview_window("main").is_some() {
+            if let Some(window) = _app.get_webview_window("main") {
                 api.prevent_exit();
-                let _ = _app.emit("quit-requested", ());
+                // Cmd+Q follows the same close confirmation and flush as the titlebar.
+                if let Err(error) = window.close() {
+                    eprintln!("[close] Could not request main window close: {error}");
+                }
             }
         }
 

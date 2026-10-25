@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hooks = vi.hoisted(() => ({
     initTheme: vi.fn(),
+    phase: 'idle',
+    updateStatus: 'idle',
     checkAndDownload: vi.fn(() => Promise.resolve()),
     applyAndRelaunch: vi.fn(() => Promise.resolve()),
 }));
@@ -56,13 +58,14 @@ vi.mock('./shared/store/keyboard-shortcuts', () => ({
 vi.mock('./features/active-roast', () => ({
     useRoastingStore: (
         selector: (state: { phase: string; startBatch: () => void; completeBatch: () => void }) => unknown,
-    ) => selector({ phase: 'idle', startBatch: () => undefined, completeBatch: () => undefined }),
+    ) => selector({ phase: hooks.phase, startBatch: () => undefined, completeBatch: () => undefined }),
 }));
 vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined }));
 vi.mock('./features/sidecar', () => ({ useSidecarDeadListener: () => ({ isDead: false }) }));
 vi.mock('./features/updater', () => ({
-    useUpdateChecker: () => ({
-        state: { status: 'idle', version: null, progress: 0, error: null },
+    UpdateCheckerProvider: ({ children }: { children: ReactNode }) => children,
+    useUpdater: () => ({
+        state: { status: hooks.updateStatus, version: null, progress: 0, error: null },
         checkAndDownload: hooks.checkAndDownload,
         applyAndRelaunch: hooks.applyAndRelaunch,
     }),
@@ -104,6 +107,7 @@ vi.mock('./widgets/sidebar/ui/Sidebar', () => ({
 }));
 
 import { setSidebarCollapsed } from '@shared/store/sidebar-preferences';
+import { useToastStore } from '@shared/store/toast';
 import { App } from './App';
 
 declare global {
@@ -120,6 +124,9 @@ describe('App sidebar collapse', () => {
 
     beforeEach(() => {
         localStorage.clear();
+        vi.clearAllMocks();
+        hooks.phase = 'idle';
+        hooks.updateStatus = 'idle';
         setSidebarCollapsed(false);
         container = document.createElement('div');
         document.body.appendChild(container);
@@ -129,6 +136,44 @@ describe('App sidebar collapse', () => {
     afterEach(() => {
         act(() => root.unmount());
         container.remove();
+        for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
+    });
+
+    it.each(
+        ['preheating', 'standby', 'roasting', 'ended'].flatMap((phase) =>
+            ['available', 'ready'].map((status) => ({ phase, status })),
+        ),
+    )('blocks $status updates during $phase and permits them when idle', async ({ phase, status }) => {
+        hooks.phase = phase;
+        hooks.updateStatus = status;
+        const label = status === 'ready' ? 'updater.ready' : 'updater.available';
+        await act(async () => root.render(createElement(App)));
+
+        const restartButton = () =>
+            Array.from(container.querySelectorAll('button')).find(
+                (button) => button.textContent === label || button.getAttribute('aria-label') === label,
+            );
+        if (phase === 'standby') {
+            expect(restartButton()).toBeUndefined();
+            expect(container.textContent).not.toContain(label);
+        } else {
+            expect(restartButton()).toBeDefined();
+            act(() => restartButton()?.click());
+            expect(useToastStore.getState().toasts).toEqual([
+                expect.objectContaining({
+                    message: phase === 'roasting' ? 'updater.finishRoastFirst' : 'updater.disconnectMachineFirst',
+                    tone: 'info',
+                }),
+            ]);
+        }
+        expect(hooks.applyAndRelaunch).not.toHaveBeenCalled();
+        expect(hooks.checkAndDownload).not.toHaveBeenCalled();
+
+        hooks.phase = 'idle';
+        await act(async () => root.render(createElement(App)));
+        act(() => restartButton()?.click());
+        expect(status === 'ready' ? hooks.applyAndRelaunch : hooks.checkAndDownload).toHaveBeenCalledOnce();
+        expect(status === 'ready' ? hooks.checkAndDownload : hooks.applyAndRelaunch).not.toHaveBeenCalled();
     });
 
     it('collapses the sidebar when the roast view opens and keeps a manual expand', async () => {

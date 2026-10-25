@@ -25,7 +25,8 @@ export const useHistoryPdfExport = ({ session, chartRef, hasControls, hasTarget 
     const [exporting, setExporting] = useState(false);
 
     const onExportPdf = useCallback(async () => {
-        const chartDataUrl = chartRef.current?.getDataURL({ ...historyPdfChartBox(true), pixelRatio: 200 / 96 });
+        // Lay out in PDF points so chart text prints at its configured point size.
+        const chartDataUrl = chartRef.current?.getDataURL({ ...historyPdfChartBox(true), pixelRatio: 200 / 72 });
         if (!chartDataUrl) {
             useToastStore.getState().show(t('history.exportPdfUnavailable'), 'error');
             return;

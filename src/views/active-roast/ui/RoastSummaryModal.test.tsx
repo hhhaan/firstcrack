@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { act, createElement } from 'react';
@@ -8,6 +9,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { RoastSummaryModal } from './RoastSummaryModal';
 
 vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
+vi.mock('@entities/roast-profile', () => ({
+    useRoastProfiles: () => ({ batchCounters: { total: 12 } }),
+}));
 
 vi.mock('@entities/bean/queries', () => ({
     useBeans: () => ({
@@ -156,6 +160,42 @@ const setInputValue = (el: HTMLInputElement | HTMLSelectElement, value: string) 
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
 };
+
+it('prefills the roast title and submits an edit', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderModal({
+        onSave,
+        summaryData: { ...summaryData, batchName: 'Morning roast' },
+        fallbackBeanName: 'Yirg',
+    });
+    const title = document.querySelector('[data-testid="roast-summary-title"]') as HTMLInputElement;
+    expect(title.value).toBe('Morning roast');
+    expect(title.maxLength).toBe(120);
+    expect(title.placeholder).toBe('Yirg');
+    act(() => setInputValue(title, 'Renamed roast'));
+    const save = document.querySelector('[data-testid="roast-summary-save"]') as HTMLButtonElement;
+    await act(async () => {
+        save.click();
+    });
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ batchName: 'Renamed roast' }));
+    unmount();
+});
+
+it('shows the next batch number without adding it to the submitted title', async () => {
+    const numbering = getRoastSettings().batchTitleNumbering;
+    updateRoastSettings({ batchTitleNumbering: 'total' });
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderModal({ onSave, summaryData: { ...summaryData, batchName: 'Morning roast' } });
+    try {
+        expect(document.querySelector('[data-testid="roast-summary-batch-numbers"]')?.textContent).toBe('Σ#13');
+        const save = document.querySelector<HTMLButtonElement>('[data-testid="roast-summary-save"]');
+        await act(async () => save?.click());
+        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ batchName: 'Morning roast' }));
+    } finally {
+        unmount();
+        updateRoastSettings({ batchTitleNumbering: numbering });
+    }
+});
 
 it('applies a schedule batch, keeps a same-batch edit, and restores the opened weight on clear', () => {
     useRoastingStore.getState().recordAdhocSave({ beanId: 'bean-1', weightKg: 5, roastLevel: null });

@@ -251,6 +251,7 @@ describe('RoastTempChart interactions', () => {
             },
         );
         zrHandlers.clear();
+        convertToPixel.mockImplementation((_finder, value) => (Array.isArray(value) ? Number.NaN : value * 10));
         vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
             measureText: (text: string) => ({ width: text.length * 6 }),
         } as CanvasRenderingContext2D);
@@ -351,6 +352,45 @@ describe('RoastTempChart interactions', () => {
         }
     });
 
+    it('keeps the final event label clickable after moving it clear of the right axis', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    showRoR: true,
+                    eventMarkerStyle: 'tempLine',
+                    eventMarkers: [
+                        {
+                            logId: 'yellow-1',
+                            event: 'Yellow',
+                            timeSec: 60,
+                            timeStr: '01:00',
+                            temp: '185°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerEdit: vi.fn(),
+                }),
+            );
+        });
+        const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
+        const xAt = (time: number) => 32 + (time / 60) * 936;
+        vi.spyOn(chart, 'convertToPixel').mockImplementation((finder, value) => {
+            if (Array.isArray(value)) return Number.NaN;
+            return 'xAxisIndex' in finder ? xAt(value) : value === option.yAxis[0].max ? 10 : 100;
+        });
+        const series = option.series.find((item: { id: string }) => item.id === 'event-curve-labels');
+        const rendered = series.renderItem(
+            { dataIndex: 0, coordSys: { x: 32, y: 10, width: 936, height: 250 } },
+            { coord: ([time]: number[]) => [xAt(time), 100], getWidth: chart.getWidth, getHeight: chart.getHeight },
+        );
+        const label = rendered.children.find((child: { type: string }) => child.type === 'text');
+        expect(ref.current?.hitTestMarker({ clientX: label.x + 1, clientY: label.y + 1 })).toBe(true);
+        expect(ref.current?.hitTestMarker({ clientX: 990, clientY: label.y + 1 })).toBe(false);
+    });
+
     it('uses scalar coordinate conversion for cursor, drag start, and drag move including zero', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onCursorIdx = vi.fn();
@@ -429,7 +469,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDrag).toHaveBeenCalledWith('tp', 8);
     });
 
-    it('does not drag Drop on a saved curve', () => {
+    it.each(['Drop', 'End'])('does not drag %s on a saved curve', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDrag = vi.fn();
         act(() => {
@@ -441,7 +481,7 @@ describe('RoastTempChart interactions', () => {
                     xs: [0, 5, 8],
                     eventMarkerStyle: 'line',
                     eventMarkers: [
-                        { logId: 'drop-1', event: 'Drop', timeSec: 5, timeStr: '0:05', temp: '210°C', color: '#888' },
+                        { logId: 'drop-1', event, timeSec: 5, timeStr: '0:05', temp: '210°C', color: '#888' },
                     ],
                     onEventMarkerDrag,
                     onEventMarkerEdit: vi.fn(),
@@ -1147,7 +1187,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDelete).not.toHaveBeenCalled();
     });
 
-    it.each(['FC Start', 'End'])('saved review deletes a %s marker', (event) => {
+    it.each(['FC Start'])('saved review deletes a %s marker', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDelete = vi.fn();
         act(() => {
@@ -1183,7 +1223,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDelete).toHaveBeenCalledWith('mark-1');
     });
 
-    it('saved review does not open Drop for drag or edit', () => {
+    it.each(['Drop', 'End'])('saved review does not open %s for drag or edit', (event) => {
         const ref = createRef<RoastTempChartHandle>();
         act(() => {
             root.render(
@@ -1196,7 +1236,7 @@ describe('RoastTempChart interactions', () => {
                     eventMarkers: [
                         {
                             logId: 'drop-1',
-                            event: 'Drop',
+                            event,
                             timeSec: 5,
                             timeStr: '0:05',
                             temp: '180°C',
@@ -1237,6 +1277,8 @@ describe('RoastTempChart interactions', () => {
         document.documentElement.style.setProperty('--color-sensor-bt', '#ffffff');
         const ref = createRef<RoastTempChartHandle>();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref, controlData: controlData([]) })));
+        const screenOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
+        expect(screenOption.grid[1].top).toBe('79%');
         expect(ref.current?.getDataURL({ width: 2000, height: 1200 })).toBe('data:image/png;base64,qq');
         const init = vi.mocked(echarts.init);
         const element = init.mock.calls[init.mock.calls.length - 1]?.[0];
@@ -1245,6 +1287,7 @@ describe('RoastTempChart interactions', () => {
         expect(element?.isConnected).toBe(false);
         const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
         expect(printOption.grid).toHaveLength(2);
+        expect(printOption.grid[1].top).toBe('65%');
         expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
             '#009d4c',
         );
