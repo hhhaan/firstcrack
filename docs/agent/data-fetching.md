@@ -81,6 +81,10 @@ Rules:
 
 ## Mutation → invalidation pattern
 
+Inline History inputs refresh untouched drafts from the stored value. A locally edited value keeps its original baseline; a conflicting incoming value blocks saving and preserves the draft until Escape or reopening. Normalize a submitted value before the optimistic update so formatting changes do not look like external conflicts.
+
+Recorded-note inputs follow event IDs, including when another edit removes an earlier array row. Profile forms submit only fields and source selections changed since opening; unrelated refreshed fields are not resubmitted. Bean-modal stock-summary refreshes update an untouched stock field without resetting the rest of the form; opening, closing, or changing the initial form data retains its existing reset behavior.
+
 ```ts
 onSuccess: (ownerId) => {
   void qc.invalidateQueries({ queryKey: orderKeys.all(ownerId) });

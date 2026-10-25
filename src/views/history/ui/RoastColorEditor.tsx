@@ -11,6 +11,7 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFieldDraft } from './useFieldDraft';
 
 type ColorColumn = 'color_whole' | 'color_ground';
 
@@ -29,15 +30,19 @@ const ColorField = ({
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync: updateSession, isPending } = useUpdateRoastSession(workspaceOwnerId);
     const stored = session[column];
-    const [draft, setDraft] = useState(() => stored ?? '');
+    const { draft, setDraft, dirty, conflict, resetDraft } = useFieldDraft(stored ?? '');
     const [tooLong, setTooLong] = useState(false);
     const [invalidNumbers, setInvalidNumbers] = useState(false);
     const average = roastColorAverage(draft);
     const readings = parseRoastColorReadings(draft);
 
     const commit = async () => {
+        if (!dirty || conflict) return;
         const next = normalizeRoastColorText(draft);
-        if (next === (stored ?? null)) return;
+        if (next === (stored ?? null)) {
+            resetDraft();
+            return;
+        }
         if (isRoastColorTooLong(draft)) {
             setTooLong(true);
             return;
@@ -49,6 +54,7 @@ const ColorField = ({
         }
         setInvalidNumbers(false);
         if (!isWorkspaceReady || !workspaceOwnerId) return;
+        setDraft(next ?? '');
         try {
             await updateSession({ id: session.id, [column]: next });
         } catch {
@@ -95,12 +101,22 @@ const ColorField = ({
                 onBlur={() => void commit()}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') {
+                        resetDraft();
+                        setTooLong(false);
+                        setInvalidNumbers(false);
+                    }
                 }}
                 className={`w-full min-w-0 rounded-md border bg-main-bg px-2 py-1.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none focus-visible:ring-2 focus-visible:ring-strong-border/40 ${
                     tooLong || invalidNumbers ? 'border-red-500' : 'border-border-subtle focus:border-strong-border'
                 }`}
             />
             <div id={`${testId}-${session.id}-help`} aria-live="polite">
+                {conflict && (
+                    <p role="alert" className={formErrorCls}>
+                        {t('history.edit.conflict')}
+                    </p>
+                )}
                 {tooLong && <p className={formErrorCls}>{t('history.expanded.colorTooLong')}</p>}
                 {invalidNumbers && <p className={formErrorCls}>{t('history.expanded.colorInvalidNumbers')}</p>}
             </div>

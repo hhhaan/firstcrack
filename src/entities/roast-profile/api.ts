@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { type ProfileSource, registeredProfileSources } from './lib/source-candidates';
 
 type RoastProfileInsert = Omit<RoastProfile, 'id' | 'created_at' | 'updated_at'> & { sources?: ProfileSource[] };
-type RoastProfileUpdate = { id: string } & Partial<
+export type RoastProfileUpdate = { id: string } & Partial<
     Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>
 > & { sources?: ProfileSource[] };
 

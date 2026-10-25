@@ -110,6 +110,7 @@ export const useReviewCurveEdit = (sessionId: string | null, unit: TemperatureUn
                 entries,
                 row.heater_events,
                 storedEventsToLogEntries(parseStoredRoastEvents(built.events), unit, true),
+                storedEventsToLogEntries(parseStoredRoastEvents(row.events), unit, true),
             );
             setDraft(null);
             if (!built.changed && heater === row.heater_events) return;
@@ -191,6 +192,7 @@ export const useReviewCurveEdit = (sessionId: string | null, unit: TemperatureUn
                   queued.entries,
                   row.heater_events,
                   storedEventsToLogEntries(parseStoredRoastEvents(built.events), unit, true),
+                  storedEventsToLogEntries(parseStoredRoastEvents(row.events), unit, true),
               )
             : row.heater_events;
     }, [queued, session.data, unit]);

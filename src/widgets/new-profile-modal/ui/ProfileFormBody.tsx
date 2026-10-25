@@ -33,6 +33,7 @@ type ProfileFormBodyProps = {
     nameRef: React.RefObject<HTMLInputElement | null>;
     isEditing: boolean;
     isValid: boolean;
+    saveConflict: boolean;
     selectedSession: SessionSummaryRow | null;
     /** Curve numbers — read-only, cut from the source session. */
     summary: SessionSummary | null;
@@ -53,6 +54,7 @@ export const ProfileFormBody = ({
     nameRef,
     isEditing,
     isValid,
+    saveConflict,
     selectedSession,
     summary,
     beans,
@@ -166,6 +168,11 @@ export const ProfileFormBody = ({
             </div>
 
             <div className={modalFooterChrome}>
+                {saveConflict && (
+                    <p role="alert" className="mb-3 text-sm text-red-500">
+                        {t('history.edit.conflict')}
+                    </p>
+                )}
                 <div className="flex gap-3">
                     <button type="button" onClick={onClose} className={modalCancelBtnCls}>
                         {t('newProfileModal.cancel')}

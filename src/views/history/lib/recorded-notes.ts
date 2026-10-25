@@ -2,6 +2,7 @@ import { formatSignedElapsed } from '@shared/lib/format';
 import type { Json } from '@shared/types/database.types';
 
 export type RecordedNote = {
+    id: string | null;
     /** Index in the stored events array. */
     index: number;
     timeSec: number;
@@ -29,6 +30,7 @@ export const recordedNotes = (raw: unknown): RecordedNote[] => {
         const airflow = text(row.airflow);
         const drum = text(row.drum);
         notes.push({
+            id: typeof row.id === 'string' && row.id ? row.id : null,
             index,
             timeSec,
             time: formatSignedElapsed(timeSec),

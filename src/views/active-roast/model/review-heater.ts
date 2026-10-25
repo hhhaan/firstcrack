@@ -19,17 +19,33 @@ const heaterSignature = (entries: readonly LogEntry[] | null): string =>
 /** Heater marks → `roast_sessions.heater_events`. History draws Heat set from this plan. */
 export const heaterEventsFromLog = (
     entries: readonly LogEntry[],
-    previousLog: readonly LogEntry[] | null,
+    storedLog: readonly LogEntry[] | null,
     previousHeater: Json | null,
 ): Json | null => {
-    const stored = new Map(
-        (Array.isArray(previousHeater) ? previousHeater : []).flatMap((step) =>
-            step !== null && typeof step === 'object' && !Array.isArray(step) && typeof step.t === 'number'
-                ? [[step.t, step] as const]
-                : [],
-        ),
+    const stored = (Array.isArray(previousHeater) ? previousHeater : []).flatMap((step) =>
+        step !== null && typeof step === 'object' && !Array.isArray(step) ? [step] : [],
     );
-    const previousById = new Map(previousLog?.map((entry) => [entry.id, entry]) ?? []);
+    const stepsByTime = new Map<number, typeof stored>();
+    for (const step of stored) {
+        if (typeof step.t !== 'number') continue;
+        const group = stepsByTime.get(step.t) ?? [];
+        group.push(step);
+        stepsByTime.set(step.t, group);
+    }
+    const takeStep = (entry: LogEntry) => {
+        if (entry.current || entry.event !== 'Heater') return;
+        const time = logEntryTimeSec(entry);
+        const group = time == null ? undefined : stepsByTime.get(time);
+        if (!group?.length) return;
+        const match = group.findIndex((step) => step.bt === entry.tempC && step.heater === heaterValue(entry.note));
+        return group.splice(Math.max(0, match), 1)[0];
+    };
+    // Match before edits/deletions reorder rows that share a timestamp.
+    const stepsById = new Map<string, (typeof stored)[number]>();
+    for (const entry of storedLog ?? []) {
+        const step = takeStep(entry);
+        if (entry.id && step) stepsById.set(entry.id, step);
+    }
     const rows: { t: number; bt: number; heater: number }[] = [];
     for (const entry of entries) {
         if (entry.current || entry.event !== 'Heater') continue;
@@ -37,9 +53,7 @@ export const heaterEventsFromLog = (
         const t = logEntryTimeSec(entry);
         if (heater == null || t == null || !Number.isFinite(t) || t < 0) continue;
         const bt = entry.tempC != null && Number.isFinite(entry.tempC) ? entry.tempC : 0;
-        const previous = previousById.get(entry.id);
-        const previousTime = previous ? logEntryTimeSec(previous) : t;
-        const step = previousTime == null ? undefined : stored.get(previousTime);
+        const step = (entry.id ? stepsById.get(entry.id) : undefined) ?? takeStep(entry);
         rows.push({ ...step, t, bt, heater });
     }
     rows.sort((a, b) => a.t - b.t);
@@ -52,7 +66,8 @@ export const reviewHeaterToSave = (
     nextLog: readonly LogEntry[],
     previousHeater: Json | null,
     completeLog: readonly LogEntry[],
+    storedLog: readonly LogEntry[],
 ): Json | null =>
     heaterSignature(previousLog) === heaterSignature(nextLog)
         ? previousHeater
-        : heaterEventsFromLog(completeLog, previousLog, previousHeater);
+        : heaterEventsFromLog(completeLog, storedLog, previousHeater);

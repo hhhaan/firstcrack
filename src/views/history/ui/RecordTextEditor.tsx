@@ -31,30 +31,29 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
     const record = useRoastRecordSave(session);
     const stored = session.notes ?? '';
     const logged = useMemo(() => recordedNotes(session.events), [session.events]);
-    const [drafts, setDrafts] = useState<Record<number, string>>({});
+    const [drafts, setDrafts] = useState<Record<string, string>>({});
     const [addTime, setAddTime] = useState('');
     const [addReady, setAddReady] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [timeError, setTimeError] = useState<number | 'new' | null>(null);
+    const [timeError, setTimeError] = useState<string | null>(null);
     const [seenNotes, setSeenNotes] = useState(stored);
     if (seenNotes !== stored) {
         setSeenNotes(stored);
         setError(null);
     }
     const setTimeRoot = useTimeEditRoot((key, value) => {
-        setTimeError((current) => (current === (key === 'new' ? 'new' : Number(key)) ? null : current));
+        setTimeError((current) => (current === key ? null : current));
         if (key === 'new') {
             setAddTime(value);
             return;
         }
-        const index = Number(key);
-        setDrafts((prev) => ({ ...prev, [index]: value }));
+        setDrafts((prev) => ({ ...prev, [key]: value }));
     });
     const skipSave = useRef(false);
-    const skipLogged = useRef<number | null>(null);
+    const skipLogged = useRef<string | null>(null);
     const saving = useRef(false);
     const addCommentRef = useRef<HTMLInputElement>(null);
-    const commentRefs = useRef(new Map<number, HTMLInputElement>());
+    const commentRefs = useRef(new Map<string, HTMLInputElement>());
     const composingInputs = useRef(new WeakSet<HTMLElement>());
     const blurWait = useRef(new WeakMap<HTMLElement, () => void>());
     const addAfterIme = useRef(false);
@@ -65,7 +64,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         : 'read-only:cursor-default';
 
     useEffect(() => {
-        setDrafts(Object.fromEntries(logged.map((note) => [note.index, note.time])));
+        setDrafts(Object.fromEntries(logged.map((note) => [note.id ?? `legacy:${note.index}`, note.time])));
     }, [logged]);
 
     const onCompStart = (event: CompositionEvent<HTMLElement>) => {
@@ -110,25 +109,25 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         }
     };
 
-    const saveLogged = async (index: number, commentRaw: string) => {
-        if (skipLogged.current === index) {
+    const saveLogged = async (id: string, commentRaw: string) => {
+        if (skipLogged.current === id) {
             skipLogged.current = null;
             return;
         }
-        const note = logged.find((item) => item.index === index);
+        const note = logged.find((item) => item.id === id);
         if (!note || !record.canWrite || record.isPending || saving.current) return;
-        const committed = commitEditTime(drafts[index] ?? note.time);
+        const committed = commitEditTime(drafts[id] ?? note.time);
         const timeSec = parseEditTime(committed);
         if (timeSec == null) {
-            setTimeError(index);
+            setTimeError(id);
             return;
         }
         const comment = commentRaw.trim();
         if (timeSec === note.timeSec && comment === note.comment) {
-            setTimeError((current) => (current === index ? null : current));
+            setTimeError((current) => (current === id ? null : current));
             return;
         }
-        const events = updateRecordedNote(session.events, index, timeSec, comment);
+        const events = updateRecordedNote(session.events, note.index, timeSec, comment);
         if (!events) return;
         setError(null);
         setTimeError(null);
@@ -142,9 +141,11 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
         }
     };
 
-    const removeLogged = async (index: number) => {
+    const removeLogged = async (id: string) => {
         if (!record.canWrite || record.isPending || saving.current) return;
-        const events = removeRecordedNote(session.events, index);
+        const note = logged.find((item) => item.id === id);
+        if (!note) return;
+        const events = removeRecordedNote(session.events, note.index);
         if (!events) return;
         setError(null);
         saving.current = true;
@@ -199,20 +200,21 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
             {(logged.length > 0 || record.canWrite) && (
                 <ul ref={setTimeRoot} className="m-0 list-none space-y-2 p-0">
                     {logged.map((note) => {
-                        const time = drafts[note.index] ?? note.time;
+                        const id = note.id ?? `legacy:${note.index}`;
+                        const time = drafts[id] ?? note.time;
                         const controls = formatRoastNote({ gas: note.gas, airflow: note.airflow, drum: note.drum });
-                        const commentNow = () => commentRefs.current.get(note.index)?.value ?? note.comment;
+                        const commentNow = () => commentRefs.current.get(id)?.value ?? note.comment;
                         return (
-                            <li key={note.index} className="flex items-start gap-2">
+                            <li key={id} className="flex items-start gap-2">
                                 <input
                                     data-testid="history-recorded-note-time"
-                                    data-time-key={note.index}
+                                    data-time-key={id}
                                     aria-label={`${note.time} ${t('history.edit.time')}`}
                                     value={time}
                                     inputMode="numeric"
                                     autoComplete="off"
                                     spellCheck={false}
-                                    readOnly={!record.canWrite}
+                                    readOnly={!record.canWrite || !note.id}
                                     disabled={record.isPending}
                                     onChange={(event) => {
                                         if (inputIsComposing(event)) return;
@@ -220,8 +222,8 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                             event.target.value = time;
                                             return;
                                         }
-                                        setDrafts((prev) => ({ ...prev, [note.index]: event.target.value }));
-                                        setTimeError((current) => (current === note.index ? null : current));
+                                        setDrafts((prev) => ({ ...prev, [id]: event.target.value }));
+                                        setTimeError((current) => (current === id ? null : current));
                                     }}
                                     onCompositionEnd={(event) => {
                                         const next = event.currentTarget.value;
@@ -229,9 +231,9 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                             event.currentTarget.value = time;
                                             return;
                                         }
-                                        setDrafts((prev) => ({ ...prev, [note.index]: next }));
+                                        setDrafts((prev) => ({ ...prev, [id]: next }));
                                     }}
-                                    onBlur={() => void saveLogged(note.index, commentNow())}
+                                    onBlur={() => void saveLogged(id, commentNow())}
                                     onKeyDown={(event) => {
                                         if (isImeKey(event)) return;
                                         if (event.key === 'Enter') event.currentTarget.blur();
@@ -240,15 +242,15 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                 />
                                 <span className="min-w-0 flex-1">
                                     <input
-                                        key={`${note.index}:${note.comment}`}
+                                        key={`${id}:${note.comment}`}
                                         ref={(node) => {
-                                            if (node) commentRefs.current.set(note.index, node);
-                                            else commentRefs.current.delete(note.index);
+                                            if (node) commentRefs.current.set(id, node);
+                                            else commentRefs.current.delete(id);
                                         }}
                                         data-testid="history-recorded-note"
                                         aria-label={note.time}
                                         defaultValue={note.comment}
-                                        readOnly={!record.canWrite}
+                                        readOnly={!record.canWrite || !note.id}
                                         disabled={record.isPending}
                                         autoComplete="off"
                                         spellCheck={false}
@@ -256,7 +258,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                         onCompositionEnd={finishIme}
                                         onBlur={(event) => {
                                             const el = event.currentTarget;
-                                            blurWhenImeDone(event, () => void saveLogged(note.index, el.value));
+                                            blurWhenImeDone(event, () => void saveLogged(id, el.value));
                                         }}
                                         onKeyDown={(event) => {
                                             if (isImeKey(event)) return;
@@ -266,15 +268,15 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                             }
                                             if (event.key !== 'Escape') return;
                                             event.preventDefault();
-                                            skipLogged.current = note.index;
+                                            skipLogged.current = id;
                                             event.currentTarget.value = note.comment;
-                                            setTimeError((current) => (current === note.index ? null : current));
+                                            setTimeError((current) => (current === id ? null : current));
                                             event.currentTarget.blur();
                                         }}
                                         className={`w-full border-0 bg-transparent p-0 text-[13px] leading-6 text-secondary outline-none ${writeLine}`}
                                     />
                                     {controls && <span className="block text-[12px] text-muted">{controls}</span>}
-                                    {timeError === note.index && (
+                                    {timeError === id && (
                                         <span role="alert" className="block text-xs text-error">
                                             {t('history.edit.invalidTime')}
                                         </span>
@@ -285,8 +287,8 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                                         type="button"
                                         data-testid="history-note-delete"
                                         aria-label={t('common.delete')}
-                                        disabled={record.isPending}
-                                        onClick={() => void removeLogged(note.index)}
+                                        disabled={record.isPending || !note.id}
+                                        onClick={() => void removeLogged(id)}
                                         className="shrink-0 cursor-pointer rounded-md border border-border-subtle bg-transparent px-2 py-0.5 text-[11px] text-muted hover:text-red-600 disabled:opacity-40"
                                     >
                                         {t('common.delete')}

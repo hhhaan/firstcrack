@@ -6,6 +6,7 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFieldDraft } from './useFieldDraft';
 
 interface OutputWeightEditorProps {
     session: RoastSessionWithRelations;
@@ -21,7 +22,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync: setOutputWeight, isPending } = useSetOutputWeight(workspaceOwnerId);
 
-    const [draft, setDraft] = useState(() =>
+    const { draft, setDraft, dirty, conflict, resetDraft } = useFieldDraft(
         session.output_weight_grams != null ? String(session.output_weight_grams) : '',
     );
     const [invalid, setInvalid] = useState(false);
@@ -36,6 +37,7 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
     const hasCharge = charge > 0;
 
     const commit = async () => {
+        if (!dirty || conflict) return;
         const trimmed = draft.trim();
         // Charge 0 is unset, so it is not a ceiling. 1–0g is an empty range.
         if (!hasCharge) {
@@ -52,8 +54,12 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
             return;
         }
         setInvalid(false);
-        if (next === (session.output_weight_grams ?? null)) return;
+        if (next === (session.output_weight_grams ?? null)) {
+            resetDraft();
+            return;
+        }
         if (!isWorkspaceReady || !workspaceOwnerId) return;
+        setDraft(next == null ? '' : String(next));
         try {
             await setOutputWeight({
                 sessionId: session.id,
@@ -93,11 +99,20 @@ export const OutputWeightEditor = ({ session }: OutputWeightEditorProps) => {
                 onBlur={() => void commit()}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') {
+                        resetDraft();
+                        setInvalid(false);
+                    }
                 }}
                 className={`w-full rounded-md border bg-main-bg px-2 py-1.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none ${
                     invalid ? 'border-red-500' : 'border-border-subtle focus:border-border'
                 }`}
             />
+            {conflict && (
+                <p role="alert" className={formErrorCls}>
+                    {t('history.edit.conflict')}
+                </p>
+            )}
             {hasCharge && (
                 <p className="mt-1 mb-0 font-mono text-[12px] text-secondary">
                     −{lossRate.toFixed(1)}%{!measured && ` (${t('history.expanded.estimated')})`}

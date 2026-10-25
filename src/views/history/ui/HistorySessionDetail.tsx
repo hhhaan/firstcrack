@@ -109,7 +109,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                         <div className="mt-3 space-y-3 border-t border-border-subtle pt-3">
                             <div className="grid grid-cols-2 gap-2">
                                 <ChargeWeightEditor key={session.id} session={session} />
-                                <OutputWeightEditor session={session} />
+                                <OutputWeightEditor key={session.id} session={session} />
                             </div>
                             <RoastColorEditor key={`color-${session.id}`} session={session} />
                             <QcMeasurementEditor key={`qc-${session.id}`} session={session} />
