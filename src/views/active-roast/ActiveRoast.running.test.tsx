@@ -7,7 +7,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import { sidecar } from '@shared/lib/sidecar';
-import { _resetTsvWriterForTests, enqueueTsvRow, initSessionTsv } from '@shared/lib/tsv-writer';
+import { _resetTsvWriterForTests, initSessionTsv } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -526,40 +526,44 @@ describe('ActiveRoast running clock (#627)', () => {
         expect(event.preventDefault).toHaveBeenCalledTimes(1);
     });
 
-    it('waits for all TSV queues before closing an idle window without a current session', async () => {
-        seed({ phase: 'idle', awaitingNextCharge: false, sessionId: null, elapsed: 0, roastStartMs: 0 });
-        const pendingWrites = new Map<string, () => void>();
-        _resetTsvWriterForTests({
-            write: async (path, _contents, options) => {
-                if (!options.append) return;
-                await new Promise<void>((resolve) => pendingWrites.set(path, resolve));
-            },
-            remove: async () => undefined,
-        });
-        await initSessionTsv('saved-a');
-        await initSessionTsv('saved-b');
-        enqueueTsvRow('saved-a', 'a');
-        enqueueTsvRow('saved-b', 'b');
+    it('confirms exit without retrying pending storage writes or saving the roast', async () => {
+        seed({ phase: 'ended', awaitingNextCharge: false });
         mount();
         await flushMicrotasks();
-        const handler = [...tauri.closeListeners][0];
-        const event = { preventDefault: vi.fn() };
-        let closed = false;
-        const closing = Promise.resolve(handler(event)).then(() => {
-            closed = true;
-        });
-        await flushMicrotasks();
-        expect(closed).toBe(false);
-        expect(dialog.ask).not.toHaveBeenCalled();
-        const concurrentClose = await closeOnce();
-        expect(concurrentClose.preventDefault).toHaveBeenCalledTimes(1);
-        pendingWrites.get('session_saved-a.tsv')?.();
-        await flushMicrotasks();
-        expect(closed).toBe(false);
-        pendingWrites.get('session_saved-b.tsv')?.();
-        await closing;
-        expect(closed).toBe(true);
+        const write = vi.fn(async () => undefined);
+        write.mockRejectedValueOnce(new Error('Storage temporarily unavailable'));
+        _resetTsvWriterForTests({ write, remove: async () => undefined });
+        await expect(initSessionTsv('pending-record')).rejects.toThrow('Storage temporarily unavailable');
+        write.mockClear();
+        dialog.ask.mockResolvedValue(true);
+
+        const event = await closeOnce();
+        expect(dialog.ask).toHaveBeenCalledWith(UNSAVED_CLOSE, expect.any(Object));
         expect(event.preventDefault).not.toHaveBeenCalled();
+        expect(write).not.toHaveBeenCalled();
+        expect(updateRecord).not.toHaveBeenCalled();
+    });
+
+    it('blocks repeated close requests while confirmation is pending', async () => {
+        seed({ phase: 'roasting' });
+        mount();
+        await flushMicrotasks();
+        let resolvePrompt: (confirmed: boolean) => void = () => undefined;
+        dialog.ask.mockImplementationOnce(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    resolvePrompt = resolve;
+                }),
+        );
+        const handler = [...tauri.closeListeners][0];
+        const first = { preventDefault: vi.fn() };
+        const closing = Promise.resolve(handler(first));
+        const repeated = await closeOnce();
+        expect(dialog.ask).toHaveBeenCalledTimes(1);
+        expect(repeated.preventDefault).toHaveBeenCalledTimes(1);
+        resolvePrompt(false);
+        await closing;
+        expect(first.preventDefault).toHaveBeenCalledTimes(1);
     });
 
     it('does not authorize a canceled close', async () => {

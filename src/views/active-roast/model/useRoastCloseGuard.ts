@@ -1,6 +1,5 @@
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
-import { flushTsv } from '@shared/lib/tsv-writer';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { useEffect, useRef } from 'react';
@@ -23,7 +22,7 @@ export const useRoastCloseGuard = () => {
         void win
             .onCloseRequested(async (e) => {
                 const { phase, awaitingNextCharge } = useRoastingStore.getState();
-                // A second close must wait for the prompt and every pending TSV write.
+                // A second close must not bypass the pending confirmation.
                 if (prompting) {
                     e.preventDefault();
                     return;
@@ -42,12 +41,6 @@ export const useRoastCloseGuard = () => {
                             e.preventDefault();
                             return;
                         }
-                    }
-                    try {
-                        await flushTsv();
-                    } catch (err) {
-                        logger.capture(err, { scope: 'activeRoast.flushOnClose' });
-                        // flush failure must not block window close
                     }
                     // 확인이면 preventDefault 하지 않는다. Tauri 2는 JS 리스너가 있으면
                     // 네이티브 close를 이미 취소하고, preventDefault가 없을 때만 destroy() 한다.

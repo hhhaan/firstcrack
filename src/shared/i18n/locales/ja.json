@@ -1169,7 +1169,7 @@
         },
         "dialogs": {
             "unsavedCloseTitle": "終了の確認",
-            "unsavedCloseMsg": "未保存の記録があります。終了しますか？",
+            "unsavedCloseMsg": "保存せずに終了すると、このロースト記録は保存されません。終了しますか？",
             "closeWithoutSaving": "保存せずに終了",
             "keepUsing": "使用を続ける",
             "end": "終了",

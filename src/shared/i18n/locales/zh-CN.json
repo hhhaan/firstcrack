@@ -1169,7 +1169,7 @@
         },
         "dialogs": {
             "unsavedCloseTitle": "确认退出",
-            "unsavedCloseMsg": "有未保存的记录。要退出吗？",
+            "unsavedCloseMsg": "不保存就退出，此次烘焙记录将不会保存。确定要退出吗？",
             "closeWithoutSaving": "不保存并退出",
             "keepUsing": "继续使用",
             "end": "结束",
