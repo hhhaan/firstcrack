@@ -70,7 +70,7 @@ describe('roastSessionApi.listFilterMeta', () => {
         const rows = await roastSessionApi.listFilterMeta('owner-1');
 
         expect(rows).toHaveLength(POSTGREST_MAX_ROWS + 1);
-        expect(rows.at(-1)).toEqual(oldest);
+        expect(rows[rows.length - 1]).toEqual(oldest);
         expect(fromMock).toHaveBeenCalledTimes(2);
         for (const call of fromMock.mock.results) {
             expect(call.value.select).toHaveBeenCalledWith(

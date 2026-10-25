@@ -29,7 +29,7 @@ vi.mock('@features/export-history-pdf', async () => ({
 
 it('exports the selected batch title in the filename and PDF header while retaining the actual bean', async () => {
     const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
-    const chartRef = { current: { getDataURL } } as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
+    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
     const session = {
         batch_name: 'Batch A',
         profile_batch_number: 9,
