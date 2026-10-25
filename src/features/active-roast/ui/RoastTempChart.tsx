@@ -716,7 +716,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ];
                 }),
             ];
-            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale, chart.getHeight());
+            const grid = Array.isArray(option.grid) ? option.grid[0] : option.grid;
+            const labelRight = chart.getWidth() - (typeof grid?.right === 'number' ? grid.right : 0);
+            const boxes = layoutCurveLabelBoxes(layoutInputs, labelRight, fontScale, chart.getHeight());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
                 if (marker.reference) return [];
@@ -767,6 +769,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             localPoint,
             onEventMarkerDrag,
             onEventMarkerEdit,
+            option.grid,
             tempMaxC,
             tempMinC,
             temperatureUnit,

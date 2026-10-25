@@ -251,6 +251,7 @@ describe('RoastTempChart interactions', () => {
             },
         );
         zrHandlers.clear();
+        convertToPixel.mockImplementation((_finder, value) => (Array.isArray(value) ? Number.NaN : value * 10));
         vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
             measureText: (text: string) => ({ width: text.length * 6 }),
         } as CanvasRenderingContext2D);
@@ -349,6 +350,45 @@ describe('RoastTempChart interactions', () => {
         } finally {
             act(() => updateRoastSettings({ fontScalePct: previous }));
         }
+    });
+
+    it('keeps the final event label clickable after moving it clear of the right axis', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    showRoR: true,
+                    eventMarkerStyle: 'tempLine',
+                    eventMarkers: [
+                        {
+                            logId: 'yellow-1',
+                            event: 'Yellow',
+                            timeSec: 60,
+                            timeStr: '01:00',
+                            temp: '185°C',
+                            color: '#888',
+                        },
+                    ],
+                    onEventMarkerEdit: vi.fn(),
+                }),
+            );
+        });
+        const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
+        const xAt = (time: number) => 32 + (time / 60) * 936;
+        vi.spyOn(chart, 'convertToPixel').mockImplementation((finder, value) => {
+            if (Array.isArray(value)) return Number.NaN;
+            return 'xAxisIndex' in finder ? xAt(value) : value === option.yAxis[0].max ? 10 : 100;
+        });
+        const series = option.series.find((item: { id: string }) => item.id === 'event-curve-labels');
+        const rendered = series.renderItem(
+            { dataIndex: 0, coordSys: { x: 32, y: 10, width: 936, height: 250 } },
+            { coord: ([time]: number[]) => [xAt(time), 100], getWidth: chart.getWidth, getHeight: chart.getHeight },
+        );
+        const label = rendered.children.find((child: { type: string }) => child.type === 'text');
+        expect(ref.current?.hitTestMarker({ clientX: label.x + 1, clientY: label.y + 1 })).toBe(true);
+        expect(ref.current?.hitTestMarker({ clientX: 990, clientY: label.y + 1 })).toBe(false);
     });
 
     it('uses scalar coordinate conversion for cursor, drag start, and drag move including zero', () => {

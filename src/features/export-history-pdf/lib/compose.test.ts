@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     composeHistoryPdfJpeg,
     HISTORY_PDF_FOOTER_PX,
@@ -16,7 +16,7 @@ describe('historyPdfChartBox', () => {
         const without = historyPdfChartBox(false);
         expect(withLegend.width).toBe(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2);
         expect(without.height - withLegend.height).toBe(HISTORY_PDF_LEGEND_PX);
-        expect(withLegend.height).toBeGreaterThan(900);
+        expect(withLegend.height).toBeGreaterThan(1000);
         expect(
             withLegend.height +
                 HISTORY_PDF_MARGIN_PX * 2 +
@@ -27,28 +27,25 @@ describe('historyPdfChartBox', () => {
     });
 });
 
-afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
-});
+const ctx = {
+    fillRect: vi.fn(),
+    fillText: vi.fn(),
+    drawImage: vi.fn(),
+    measureText: (value: string) => ({ width: Array.from(value).length * 30 }),
+    setLineDash: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+};
+const load = vi.fn().mockResolvedValue([]);
 
-it.each([false, true])('wraps the heading and keeps A4 bounds with an independent roast title=%s', async (hasTitle) => {
-    const ctx = {
-        fillRect: vi.fn(),
-        fillText: vi.fn(),
-        drawImage: vi.fn(),
-        measureText: (value: string) => ({ width: Array.from(value).length * 30 }),
-        setLineDash: vi.fn(),
-        beginPath: vi.fn(),
-        moveTo: vi.fn(),
-        lineTo: vi.fn(),
-        stroke: vi.fn(),
-        save: vi.fn(),
-        restore: vi.fn(),
-    };
+beforeEach(() => {
+    vi.clearAllMocks();
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,/9j/2Q==');
-    const load = vi.fn().mockResolvedValue([]);
     Object.defineProperty(document, 'fonts', { configurable: true, value: { load } });
     vi.stubGlobal(
         'Image',
@@ -59,13 +56,21 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
             }
         },
     );
+});
+
+afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+});
+
+it.each([false, true])('wraps the heading and keeps A4 bounds with an independent roast title=%s', async (hasTitle) => {
     const bean = '에티오피아 예가체프 내추럴 스페셜티 '.repeat(10);
     const result = await composeHistoryPdfJpeg({
         header: {
             bean: hasTitle ? 'Green B' : bean,
             ...(hasTitle ? { roastTitle: bean } : {}),
             batchNumbers: '#9 · Σ#13',
-            date: '2026-09-21',
+            date: '2026-10-25 14:35',
             duration: '10:42',
             charge: '195°C',
             drop: '208°C',
@@ -84,12 +89,18 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
     });
     expect(load).toHaveBeenCalledTimes(4);
     expect(ctx.fillText).toHaveBeenCalledWith('배치 번호: #9 · Σ#13', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('2026-10-25 14:35', expect.any(Number), expect.any(Number));
     expect(result).toMatchObject(HISTORY_PDF_PAGE_PX);
     const titleLines = ctx.fillText.mock.calls.filter(
-        ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 113 || y === HISTORY_PDF_MARGIN_PX + 177,
+        ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 113 || y === HISTORY_PDF_MARGIN_PX + 175,
     );
     expect(titleLines).toHaveLength(2);
     expect(titleLines[1][0]).toMatch(/…$/);
+    const date = ctx.fillText.mock.calls.find(([text]) => text === '2026-10-25 14:35');
+    expect(date).toBeDefined();
+    for (const [text, x] of titleLines) {
+        expect(x + ctx.measureText(text).width).toBeLessThan(date?.[1] ?? 0);
+    }
     if (hasTitle) {
         expect(ctx.fillText).toHaveBeenCalledWith('배치명', expect.any(Number), expect.any(Number));
         expect(ctx.fillText).toHaveBeenCalledWith('Green B', expect.any(Number), expect.any(Number));
@@ -111,5 +122,38 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
         '1 / 1',
         HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX,
         expect.any(Number),
+    );
+});
+
+it('bounds long report and batch labels away from the brand and page number without a legend', async () => {
+    await composeHistoryPdfJpeg({
+        title: 'Roast history '.repeat(30),
+        header: {
+            bean: 'Ethiopia',
+            batchNumbers: '#9 · Σ#13 '.repeat(30),
+            date: '2026-10-25 14:35',
+            duration: '10:42',
+            charge: '195°C',
+            drop: '208°C',
+            labels: { bean: 'Bean', date: 'Date', duration: 'Duration', charge: 'Charge', drop: 'Drop' },
+        },
+        chartDataUrl: 'data:image/png;base64,AA==',
+    });
+    const report = ctx.fillText.mock.calls.find(([text]) => text.startsWith('Roast history'));
+    const batch = ctx.fillText.mock.calls.find(([text]) => text.startsWith('#9'));
+    expect(report).toBeDefined();
+    expect(batch).toBeDefined();
+    expect(report?.[0]).toMatch(/…$/);
+    expect(batch?.[0]).toMatch(/…$/);
+    const innerW = HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2;
+    expect(ctx.measureText(report?.[0] ?? '').width).toBeLessThanOrEqual(innerW - 280);
+    expect(ctx.measureText(batch?.[0] ?? '').width).toBeLessThanOrEqual(innerW - 128);
+    expect(batch?.[0]).not.toMatch(/^:/);
+    expect(ctx.drawImage).toHaveBeenCalledWith(
+        expect.anything(),
+        HISTORY_PDF_MARGIN_PX,
+        HISTORY_PDF_MARGIN_PX + HISTORY_PDF_HEADER_PX,
+        historyPdfChartBox(false).width,
+        historyPdfChartBox(false).height,
     );
 });

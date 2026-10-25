@@ -143,6 +143,23 @@ it('stacks major event text at the plot top while keeping points on BT', () => {
     ]);
 });
 
+it('keeps the final event label inside the plot and away from the right axis', () => {
+    const { curveLabels } = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'point',
+        eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
+    });
+    const rendered = buildCurveLabelSeries(curveLabels).renderItem(
+        { dataIndex: 0, coordSys: { x: 32, y: 10, width: 700, height: 300 } },
+        { coord: () => [732, 100], getWidth: () => 800, getHeight: () => 400 },
+    );
+    const label = rendered?.children.find((child) => child.type === 'text');
+    const dot = rendered?.children.find((child) => child.type === 'circle');
+    expect(label).toBeDefined();
+    expect(label?.x + estimateLabelWidth(label?.style.text)).toBeLessThan(732);
+    expect(dot?.shape.cx).toBe(732);
+});
+
 describe('FC band vs dual-mark Rolling', () => {
     it('ends the band at FC End, not FC Rolling', () => {
         const { fcMarkArea } = buildMarkers({

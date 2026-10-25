@@ -5,12 +5,12 @@ export const HISTORY_PDF_PAGE_PX = { width: 2339, height: 1654 } as const;
 /** 12mm at 200 dpi. */
 export const HISTORY_PDF_MARGIN_PX = 94;
 
-const COLOR_PRIMARY = '#171717';
-const COLOR_MUTED = '#777169';
-const COLOR_BORDER = '#e5e5e5';
+const COLOR_PRIMARY = '#101828';
+const COLOR_MUTED = '#6a7282';
+const COLOR_BORDER = '#e5e7eb';
 const FONT_FAMILY = 'Inter, SUIT, system-ui, sans-serif';
 const FONT_UI = `500 24px ${FONT_FAMILY}`;
-const FONT_VALUE = `500 36px ${FONT_FAMILY}`;
+const FONT_VALUE = `500 32px ${FONT_FAMILY}`;
 
 export type HistoryPdfHeader = {
     bean: string;
@@ -68,9 +68,9 @@ const fitText = (ctx: CanvasRenderingContext2D, value: string, width: number) =>
     return `${chars.join('')}…`;
 };
 
-export const HISTORY_PDF_HEADER_PX = 364;
+export const HISTORY_PDF_HEADER_PX = 312;
 export const HISTORY_PDF_LEGEND_PX = 64;
-export const HISTORY_PDF_FOOTER_PX = 80;
+export const HISTORY_PDF_FOOTER_PX = 64;
 
 export const historyPdfChartBox = (hasLegend: boolean) => {
     const { width, height } = HISTORY_PDF_PAGE_PX;
@@ -97,9 +97,9 @@ export const composeHistoryPdfJpeg = async (
     // Explicitly load both bundled fonts: canvas text alone does not trigger font loading.
     await Promise.all([
         document.fonts.load('500 24px Inter'),
-        document.fonts.load('600 54px Inter'),
+        document.fonts.load('600 52px Inter'),
         document.fonts.load('500 24px SUIT'),
-        document.fonts.load('600 54px SUIT'),
+        document.fonts.load('600 52px SUIT'),
     ]);
     const { width, height } = HISTORY_PDF_PAGE_PX;
     const canvas = document.createElement('canvas');
@@ -124,51 +124,73 @@ export const composeHistoryPdfJpeg = async (
     ctx.font = FONT_UI;
     ctx.fillStyle = COLOR_MUTED;
     ctx.textAlign = 'right';
-    ctx.fillText(input.title ?? 'Roast profile', width - margin, margin);
+    ctx.fillText(fitText(ctx, input.title ?? 'Roast profile', innerW - 280), width - margin, margin);
     ctx.textAlign = 'left';
     line(margin + 48);
 
+    const detailsX = margin + Math.round(innerW * 0.64);
+    const detailsW = width - margin - detailsX;
+    const headingW = detailsX - margin - 80;
+    ctx.fillStyle = COLOR_BORDER;
+    ctx.fillRect(detailsX - 40, margin + 76, 2, 204);
+
     ctx.fillStyle = COLOR_MUTED;
     ctx.font = FONT_UI;
-    ctx.fillText(input.header.labels.roastTitle ?? input.header.labels.bean, margin, margin + 76);
-    ctx.font = `600 54px ${FONT_FAMILY}`;
+    ctx.fillText(
+        fitText(ctx, input.header.labels.roastTitle ?? input.header.labels.bean, headingW),
+        margin,
+        margin + 76,
+    );
+    ctx.font = `600 52px ${FONT_FAMILY}`;
     ctx.fillStyle = COLOR_PRIMARY;
     const heading = (input.header.roastTitle ?? input.header.bean).replace(/\s+/g, ' ').trim();
-    if (ctx.measureText(heading).width <= innerW) {
+    if (ctx.measureText(heading).width <= headingW) {
         ctx.fillText(heading, margin, margin + 113);
     } else {
         const chars = Array.from(heading);
         let end = chars.length;
-        while (end > 1 && ctx.measureText(chars.slice(0, end).join('')).width > innerW) end--;
+        while (end > 1 && ctx.measureText(chars.slice(0, end).join('')).width > headingW) end--;
         // Prefer a word boundary, while still wrapping unspaced CJK names.
         const first = chars.slice(0, end).join('');
         const space = first.lastIndexOf(' ');
         if (space > first.length / 2) end = Array.from(first.slice(0, space)).length;
         ctx.fillText(chars.slice(0, end).join(''), margin, margin + 113);
-        ctx.fillText(fitText(ctx, chars.slice(end).join('').trim(), innerW), margin, margin + 177);
+        ctx.fillText(fitText(ctx, chars.slice(end).join('').trim(), headingW), margin, margin + 175);
     }
 
+    if (input.header.roastTitle != null) {
+        ctx.font = FONT_UI;
+        ctx.fillStyle = COLOR_MUTED;
+        const label = fitText(ctx, input.header.labels.bean, headingW / 3);
+        ctx.fillText(label, margin, margin + 252);
+        const valueX = margin + ctx.measureText(label).width + 20;
+        ctx.fillStyle = COLOR_PRIMARY;
+        ctx.fillText(fitText(ctx, input.header.bean, margin + headingW - valueX), valueX, margin + 252);
+    }
+
+    ctx.font = FONT_UI;
+    ctx.fillStyle = COLOR_MUTED;
+    ctx.fillText(fitText(ctx, input.header.labels.date, detailsW), detailsX, margin + 76);
+    ctx.font = FONT_VALUE;
+    ctx.fillStyle = COLOR_PRIMARY;
+    ctx.fillText(fitText(ctx, input.header.date, detailsW), detailsX, margin + 116);
+
     const fields = [
-        ...(input.header.roastTitle != null ? [{ label: input.header.labels.bean, value: input.header.bean }] : []),
-        { label: input.header.labels.date, value: input.header.date },
         { label: input.header.labels.duration, value: input.header.duration },
         { label: input.header.labels.charge, value: input.header.charge },
         { label: input.header.labels.drop, value: input.header.drop },
     ];
-    const colW = innerW / fields.length;
+    const colW = detailsW / fields.length;
     fields.forEach((field, i) => {
-        const x = margin + i * colW;
-        if (i) {
-            ctx.fillStyle = COLOR_BORDER;
-            ctx.fillRect(x - 28, margin + 258, 2, 68);
-        }
+        const x = detailsX + i * colW;
         ctx.fillStyle = COLOR_MUTED;
         ctx.font = FONT_UI;
-        ctx.fillText(fitText(ctx, field.label, colW - 56), x, margin + 252);
+        ctx.fillText(fitText(ctx, field.label, colW - 24), x, margin + 204);
         ctx.fillStyle = COLOR_PRIMARY;
         ctx.font = FONT_VALUE;
-        ctx.fillText(fitText(ctx, field.value, colW - 56), x, margin + 288);
+        ctx.fillText(fitText(ctx, field.value, colW - 24), x, margin + 244);
     });
+    line(margin + HISTORY_PDF_HEADER_PX - 20);
 
     const hasLegend = Boolean(input.legend?.length);
     const chartBox = historyPdfChartBox(hasLegend);
@@ -203,13 +225,10 @@ export const composeHistoryPdfJpeg = async (
     line(footerY + 20);
     ctx.font = FONT_UI;
     ctx.fillStyle = COLOR_MUTED;
-    ctx.fillText('First Crack', margin, footerY + 44);
-    if (input.header.batchNumbers)
-        ctx.fillText(
-            `${input.header.labels.batchNumbers ?? ''}: ${input.header.batchNumbers}`,
-            margin + 200,
-            footerY + 44,
-        );
+    const footer = input.header.batchNumbers
+        ? `${input.header.labels.batchNumbers ? `${input.header.labels.batchNumbers}: ` : ''}${input.header.batchNumbers}`
+        : 'First Crack';
+    ctx.fillText(fitText(ctx, footer, innerW - 128), margin, footerY + 44);
     ctx.textAlign = 'right';
     ctx.fillText('1 / 1', width - margin, footerY + 44);
 

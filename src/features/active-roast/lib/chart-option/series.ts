@@ -426,7 +426,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1) => ({
                     },
                 ];
             }),
-            api.getWidth(),
+            plotX + plotWidth,
             scale,
             api.getHeight?.() ?? Infinity,
         );
