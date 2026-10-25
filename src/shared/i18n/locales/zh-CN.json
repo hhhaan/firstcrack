@@ -1422,6 +1422,7 @@
         "searchPlaceholder": "搜索生豆、曲线或产地...",
         "allLevels": "全部烘焙度",
         "allOrigins": "全部产地",
+        "allProfiles": "全部曲线",
         "datePresets": {
             "all": "全部",
             "this-month": "本月",

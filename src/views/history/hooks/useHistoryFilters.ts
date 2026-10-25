@@ -7,6 +7,7 @@ interface HistoryFilterState {
     search: string;
     levelFilter: string;
     originFilter: string;
+    profileFilter: string;
     datePreset: DatePreset;
     fromYM: string;
     toYM: string;
@@ -19,6 +20,7 @@ const INITIAL: HistoryFilterState = {
     search: '',
     levelFilter: 'all',
     originFilter: 'all',
+    profileFilter: 'all',
     datePreset: 'all',
     fromYM: '',
     toYM: '',
@@ -30,11 +32,12 @@ const INITIAL: HistoryFilterState = {
 export const useHistoryFilters = () => {
     const [state, setState] = useState<HistoryFilterState>(INITIAL);
 
-    const { search, levelFilter, originFilter, datePreset, fromYM, toYM, page, sortKey, sortAsc } = state;
+    const { search, levelFilter, originFilter, profileFilter, datePreset, fromYM, toYM, page, sortKey, sortAsc } =
+        state;
 
     const filterCriteria: SessionFilterCriteria = useMemo(
-        () => ({ search, levelFilter, fromYM, toYM, originFilter }),
-        [search, levelFilter, fromYM, toYM, originFilter],
+        () => ({ search, levelFilter, fromYM, toYM, originFilter, profileFilter }),
+        [search, levelFilter, fromYM, toYM, originFilter, profileFilter],
     );
 
     const patch = (partial: Partial<HistoryFilterState>) => {
@@ -45,6 +48,7 @@ export const useHistoryFilters = () => {
         search,
         levelFilter,
         originFilter,
+        profileFilter,
         datePreset,
         fromYM,
         toYM,
@@ -55,6 +59,7 @@ export const useHistoryFilters = () => {
         setSearch: (value: string) => patch({ search: value }),
         setLevelFilter: (value: string) => patch({ levelFilter: value }),
         setOriginFilter: (value: string) => patch({ originFilter: value }),
+        setProfileFilter: (value: string) => patch({ profileFilter: value }),
         setDatePreset: (value: DatePreset) => {
             if (value === 'all') {
                 setState((prev) => ({ ...prev, datePreset: 'all', fromYM: '', toYM: '', page: 1 }));

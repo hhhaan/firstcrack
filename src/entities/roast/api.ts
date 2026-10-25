@@ -48,9 +48,9 @@ interface PaginatedResult {
     total: number;
 }
 
-export type RoastSessionFilterMeta = {
-    roasted_at: string | null;
+export type RoastSessionFilterMeta = Pick<RoastSession, 'roasted_at' | 'profile_id'> & {
     beans: { origin: string | null } | null;
+    roast_profiles: { name: string } | null;
 };
 
 /** PostgREST `max_rows` in supabase/config.toml. A single select silently drops the rest. */
@@ -88,13 +88,15 @@ export const roastSessionApi = {
 
     /** Lightweight rows for History filter dropdowns + total count (no events/embeds bloat). */
     listFilterMeta: async (userId: string): Promise<RoastSessionFilterMeta[]> => {
-        const { data, error } = await supabase
-            .from('roast_sessions')
-            .select('roasted_at, beans(origin)')
-            .eq('user_id', userId)
-            .eq('status', 'completed');
-        if (error) throw error;
-        return (data as RoastSessionFilterMeta[]) || [];
+        return fetchAllRows(async (from, to) =>
+            supabase
+                .from('roast_sessions')
+                .select('roasted_at, profile_id, beans(origin), roast_profiles!profile_id(name)')
+                .eq('user_id', userId)
+                .eq('status', 'completed')
+                .order('id')
+                .range(from, to),
+        );
     },
 
     get: async (id: string): Promise<RoastSessionWithRelations> => {

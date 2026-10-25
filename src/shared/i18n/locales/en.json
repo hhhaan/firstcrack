@@ -1422,6 +1422,7 @@
         "searchPlaceholder": "Search by bean, profile, or origin...",
         "allLevels": "All Levels",
         "allOrigins": "All Origins",
+        "allProfiles": "All Profiles",
         "datePresets": {
             "all": "All Time",
             "this-month": "This Month",

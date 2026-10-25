@@ -56,6 +56,7 @@ export const History = () => {
         search,
         levelFilter,
         originFilter,
+        profileFilter,
         datePreset,
         fromYM,
         toYM,
@@ -66,6 +67,7 @@ export const History = () => {
         setSearch,
         setLevelFilter,
         setOriginFilter,
+        setProfileFilter,
         setDatePreset,
         setFromYM,
         setToYM,
@@ -76,7 +78,11 @@ export const History = () => {
     const { workspaceOwnerId } = useActiveWorkspace();
 
     const useClientPagination =
-        search.length > 0 || originFilter !== 'all' || sortKey === 'duration' || sortKey === 'bean';
+        search.length > 0 ||
+        originFilter !== 'all' ||
+        profileFilter !== 'all' ||
+        sortKey === 'duration' ||
+        sortKey === 'bean';
     const [exportOpen, setExportOpen] = useState(false);
     // 전체 목록이 아직 없을 때의 export 요청 — 목록이 도착하면 effect가 집어간다
     const [pendingExportRange, setPendingExportRange] = useState<ExportDateRange | null>(null);
@@ -118,6 +124,16 @@ export const History = () => {
             ),
         [filterMeta],
     );
+
+    const profileOptions = useMemo(() => {
+        const profiles = new Map<string, string>();
+        for (const session of filterMeta) {
+            if (session.profile_id && session.roast_profiles) {
+                profiles.set(session.profile_id, session.roast_profiles.name);
+            }
+        }
+        return new Map([...profiles].sort((a, b) => a[1].localeCompare(b[1])));
+    }, [filterMeta]);
 
     const monthOptions = useMemo(() => {
         const set = new Set<string>();
@@ -365,6 +381,13 @@ export const History = () => {
                                     value={originFilter}
                                     options={uniqueOrigins}
                                     onSelect={setOriginFilter}
+                                />
+                                <FilterDropdown
+                                    label={t('history.allProfiles')}
+                                    value={profileFilter}
+                                    options={[...profileOptions.keys()]}
+                                    optionLabel={(id) => profileOptions.get(id) ?? id}
+                                    onSelect={setProfileFilter}
                                 />
                                 <DateRangeFilter
                                     preset={datePreset}
