@@ -854,6 +854,8 @@
         "previousClose": "前日終値",
         "lastSixMonths": "過去6か月",
         "thisMonth": "今月",
+        "previousMonth": "前の月",
+        "nextMonth": "次の月",
         "refresh": "先物価格を更新",
         "greeting": {
             "morning": "おはようございます",
@@ -863,6 +865,7 @@
         "viewActiveRoast": "進行中の焙煎を見る",
         "kpi": {
             "batchesThisMonth": "今月のバッチ数",
+            "batchesInMonth": "{{month}}のバッチ",
             "beansRoasted": "焙煎量",
             "avgRoastTime": "平均ロースト時間",
             "successRate": "成功率",

@@ -2,8 +2,9 @@ import type { DailyRoastMetric, MonthlyBatch } from '@features/dashboard-summary
 import type { CoffeeFuturesData } from '@shared/api/coffee-futures';
 import { pctChange } from '@shared/lib/format';
 import { MetricTrendChart } from '@shared/ui/MetricTrendChart';
+import { endOfMonth, isSameMonth, startOfMonth } from 'date-fns';
 import { useTranslation } from 'react-i18next';
-import { formatDate } from '../lib/format';
+import { formatDate, localeForDate } from '../lib/format';
 import { KpiCard } from './KpiCard';
 import { MonthlyChartSection } from './MonthlyChartSection';
 
@@ -12,6 +13,7 @@ interface KpiSectionProps {
     batchesLastMonth: number;
     kgRoastedThisMonth: number;
     kgRoastedLastMonth: number;
+    month: Date;
     dailyMetrics: DailyRoastMetric[];
     monthlyBatches: MonthlyBatch[];
     loading: boolean;
@@ -28,6 +30,7 @@ export const KpiSection = ({
     batchesLastMonth,
     kgRoastedThisMonth,
     kgRoastedLastMonth,
+    month,
     dailyMetrics,
     monthlyBatches,
     loading,
@@ -38,7 +41,13 @@ export const KpiSection = ({
 }: KpiSectionProps) => {
     const { t } = useTranslation();
     const now = new Date();
-    const range = `${formatDate(new Date(now.getFullYear(), now.getMonth(), 1))} – ${formatDate(now)}`;
+    const current = isSameMonth(month, now);
+    const rangeEnd = current ? now : endOfMonth(month);
+    const range = `${formatDate(startOfMonth(month))} – ${formatDate(rangeEnd)}`;
+    const monthName = month.toLocaleDateString(localeForDate(), { month: 'short', year: 'numeric' });
+    const batchLabel = current
+        ? t('dashboard.kpi.batchesThisMonth')
+        : t('dashboard.kpi.batchesInMonth', { month: monthName });
     const comparison = t('dashboard.comparedToLastMonth');
     const daily = dailyMetrics.map((day) => ({ ...day, label: formatDate(day.date) }));
     const coffeePrice = coffeeFutures && Number.isFinite(coffeeFutures.price) ? coffeeFutures.price.toFixed(2) : '—';
@@ -76,7 +85,7 @@ export const KpiSection = ({
                 </div>
             </KpiCard>
             <KpiCard
-                label={t('dashboard.kpi.batchesThisMonth')}
+                label={batchLabel}
                 value={loading ? '—' : String(batchesThisMonth)}
                 change={loading ? '' : pctChange(batchesThisMonth, batchesLastMonth)}
                 caption={range}
@@ -86,7 +95,7 @@ export const KpiSection = ({
                 <div className="h-32 lg:h-36">
                     {!loading && (
                         <MetricTrendChart
-                            label={t('dashboard.kpi.batchesThisMonth')}
+                            label={batchLabel}
                             data={daily.map((day) => ({ label: day.label, value: day.batches }))}
                         />
                     )}

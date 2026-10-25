@@ -2,18 +2,30 @@ import { useRoastingStore } from '@features/active-roast';
 import { useWeather } from '@shared/api/weather';
 import type { View } from '@shared/types/view';
 import { PillButton } from '@shared/ui/PillButton';
-import { ArrowRight, CalendarDays, Droplets, Thermometer } from 'lucide-react';
+import { addMonths, isSameMonth, startOfMonth } from 'date-fns';
+import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, Droplets, Thermometer } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getGreeting, localeForDate } from '../lib/format';
+import { canGoToNextDashboardMonth, canGoToPreviousDashboardMonth } from '../lib/month';
 
 interface DashboardHeaderProps {
+    month: Date;
+    onMonthChange: (month: Date) => void;
     onNavigate: (view: View) => void;
 }
 
-export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
+const monthButtonClass =
+    'grid size-8 place-items-center rounded-full text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent';
+
+export const DashboardHeader = ({ month, onMonthChange, onNavigate }: DashboardHeaderProps) => {
     const isRoasting = useRoastingStore((s) => s.phase === 'roasting');
     const weather = useWeather();
     const { t } = useTranslation();
+    const now = new Date();
+    const current = isSameMonth(month, now);
+    const label = current
+        ? t('dashboard.thisMonth')
+        : month.toLocaleDateString(localeForDate(), { month: 'short', year: 'numeric' });
 
     return (
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4" data-testid="dashboard-header">
@@ -46,10 +58,33 @@ export const DashboardHeader = ({ onNavigate }: DashboardHeaderProps) => {
                 </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 rounded-full bg-surface-elevated px-3 py-2 text-xs text-secondary">
-                    <CalendarDays size={13} strokeWidth={1.5} />
-                    {t('dashboard.thisMonth')}
-                </span>
+                <div
+                    className="inline-flex h-8 items-center rounded-full bg-surface-elevated pl-1 pr-1 text-xs text-secondary"
+                    data-testid="dashboard-month"
+                >
+                    <button
+                        type="button"
+                        className={monthButtonClass}
+                        aria-label={t('dashboard.previousMonth')}
+                        disabled={!canGoToPreviousDashboardMonth(month, now)}
+                        onClick={() => onMonthChange(addMonths(startOfMonth(month), -1))}
+                    >
+                        <ChevronLeft size={14} strokeWidth={1.75} />
+                    </button>
+                    <span className="inline-flex items-center gap-1.5 px-1" data-testid="dashboard-month-label">
+                        <CalendarDays size={13} strokeWidth={1.5} />
+                        {label}
+                    </span>
+                    <button
+                        type="button"
+                        className={monthButtonClass}
+                        aria-label={t('dashboard.nextMonth')}
+                        disabled={!canGoToNextDashboardMonth(month, now)}
+                        onClick={() => onMonthChange(addMonths(startOfMonth(month), 1))}
+                    >
+                        <ChevronRight size={14} strokeWidth={1.75} />
+                    </button>
+                </div>
                 <PillButton onClick={() => onNavigate('roast')}>
                     <span
                         className={`w-1.75 h-1.75 rounded-full inline-block ${isRoasting ? 'bg-palette-green animate-pulse' : 'bg-current opacity-40'}`}

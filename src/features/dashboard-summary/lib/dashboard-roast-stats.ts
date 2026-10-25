@@ -1,4 +1,5 @@
 import { ymInRange } from '@shared/lib/sessionFilter';
+import { endOfMonth, isSameMonth } from 'date-fns';
 
 const localYM = (d: Date): string => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
@@ -47,4 +48,23 @@ export const dailyRoastMetrics = (
     }
 
     return days;
+};
+
+/** Selected calendar month against the month before it. Current month stops at `now`. */
+export const dashboardMonthStats = <T extends { roasted_at: string | null; weight_grams: number }>(
+    sessions: T[],
+    month: Date,
+    now = new Date(),
+) => {
+    const asOf = isSameMonth(month, now) ? now : endOfMonth(month);
+    const completed = sessions.filter((session): session is T & { roasted_at: string } => !!session.roasted_at);
+    const { thisMonth, lastMonth } = splitDashboardMonths(completed, asOf);
+    const sumKg = (rows: typeof completed) => rows.reduce((acc, session) => acc + session.weight_grams, 0) / 1000;
+    return {
+        batchesThisMonth: thisMonth.length,
+        batchesLastMonth: lastMonth.length,
+        kgRoastedThisMonth: sumKg(thisMonth),
+        kgRoastedLastMonth: sumKg(lastMonth),
+        dailyMetrics: dailyRoastMetrics(thisMonth, asOf),
+    };
 };

@@ -854,6 +854,8 @@
         "previousClose": "前收盘价",
         "lastSixMonths": "最近6个月",
         "thisMonth": "本月",
+        "previousMonth": "上个月",
+        "nextMonth": "下个月",
         "refresh": "刷新期货价格",
         "greeting": {
             "morning": "早上好",
@@ -863,6 +865,7 @@
         "viewActiveRoast": "查看进行中的烘焙",
         "kpi": {
             "batchesThisMonth": "本月批次数",
+            "batchesInMonth": "{{month}}批次",
             "beansRoasted": "烘焙量",
             "avgRoastTime": "平均烘焙时间",
             "successRate": "成功率",

@@ -854,6 +854,8 @@
         "previousClose": "Previous close",
         "lastSixMonths": "Last 6 months",
         "thisMonth": "This month",
+        "previousMonth": "Previous month",
+        "nextMonth": "Next month",
         "refresh": "Refresh futures price",
         "greeting": {
             "morning": "Good morning",
@@ -863,6 +865,7 @@
         "viewActiveRoast": "View Active Roast",
         "kpi": {
             "batchesThisMonth": "Batches This Month",
+            "batchesInMonth": "Batches in {{month}}",
             "beansRoasted": "Beans roasted",
             "avgRoastTime": "Avg Roast Time",
             "successRate": "Success Rate",

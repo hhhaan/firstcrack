@@ -52,4 +52,14 @@ describe('roastSessionApi dashboard reads', () => {
         expect(Array.isArray(rows)).toBe(true);
         expect(fromMock).toHaveBeenCalledWith('roast_sessions');
     });
+
+    it('stops listCompletedWeightsSince before untilIso', async () => {
+        await roastSessionApi.listCompletedWeightsSince(
+            'user-1',
+            '2025-08-01T00:00:00.000Z',
+            '2025-10-01T00:00:00.000Z',
+        );
+        const chain = fromMock.mock.results[0]?.value as { lt: { mock: { calls: unknown[][] } } };
+        expect(chain.lt.mock.calls[0]).toEqual(['roasted_at', '2025-10-01T00:00:00.000Z']);
+    });
 });

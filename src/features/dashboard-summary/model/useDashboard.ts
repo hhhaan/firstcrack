@@ -10,7 +10,7 @@ import { formatDateLocal } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQuery } from '@tanstack/react-query';
 import { addDays, format } from 'date-fns';
-import { type DailyRoastMetric, dailyRoastMetrics, splitDashboardMonths } from '../lib/dashboard-roast-stats';
+import { type DailyRoastMetric, dashboardMonthStats } from '../lib/dashboard-roast-stats';
 
 /** Recent-row view model. `roastDurationSec` is History 시간 (Charge→Drop), not record End. */
 export type DashboardRecentSession = {
@@ -126,7 +126,7 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
     const completed = completedRows.filter(
         (s): s is (typeof completedRows)[number] & { roasted_at: string } => !!s.roasted_at,
     );
-    const { thisMonth, lastMonth } = splitDashboardMonths(completed, now);
+    const monthStats = dashboardMonthStats(completed, now);
     const toRecent = (s: (typeof completed)[number]): DashboardRecentSession => ({
         id: s.id,
         roasted_at: s.roasted_at,
@@ -138,8 +138,6 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         beans: s.beans,
         roast_profiles: s.roast_profiles,
     });
-
-    const sumKg = (arr: typeof completed) => arr.reduce((acc, s) => acc + s.weight_grams, 0) / 1000;
 
     const monthlyMap = new Map<string, number>();
     for (let i = 5; i >= 0; i--) {
@@ -168,15 +166,11 @@ const fetchDashboard = async (userId: string): Promise<Omit<DashboardData, 'load
         });
 
     return {
-        batchesThisMonth: thisMonth.length,
-        batchesLastMonth: lastMonth.length,
-        kgRoastedThisMonth: sumKg(thisMonth),
-        kgRoastedLastMonth: sumKg(lastMonth),
+        ...monthStats,
         recentSessions: completed.slice(0, 5).map(toRecent),
         upcomingBatches,
         inventoryAlerts,
         monthlyBatches,
-        dailyMetrics: dailyRoastMetrics(thisMonth, now),
     };
 };
 

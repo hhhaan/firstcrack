@@ -327,18 +327,23 @@ export const roastSessionApi = {
         return data ?? [];
     },
 
-    /** Dashboard monthly batch chart: completed sessions since sixMonthsAgo (weight + date only). */
+    /**
+     * Dashboard monthly chart and past-month KPIs (weight + date only).
+     * `untilIso` is exclusive, so pass the start of the month after the selection.
+     */
     listCompletedWeightsSince: async (
         userId: string,
         sinceIso: string,
+        untilIso?: string,
     ): Promise<Array<{ roasted_at: string | null; weight_grams: number }>> => {
-        const { data, error } = await supabase
+        let query = supabase
             .from('roast_sessions')
             .select('roasted_at, weight_grams')
             .eq('user_id', userId)
             .eq('status', 'completed')
-            .gte('roasted_at', sinceIso)
-            .order('roasted_at', { ascending: true });
+            .gte('roasted_at', sinceIso);
+        if (untilIso) query = query.lt('roasted_at', untilIso);
+        const { data, error } = await query.order('roasted_at', { ascending: true });
         if (error) throw error;
         return data ?? [];
     },

@@ -854,6 +854,8 @@
         "previousClose": "전일 종가",
         "lastSixMonths": "최근 6개월",
         "thisMonth": "이번 달",
+        "previousMonth": "이전 달",
+        "nextMonth": "다음 달",
         "refresh": "선물가 새로고침",
         "greeting": {
             "morning": "Good morning",
@@ -863,6 +865,7 @@
         "viewActiveRoast": "진행 중 로스팅 보기",
         "kpi": {
             "batchesThisMonth": "이번 달 배치",
+            "batchesInMonth": "{{month}} 배치",
             "beansRoasted": "로스팅량",
             "avgRoastTime": "평균 로스팅 시간",
             "successRate": "성공률",
