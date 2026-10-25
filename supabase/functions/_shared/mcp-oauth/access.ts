@@ -28,6 +28,8 @@ export function opaqueDependencies(config: McpConfig, gateway: Gateway) {
                     limit: selection.limit,
                     offset: selection.offset,
                 });
+                if (result.error === 'insufficient_plan')
+                    throw new ToolFailure('Pro 이상 요금제에서 연결할 수 있습니다.');
                 if (result.error) throw new ToolFailure('연결 권한이 만료되었거나 철회되었습니다. 다시 연결해 주세요.');
                 return { data: result.rows, error: null };
             },

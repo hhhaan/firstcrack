@@ -84,17 +84,18 @@ its verified subject must match the live native Auth identity.
 | --- | --- |
 | `get_my_profile` | Caller's own name, business and country; no billing/email identifiers |
 | `list_my_workspaces` | Connected roastery only |
-| `list_green_beans` | Definitions/origin/threshold; no balance calculation |
-| `list_products` | Product identity, weight and bean/blend/profile links |
-| `list_orders` | Status, dates and line quantities; no raw payload/buyer details |
-| `list_production_plans` | Saved day plans and batches |
-| `list_roast_sessions` | Saved roast summaries, input/output and duration |
+| `list_green_stock` | Green bean on-hand grams, excluding `expected_inbound` |
+| `list_roasted_stock` | Bulk roasted on-hand grams |
+| `list_product_stock` | Finished-goods on-hand units |
+| `list_orders` | Platform, channel order id, shipment status, fulfillment time, line quantities. No buyer, amount, raw payload, or tracking number |
 
 Pages default to 50, maximum 100; offsets maximum 10000. Nested order lines and plan
 batches are capped at 1000 per parent. Workspace choices and recent connection lists
-are capped at 100. Raw roast files/curves, inventory balances, virtual recurring plan
-instances, equipment and live sensor data are not included. No production registration,
-stock adjustment or `compute_inventory_alerts` call exists. Login/read failures never
+are capped at 100. Reads return on-hand stock and order shipment status. Roast curves,
+buyer details, amounts, tracking numbers, equipment and live sensor data are not included.
+No stock adjustment or `compute_inventory_alerts` call exists. A workspace owner whose
+plan is not `pro`, `pro_plus`, `enterprise`, `team` or `tester` gets `insufficient_plan`.
+Login/read failures never
 fall back to sample data. Sample simulation remains a separate plugin skill/flow.
 
 ## Local verification
@@ -139,7 +140,7 @@ that HTTP check were explicit unused fixture placeholders, not operational crede
 | Target | Exact proposed action / stored material | Effect |
 | --- | --- | --- |
 | Local test environment | Permit required Supabase image pulls; run `supabase start` + `supabase db reset --local` against an isolated project | Must precede turning SQL into a migration; no hosted reset |
-| Supabase `vjdgdolfxvnxushxrmff` | Review latest policies/helpers; apply opaque-issuer tables, functions, SELECT columns and role-specific policies via the normal migration path | Persistent delegated read access to the seven DTOs; no change to native Auth scopes/hooks or existing user write rights |
+| Supabase `vjdgdolfxvnxushxrmff` | Review latest policies/helpers; apply opaque-issuer tables, functions, SELECT columns and role-specific policies via the normal migration path | Persistent delegated read access to the stock and order DTOs; no change to native Auth scopes/hooks or existing user write rights |
 | Same project | Provision two limited LOGIN DB credentials; store DSNs only as Edge server secrets `FIRSTCRACK_OAUTH_DATABASE_URL` and `FIRSTCRACK_MCP_DATABASE_URL` | Secret values must never enter repository, browser, plugin or logs. No signing key/client secret required |
 | Same project | Add a disabled static `private.mcp_clients` record, then enable only after approved host client ID/exact callback verification | Public PKCE client; no new native Supabase OAuth grant/provider setup |
 | Same project | Deploy `firstcrack-oauth` and `firstcrack-mcp` with function-specific `verify_jwt=false`; configure `FIRSTCRACK_MCP_ISSUER_URL`, `FIRSTCRACK_MCP_RESOURCE_URL`, `FIRSTCRACK_MCP_CLIENT_IDS`, optional `FIRSTCRACK_MCP_ALLOWED_ORIGINS`, `FIRSTCRACK_OAUTH_CONSENT_URL`; finally enable `FIRSTCRACK_OAUTH_ENABLED`/`FIRSTCRACK_MCP_ENABLED` | Public discovery/OAuth routes; all identity/read paths authenticate internally. Source `config.toml` records the required gate settings but they have not been applied |

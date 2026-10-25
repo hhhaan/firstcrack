@@ -350,19 +350,18 @@ try {
     const { tokens } = await exchange(initial);
     check(/^fcmcp_at_/.test(tokens.access_token) && !tokens.access_token.includes('.'), 'Native JWT leaked to client');
     check((await lookup(tokens.access_token))?.sub === a, 'Token subject is not the verified user');
-    const read = await gateway.read(await digest(tokens.access_token), issuer, resource, 'list_roast_sessions', {});
+    const read = await gateway.read(await digest(tokens.access_token), issuer, resource, 'list_orders', {});
     check(
-        Array.isArray(read.rows) && read.rows.length === 1 && read.rows[0].batch_name === 'owner A roast',
+        Array.isArray(read.rows) && read.rows.length === 1 && read.rows[0].platform_order_id === 'A-1',
         'Owner-row isolation failed',
     );
     for (const tool of [
         'get_my_profile',
         'list_my_workspaces',
-        'list_green_beans',
-        'list_products',
+        'list_green_stock',
+        'list_roasted_stock',
+        'list_product_stock',
         'list_orders',
-        'list_production_plans',
-        'list_roast_sessions',
     ]) {
         const page = await gateway.read(await digest(tokens.access_token), issuer, resource, tool, {});
         check(Array.isArray(page.rows) && page.rows.length === 1, `Fixed read function failed for ${tool}`);
@@ -372,7 +371,11 @@ try {
             'Protected data escaped the fixed projection',
         );
     }
-    const foreign = await gateway.read(await digest(tokens.access_token), issuer, resource, 'list_roast_sessions', {
+    await admin`update public.profiles set plan='read_only' where id=${owner}::uuid`;
+    const unpaid = await gateway.read(await digest(tokens.access_token), issuer, resource, 'list_orders', {});
+    check(unpaid.error === 'insufficient_plan', 'A read-only plan read operational stock');
+    await admin`update public.profiles set plan='pro' where id=${owner}::uuid`;
+    const foreign = await gateway.read(await digest(tokens.access_token), issuer, resource, 'list_orders', {
         workspace_owner_id: b,
     });
     check(foreign.error === 'access_denied', 'A different member workspace escaped consent scope');
@@ -381,9 +384,9 @@ try {
         'Resource binding missing',
     );
     const tokenB = (await exchange(await start(), authB, b)).tokens;
-    const readB = await gateway.read(await digest(tokenB.access_token), issuer, resource, 'list_roast_sessions', {});
+    const readB = await gateway.read(await digest(tokenB.access_token), issuer, resource, 'list_orders', {});
     check(
-        Array.isArray(readB.rows) && readB.rows.length === 1 && readB.rows[0].batch_name === 'owner B roast',
+        Array.isArray(readB.rows) && readB.rows.length === 1 && readB.rows[0].platform_order_id === 'B-1',
         'Another user received first user rows',
     );
     const writes = await fixtureFetch(`${project}/auth/v1/user`, {
@@ -526,18 +529,15 @@ try {
     await sdk.connect(
         new StreamableHTTPClientTransport(new URL(resource), { authProvider: provider, fetch: fixtureFetch }),
     );
-    check((await sdk.listTools()).tools.length === 7, 'SDK tools contract failed');
+    check((await sdk.listTools()).tools.length === 6, 'SDK tools contract failed');
+    check(!(await sdk.callTool({ name: 'list_orders', arguments: {} })).isError, 'SDK authenticated read failed');
     check(
-        !(await sdk.callTool({ name: 'list_roast_sessions', arguments: {} })).isError,
-        'SDK authenticated read failed',
-    );
-    check(
-        (await sdk.callTool({ name: 'list_roast_sessions', arguments: { workspace_owner_id: b } })).isError,
+        (await sdk.callTool({ name: 'list_orders', arguments: { workspace_owner_id: b } })).isError,
         'SDK cross-roastery read succeeded',
     );
     const beforeRenewal = sdkTokens?.access_token ?? '';
     await admin`update private.mcp_tokens set expires_at=now()-interval '1 second',issued_at=now()-interval '1 hour' where hash=${await digest(beforeRenewal)}`;
-    check((await sdk.listTools()).tools.length === 7, 'SDK could not recover from access expiry');
+    check((await sdk.listTools()).tools.length === 6, 'SDK could not recover from access expiry');
     check(sdkTokens?.access_token !== beforeRenewal, 'SDK did not use the rotating refresh flow');
     const sdkAccess = sdkTokens?.access_token ?? '';
     await admin`delete from public.organization_members where user_id=${a}::uuid and org_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'`;

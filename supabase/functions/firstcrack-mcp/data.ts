@@ -56,40 +56,35 @@ const catalog = {
         columns: 'id,owner_id,name',
         workspace: false,
     },
-    list_green_beans: {
-        description: '허용된 로스터리의 생두 목록과 원산지를 조회합니다. 실제 재고 잔량은 포함하지 않습니다.',
+    list_green_stock: {
+        description:
+            '허용된 로스터리의 생두 잔량을 그램으로 조회합니다. 입고 예정은 빼지 않습니다. 재고 수정은 하지 않습니다.',
         table: 'beans',
         ownerColumn: 'user_id',
-        columns: 'id,name,origin,region,variety,process,low_stock_threshold_grams',
+        columns: 'id,name,origin,low_stock_threshold_grams,on_hand_grams',
         workspace: true,
     },
-    list_products: {
-        description: '허용된 로스터리의 상품과 포장 중량을 조회합니다.',
+    list_roasted_stock: {
+        description: '허용된 로스터리의 벌크 원두 잔량을 그램으로 조회합니다. 재고 수정은 하지 않습니다.',
+        table: 'roasted_stock_events',
+        ownerColumn: 'user_id',
+        columns: 'bean_id,blend_id,on_hand_grams',
+        workspace: true,
+    },
+    list_product_stock: {
+        description: '허용된 로스터리의 완제품 잔량을 개수로 조회합니다. 재고 수정은 하지 않습니다.',
         table: 'products',
         ownerColumn: 'user_id',
-        columns: 'id,name,sku,net_weight_grams,bean_id,blend_id,roast_profile_id,is_active',
+        columns: 'id,name,sku,is_active,on_hand_units',
         workspace: true,
     },
     list_orders: {
-        description: '허용된 로스터리의 주문 상태와 상품별 수량을 조회합니다.',
+        description:
+            '허용된 로스터리의 주문과 배송 상태를 조회합니다. status가 배송 단계이고 fulfilled_at은 재고 차감 시각입니다. 송장, 구매자, 금액은 포함하지 않습니다.',
         table: 'orders',
         ownerColumn: 'user_id',
-        columns: 'id,platform,status,ordered_at,fulfilled_at,order_lines(id,product_id,title,quantity,status)',
-        workspace: true,
-    },
-    list_production_plans: {
-        description: '허용된 로스터리에 저장된 일별 생산 계획을 조회합니다. 반복 일정의 가상 회차는 포함하지 않습니다.',
-        table: 'roast_day_plans',
-        ownerColumn: 'user_id',
         columns:
-            'id,date,roast_plan_batches(id,bean_name,batch_count,batch_size_kg,target_roasted_kg,status,scheduled_date)',
-        workspace: true,
-    },
-    list_roast_sessions: {
-        description: '허용된 로스터리의 로스팅 기록과 투입량·생산량을 조회합니다.',
-        table: 'roast_sessions',
-        ownerColumn: 'user_id',
-        columns: 'id,batch_name,bean_label,status,roasted_at,weight_grams,output_weight_grams,duration_seconds',
+            'id,platform,platform_order_id,status,ordered_at,fulfilled_at,order_lines(id,product_id,title,quantity,status)',
         workspace: true,
     },
 } as const;

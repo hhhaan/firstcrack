@@ -117,14 +117,14 @@ describe('HTTP authentication and discovery', () => {
 });
 
 describe('MCP protocol', () => {
-    it('initializes and lists seven read-only tools, including stored roast history', async () => {
+    it('initializes and lists six read-only stock and order tools', async () => {
         const response = await request('initialize', { protocolVersion: '2025-06-18' });
         expect(await response.json()).toMatchObject({
             result: { protocolVersion: '2025-06-18', capabilities: { tools: {} } },
         });
         const list = await (await request('tools/list')).json();
-        expect(list.result.tools).toHaveLength(7);
-        expect(list.result.tools.map((tool: { name: string }) => tool.name)).toContain('list_roast_sessions');
+        expect(list.result.tools).toHaveLength(6);
+        expect(list.result.tools.map((tool: { name: string }) => tool.name)).toContain('list_green_stock');
         for (const tool of list.result.tools) expect(tool.annotations.readOnlyHint).toBe(true);
         expect(from).not.toHaveBeenCalled();
     });
@@ -163,13 +163,13 @@ describe('MCP protocol', () => {
 
 describe('account and roastery isolation', () => {
     it('reads owner rows for a member, preserving the authenticated user identity', async () => {
-        const response = await call('list_roast_sessions');
+        const response = await call('list_green_stock');
         expect(await response.json()).toMatchObject({
             result: { structuredContent: { mode: 'live', items: [{ id: 'test-row' }] } },
         });
         expect(access).toHaveBeenCalledWith(ownerId);
-        expect(eq).toHaveBeenCalledWith('roast_sessions', 'user_id', ownerId);
-        expect(eq).not.toHaveBeenCalledWith('roast_sessions', 'user_id', memberId);
+        expect(eq).toHaveBeenCalledWith('beans', 'user_id', ownerId);
+        expect(eq).not.toHaveBeenCalledWith('beans', 'user_id', memberId);
     });
 
     it('keeps the personal profile scoped to the token subject', async () => {
@@ -204,7 +204,7 @@ describe('account and roastery isolation', () => {
             { data: null, error: { message: 'private database detail' } },
         ]) {
             access.mockResolvedValue(result);
-            const response = await call('list_products');
+            const response = await call('list_product_stock');
             const body = await response.text();
             expect(body).toContain('isError');
             expect(body).not.toContain('private database detail');

@@ -216,36 +216,37 @@ REVOKE ALL ON FUNCTION private.mcp_access(text, text, text) FROM PUBLIC, anon, a
 GRANT EXECUTE ON FUNCTION private.mcp_access(text, text, text) TO firstcrack_mcp_gateway, firstcrack_mcp_data;
 
 -- Customer queries run as a non-owner, non-bypass role. Neither runtime role receives table SELECT.
-GRANT SELECT(id, display_name, business_name, country_code) ON public.profiles TO firstcrack_mcp_data;
+GRANT SELECT(id, display_name, business_name, country_code, plan) ON public.profiles TO firstcrack_mcp_data;
 GRANT SELECT(id, owner_id, name) ON public.organizations TO firstcrack_mcp_data;
-GRANT SELECT(id, user_id, name, origin, region, variety, process, low_stock_threshold_grams) ON public.beans TO firstcrack_mcp_data;
-GRANT SELECT(id, user_id, name, sku, net_weight_grams, bean_id, blend_id, roast_profile_id, is_active) ON public.products TO firstcrack_mcp_data;
-GRANT SELECT(id, user_id, platform, status, ordered_at, fulfilled_at) ON public.orders TO firstcrack_mcp_data;
+GRANT SELECT(id, user_id, name, origin, low_stock_threshold_grams) ON public.beans TO firstcrack_mcp_data;
+GRANT SELECT(user_id, bean_id, delta_grams, event_type) ON public.bean_stock_events TO firstcrack_mcp_data;
+GRANT SELECT(user_id, bean_id, blend_id, delta_grams) ON public.roasted_stock_events TO firstcrack_mcp_data;
+GRANT SELECT(id, user_id, name, sku, is_active) ON public.products TO firstcrack_mcp_data;
+GRANT SELECT(user_id, product_id, delta_units) ON public.product_stock_events TO firstcrack_mcp_data;
+GRANT SELECT(id, user_id, platform, platform_order_id, status, ordered_at, fulfilled_at) ON public.orders TO firstcrack_mcp_data;
 GRANT SELECT(id, user_id, order_id, product_id, title, quantity, status) ON public.order_lines TO firstcrack_mcp_data;
-GRANT SELECT(id, user_id, date) ON public.roast_day_plans TO firstcrack_mcp_data;
-GRANT SELECT(id, plan_id, bean_name, batch_count, batch_size_kg, target_roasted_kg, status, scheduled_date) ON public.roast_plan_batches TO firstcrack_mcp_data;
-GRANT SELECT(id, user_id, batch_name, bean_label, status, roasted_at, weight_grams, output_weight_grams, duration_seconds) ON public.roast_sessions TO firstcrack_mcp_data;
 DO $$ DECLARE table_name text; BEGIN
-    FOREACH table_name IN ARRAY ARRAY['profiles', 'organizations', 'beans', 'products', 'orders', 'order_lines', 'roast_day_plans', 'roast_plan_batches', 'roast_sessions'] LOOP
+    FOREACH table_name IN ARRAY ARRAY['profiles', 'organizations', 'beans', 'bean_stock_events', 'roasted_stock_events', 'products', 'product_stock_events', 'orders', 'order_lines'] LOOP
         IF NOT EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = table_name AND c.relrowsecurity) THEN
             RAISE EXCEPTION 'RLS required for %', table_name;
         END IF;
     END LOOP;
-    FOREACH table_name IN ARRAY ARRAY['beans', 'products', 'orders', 'order_lines', 'roast_day_plans', 'roast_sessions'] LOOP
+    FOREACH table_name IN ARRAY ARRAY['beans', 'bean_stock_events', 'roasted_stock_events', 'products', 'product_stock_events', 'orders', 'order_lines'] LOOP
         EXECUTE format('CREATE POLICY mcp_grant_scope ON public.%I AS RESTRICTIVE FOR SELECT TO firstcrack_mcp_data
             USING (user_id = (auth.jwt() ->> ''firstcrack_workspace_owner_id'')::uuid AND public.has_workspace_access(user_id))', table_name);
     END LOOP;
 END $$;
 CREATE POLICY mcp_self_profile ON public.profiles FOR SELECT TO firstcrack_mcp_data USING(id = auth.uid());
-CREATE POLICY mcp_self_profile_scope ON public.profiles AS RESTRICTIVE FOR SELECT TO firstcrack_mcp_data USING(id = auth.uid());
+CREATE POLICY mcp_self_profile_scope ON public.profiles AS RESTRICTIVE FOR SELECT TO firstcrack_mcp_data USING(
+    id = auth.uid() OR id = (auth.jwt() ->> 'firstcrack_workspace_owner_id')::uuid);
+CREATE POLICY mcp_owner_plan ON public.profiles FOR SELECT TO firstcrack_mcp_data
+    USING(id = (auth.jwt() ->> 'firstcrack_workspace_owner_id')::uuid);
 CREATE POLICY mcp_org_scope ON public.organizations AS RESTRICTIVE FOR SELECT TO firstcrack_mcp_data
     USING(owner_id = (auth.jwt() ->> 'firstcrack_workspace_owner_id')::uuid AND public.has_workspace_access(owner_id));
-CREATE POLICY mcp_batch_scope ON public.roast_plan_batches AS RESTRICTIVE FOR SELECT TO firstcrack_mcp_data
-    USING(EXISTS(SELECT 1 FROM public.roast_day_plans p WHERE p.id = plan_id AND p.user_id = (auth.jwt() ->> 'firstcrack_workspace_owner_id')::uuid));
 
 CREATE FUNCTION private.mcp_read(token_hash text, expected_issuer text, expected_resource text, tool text, args jsonb) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog AS $$
-DECLARE proof jsonb; v_owner_id uuid; subject_id uuid; lim integer; off integer; result jsonb;
+DECLARE proof jsonb; v_owner_id uuid; subject_id uuid; lim integer; off integer; result jsonb; v_plan text;
 BEGIN
     proof := private.mcp_access(token_hash, expected_issuer, expected_resource);
     IF proof IS NULL THEN RETURN jsonb_build_object('error', 'invalid_token'); END IF;
@@ -262,28 +263,41 @@ BEGIN
     PERFORM set_config('request.jwt.claim.sub', subject_id::text, true);
     PERFORM set_config('request.jwt.claim.role', 'firstcrack_mcp_data', true);
     PERFORM set_config('transaction_read_only', 'on', true);
+    SELECT plan INTO v_plan FROM public.profiles WHERE id = v_owner_id;
+    IF v_plan IS NULL OR v_plan NOT IN ('pro', 'pro_plus', 'enterprise', 'team', 'tester') THEN
+        RETURN jsonb_build_object('error', 'insufficient_plan');
+    END IF;
     CASE tool
     WHEN 'get_my_profile' THEN
         SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (SELECT id, display_name, business_name, country_code FROM public.profiles WHERE id = subject_id ORDER BY id LIMIT lim + 1 OFFSET off) q;
     WHEN 'list_my_workspaces' THEN
         SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (SELECT o.id, o.owner_id, o.name FROM public.organizations o WHERE o.owner_id = v_owner_id ORDER BY o.id LIMIT lim + 1 OFFSET off) q;
-    WHEN 'list_green_beans' THEN
-        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (SELECT id, name, origin, region, variety, process, low_stock_threshold_grams FROM public.beans WHERE user_id = v_owner_id ORDER BY id LIMIT lim + 1 OFFSET off) q;
-    WHEN 'list_products' THEN
-        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (SELECT id, name, sku, net_weight_grams, bean_id, blend_id, roast_profile_id, is_active FROM public.products WHERE user_id = v_owner_id ORDER BY id LIMIT lim + 1 OFFSET off) q;
+    WHEN 'list_green_stock' THEN
+        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (
+            SELECT b.id, b.name, b.origin, b.low_stock_threshold_grams,
+                coalesce((SELECT sum(e.delta_grams)::integer FROM public.bean_stock_events e
+                    WHERE e.bean_id = b.id AND e.user_id = v_owner_id AND e.event_type IS DISTINCT FROM 'expected_inbound'), 0) AS on_hand_grams
+            FROM public.beans b WHERE b.user_id = v_owner_id ORDER BY b.id LIMIT lim + 1 OFFSET off
+        ) q;
+    WHEN 'list_roasted_stock' THEN
+        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (
+            SELECT e.bean_id, e.blend_id, coalesce(sum(e.delta_grams), 0)::integer AS on_hand_grams
+            FROM public.roasted_stock_events e WHERE e.user_id = v_owner_id
+            GROUP BY e.bean_id, e.blend_id ORDER BY e.bean_id, e.blend_id LIMIT lim + 1 OFFSET off
+        ) q;
+    WHEN 'list_product_stock' THEN
+        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (
+            SELECT p.id, p.name, p.sku, p.is_active,
+                coalesce((SELECT sum(e.delta_units)::integer FROM public.product_stock_events e
+                    WHERE e.product_id = p.id AND e.user_id = v_owner_id), 0) AS on_hand_units
+            FROM public.products p WHERE p.user_id = v_owner_id ORDER BY p.id LIMIT lim + 1 OFFSET off
+        ) q;
     WHEN 'list_orders' THEN
         SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (
-            SELECT o.id, o.platform, o.status, o.ordered_at, o.fulfilled_at,
+            SELECT o.id, o.platform, o.platform_order_id, o.status, o.ordered_at, o.fulfilled_at,
                 (SELECT coalesce(jsonb_agg(to_jsonb(l)), '[]'::jsonb) FROM (SELECT id, product_id, title, quantity, status FROM public.order_lines WHERE order_id = o.id AND user_id = v_owner_id ORDER BY id LIMIT 1000) l) AS order_lines
             FROM public.orders o WHERE o.user_id = v_owner_id ORDER BY o.id LIMIT lim + 1 OFFSET off
         ) q;
-    WHEN 'list_production_plans' THEN
-        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (
-            SELECT p.id, p.date, (SELECT coalesce(jsonb_agg(to_jsonb(b)), '[]'::jsonb) FROM (SELECT id, bean_name, batch_count, batch_size_kg, target_roasted_kg, status, scheduled_date FROM public.roast_plan_batches WHERE plan_id = p.id ORDER BY id LIMIT 1000) b) AS roast_plan_batches
-            FROM public.roast_day_plans p WHERE p.user_id = v_owner_id ORDER BY p.id LIMIT lim + 1 OFFSET off
-        ) q;
-    WHEN 'list_roast_sessions' THEN
-        SELECT coalesce(jsonb_agg(to_jsonb(q)), '[]'::jsonb) INTO result FROM (SELECT id, batch_name, bean_label, status, roasted_at, weight_grams, output_weight_grams, duration_seconds FROM public.roast_sessions WHERE user_id = v_owner_id ORDER BY id LIMIT lim + 1 OFFSET off) q;
     ELSE RETURN jsonb_build_object('error', 'invalid_request');
     END CASE;
     RETURN jsonb_build_object('rows', result);

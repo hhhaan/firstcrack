@@ -15,15 +15,18 @@ CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
  SELECT coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''), auth.jwt() ->> 'sub')::uuid;
 $$;
 
-CREATE TABLE profiles (id uuid PRIMARY KEY, display_name text, business_name text, country_code text, polar_customer_id text);
+CREATE TABLE profiles (id uuid PRIMARY KEY, display_name text, business_name text, country_code text, polar_customer_id text, plan text NOT NULL DEFAULT 'pro');
 CREATE TABLE organizations (id uuid PRIMARY KEY, owner_id uuid, name text);
 CREATE TABLE organization_members (org_id uuid, user_id uuid);
 CREATE TABLE beans (id uuid PRIMARY KEY, user_id uuid, name text, origin text, region text, variety text,
     process text, low_stock_threshold_grams integer);
 CREATE TABLE products (id uuid PRIMARY KEY, user_id uuid, name text, sku text, net_weight_grams integer,
     bean_id uuid, blend_id uuid, roast_profile_id uuid, is_active boolean);
-CREATE TABLE orders (id uuid PRIMARY KEY, user_id uuid, platform text, status text, ordered_at timestamptz,
+CREATE TABLE orders (id uuid PRIMARY KEY, user_id uuid, platform text, platform_order_id text, status text, ordered_at timestamptz,
     fulfilled_at timestamptz, raw jsonb);
+CREATE TABLE bean_stock_events (id uuid PRIMARY KEY, user_id uuid, bean_id uuid, delta_grams integer, event_type text);
+CREATE TABLE roasted_stock_events (id uuid PRIMARY KEY, user_id uuid, bean_id uuid, blend_id uuid, delta_grams integer);
+CREATE TABLE product_stock_events (id uuid PRIMARY KEY, user_id uuid, product_id uuid, delta_units integer);
 CREATE TABLE order_lines (id uuid PRIMARY KEY, user_id uuid, order_id uuid REFERENCES orders,
     product_id uuid, title text, quantity integer, status text);
 CREATE TABLE roast_day_plans (id uuid PRIMARY KEY, user_id uuid, date date);
@@ -61,7 +64,7 @@ ALTER TABLE roast_plan_batches ENABLE ROW LEVEL SECURITY;
 CREATE POLICY batch_owner ON roast_plan_batches USING (EXISTS (
     SELECT 1 FROM roast_day_plans p WHERE p.id = plan_id AND public.has_workspace_access(p.user_id)));
 DO $$ DECLARE table_name text; BEGIN
-    FOREACH table_name IN ARRAY ARRAY['beans', 'products', 'orders', 'order_lines', 'roast_day_plans', 'roast_sessions'] LOOP
+    FOREACH table_name IN ARRAY ARRAY['beans', 'products', 'orders', 'order_lines', 'roast_day_plans', 'roast_sessions', 'bean_stock_events', 'roasted_stock_events', 'product_stock_events'] LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
         EXECUTE format('CREATE POLICY workspace_access ON public.%I USING (public.has_workspace_access(user_id))', table_name);
     END LOOP;
@@ -90,9 +93,15 @@ INSERT INTO roast_sessions(id,user_id,batch_name,weight_grams) VALUES
 INSERT INTO products(id,user_id,name) VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','selected product'),
  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','33333333-3333-4333-8333-333333333333','outside-connection product');
-INSERT INTO orders(id,user_id,raw) VALUES
- ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','{"private-buyer":"private-contact"}'),
- ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','33333333-3333-4333-8333-333333333333','{}');
+INSERT INTO orders(id,user_id,platform,platform_order_id,status,raw) VALUES
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','manual','A-1','shipped','{"private-buyer":"private-contact"}'),
+ ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','33333333-3333-4333-8333-333333333333','manual','B-1','delivered','{}');
+INSERT INTO bean_stock_events(id,user_id,bean_id,delta_grams,event_type) VALUES
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1500,'inbound');
+INSERT INTO roasted_stock_events(id,user_id,bean_id,delta_grams) VALUES
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',800);
+INSERT INTO product_stock_events(id,user_id,product_id,delta_units) VALUES
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',12);
 INSERT INTO order_lines(id,user_id,order_id,title,quantity) VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','selected line',2);
 INSERT INTO roast_day_plans(id,user_id,date) VALUES
