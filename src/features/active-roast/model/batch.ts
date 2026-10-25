@@ -586,23 +586,6 @@ export const createBatchActions = (
             },
         });
     },
-    replaceReviewLog: (sessionId: string, ownerId: string | null, entries: LogEntry[]) => {
-        const completed = get().completed;
-        if (
-            get().reviewSessionId !== sessionId ||
-            !completed ||
-            completed.snapshot.sessionId !== sessionId ||
-            completed.snapshot.sessionOwnerId !== ownerId ||
-            isChargedPhase(get().phase)
-        )
-            return;
-        set({
-            completed: {
-                ...completed,
-                snapshot: { ...completed.snapshot, logEntries: entries },
-            },
-        });
-    },
     discardSummary: (ownerId: string | null, sessionId: string | null) => {
         const completed = get().completed;
         if (!completed || completed.snapshot.sessionId !== sessionId || completed.snapshot.sessionOwnerId !== ownerId)

@@ -283,9 +283,12 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const reviewSnapshot = useRoastingStore(selectReviewSnapshot);
     const reviewing = reviewSnapshot != null;
     const reviewSessionId = reviewSnapshot?.sessionId ?? null;
-    const { applyReviewLog, reviewSaveError, reviewHeaterEvents } = useReviewCurveEdit(reviewSessionId);
+    const { applyReviewLog, getReviewLog, reviewLogEntries, reviewSaveError, reviewHeaterEvents } = useReviewCurveEdit(
+        reviewSessionId,
+        unit,
+    );
     const curvePoints = reviewSnapshot?.livePoints ?? livePoints;
-    const curveEntries = reviewSnapshot?.logEntries ?? logEntries;
+    const curveEntries = reviewing ? (reviewLogEntries ?? reviewSnapshot.logEntries) : logEntries;
     const curveElapsed = reviewSnapshot?.elapsed ?? elapsed;
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
@@ -888,21 +891,15 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             if (frozen) {
                 if (logId === TP_MARKER_ID) {
                     frozenLogEdit(
-                        upsertReviewTurningPoint(
-                            frozen.logEntries,
-                            newTimeSec,
-                            frozen.livePoints,
-                            unit,
-                            frozen.elapsed,
-                        ),
+                        upsertReviewTurningPoint(getReviewLog(), newTimeSec, frozen.livePoints, unit, frozen.elapsed),
                     );
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
+                const target = getReviewLog().find((entry) => entry.id === markerRowId(logId));
                 if (!target || !isReviewEditableEvent(target.event)) return;
                 frozenLogEdit(
                     applyEventMarkerEdit(
-                        frozen.logEntries,
+                        getReviewLog(),
                         logId,
                         { timeSec: newTimeSec },
                         frozen.livePoints,
@@ -924,7 +921,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 applyEventMarkerEdit(prev, logId, { timeSec: newTimeSec }, livePoints, unit, elapsed),
             );
         },
-        [bbpActive, editBbpMarkers, elapsed, frozenLogEdit, livePoints, placeTurningPoint, setLogEntries, unit],
+        [
+            bbpActive,
+            editBbpMarkers,
+            elapsed,
+            frozenLogEdit,
+            getReviewLog,
+            livePoints,
+            placeTurningPoint,
+            setLogEntries,
+            unit,
+        ],
     );
 
     const handleEventMarkerEdit = useCallback(
@@ -935,7 +942,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     if (patch.timeSec != null) {
                         frozenLogEdit(
                             upsertReviewTurningPoint(
-                                frozen.logEntries,
+                                getReviewLog(),
                                 patch.timeSec,
                                 frozen.livePoints,
                                 unit,
@@ -945,10 +952,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                     }
                     return;
                 }
-                const target = frozen.logEntries.find((entry) => entry.id === markerRowId(logId));
+                const target = getReviewLog().find((entry) => entry.id === markerRowId(logId));
                 if (!target || !isReviewEditableEvent(target.event)) return;
                 frozenLogEdit(
-                    applyEventMarkerEdit(frozen.logEntries, logId, patch, frozen.livePoints, unit, frozen.elapsed),
+                    applyEventMarkerEdit(getReviewLog(), logId, patch, frozen.livePoints, unit, frozen.elapsed),
                 );
                 return;
             }
@@ -962,7 +969,17 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             }
             setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
         },
-        [bbpActive, editBbpMarkers, elapsed, frozenLogEdit, livePoints, placeTurningPoint, setLogEntries, unit],
+        [
+            bbpActive,
+            editBbpMarkers,
+            elapsed,
+            frozenLogEdit,
+            getReviewLog,
+            livePoints,
+            placeTurningPoint,
+            setLogEntries,
+            unit,
+        ],
     );
 
     const handleChartNote = useCallback(
@@ -971,7 +988,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             if (frozen) {
                 const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
                 const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
-                frozenLogEdit(appendReviewEntry(frozen.logEntries, 'Note', body, timeSec, tempC, unit, controls));
+                frozenLogEdit(appendReviewEntry(getReviewLog(), 'Note', body, timeSec, tempC, unit, controls));
                 return;
             }
             if (bbpActive) {
@@ -992,7 +1009,16 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
             markEvent('Note', body, undefined, { timeSec, tempC }, controls);
         },
-        [bbpActive, chartView.eventTimeOrigin, chartView.livePoints, frozenLogEdit, livePoints, markEvent, unit],
+        [
+            bbpActive,
+            chartView.eventTimeOrigin,
+            chartView.livePoints,
+            frozenLogEdit,
+            getReviewLog,
+            livePoints,
+            markEvent,
+            unit,
+        ],
     );
 
     const handleHeaterCommitted = useCallback(
@@ -1029,32 +1055,25 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         (event: string, timeSec: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (!frozen || !isReviewEditableEvent(event)) return;
-            const target = frozen.logEntries.find((entry) => entry.event === event && entry.id);
+            const target = getReviewLog().find((entry) => entry.event === event && entry.id);
             if (!target?.id) return;
             frozenLogEdit(
-                applyEventMarkerEdit(
-                    frozen.logEntries,
-                    target.id,
-                    { timeSec },
-                    frozen.livePoints,
-                    unit,
-                    frozen.elapsed,
-                ),
+                applyEventMarkerEdit(getReviewLog(), target.id, { timeSec }, frozen.livePoints, unit, frozen.elapsed),
             );
         },
-        [frozenLogEdit, unit],
+        [frozenLogEdit, getReviewLog, unit],
     );
 
     const handleChartEvent = useCallback(
         (event: string, timeSec: number, enteredTempC?: number) => {
             const frozen = selectReviewSnapshot(useRoastingStore.getState());
             if (frozen) {
-                if (!reviewMarkToAdd(frozen.logEntries, event, false)) return;
+                if (!reviewMarkToAdd(getReviewLog(), event, false)) return;
                 const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
                 const tempC =
                     enteredTempC ??
                     (nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null);
-                frozenLogEdit(appendReviewEntry(frozen.logEntries, event, '', timeSec, tempC, unit));
+                frozenLogEdit(appendReviewEntry(getReviewLog(), event, '', timeSec, tempC, unit));
                 return;
             }
             if (!charged || roastEnded || bbpActive) return;
@@ -1062,7 +1081,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
             markEvent(event, '', undefined, { timeSec, tempC });
         },
-        [bbpActive, charged, frozenLogEdit, livePoints, markEvent, roastEnded, unit],
+        [bbpActive, charged, frozenLogEdit, getReviewLog, livePoints, markEvent, roastEnded, unit],
     );
 
     const removeCurveEntry = useCallback(
@@ -1078,7 +1097,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 return;
             }
             if (parseControlMarkerLogId(id)) {
-                const source = frozen?.logEntries ?? useRoastingStore.getState().logState.entries;
+                const source = frozen ? getReviewLog() : useRoastingStore.getState().logState.entries;
                 const next = dropControlRole(source, id);
                 if (!next) return;
                 if (frozen) frozenLogEdit(next);
@@ -1086,18 +1105,18 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 return;
             }
             if (frozen) {
-                const target = frozen.logEntries.find((entry) => entry.id === id);
+                const target = getReviewLog().find((entry) => entry.id === id);
                 if (!target || !isReviewDeletableEvent(target.event)) return;
                 frozenLogEdit(
                     isToggleableLogEvent(target.event)
-                        ? withoutLogEvent(frozen.logEntries, target.event)
-                        : frozen.logEntries.filter((entry) => entry.id !== id),
+                        ? withoutLogEvent(getReviewLog(), target.event)
+                        : getReviewLog().filter((entry) => entry.id !== id),
                 );
                 return;
             }
             removeLogEntry(id);
         },
-        [bbpActive, frozenLogEdit, removeLogEntry, setLogEntries],
+        [bbpActive, frozenLogEdit, getReviewLog, removeLogEntry, setLogEntries],
     );
 
     const handleControlApplied = useCallback(
@@ -1198,7 +1217,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             const timeSec = Math.max(0, frozen.elapsed);
             const nearest = nearestLivePointAt(frozen.livePoints, timeSec);
             const tempC = nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
-            frozenLogEdit(appendReviewEntry(frozen.logEntries, 'Note', body, timeSec, tempC, unit));
+            frozenLogEdit(appendReviewEntry(getReviewLog(), 'Note', body, timeSec, tempC, unit));
             setNoteInput('');
             return;
         }
@@ -1218,6 +1237,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         chartView.eventTimeOrigin,
         chartView.livePoints,
         frozenLogEdit,
+        getReviewLog,
         markEvent,
         noteInput,
         rawBT,
@@ -1239,10 +1259,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
     const reviewChartTurningPoints = useMemo(() => {
         if (!reviewSnapshot) return [];
-        const logged = reviewSnapshot.logEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
+        const logged = curveEntries.find((entry) => entry.event === 'TP' && entry.tempC != null);
         const loggedTime = logged ? logEntryTimeSec(logged) : null;
         if (logged?.tempC != null && loggedTime != null) return [{ timeSec: loggedTime, temp: logged.tempC }];
-        const drop = reviewSnapshot.logEntries.find((entry) => entry.event === 'Drop');
+        const drop = curveEntries.find((entry) => entry.event === 'Drop');
         const limit = (drop ? logEntryTimeSec(drop) : null) ?? reviewSnapshot.elapsed;
         const xs: number[] = [];
         const bt: number[] = [];
@@ -1254,7 +1274,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         return detectTurningPoints(xs, bt)
             .slice(0, 1)
             .map(({ timeSec, temp }) => ({ timeSec, temp }));
-    }, [reviewSnapshot]);
+    }, [reviewSnapshot, curveEntries]);
     const reviewHeatSet = useMemo(() => {
         if (!reviewing || reviewHeaterEvents == null) return chart.visibleHeatSet;
         const drop = curveEntries.find((entry) => entry.event === 'Drop');

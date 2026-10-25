@@ -94,9 +94,13 @@ export type HistoryEventMarker = RoastNoteControls & {
 };
 
 /** Stored events → read-only log rows for profile/history UI. */
-export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: TemperatureUnit): LogEntry[] =>
+export const storedEventsToLogEntries = (
+    events: StoredRoastEvent[],
+    unit: TemperatureUnit,
+    includeControls = false,
+): LogEntry[] =>
     [...events]
-        .filter((e) => e.type !== 'Control')
+        .filter((e) => includeControls || e.type !== 'Control')
         .sort((a, b) => a.time_sec - b.time_sec)
         .map((e) => ({
             id: e.id,
@@ -106,6 +110,7 @@ export const storedEventsToLogEntries = (events: StoredRoastEvent[], unit: Tempe
             temp: formatStoredEventTemp(e.temp_c, unit),
             tempC: e.temp_c ?? null,
             note: e.note ?? '',
+            ...(includeControls && e.applied_control ? { appliedControl: e.applied_control } : {}),
             ...(e.gas ? { gas: e.gas } : {}),
             ...(e.airflow ? { airflow: e.airflow } : {}),
             ...(e.drum ? { drum: e.drum } : {}),

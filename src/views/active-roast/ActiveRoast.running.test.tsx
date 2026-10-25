@@ -30,6 +30,7 @@ const dialog = vi.hoisted(() => ({
     ask: vi.fn((_message: string) => Promise.resolve(false)),
 }));
 
+const workspace = vi.hoisted(() => ({ owner: '', ready: false }));
 const updateRecord = vi.hoisted(() => vi.fn());
 vi.mock('@entities/roast/api', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/roast/api')>();
@@ -67,7 +68,7 @@ vi.mock('@entities/organization', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/organization')>();
     return {
         ...actual,
-        useActiveWorkspace: () => ({ workspaceOwnerId: '' }),
+        useActiveWorkspace: () => ({ workspaceOwnerId: workspace.owner, isWorkspaceReady: workspace.ready }),
     };
 });
 
@@ -241,6 +242,8 @@ describe('ActiveRoast running clock (#627)', () => {
         tauri.closeListeners.clear();
         dialog.ask.mockClear();
         dialog.ask.mockResolvedValue(false);
+        workspace.owner = '';
+        workspace.ready = false;
         updateRecord.mockReset();
         updateRecord.mockImplementation(async (payload: Parameters<typeof roastSessionApi.updateRecord>[0]) => ({
             events: payload.events,
@@ -609,11 +612,14 @@ describe('ActiveRoast running clock (#627)', () => {
         const snapshot = dropped?.snapshot;
         if (!snapshot) throw new Error('Missing completed snapshot');
         state.saveSucceeded('owner', snapshot.sessionId);
-        useRoastingStore.setState({ prepared: { ...useRoastingStore.getState().prepared, workspaceOwnerId: '' } });
+        useRoastingStore.setState({ prepared: { ...useRoastingStore.getState().prepared, workspaceOwnerId: 'owner' } });
+        workspace.owner = 'owner';
+        workspace.ready = true;
         mount();
         await act(async () => {
-            queryClient.setQueryData(roastSessionKeys.detail('', snapshot.sessionId), {
+            queryClient.setQueryData(roastSessionKeys.detail('owner', snapshot.sessionId), {
                 id: snapshot.sessionId,
+                status: 'completed',
                 user_id: 'owner',
                 events: [
                     { id: 'bbp-note', type: 'Note', time_sec: -90, note: 'soak', extra: 'keep' },
@@ -669,9 +675,10 @@ describe('ActiveRoast running clock (#627)', () => {
             ]),
         );
         const after = useRoastingStore.getState();
-        expect(after.completed?.snapshot.logEntries).toEqual(
-            expect.arrayContaining([expect.objectContaining({ event: 'Yellow', timeSec: 240 })]),
-        );
+        expect(after.completed?.snapshot.logEntries).toBe(snapshot.logEntries);
+        expect(queryClient.getQueryData(roastSessionKeys.detail('owner', snapshot.sessionId))).toMatchObject({
+            events: expect.arrayContaining([expect.objectContaining({ type: 'Yellow', time_sec: 240 })]),
+        });
         expect(after.logState).toBe(before.logState);
         expect(after.prepared).toBe(before.prepared);
         expect(vi.mocked(sidecar.setControl)).not.toHaveBeenCalled();
@@ -728,15 +735,18 @@ describe('ActiveRoast running clock (#627)', () => {
             });
             expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20%');
 
-            const review = useRoastingStore.getState().completed?.snapshot.logEntries ?? [];
+            const review = dropped?.snapshot.logEntries ?? [];
             await act(async () => {
-                useRoastingStore.getState().replaceReviewLog(
-                    dropped?.snapshot.sessionId ?? '',
-                    'owner',
-                    review.map((entry) =>
-                        entry.event === 'FC Start' ? { ...entry, time: '9:00', timeSec: 540 } : entry,
+                queryClient.setQueryData(roastSessionKeys.detail('', dropped?.snapshot.sessionId ?? ''), {
+                    id: dropped?.snapshot.sessionId,
+                    events: serializeRoastEvents(
+                        review.map((entry) =>
+                            entry.event === 'FC Start' ? { ...entry, time: '9:00', timeSec: 540 } : entry,
+                        ),
                     ),
-                );
+                    heater_events: null,
+                });
+                await new Promise((resolve) => setTimeout(resolve, 0));
             });
             expect(useRoastingStore.getState().logState.entries).toEqual([]);
             expect(host.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('10%');

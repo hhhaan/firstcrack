@@ -367,21 +367,6 @@ describe('saved roast review keeps collection independent', () => {
     beforeEach(() => {
         useRoastingStore.getState().reset();
     });
-    it('rejects review log updates for another session, owner, or a running next batch', () => {
-        charge();
-        const result = drop();
-        const state = useRoastingStore.getState();
-        const id = result?.snapshot.sessionId ?? '';
-        state.saveSucceeded('owner', id);
-        const before = useRoastingStore.getState().completed;
-        state.replaceReviewLog('stale-session', 'owner', []);
-        state.replaceReviewLog(id, 'other-owner', []);
-        expect(useRoastingStore.getState().completed).toBe(before);
-        state.startCharge(undefined, 'owner');
-        const next = useRoastingStore.getState().completed;
-        state.replaceReviewLog(id, 'owner', []);
-        expect(useRoastingStore.getState().completed).toBe(next);
-    });
     it('retains Drop and the curve after save; returning only dismisses the review', () => {
         charge();
         const result = drop();
@@ -396,11 +381,6 @@ describe('saved roast review keeps collection independent', () => {
         expect(useRoastingStore.getState().completed?.snapshot.livePoints).toHaveLength(2);
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
         expect(selectDropCancelable(useRoastingStore.getState())).toBe(false);
-        const entry = result?.snapshot.logEntries[0];
-        expect(entry).toBeDefined();
-        if (!entry) return;
-        state.replaceReviewLog(id ?? '', 'owner', [{ ...entry, note: 'moved' }]);
-        expect(selectReviewSnapshot(useRoastingStore.getState())?.logEntries[0]?.note).toBe('moved');
         expect(useRoastingStore.getState().logState.entries).toEqual([]);
         state.dismissCompletedReview();
         expect(useRoastingStore.getState().reviewSessionId).toBeNull();
