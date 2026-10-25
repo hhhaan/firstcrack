@@ -1277,6 +1277,8 @@ describe('RoastTempChart interactions', () => {
         document.documentElement.style.setProperty('--color-sensor-bt', '#ffffff');
         const ref = createRef<RoastTempChartHandle>();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref, controlData: controlData([]) })));
+        const screenOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
+        expect(screenOption.grid[1].top).toBe('79%');
         expect(ref.current?.getDataURL({ width: 2000, height: 1200 })).toBe('data:image/png;base64,qq');
         const init = vi.mocked(echarts.init);
         const element = init.mock.calls[init.mock.calls.length - 1]?.[0];
@@ -1285,6 +1287,7 @@ describe('RoastTempChart interactions', () => {
         expect(element?.isConnected).toBe(false);
         const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
         expect(printOption.grid).toHaveLength(2);
+        expect(printOption.grid[1].top).toBe('65%');
         expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
             '#009d4c',
         );

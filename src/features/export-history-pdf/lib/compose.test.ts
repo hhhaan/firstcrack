@@ -16,7 +16,7 @@ describe('historyPdfChartBox', () => {
         const without = historyPdfChartBox(false);
         expect(withLegend.width).toBe(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2);
         expect(without.height - withLegend.height).toBe(HISTORY_PDF_LEGEND_PX);
-        expect(withLegend.height).toBeGreaterThan(1000);
+        expect(withLegend.height).toBeGreaterThan(900);
         expect(
             withLegend.height +
                 HISTORY_PDF_MARGIN_PX * 2 +
@@ -28,6 +28,7 @@ describe('historyPdfChartBox', () => {
 });
 
 const ctx = {
+    font: '',
     fillRect: vi.fn(),
     fillText: vi.fn(),
     drawImage: vi.fn(),
@@ -41,9 +42,12 @@ const ctx = {
     restore: vi.fn(),
 };
 const load = vi.fn().mockResolvedValue([]);
+const textFonts: string[] = [];
 
 beforeEach(() => {
     vi.clearAllMocks();
+    textFonts.length = 0;
+    ctx.fillText.mockImplementation(() => textFonts.push(ctx.font));
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(ctx as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/jpeg;base64,/9j/2Q==');
     Object.defineProperty(document, 'fonts', { configurable: true, value: { load } });
@@ -92,23 +96,24 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
     expect(ctx.fillText).toHaveBeenCalledWith('2026-10-25 14:35', expect.any(Number), expect.any(Number));
     expect(result).toMatchObject(HISTORY_PDF_PAGE_PX);
     const titleLines = ctx.fillText.mock.calls.filter(
-        ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 113 || y === HISTORY_PDF_MARGIN_PX + 175,
+        ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 76 || y === HISTORY_PDF_MARGIN_PX + 144,
     );
     expect(titleLines).toHaveLength(2);
     expect(titleLines[1][0]).toMatch(/…$/);
     const date = ctx.fillText.mock.calls.find(([text]) => text === '2026-10-25 14:35');
     expect(date).toBeDefined();
-    for (const [text, x] of titleLines) {
-        expect(x + ctx.measureText(text).width).toBeLessThan(date?.[1] ?? 0);
-    }
+    expect(date?.[2]).toBeGreaterThan(titleLines[1][2] + 56);
     if (hasTitle) {
-        expect(ctx.fillText).toHaveBeenCalledWith('배치명', expect.any(Number), expect.any(Number));
         expect(ctx.fillText).toHaveBeenCalledWith('Green B', expect.any(Number), expect.any(Number));
     }
     for (const [text, x, y] of ctx.fillText.mock.calls) {
         expect(x).toBeGreaterThanOrEqual(HISTORY_PDF_MARGIN_PX);
         expect(y).toBeLessThan(HISTORY_PDF_PAGE_PX.height - HISTORY_PDF_MARGIN_PX);
         expect(ctx.measureText(text).width).toBeLessThanOrEqual(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2);
+    }
+    for (const font of textFonts) {
+        const pixels = Number(/(\d+)px/.exec(font)?.[1]);
+        expect((pixels * 72) / 200).toBeGreaterThanOrEqual(10);
     }
     const box = historyPdfChartBox(true);
     expect(ctx.drawImage).toHaveBeenCalledWith(
@@ -146,7 +151,7 @@ it('bounds long report and batch labels away from the brand and page number with
     expect(report?.[0]).toMatch(/…$/);
     expect(batch?.[0]).toMatch(/…$/);
     const innerW = HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2;
-    expect(ctx.measureText(report?.[0] ?? '').width).toBeLessThanOrEqual(innerW - 280);
+    expect(ctx.measureText(report?.[0] ?? '').width).toBeLessThanOrEqual(innerW - 340);
     expect(ctx.measureText(batch?.[0] ?? '').width).toBeLessThanOrEqual(innerW - 128);
     expect(batch?.[0]).not.toMatch(/^:/);
     expect(ctx.drawImage).toHaveBeenCalledWith(
@@ -156,4 +161,31 @@ it('bounds long report and batch labels away from the brand and page number with
         historyPdfChartBox(false).width,
         historyPdfChartBox(false).height,
     );
+});
+
+it('keeps a wide translated legend label readable beside shorter series labels', async () => {
+    const labels = ['BT (°C)', 'ET (°C)', 'RoR (°C/min)', 'ターゲットカーブ', 'Drum', 'Heat', 'Fan'];
+    await composeHistoryPdfJpeg({
+        header: {
+            bean: 'Ethiopia',
+            date: '2026-10-25 14:35',
+            duration: '10:42',
+            charge: '195°C',
+            drop: '208°C',
+            labels: { bean: 'Bean', date: 'Date', duration: 'Duration', charge: 'Charge', drop: 'Drop' },
+        },
+        chartDataUrl: 'data:image/png;base64,AA==',
+        legend: labels.map((label) => ({ label, color: '#009d4c' })),
+    });
+    for (const label of labels) {
+        expect(ctx.fillText).toHaveBeenCalledWith(label, expect.any(Number), expect.any(Number));
+    }
+    const legendY = HISTORY_PDF_MARGIN_PX + HISTORY_PDF_HEADER_PX + historyPdfChartBox(true).height + 16;
+    const entries = ctx.fillText.mock.calls.filter(([, , y]) => y === legendY);
+    let end = HISTORY_PDF_MARGIN_PX;
+    for (const [text, x] of entries) {
+        expect(x).toBeGreaterThan(end);
+        end = x + ctx.measureText(text).width;
+        expect(end).toBeLessThanOrEqual(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX);
+    }
 });

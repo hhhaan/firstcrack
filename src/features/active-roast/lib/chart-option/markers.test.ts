@@ -112,6 +112,21 @@ it.each([false, true])('renders event text and points with source opacity (refer
     ]);
 });
 
+it('paints an opaque background behind printed event text so curves cannot cross the letters', () => {
+    const { curveLabels } = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'point',
+        eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
+    });
+    const rendered = buildCurveLabelSeries(curveLabels, 1, '#ffffff').renderItem(
+        { dataIndex: 0, coordSys: { x: 0, y: 0, width: 700, height: 300 } },
+        { coord: () => [120, 100], getWidth: () => 800 },
+    );
+    const label = rendered?.children.find((child) => child.type === 'text');
+    expect(label?.style.backgroundColor).toBe('#ffffff');
+    expect(label?.style.width).toBeLessThan(200);
+});
+
 it('stacks major event text at the plot top while keeping points on BT', () => {
     const { curveLabels } = buildMarkers({
         ...baseParams,

@@ -429,10 +429,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     }, []);
 
     const makeOption = useCallback(
-        (colors = getResolvedChartColors()) =>
+        (colors = getResolvedChartColors(), print = false) =>
             buildRoastChartOption({
                 axisSettings,
                 report,
+                print,
                 xs,
                 btTarget,
                 btActual,
@@ -884,7 +885,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             document.body.appendChild(el);
             const clone = echarts.init(el, undefined, { renderer: 'canvas', devicePixelRatio: pixelRatio });
             try {
-                clone.setOption(makeOption(getResolvedChartColors(true)), true);
+                clone.setOption(makeOption(getResolvedChartColors(true), true), true);
                 return clone.getDataURL({ ...opts, pixelRatio });
             } finally {
                 if (clone !== chart) clone.dispose();

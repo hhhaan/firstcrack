@@ -6,11 +6,11 @@ export const HISTORY_PDF_PAGE_PX = { width: 2339, height: 1654 } as const;
 export const HISTORY_PDF_MARGIN_PX = 94;
 
 const COLOR_PRIMARY = '#101828';
-const COLOR_MUTED = '#6a7282';
+const COLOR_MUTED = '#4a5565';
 const COLOR_BORDER = '#e5e7eb';
 const FONT_FAMILY = 'Inter, SUIT, system-ui, sans-serif';
-const FONT_UI = `500 24px ${FONT_FAMILY}`;
-const FONT_VALUE = `500 32px ${FONT_FAMILY}`;
+const FONT_UI = `500 30px ${FONT_FAMILY}`;
+const FONT_VALUE = `500 42px ${FONT_FAMILY}`;
 
 export type HistoryPdfHeader = {
     bean: string;
@@ -68,9 +68,9 @@ const fitText = (ctx: CanvasRenderingContext2D, value: string, width: number) =>
     return `${chars.join('')}…`;
 };
 
-export const HISTORY_PDF_HEADER_PX = 312;
-export const HISTORY_PDF_LEGEND_PX = 64;
-export const HISTORY_PDF_FOOTER_PX = 64;
+export const HISTORY_PDF_HEADER_PX = 400;
+export const HISTORY_PDF_LEGEND_PX = 80;
+export const HISTORY_PDF_FOOTER_PX = 80;
 
 export const historyPdfChartBox = (hasLegend: boolean) => {
     const { width, height } = HISTORY_PDF_PAGE_PX;
@@ -87,19 +87,18 @@ export const historyPdfChartBox = (hasLegend: boolean) => {
 };
 
 /**
- * Paint header + chart (+ optional Drum/Heat/Fan legend) onto an A4 landscape
- * JPEG. Unicode comes from canvas, not PDF fonts.
- * The chart image fills the leftover box so the control band stays ~21% of that area.
+ * Paint a header, chart and optional series legend onto an A4 landscape JPEG.
+ * Unicode comes from canvas, not PDF fonts.
  */
 export const composeHistoryPdfJpeg = async (
     input: ComposeHistoryPdfInput,
 ): Promise<{ jpeg: Uint8Array; width: number; height: number }> => {
     // Explicitly load both bundled fonts: canvas text alone does not trigger font loading.
     await Promise.all([
-        document.fonts.load('500 24px Inter'),
-        document.fonts.load('600 52px Inter'),
-        document.fonts.load('500 24px SUIT'),
-        document.fonts.load('600 52px SUIT'),
+        document.fonts.load('500 30px Inter'),
+        document.fonts.load('600 56px Inter'),
+        document.fonts.load('500 30px SUIT'),
+        document.fonts.load('600 56px SUIT'),
     ]);
     const { width, height } = HISTORY_PDF_PAGE_PX;
     const canvas = document.createElement('canvas');
@@ -118,77 +117,64 @@ export const composeHistoryPdfJpeg = async (
         ctx.fillStyle = COLOR_BORDER;
         ctx.fillRect(margin, y, innerW, 2);
     };
-    ctx.font = `600 24px ${FONT_FAMILY}`;
+    ctx.font = `600 30px ${FONT_FAMILY}`;
     ctx.fillStyle = COLOR_PRIMARY;
     ctx.fillText('FIRST CRACK', margin, margin);
     ctx.font = FONT_UI;
     ctx.fillStyle = COLOR_MUTED;
     ctx.textAlign = 'right';
-    ctx.fillText(fitText(ctx, input.title ?? 'Roast profile', innerW - 280), width - margin, margin);
+    ctx.fillText(fitText(ctx, input.title ?? 'Roast profile', innerW - 340), width - margin, margin);
     ctx.textAlign = 'left';
-    line(margin + 48);
+    line(margin + 56);
 
-    const detailsX = margin + Math.round(innerW * 0.64);
-    const detailsW = width - margin - detailsX;
-    const headingW = detailsX - margin - 80;
-    ctx.fillStyle = COLOR_BORDER;
-    ctx.fillRect(detailsX - 40, margin + 76, 2, 204);
-
-    ctx.fillStyle = COLOR_MUTED;
-    ctx.font = FONT_UI;
-    ctx.fillText(
-        fitText(ctx, input.header.labels.roastTitle ?? input.header.labels.bean, headingW),
-        margin,
-        margin + 76,
-    );
-    ctx.font = `600 52px ${FONT_FAMILY}`;
+    ctx.font = `600 56px ${FONT_FAMILY}`;
     ctx.fillStyle = COLOR_PRIMARY;
     const heading = (input.header.roastTitle ?? input.header.bean).replace(/\s+/g, ' ').trim();
-    if (ctx.measureText(heading).width <= headingW) {
-        ctx.fillText(heading, margin, margin + 113);
+    let beanY = margin + 154;
+    if (ctx.measureText(heading).width <= innerW) {
+        ctx.fillText(heading, margin, margin + 76);
     } else {
         const chars = Array.from(heading);
         let end = chars.length;
-        while (end > 1 && ctx.measureText(chars.slice(0, end).join('')).width > headingW) end--;
+        while (end > 1 && ctx.measureText(chars.slice(0, end).join('')).width > innerW) end--;
         // Prefer a word boundary, while still wrapping unspaced CJK names.
         const first = chars.slice(0, end).join('');
         const space = first.lastIndexOf(' ');
         if (space > first.length / 2) end = Array.from(first.slice(0, space)).length;
-        ctx.fillText(chars.slice(0, end).join(''), margin, margin + 113);
-        ctx.fillText(fitText(ctx, chars.slice(end).join('').trim(), headingW), margin, margin + 175);
+        ctx.fillText(chars.slice(0, end).join(''), margin, margin + 76);
+        ctx.fillText(fitText(ctx, chars.slice(end).join('').trim(), innerW), margin, margin + 144);
+        beanY += 68;
     }
 
     if (input.header.roastTitle != null) {
         ctx.font = FONT_UI;
         ctx.fillStyle = COLOR_MUTED;
-        const label = fitText(ctx, input.header.labels.bean, headingW / 3);
-        ctx.fillText(label, margin, margin + 252);
+        const label = fitText(ctx, input.header.labels.bean, innerW / 4);
+        ctx.fillText(label, margin, beanY);
         const valueX = margin + ctx.measureText(label).width + 20;
         ctx.fillStyle = COLOR_PRIMARY;
-        ctx.fillText(fitText(ctx, input.header.bean, margin + headingW - valueX), valueX, margin + 252);
+        ctx.fillText(fitText(ctx, input.header.bean, width - margin - valueX), valueX, beanY);
     }
 
-    ctx.font = FONT_UI;
-    ctx.fillStyle = COLOR_MUTED;
-    ctx.fillText(fitText(ctx, input.header.labels.date, detailsW), detailsX, margin + 76);
-    ctx.font = FONT_VALUE;
-    ctx.fillStyle = COLOR_PRIMARY;
-    ctx.fillText(fitText(ctx, input.header.date, detailsW), detailsX, margin + 116);
-
     const fields = [
+        { label: input.header.labels.date, value: input.header.date },
         { label: input.header.labels.duration, value: input.header.duration },
         { label: input.header.labels.charge, value: input.header.charge },
         { label: input.header.labels.drop, value: input.header.drop },
     ];
-    const colW = detailsW / fields.length;
+    const colW = innerW / fields.length;
     fields.forEach((field, i) => {
-        const x = detailsX + i * colW;
+        const x = margin + i * colW;
+        if (i) {
+            ctx.fillStyle = COLOR_BORDER;
+            ctx.fillRect(x - 24, margin + 280, 2, 88);
+        }
         ctx.fillStyle = COLOR_MUTED;
         ctx.font = FONT_UI;
-        ctx.fillText(fitText(ctx, field.label, colW - 24), x, margin + 204);
+        ctx.fillText(fitText(ctx, field.label, colW - 48), x, margin + 280);
         ctx.fillStyle = COLOR_PRIMARY;
         ctx.font = FONT_VALUE;
-        ctx.fillText(fitText(ctx, field.value, colW - 24), x, margin + 244);
+        ctx.fillText(fitText(ctx, field.value, colW - 48), x, margin + 326);
     });
     line(margin + HISTORY_PDF_HEADER_PX - 20);
 
@@ -202,22 +188,24 @@ export const composeHistoryPdfJpeg = async (
         let lx = margin;
         const ly = chartTop + chartBox.height + 16;
         ctx.font = FONT_UI;
-        // The export supplies at most seven series; equal slots keep long translations bounded.
-        const slot = innerW / input.legend.length;
-        for (const item of input.legend) {
+        const labelWidths = input.legend.map((item) => ctx.measureText(item.label).width);
+        const labelSpace = innerW - input.legend.length * 52 - (input.legend.length - 1) * 40;
+        const labelScale = Math.min(1, labelSpace / labelWidths.reduce((sum, value) => sum + value, 0));
+        for (const [i, item] of input.legend.entries()) {
+            const labelWidth = labelWidths[i] * labelScale;
             ctx.save();
             ctx.globalAlpha = item.opacity ?? 1;
             ctx.strokeStyle = item.color;
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 5;
             ctx.setLineDash(legendLineDash(item));
             ctx.beginPath();
-            ctx.moveTo(lx, ly + 14);
-            ctx.lineTo(lx + 40, ly + 14);
+            ctx.moveTo(lx, ly + 18);
+            ctx.lineTo(lx + 40, ly + 18);
             ctx.stroke();
             ctx.restore();
             ctx.fillStyle = COLOR_MUTED;
-            ctx.fillText(fitText(ctx, item.label, slot - 76), lx + 52, ly);
-            lx += slot;
+            ctx.fillText(fitText(ctx, item.label, labelWidth), lx + 52, ly);
+            lx += 52 + labelWidth + 40;
         }
     }
 
