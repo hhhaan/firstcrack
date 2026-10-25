@@ -1448,7 +1448,6 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                         phaseSegments={chartFrame.phaseSegments}
                         showFcBand={chartFrame.showFcBand}
                         unit={unit}
-                        targetProfileName={reference?.name ?? targetProfile?.name}
                         onCursorIdx={handleChartCursorIdx}
                         onEventMarkerDrag={chartFrame.onEventMarkerDrag}
                         onEventMarkerEdit={chartFrame.onEventMarkerEdit}

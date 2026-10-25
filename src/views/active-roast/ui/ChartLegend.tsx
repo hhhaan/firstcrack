@@ -2,13 +2,11 @@ import { CurveSwatch, useCurveStyles } from '@features/active-roast';
 
 export const ChartLegend = ({
     showTarget = false,
-    targetLabel = 'Target',
     showET = true,
     showRoR = true,
     showRoRET = false,
 }: {
     showTarget?: boolean;
-    targetLabel?: string;
     showET?: boolean;
     showRoR?: boolean;
     showRoRET?: boolean;
@@ -19,7 +17,7 @@ export const ChartLegend = ({
         ...(showET ? [{ style: curves.et.current, label: 'ET' }] : []),
         ...(showRoR ? [{ style: curves.ror.current, label: 'RoR' }] : []),
         ...(showRoRET ? [{ style: curves.etRor.current, label: 'ET RoR' }] : []),
-        ...(showTarget ? [{ style: curves.bt.background, label: targetLabel }] : []),
+        ...(showTarget ? [{ style: curves.bt.background, label: 'Target' }] : []),
     ];
 
     return (
