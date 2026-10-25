@@ -1168,9 +1168,10 @@
             }
         },
         "dialogs": {
-            "roastInProgressTitle": "ロースト中",
-            "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",
-            "unsavedCloseMsg": "未保存のローストがあります。保存せずに終了しますか？",
+            "unsavedCloseTitle": "未保存のロースト記録",
+            "unsavedCloseMsg": "保存せずに終了すると、このロースト記録は保存されません。終了しますか？",
+            "closeWithoutSaving": "保存せずに終了",
+            "keepUsing": "使用を続ける",
             "end": "終了",
             "cancel": "キャンセル",
             "machineRequiredTitle": "マシン接続が必要",

@@ -17,7 +17,6 @@ import { ActiveRoastRuntime } from './ActiveRoastRuntime';
 
 vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
 
-const RUNNING_CLOSE = 'activeRoast.dialogs.roastInProgressMsg';
 const UNSAVED_CLOSE = 'activeRoast.dialogs.unsavedCloseMsg';
 
 type CloseHandler = (event: { preventDefault: () => void }) => void | Promise<void>;
@@ -417,11 +416,11 @@ describe('ActiveRoast running clock (#627)', () => {
 
         const runningClose = await closeOnce();
         expect(dialog.ask).toHaveBeenCalledWith(
-            RUNNING_CLOSE,
+            UNSAVED_CLOSE,
             expect.objectContaining({
-                title: 'activeRoast.dialogs.roastInProgressTitle',
-                okLabel: 'activeRoast.dialogs.end',
-                cancelLabel: 'activeRoast.dialogs.cancel',
+                title: 'activeRoast.dialogs.unsavedCloseTitle',
+                okLabel: 'activeRoast.dialogs.closeWithoutSaving',
+                cancelLabel: 'activeRoast.dialogs.keepUsing',
             }),
         );
         expect(runningClose.preventDefault).toHaveBeenCalledTimes(1);
@@ -485,7 +484,11 @@ describe('ActiveRoast running clock (#627)', () => {
         const waitClose = await closeOnce();
         expect(dialog.ask).toHaveBeenCalledWith(
             UNSAVED_CLOSE,
-            expect.objectContaining({ title: 'activeRoast.dialogs.roastInProgressTitle' }),
+            expect.objectContaining({
+                title: 'activeRoast.dialogs.unsavedCloseTitle',
+                okLabel: 'activeRoast.dialogs.closeWithoutSaving',
+                cancelLabel: 'activeRoast.dialogs.keepUsing',
+            }),
         );
         expect(waitClose.preventDefault).toHaveBeenCalledTimes(1);
         unmountWait();
@@ -564,7 +567,7 @@ describe('ActiveRoast running clock (#627)', () => {
         mount();
         await flushMicrotasks();
         const event = await closeOnce();
-        expect(dialog.ask).toHaveBeenCalledWith(RUNNING_CLOSE, expect.any(Object));
+        expect(dialog.ask).toHaveBeenCalledWith(UNSAVED_CLOSE, expect.any(Object));
         expect(event.preventDefault).toHaveBeenCalledTimes(1);
     });
 

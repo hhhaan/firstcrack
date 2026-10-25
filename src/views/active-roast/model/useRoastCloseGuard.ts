@@ -32,17 +32,12 @@ export const useRoastCloseGuard = () => {
                 try {
                     if (phase === 'roasting' || phase === 'ended' || awaitingNextCharge) {
                         const translate = tRef.current;
-                        const ok = await ask(
-                            phase === 'roasting'
-                                ? translate('activeRoast.dialogs.roastInProgressMsg')
-                                : translate('activeRoast.dialogs.unsavedCloseMsg'),
-                            {
-                                title: translate('activeRoast.dialogs.roastInProgressTitle'),
-                                kind: 'warning',
-                                okLabel: translate('activeRoast.dialogs.end'),
-                                cancelLabel: translate('activeRoast.dialogs.cancel'),
-                            },
-                        );
+                        const ok = await ask(translate('activeRoast.dialogs.unsavedCloseMsg'), {
+                            title: translate('activeRoast.dialogs.unsavedCloseTitle'),
+                            kind: 'warning',
+                            okLabel: translate('activeRoast.dialogs.closeWithoutSaving'),
+                            cancelLabel: translate('activeRoast.dialogs.keepUsing'),
+                        });
                         if (!ok) {
                             e.preventDefault();
                             return;

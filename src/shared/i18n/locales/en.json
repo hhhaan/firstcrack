@@ -1168,9 +1168,10 @@
             }
         },
         "dialogs": {
-            "roastInProgressTitle": "Roast in Progress",
-            "roastInProgressMsg": "A roast is in progress. Are you sure you want to end it?",
-            "unsavedCloseMsg": "You have an unsaved roast. End without saving?",
+            "unsavedCloseTitle": "Unsaved Roast Record",
+            "unsavedCloseMsg": "If you quit without saving, this roast record will not be saved. Do you want to quit?",
+            "closeWithoutSaving": "Quit Without Saving",
+            "keepUsing": "Keep Using",
             "end": "End",
             "cancel": "Cancel",
             "machineRequiredTitle": "Connect a machine",
