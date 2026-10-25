@@ -111,6 +111,8 @@ BEGIN
         ELSE
             owner_id := (p ->> 'workspace_owner_id')::uuid;
             PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', actor, 'role', 'authenticated')::text, true);
+            PERFORM set_config('request.jwt.claim.sub', actor::text, true);
+            PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
             IF owner_id IS NULL OR public.has_workspace_access(owner_id) IS DISTINCT FROM true THEN
                 RETURN jsonb_build_object('error', 'access_denied', 'status', 403);
             END IF;
@@ -175,6 +177,8 @@ BEGIN
     END IF;
     -- Shared final step for initial issuance and rotation. Scope/owner never come from a refresh request.
     PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', g.user_id, 'role', 'authenticated')::text, true);
+    PERFORM set_config('request.jwt.claim.sub', g.user_id::text, true);
+    PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
     IF public.has_workspace_access(g.workspace_owner_id) IS DISTINCT FROM true THEN
         UPDATE private.mcp_grants SET revoked_at = coalesce(revoked_at, now()) WHERE id = g.id;
         RETURN jsonb_build_object('error', 'invalid_grant');
@@ -199,6 +203,8 @@ BEGIN
     SELECT * INTO c FROM private.mcp_clients WHERE id = g.client_id AND enabled AND issuer = expected_issuer AND resource = expected_resource;
     IF NOT FOUND THEN RETURN NULL; END IF;
     PERFORM set_config('request.jwt.claims', jsonb_build_object('sub', g.user_id, 'role', 'authenticated')::text, true);
+    PERFORM set_config('request.jwt.claim.sub', g.user_id::text, true);
+    PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
     IF public.has_workspace_access(g.workspace_owner_id) IS DISTINCT FROM true THEN RETURN NULL; END IF;
     RETURN jsonb_build_object('iss', c.issuer, 'aud', c.resource, 'sub', g.user_id,
         'client_id', c.id, 'scope', g.scope, 'role', 'firstcrack_mcp_data', 'firstcrack_access', 'read',
@@ -253,6 +259,8 @@ BEGIN
     IF args ? 'workspace_owner_id' AND args ->> 'workspace_owner_id' IS DISTINCT FROM v_owner_id::text THEN RETURN jsonb_build_object('error', 'access_denied'); END IF;
     -- Even a caller with this function's execution credential cannot choose its own user context.
     PERFORM set_config('request.jwt.claims', proof::text, true);
+    PERFORM set_config('request.jwt.claim.sub', subject_id::text, true);
+    PERFORM set_config('request.jwt.claim.role', 'firstcrack_mcp_data', true);
     PERFORM set_config('transaction_read_only', 'on', true);
     CASE tool
     WHEN 'get_my_profile' THEN

@@ -11,7 +11,9 @@ INSERT INTO auth.users VALUES ('11111111-1111-4111-8111-111111111111'), ('222222
 CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$
     SELECT coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb;
 $$;
-CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT (auth.jwt() ->> 'sub')::uuid; $$;
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+ SELECT coalesce(nullif(current_setting('request.jwt.claim.sub', true), ''), auth.jwt() ->> 'sub')::uuid;
+$$;
 
 CREATE TABLE profiles (id uuid PRIMARY KEY, display_name text, business_name text, country_code text, polar_customer_id text);
 CREATE TABLE organizations (id uuid PRIMARY KEY, owner_id uuid, name text);

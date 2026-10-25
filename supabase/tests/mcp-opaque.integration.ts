@@ -542,6 +542,13 @@ try {
     const sdkAccess = sdkTokens?.access_token ?? '';
     await admin`delete from public.organization_members where user_id=${a}::uuid and org_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'`;
     check((await lookup(sdkAccess)) === null, 'Removed membership remained accessible');
+    const legacyProof = await admin.begin(async (tx) => {
+        await tx`set local role firstcrack_mcp_gateway`;
+        await tx`select set_config('request.jwt.claim.sub',${owner},true)`;
+        const [row] = await tx`select private.mcp_access(${await digest(sdkAccess)},${issuer},${resource}) as result`;
+        return row.result;
+    });
+    check(legacyProof === null, 'Legacy session GUC overrode the grant-bound user');
     const [{ count }] =
         await admin`select count(*)::integer as count from private.mcp_tokens where hash like 'fcmcp_%'`;
     check(count === 0, 'Plaintext bearer token stored');

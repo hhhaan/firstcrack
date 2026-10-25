@@ -65,7 +65,9 @@ grants and token hashes; none are exposed through PostgREST or to native users.
 Two separate server-only LOGIN credentials must inherit only the matching issuer or
 gateway execution role. Runtime startup rejects superuser/BYPASSRLS, store/data-owner,
 service-role, native-authenticated and opposite-runtime membership. The gateway cannot
-submit a trusted subject: SQL derives identity from the stored token hash. No client
+submit a trusted subject: SQL derives identity from the stored token hash. Both current JSON claims and legacy subject/role GUCs are overwritten from the derived
+grant on every membership/read check, so inherited session context cannot select a user.
+No client
 gets a DB credential or JWT usable by Auth/PostgREST/legacy write RPCs. There is no
 service-role Supabase client in this flow. Server credentials still require normal
 secret protection; the issuer credential is the authority to issue grants.
@@ -124,7 +126,7 @@ by environment HTTP policy. No bypass or linked reset was attempted. The SQL sta
 chain, real gateway behavior, deployed RLS interactions or hosted browser/desktop coexistence.
 The Cloudflare build uses only fixture public config and reports existing adapter warnings.
 
-Final local results: **297 Edge Vitest tests**, **119 integration assertions**, **16
+Final local results: **297 Edge Vitest tests**, **120 integration assertions**, **16
 landing tests**, all **19 Edge entrypoints** plus integration-script Deno checks, all
 three desktop TypeScript configurations, and the three landing controller TypeScript
 checks passed. The landing production build passed (existing adapter warnings). Actual
