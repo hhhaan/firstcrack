@@ -10,9 +10,11 @@ interface PageHeaderProps {
 
 /** 페이지 헤더 — 좌측 타이틀/서브타이틀, 우측 액션 영역 구조를 공통화 */
 export const PageHeader = ({ title, subtitle, actions, className = '' }: PageHeaderProps) => (
-    <div className={`mb-8 flex flex-wrap items-end justify-between gap-4 ${className}`}>
+    <div className={`${subtitle ? 'mb-8' : 'mb-6'} flex flex-wrap items-end justify-between gap-4 ${className}`}>
         <div className="min-w-0">
-            <h1 className="mb-2 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary">
+            <h1
+                className={`${subtitle ? 'mb-2' : 'mb-0'} font-(--font-display) text-3xl font-normal leading-9 tracking-[0.24px] text-primary`}
+            >
                 {title}
             </h1>
             {subtitle && <p className="text-sm font-[450] leading-5 text-muted">{subtitle}</p>}

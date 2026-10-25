@@ -1,6 +1,6 @@
 import type { MachineSnapshot } from '@entities/machine';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
-import type { LogEntry } from '@shared/types/roast';
+import type { BatchTitleNumbering, LogEntry } from '@shared/types/roast';
 import type { FinalizedBbp } from './bbp';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
@@ -49,6 +49,7 @@ export interface SaveRoastParams {
     selectedBeanId: string | null;
     selectedBlendId?: string | null;
     targetProfileId: string | null;
+    batchTitleNumbering?: BatchTitleNumbering;
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];
     machineSnapshot?: MachineSnapshot | null;

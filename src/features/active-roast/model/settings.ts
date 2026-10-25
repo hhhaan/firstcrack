@@ -87,6 +87,7 @@ const AUTO_DROP_START_MIN_MIN = 1;
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
+    batchTitleNumbering: 'profile',
     pollIntervalMs: 1000,
     rorSpanSec: 30,
     btSmoothing: 0,
@@ -113,6 +114,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     showControlHeat: true,
     showControlFan: true,
     controlChartHeightPct: 21,
+    mergeControlChart: false,
     controlYMin: 0,
     controlYMax: 100,
     showPhaseBar: true,
@@ -375,6 +377,12 @@ export const normalizeRoastSettings = (
         eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
         eventButtons: normalizeEventButtons(merged.eventButtons),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
+        batchTitleNumbering:
+            merged.batchTitleNumbering === 'total' ||
+            merged.batchTitleNumbering === 'both' ||
+            merged.batchTitleNumbering === 'none'
+                ? merged.batchTitleNumbering
+                : 'profile',
         // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
@@ -391,6 +399,7 @@ export const normalizeRoastSettings = (
         showFcBand: asBool(merged.showFcBand, DEFAULT_SETTINGS.showFcBand),
         bbpEnabled: asBool(merged.bbpEnabled, DEFAULT_SETTINGS.bbpEnabled),
         controlChartHeightPct: clampNum(merged.controlChartHeightPct, 12, 40, DEFAULT_SETTINGS.controlChartHeightPct),
+        mergeControlChart: asBool(merged.mergeControlChart, DEFAULT_SETTINGS.mergeControlChart),
         controlYMin,
         controlYMax,
         rorYMin,

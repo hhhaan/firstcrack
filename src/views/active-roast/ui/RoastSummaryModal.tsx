@@ -153,10 +153,10 @@ export const RoastSummaryModal = ({
         () => [
             ...beans
                 .filter((b) => b.id === formBeanId || b.id === selectedBeanId || !hiddenBeans.has(b.id))
-                .map((b) => ({ id: b.id, name: b.name })),
-            ...blends.map((b) => ({ id: `blend:${b.id}`, name: b.name })),
+                .map((b) => ({ id: b.id, name: b.name, group: t('newProfileModal.singleOrigin') })),
+            ...blends.map((b) => ({ id: `blend:${b.id}`, name: b.name, group: t('newProfileModal.blend') })),
         ],
-        [beans, blends, formBeanId, selectedBeanId, hiddenBeans],
+        [beans, blends, formBeanId, selectedBeanId, hiddenBeans, t],
     );
 
     if (!open || !summaryData) {

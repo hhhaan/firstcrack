@@ -1,0 +1,236 @@
+import { describe, expect, it } from 'vitest';
+import { STALE_RUN_MS, type PostgrestLikeError } from './run-lock.ts';
+import {
+    claimWebhookEventRun,
+    completeWebhookEventRun,
+    releaseWebhookEventClaim,
+    type WebhookEventRunClient,
+} from './webhook-event-run.ts';
+
+type Op = {
+    kind: 'insert' | 'select' | 'update';
+    values?: Record<string, unknown>;
+    filters: Array<[string, string, unknown]>;
+    terminal: 'insertSingle' | 'maybeSingle' | 'updateMaybeSingle' | 'updateVoid';
+};
+
+function mockWebhookRuns(handlers: {
+    insert?: { data: { id: string } | null; error: PostgrestLikeError | null };
+    existing?: { data: { id: string; status: string; started_at: string } | null; error: PostgrestLikeError | null };
+    reclaim?: { data: { id: string } | null; error: PostgrestLikeError | null };
+    updateError?: PostgrestLikeError | null;
+}): { admin: WebhookEventRunClient; ops: Op[] } {
+    const ops: Op[] = [];
+
+    const filterQuery = (
+        kind: Op['kind'],
+        values?: Record<string, unknown>,
+        terminal: Op['terminal'] = 'updateVoid',
+    ): never => {
+        const op: Op = { kind, values, filters: [], terminal };
+        const builder = {
+            eq: (column: string, value: unknown) => {
+                op.filters.push(['eq', column, value]);
+                return builder;
+            },
+            lt: (column: string, value: unknown) => {
+                op.filters.push(['lt', column, value]);
+                return builder;
+            },
+            select: (columns: string) => {
+                if (kind === 'update') {
+                    op.terminal = 'updateMaybeSingle';
+                }
+                expect(columns).toBeTruthy();
+                return builder;
+            },
+            maybeSingle: () => {
+                ops.push(op);
+                if (kind === 'update') {
+                    op.terminal = 'updateMaybeSingle';
+                    return Promise.resolve(handlers.reclaim ?? { data: null, error: null });
+                }
+                op.terminal = 'maybeSingle';
+                return Promise.resolve(handlers.existing ?? { data: null, error: null });
+            },
+            single: () => {
+                ops.push(op);
+                expect(op.terminal).toBe('insertSingle');
+                return Promise.resolve(handlers.insert ?? { data: { id: 'run-new' }, error: null });
+            },
+            then: (
+                resolve: (v: { data: unknown; error: PostgrestLikeError | null }) => unknown,
+                reject?: (e: unknown) => unknown,
+            ) => {
+                ops.push(op);
+                const result = { data: null, error: handlers.updateError ?? null };
+                return Promise.resolve(result).then(resolve, reject);
+            },
+        };
+        return builder as never;
+    };
+
+    const admin: WebhookEventRunClient = {
+        from: (table) => {
+            expect(table).toBe('order_sync_runs');
+            return {
+                insert: (values) => {
+                    const q = filterQuery('insert', values, 'insertSingle');
+                    return q;
+                },
+                update: (values) => filterQuery('update', values),
+                select: (columns) => filterQuery('select', undefined, 'maybeSingle'),
+            };
+        },
+    };
+
+    return { admin, ops };
+}
+
+/** Format an instant as +09:00 wall time (for staleness via Date.parse, not string compare). */
+function formatKstOffset(ms: number): string {
+    const shifted = new Date(ms + 9 * 3600_000);
+    const pad = (n: number, w = 2) => String(n).padStart(w, '0');
+    return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}.${pad(shifted.getUTCMilliseconds(), 3)}+09:00`;
+}
+
+const claimArgs = { connectionId: 'conn-1', userId: 'user-1', externalEventId: 'evt-1' };
+
+describe('claimWebhookEventRun', () => {
+    it('returns run id on fresh insert', async () => {
+        const { admin } = mockWebhookRuns({ insert: { data: { id: 'run-1' }, error: null } });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: true, runId: 'run-1' });
+    });
+
+    it('surfaces lookup errors after 23505 instead of acking duplicate', async () => {
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: null, error: { message: 'db timeout' } },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, duplicate: false, error: 'db timeout' });
+    });
+
+    it('23505 on a fresh running row → in progress (caller should not ack 200)', async () => {
+        const recent = new Date().toISOString();
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'run-live', status: 'running', started_at: recent }, error: null },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, inProgress: true });
+    });
+
+    it('23505 when existing row is success → duplicate', async () => {
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: {
+                data: { id: 'run-done', status: 'success', started_at: new Date().toISOString() },
+                error: null,
+            },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, duplicate: true });
+    });
+
+    it('23505 when existing row is error → in progress (retry, not duplicate ack)', async () => {
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: {
+                data: { id: 'run-err', status: 'error', started_at: new Date().toISOString() },
+                error: null,
+            },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, inProgress: true });
+    });
+
+    it('lost reclaim race (0 rows) → in progress', async () => {
+        const staleStarted = new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString();
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: { data: null, error: null },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, inProgress: true });
+    });
+
+    it('reclaim update error → surfaces error', async () => {
+        const staleStarted = new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString();
+        const { admin } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: { data: null, error: { message: 'reclaim failed' } },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: false, duplicate: false, error: 'reclaim failed' });
+    });
+
+    it('reclaim update returns PGRST116 → 500 (not confused with maybeSingle 0-row race)', async () => {
+        const staleStarted = new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString();
+        const { admin: pgErr } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: {
+                data: null,
+                error: { code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' },
+            },
+        });
+        expect(await claimWebhookEventRun(pgErr, claimArgs)).toEqual({
+            ok: false,
+            duplicate: false,
+            error: 'JSON object requested, multiple (or no) rows returned',
+        });
+    });
+
+    it.each([
+        ['utc iso', () => new Date(Date.now() - STALE_RUN_MS - 60_000).toISOString()],
+        [
+            'kst +09:00 offset',
+            () => formatKstOffset(Date.now() - STALE_RUN_MS - 60_000),
+        ],
+    ])('23505 on a stale running row → reclaims (%s)', async (_label, startedAt) => {
+        const staleStarted = startedAt();
+        const staleBeforeIso = new Date(Date.now() - STALE_RUN_MS).toISOString();
+        if (_label === 'kst +09:00 offset') {
+            expect(staleStarted >= staleBeforeIso).toBe(true);
+        }
+        const { admin, ops } = mockWebhookRuns({
+            insert: { data: null, error: { code: '23505', message: 'dup' } },
+            existing: { data: { id: 'stale-run', status: 'running', started_at: staleStarted }, error: null },
+            reclaim: { data: { id: 'stale-run' }, error: null },
+        });
+        const result = await claimWebhookEventRun(admin, claimArgs);
+        expect(result).toEqual({ ok: true, runId: 'stale-run' });
+        const reclaim = ops.find((o) => o.kind === 'update' && o.terminal === 'updateMaybeSingle');
+        expect(reclaim?.filters).toContainEqual(['eq', 'id', 'stale-run']);
+        expect(reclaim?.filters).toContainEqual(['eq', 'status', 'running']);
+        expect(reclaim?.filters.some((f) => f[0] === 'lt' && f[1] === 'started_at')).toBe(true);
+    });
+});
+
+describe('releaseWebhookEventClaim', () => {
+    it('updates the row and nulls external_event_id', async () => {
+        const { admin, ops } = mockWebhookRuns({});
+        await releaseWebhookEventClaim(admin, 'run-1', 'boom');
+        expect(ops[0]).toMatchObject({
+            kind: 'update',
+            values: expect.objectContaining({
+                status: 'error',
+                external_event_id: null,
+                error_message: 'boom',
+            }),
+            filters: [['eq', 'id', 'run-1']],
+        });
+    });
+});
+
+describe('completeWebhookEventRun', () => {
+    it('marks success with orders_upserted', async () => {
+        const { admin, ops } = mockWebhookRuns({});
+        await completeWebhookEventRun(admin, 'run-1', 1);
+        expect(ops[0].values).toMatchObject({ status: 'success', orders_upserted: 1 });
+    });
+});

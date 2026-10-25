@@ -52,6 +52,13 @@ export type RoastSession = {
     ambient_humidity_pct: number | null;
     bean_id: string | null;
     profile_id: string | null;
+    blend_id?: string | null;
+    bean_label?: string | null;
+    color_whole?: string | null;
+    color_ground?: string | null;
+    batch_name: string | null;
+    profile_batch_number: number | null;
+    total_batch_number: number | null;
     tsv_path: string | null;
     bbp_tsv_path: string | null;
     bbp_seconds: number | null;
@@ -75,6 +82,7 @@ export type RoastSession = {
         farm: string | null;
     } | null;
     roast_profiles?: { name: string; target_level: string | null } | null;
+    blends?: { name: string } | null;
 };
 
 export type PlanBatch = {
@@ -232,8 +240,10 @@ const recordEventsEditOk = (prevRaw: unknown, nextRaw: unknown): boolean => {
 
 export class MockDb {
     beans: BeanRow[] = [];
+    blends: Array<{ id: string; user_id: string; name: string; blend_components: unknown[] }> = [];
     stockEvents: BeanStockEvent[] = [];
     sessions: RoastSession[] = [];
+    private batchCounters = new Map<string, number>();
     planBatches: PlanBatch[] = [];
     dayPlans: { id: string; user_id: string; plan_date: string }[] = [];
     roastedEvents: { id: string; reference_id: string | null; delta_grams: number; event_type: string }[] = [];
@@ -245,8 +255,10 @@ export class MockDb {
 
     reset() {
         this.beans = [];
+        this.blends = [];
         this.stockEvents = [];
         this.sessions = [];
+        this.batchCounters.clear();
         this.planBatches = [];
         this.dayPlans = [];
         this.roastedEvents = [];
@@ -382,6 +394,16 @@ export class MockDb {
         return batch;
     }
 
+    roastBatchCounters(userId: string) {
+        return Object.fromEntries([
+            ['total', 0],
+            ...[...this.batchCounters].flatMap(([scope, number]) => {
+                const [ownerId, profileId] = JSON.parse(scope);
+                return ownerId === userId ? [[profileId ?? 'total', number]] : [];
+            }),
+        ]);
+    }
+
     /**
      * Mirrors production save_roast_op C2: skip deduct when plan_batch already has roast event.
      */
@@ -426,6 +448,24 @@ export class MockDb {
         }
 
         const bean = beanId ? this.beans.find((b) => b.id === beanId) : null;
+        const profileId = typeof params.session.profile_id === 'string' ? params.session.profile_id : null;
+        const nextNumber = (profile: string | null) => {
+            const scope = JSON.stringify([userId, profile]);
+            const number = (this.batchCounters.get(scope) ?? 0) + 1;
+            this.batchCounters.set(scope, number);
+            return number;
+        };
+        const totalNumber = nextNumber(null);
+        const profileNumber = profileId ? nextNumber(profileId) : null;
+        const mode = params.session.batch_title_numbering;
+        const suffix = [
+            (mode === 'profile' || mode === 'both') && profileNumber != null ? `#${profileNumber}` : null,
+            mode === 'total' || mode === 'both' ? `Σ#${totalNumber}` : null,
+        ]
+            .filter(Boolean)
+            .join(' · ');
+        const baseTitle = typeof params.session.batch_name === 'string' ? params.session.batch_name : null;
+        const batchName = suffix ? `${(baseTitle ?? 'Roast').slice(0, 120 - suffix.length - 1)} ${suffix}` : baseTitle;
         const row: RoastSession = {
             id: sessionId,
             user_id: userId,
@@ -442,6 +482,9 @@ export class MockDb {
             ambient_humidity_pct: (params.session.ambient_humidity_pct as number | null) ?? null,
             bean_id: beanId,
             profile_id: (params.session.profile_id as string | null) ?? null,
+            batch_name: batchName,
+            profile_batch_number: profileNumber,
+            total_batch_number: totalNumber,
             tsv_path: null,
             bbp_tsv_path: null,
             bbp_seconds: (params.session.bbp_seconds as number | null) ?? null,
@@ -497,6 +540,11 @@ export class MockDb {
             ambient_humidity_pct: null,
             bean_id: null,
             profile_id: null,
+            blend_id: null,
+            bean_label: null,
+            batch_name: null,
+            profile_batch_number: null,
+            total_batch_number: null,
             tsv_path: null,
             bbp_tsv_path: null,
             bbp_seconds: null,

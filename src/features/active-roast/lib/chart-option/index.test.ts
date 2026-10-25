@@ -853,7 +853,7 @@ describe('buildRoastChartOption', () => {
         expect(series.some((item) => item.name === 'Event marker lines')).toBe(false);
     });
 
-    it('draws event labels on the BT axis, not the grid edge', () => {
+    it('draws major event labels at the plot top independently of BT', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
             xs: [0, 60],
@@ -879,11 +879,11 @@ describe('buildRoastChartOption', () => {
             { coord: (value: number[]) => [value[0] * 2, 250 - value[1]], getWidth: () => 440 },
         );
         const text = result?.children.find((child) => child.type === 'text');
-        expect(text).toMatchObject({ type: 'text', x: 124, y: 65, style: { font: MARKER_LABEL_FONT } });
+        expect(text).toMatchObject({ type: 'text', x: 124, y: 8, style: { font: MARKER_LABEL_FONT } });
         expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
     });
 
-    it('draws nothing when the anchor is outside the grid on x or y', () => {
+    it('keeps major labels at the top when BT leaves the grid, but hides them outside the time window', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
             xs: [0, 60],
@@ -898,7 +898,9 @@ describe('buildRoastChartOption', () => {
         ).find((series) => series.name === 'Event curve labels')?.renderItem;
         const grid = { dataIndex: 0, coordSys: { x: 40, y: 10, width: 400, height: 300 } };
         expect(renderItem?.(grid, { coord: () => [-20, 80], getWidth: () => 800 })).toBeUndefined();
-        expect(renderItem?.(grid, { coord: () => [120, 400], getWidth: () => 800 })).toBeUndefined();
+        const outsideBt = renderItem?.(grid, { coord: () => [120, 400], getWidth: () => 800 });
+        expect(outsideBt?.children).toContainEqual(expect.objectContaining({ type: 'text', y: 18 }));
+        expect(outsideBt?.children).not.toContainEqual(expect.objectContaining({ type: 'circle' }));
     });
 
     it('clears a label left outside the window on the next merged frame and restores it when zoom resets', () => {
@@ -1461,21 +1463,141 @@ describe('buildRoastChartOption', () => {
     });
 });
 
-it('keeps raw Pa/Hz feedback visible outside percent chart bounds', () => {
-    const option = buildRoastChartOption({
-        ...baseParams(),
-        controlData: {
-            xs: [0],
-            heatPower: [42.25],
-            fanSpeed: [1234.56],
-            drumTemp: [31.25],
-            readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+it.each([false, true])(
+    'keeps raw Pa/Hz feedback visible outside percent chart bounds (merged: %s)',
+    (mergeControlChart) => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            mergeControlChart,
+            controlData: {
+                xs: [0],
+                heatPower: [42.25],
+                fanSpeed: [1234.56],
+                drumTemp: [31.25],
+                readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+            },
+        });
+        const axes = option.yAxis as { min: number; max: number }[];
+        expect(axes[2].max).toBeGreaterThanOrEqual(1234.56);
+        expect(axes[3].max).toBeGreaterThanOrEqual(1234.56);
+        expect(option.series).toEqual(
+            expect.arrayContaining([expect.objectContaining({ name: 'Fan', data: [[0, 1234.56]] })]),
+        );
+    },
+);
+
+describe('merged control chart', () => {
+    it.each([
+        [0, 100],
+        [-20, 80],
+        [20, 80],
+    ])(
+        'fits control range %s–%s in the bottom quarter without changing temperature or RoR axes',
+        (controlYMin, controlYMax) => {
+            const params = {
+                ...baseParams(),
+                controlYMin,
+                controlYMax,
+                controlData: { xs: [0], drumTemp: [controlYMin], heatPower: [controlYMax], fanSpeed: [50] },
+            };
+            const merged = buildRoastChartOption({ ...params, mergeControlChart: true });
+            expect(merged.yAxis).toMatchObject([
+                { min: 50, max: 250 },
+                { min: -5, max: 20 },
+                { min: controlYMin },
+                { min: controlYMin },
+            ]);
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            try {
+                chart.setOption(merged);
+                const bottom = chart.convertToPixel({ yAxisIndex: 0 }, 50);
+                const height = bottom - chart.convertToPixel({ yAxisIndex: 0 }, 250);
+                for (const yAxisIndex of [2, 3]) {
+                    expect(chart.convertToPixel({ yAxisIndex }, controlYMin)).toBeCloseTo(bottom);
+                    expect(chart.convertToPixel({ yAxisIndex }, controlYMax)).toBeCloseTo(bottom - height * 0.25);
+                }
+            } finally {
+                chart.dispose();
+            }
         },
-    });
-    const axes = option.yAxis as { min: number; max: number }[];
-    expect(axes[2].max).toBeGreaterThanOrEqual(1234.56);
-    expect(axes[3].max).toBeGreaterThanOrEqual(1234.56);
-    expect(option.series).toEqual(
-        expect.arrayContaining([expect.objectContaining({ name: 'Fan', data: [[0, 1234.56]] })]),
     );
+
+    it.each(['C', 'F'] as const)(
+        'renders all control curves on a shared time axis with independent values (%s)',
+        (temperatureUnit) => {
+            const params: ChartOptionParams = {
+                ...baseParams(),
+                temperatureUnit,
+                mergeControlChart: true,
+                charged: true,
+                currentTimeSec: 60,
+                xs: [0, 60],
+                btActual: [180, 190],
+                controlYMin: 0,
+                controlYMax: 100,
+                bbpRange: { start: 0, end: 30 },
+                controlData: {
+                    xs: [0, 60],
+                    drumTemp: [40, 50],
+                    heatPower: [60, 70],
+                    fanSpeed: [20, 30],
+                    heatSet: [60, 70],
+                    heatTarget: { xs: [0, 60], values: [65, 75] },
+                    reference: { xs: [0, 60], drum: [40, 50], heater: [60, 70], fan: [20, 30] },
+                },
+            };
+            const option = buildRoastChartOption(params);
+            expect(option.grid).toHaveLength(1);
+            expect(option.xAxis).toMatchObject([{ gridIndex: 0, axisLine: { onZero: false } }]);
+            expect(option.yAxis).toMatchObject([
+                { gridIndex: 0 },
+                { gridIndex: 0 },
+                { gridIndex: 0, min: 0, max: 400, splitLine: { show: false } },
+                { gridIndex: 0, min: 0, max: 400, splitLine: { show: false } },
+            ]);
+            expect(option.series).toEqual(
+                expect.arrayContaining(
+                    [
+                        'Drum',
+                        'Heat',
+                        'Fan',
+                        'Heat set',
+                        'Heat target',
+                        'Drum Target',
+                        'Heater Target',
+                        'Fan Target',
+                    ].map((name) => expect.objectContaining({ name, xAxisIndex: 0 })),
+                ),
+            );
+            expect(option.series).not.toEqual(
+                expect.arrayContaining([expect.objectContaining({ id: 'bbp-control-background' })]),
+            );
+            expect(option.series).not.toEqual(
+                expect.arrayContaining([expect.objectContaining({ name: 'Drum', markLine: expect.anything() })]),
+            );
+            const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 1000, height: 600 });
+            try {
+                chart.setOption(option);
+                expect(chart.renderToSVGString()).toContain('<path');
+                expect(chart.convertToPixel({ yAxisIndex: 2 }, 50)).toBeCloseTo(
+                    chart.convertToPixel({ yAxisIndex: 3 }, 50),
+                );
+            } finally {
+                chart.dispose();
+            }
+        },
+    );
+
+    it('keeps a single temperature grid when all controls are hidden', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            mergeControlChart: true,
+            showControlDrum: false,
+            showControlHeat: false,
+            showControlFan: false,
+            controlData: { xs: [], drumTemp: [], heatPower: [], fanSpeed: [] },
+        });
+        expect(option.grid).toHaveLength(1);
+        expect(option.yAxis).toHaveLength(2);
+    });
 });

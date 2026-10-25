@@ -7,6 +7,9 @@ export const formatElapsed = (secs: number): string => {
     return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+/** History BBP sits before Charge; prefix minus instead of breaking m:ss math. */
+export const formatSignedElapsed = (secs: number): string => `${secs < 0 ? '-' : ''}${formatElapsed(Math.abs(secs))}`;
+
 /** Recorded duration: round fractional seconds; null → "—". 90.6 → "1:31" */
 export const formatDuration = (seconds: number | null): string => {
     if (seconds == null) return '—';
@@ -37,6 +40,18 @@ export const formatDateShort = (iso: string | null, timeZone?: string): string =
     const month = parts.find((p) => p.type === 'month')?.value ?? '';
     const day = parts.find((p) => p.type === 'day')?.value ?? '';
     return `${year.slice(-2)}-${month}-${day}`;
+};
+
+export const formatDateTimeShort = (iso: string | null, timeZone?: string): string => {
+    const date = formatDateShort(iso, timeZone);
+    if (!iso || date === '—') return '—';
+    const time = new Intl.DateTimeFormat('en-GB', {
+        timeZone,
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+    }).format(new Date(iso));
+    return `${date} ${time}`;
 };
 
 export const pctChange = (current: number, previous: number): string => {

@@ -118,6 +118,9 @@ export async function installMockSupabase(page: Page, db: MockDb) {
             if (fn === 'get_bean_reserved_stock') {
                 return json(route, 0);
             }
+            if (fn === 'get_roast_batch_counters') {
+                return json(route, db.roastBatchCounters(String(body.p_user_id)));
+            }
             if (fn === 'save_roast_op') {
                 const session = db.saveRoastOp({
                     session: (body.p_session as Record<string, unknown>) ?? {},
@@ -272,11 +275,22 @@ export async function installMockSupabase(page: Page, db: MockDb) {
         }
 
         if (table === 'roast_sessions') {
+            if (method === 'PATCH') {
+                const row = db.sessions.find((s) => s.id === params.id?.replace('eq.', ''));
+                if (row && body && typeof body === 'object') Object.assign(row, body);
+                return json(route, row ?? null);
+            }
             if (method === 'GET') {
                 const userId = params['user_id']?.replace('eq.', '') ?? E2E_USER.id;
                 let rows = db.sessions.filter((s) => s.user_id === userId);
                 if (params['status']?.startsWith('eq.')) {
                     rows = rows.filter((s) => s.status === params['status']!.slice(3));
+                }
+                if (params.select?.includes('blends(')) {
+                    rows = rows.map((row) => {
+                        const blend = db.blends.find((item) => item.id === row.blend_id);
+                        return { ...row, blends: blend ? { name: blend.name } : (row.blends ?? null) };
+                    });
                 }
                 // head count
                 if (
@@ -342,7 +356,9 @@ export async function installMockSupabase(page: Page, db: MockDb) {
             }
         }
 
-        if (table === 'roast_profiles' || table === 'blends' || table === 'blend_components') {
+        if (table === 'blends') return json(route, db.blends);
+
+        if (table === 'roast_profiles' || table === 'blend_components') {
             return json(route, []);
         }
 

@@ -15,6 +15,7 @@ const FONT_VALUE = `500 36px ${FONT_FAMILY}`;
 export type HistoryPdfHeader = {
     bean: string;
     roastTitle?: string;
+    batchNumbers?: string;
     date: string;
     duration: string;
     charge: string;
@@ -22,6 +23,7 @@ export type HistoryPdfHeader = {
     labels: {
         bean: string;
         roastTitle?: string;
+        batchNumbers?: string;
         date: string;
         duration: string;
         charge: string;
@@ -202,6 +204,12 @@ export const composeHistoryPdfJpeg = async (
     ctx.font = FONT_UI;
     ctx.fillStyle = COLOR_MUTED;
     ctx.fillText('First Crack', margin, footerY + 44);
+    if (input.header.batchNumbers)
+        ctx.fillText(
+            `${input.header.labels.batchNumbers ?? ''}: ${input.header.batchNumbers}`,
+            margin + 200,
+            footerY + 44,
+        );
     ctx.textAlign = 'right';
     ctx.fillText('1 / 1', width - margin, footerY + 44);
 

@@ -8,28 +8,17 @@ import { SummaryMetaEditor } from './SummaryMetaEditor';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const {
-    updateBean,
-    updateSession,
-    setOutputWeight,
-    invalidate,
-    queryClient,
-    patchOrigin,
-    restoreCaches,
-    stockRecorded,
-} = vi.hoisted(() => ({
+const { updateBean, updateSession, setRoastLevel, stockRecorded } = vi.hoisted(() => ({
     updateBean: vi.fn(async () => ({ id: 'bean-1' })),
     updateSession: vi.fn(async () => ({ id: 's1' })),
-    setOutputWeight: vi.fn(async () => undefined),
-    invalidate: vi.fn(async () => undefined),
-    queryClient: { cancelQueries: vi.fn(async () => undefined) },
-    patchOrigin: vi.fn(),
-    restoreCaches: vi.fn(),
+    setRoastLevel: vi.fn(async () => undefined),
     stockRecorded: { value: false },
 }));
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => queryClient }));
+vi.mock('@features/update-roast-bean-origin', () => ({
+    useUpdateRoastBeanOrigin: () => ({ mutateAsync: updateBean, isPending: false }),
+}));
 vi.mock('../hooks/useRoastStockRecorded', () => ({
     useRoastStockRecorded: () => ({ data: stockRecorded.value, isPending: false }),
 }));
@@ -45,6 +34,9 @@ vi.mock('@entities/bean', () => ({
     }),
     useUpdateBean: () => ({ mutateAsync: updateBean, isPending: false }),
 }));
+vi.mock('@entities/blend', () => ({
+    useBlends: () => ({ data: [{ id: 'blend-1', name: 'House blend' }] }),
+}));
 vi.mock('@shared/store/auth', () => ({
     useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { id: 'owner' } }),
 }));
@@ -55,13 +47,8 @@ vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [{ id: 'p1', name: 'Washed' }] }),
 }));
 vi.mock('@entities/roast', () => ({
-    invalidateRoastSessionQueries: invalidate,
-    roastSessionKeys: { all: (userId: string) => ['roast_sessions', userId] },
-    snapshotRoastSessionCaches: () => [],
-    restoreRoastSessionCaches: restoreCaches,
-    applyOptimisticSessionBeanOrigin: patchOrigin,
     useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
-    useSetOutputWeight: () => ({ mutateAsync: setOutputWeight, isPending: false }),
+    useSetRoastLevel: () => ({ mutateAsync: setRoastLevel, isPending: false }),
 }));
 
 const session = {
@@ -76,6 +63,53 @@ const session = {
 } as RoastSessionWithRelations;
 
 describe('SummaryMetaEditor', () => {
+    it('selects a pre-roast blend with its blend identifier and reloads its name', async () => {
+        await render({ ...session, batch_name: 'Batch C' });
+        await pickBean('House blend');
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: null, blend_id: 'blend-1', bean_label: null });
+        await act(async () =>
+            root.render(
+                createElement(SummaryMetaEditor, {
+                    session: {
+                        ...session,
+                        bean_id: null,
+                        blend_id: 'blend-1',
+                        beans: null,
+                        blends: { name: 'House blend' },
+                    },
+                }),
+            ),
+        );
+        expect(beanInput().value).toBe('House blend');
+        expect(host.querySelector('[data-testid="history-origin"]')).toBeNull();
+    });
+
+    it('switches a blend back to a single bean while retaining the batch title', async () => {
+        await render({
+            ...session,
+            batch_name: null,
+            bean_id: null,
+            blend_id: 'blend-1',
+            beans: null,
+            blends: { name: 'House blend' },
+        });
+        await pickBean('Kenya Nyeri');
+        expect(updateSession).toHaveBeenCalledWith({
+            id: 's1',
+            bean_id: 'bean-2',
+            blend_id: null,
+            bean_label: null,
+            batch_name: 'House blend',
+        });
+    });
+
+    it('locks the blend source when stock has already moved', async () => {
+        stockRecorded.value = true;
+        await render({ ...session, bean_id: null, blend_id: 'blend-1', beans: null, blends: { name: 'House blend' } });
+        expect(beanInput().value).toBe('House blend');
+        expect(beanInput().disabled).toBe(true);
+        expect(updateSession).not.toHaveBeenCalled();
+    });
     let host: HTMLDivElement;
     let root: Root;
 
@@ -85,10 +119,7 @@ describe('SummaryMetaEditor', () => {
         stockRecorded.value = false;
         updateBean.mockClear();
         updateSession.mockClear();
-        setOutputWeight.mockClear();
-        invalidate.mockClear();
-        patchOrigin.mockClear();
-        restoreCaches.mockClear();
+        setRoastLevel.mockClear();
     });
 
     const render = async (value: RoastSessionWithRelations = session) => {
@@ -150,11 +181,7 @@ describe('SummaryMetaEditor', () => {
         await act(async () => {
             input.blur();
         });
-        expect(patchOrigin).toHaveBeenCalledWith(queryClient, 'owner', 'bean-1', 'Kenya');
         expect(updateBean).toHaveBeenCalledWith({ id: 'bean-1', origin: 'Kenya' });
-        expect(patchOrigin.mock.invocationCallOrder[0]).toBeLessThan(updateBean.mock.invocationCallOrder[0]);
-        expect(invalidate).toHaveBeenCalledWith(expect.anything(), 'owner');
-        expect(restoreCaches).not.toHaveBeenCalled();
     });
 
     it('restores the session caches when the origin save fails', async () => {
@@ -168,20 +195,38 @@ describe('SummaryMetaEditor', () => {
         await act(async () => {
             input.blur();
         });
-        expect(restoreCaches).toHaveBeenCalledWith(queryClient, []);
         expect(input.value).toBe('Ethiopia');
     });
 
-    it('links a profile on the session', async () => {
-        await render();
-        await setControl('history-profile', 'p1');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', profile_id: 'p1' });
+    it('shows the saved profile with its profile batch number without an editable control', async () => {
+        await render({
+            ...session,
+            profile_id: 'p1',
+            roast_profiles: { name: 'Profile A', target_level: 'Medium' },
+            profile_batch_number: 9,
+            total_batch_number: 13,
+        });
+        const profile = host.querySelector('[data-testid="history-profile"]');
+        expect(profile?.textContent).toBe('Profile A #9');
+        expect(profile?.tagName).toBe('P');
+        expect(updateSession).not.toHaveBeenCalled();
+    });
+
+    it('shows only the profile name when its batch number is missing', async () => {
+        await render({
+            ...session,
+            profile_id: 'p1',
+            roast_profiles: { name: 'Profile A', target_level: 'Medium' },
+            profile_batch_number: null,
+            total_batch_number: 13,
+        });
+        expect(host.querySelector('[data-testid="history-profile"]')?.textContent).toBe('Profile A');
     });
 
     it('relinks the roast to another green bean and drops the free-text label', async () => {
         await render({ ...session, bean_id: null, beans: null, bean_label: 'Sample bag', batch_name: 'Batch C' });
         await pickBean('Kenya Nyeri');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', blend_id: null, bean_label: null });
     });
 
     it('freezes the bean-derived title before relinking, so the title stops following the bean', async () => {
@@ -190,6 +235,7 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({
             id: 's1',
             bean_id: 'bean-2',
+            blend_id: null,
             bean_label: null,
             batch_name: 'Aricha',
         });
@@ -198,7 +244,7 @@ describe('SummaryMetaEditor', () => {
     it('keeps a stored title when the green bean changes', async () => {
         await render({ ...session, batch_name: 'Batch C' });
         await pickBean('Kenya Nyeri');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', blend_id: null, bean_label: null });
     });
 
     it('keeps a typed custom name as the bean label with no inventory link, freezing the old title', async () => {
@@ -207,6 +253,7 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({
             id: 's1',
             bean_id: null,
+            blend_id: null,
             bean_label: 'Sample bag',
             batch_name: 'Aricha',
         });
@@ -218,6 +265,7 @@ describe('SummaryMetaEditor', () => {
         expect(updateSession).toHaveBeenCalledWith({
             id: 's1',
             bean_id: null,
+            blend_id: null,
             bean_label: null,
             batch_name: 'Aricha',
         });
@@ -235,7 +283,7 @@ describe('SummaryMetaEditor', () => {
     it('can link a green bean to a roast saved without one', async () => {
         await render({ ...session, bean_id: null, beans: null });
         await pickBean('Kenya Nyeri');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', bean_label: null });
+        expect(updateSession).toHaveBeenCalledWith({ id: 's1', bean_id: 'bean-2', blend_id: null, bean_label: null });
     });
 
     it('shows a saved free-text label in the bean field', async () => {
@@ -246,20 +294,26 @@ describe('SummaryMetaEditor', () => {
     it('saves roast level and refreshes the unmeasured inbound estimate', async () => {
         await render();
         await setControl('history-level', 'Dark');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', roast_level: 'Dark' });
-        expect(setOutputWeight).toHaveBeenCalledWith({
+        expect(setRoastLevel).toHaveBeenCalledWith({
             sessionId: 's1',
-            outputGrams: null,
-            inboundGrams: 820,
-            inboundIsEstimate: true,
+            roastLevel: 'Dark',
         });
+        expect(updateSession).not.toHaveBeenCalled();
     });
 
     it('does not rewrite measured output when only the level changes', async () => {
         await render({ ...session, output_weight_grams: 850, roast_level: 'Medium' });
         await setControl('history-level', 'Dark');
-        expect(updateSession).toHaveBeenCalledWith({ id: 's1', roast_level: 'Dark' });
-        expect(setOutputWeight).not.toHaveBeenCalled();
+        expect(setRoastLevel).toHaveBeenCalledWith({ sessionId: 's1', roastLevel: 'Dark' });
+        expect(updateSession).not.toHaveBeenCalled();
+    });
+
+    it('restores the selected level when its atomic correction fails', async () => {
+        setRoastLevel.mockRejectedValueOnce(new Error('inbound failed'));
+        await render({ ...session, roast_level: 'Medium' });
+        await setControl('history-level', 'Dark');
+        expect((host.querySelector('[data-testid="history-level"]') as HTMLSelectElement).value).toBe('Medium');
+        expect(updateSession).not.toHaveBeenCalled();
     });
 
     it('leaves origin read-only when the roast has no bean', async () => {

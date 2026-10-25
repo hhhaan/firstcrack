@@ -90,7 +90,12 @@ export const MetricTrendChart = ({ data, label, formatValue = String }: MetricTr
                     connectNulls: false,
                     lineStyle: { color: colorLine, width: 1.5 },
                     itemStyle: { color: colorLine },
-                    emphasis: { scale: false },
+                    // ECharts cannot derive emphasis colors from OKLCH tokens.
+                    emphasis: {
+                        scale: false,
+                        lineStyle: { color: colorLine },
+                        itemStyle: { color: colorLine },
+                    },
                 },
             ],
         };

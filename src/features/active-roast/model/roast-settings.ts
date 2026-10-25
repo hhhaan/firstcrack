@@ -1,3 +1,4 @@
+import type { BatchTitleNumbering } from '@shared/types/roast';
 import type { AlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
 import type { CurveStyles } from '../lib/curve-style';
@@ -20,6 +21,7 @@ export type PidDropBehavior = 'hold' | 'zero';
 
 /** Stored roast-screen settings. Persistence and normalization live in `settings.ts`. */
 export type RoastSettings = {
+    batchTitleNumbering: BatchTitleNumbering;
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     /** Display smoothing strength, 0–100. 0 shows the sensor sample. */
@@ -53,6 +55,7 @@ export type RoastSettings = {
     showControlFan: boolean;
     /** Control band height as % of total chart height (12–40). */
     controlChartHeightPct: number;
+    mergeControlChart: boolean;
     /** Shared control Y-axis range (Drum RPM / Heat% / Fan%). */
     controlYMin: number;
     controlYMax: number;

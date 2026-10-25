@@ -1,5 +1,6 @@
 import { supabase } from '@shared/lib/supabase';
-import type { Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { Database, Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
+import type { BatchTitleNumbering } from '@shared/types/roast';
 import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
@@ -7,15 +8,28 @@ const SELECT_WITH_RELATIONS =
 
 /** Insert payload — created_by defaults to auth.uid() in DB. */
 export type RoastSessionInsert = Omit<
-    RoastSession,
-    'id' | 'created_at' | 'updated_at' | 'created_by' | 'heater_events' | 'batch_name'
+    Database['public']['Tables']['roast_sessions']['Insert'],
+    | 'id'
+    | 'created_at'
+    | 'updated_at'
+    | 'created_by'
+    | 'heater_events'
+    | 'batch_name'
+    | 'profile_batch_number'
+    | 'total_batch_number'
 > & {
     /** Client session uuid — save_roast_op idempotency key. Omit → server generates. */
     id?: string;
     batch_name?: string | null;
+    batch_title_numbering?: BatchTitleNumbering;
     created_by?: string | null;
 };
-type RoastSessionUpdate = { id: string } & Partial<Omit<RoastSession, 'id' | 'created_at' | 'updated_at' | 'user_id'>>;
+type RoastSessionUpdate = { id: string } & Partial<
+    Omit<
+        RoastSession,
+        'id' | 'created_at' | 'updated_at' | 'user_id' | 'profile_id' | 'profile_batch_number' | 'total_batch_number'
+    >
+>;
 
 interface PaginatedParams {
     userId: string;
@@ -246,18 +260,11 @@ export const roastSessionApi = {
     },
 
     /** Atomic: set output_weight_grams + upsert roasted inbound. */
-    setOutputWeight: async (p: {
-        sessionId: string;
-        outputGrams: number | null;
-        inboundGrams: number;
-        inboundIsEstimate: boolean;
-    }): Promise<void> => {
+    setOutputWeight: async (p: { sessionId: string; outputGrams: number | null }): Promise<void> => {
         // Gen types mark integer args non-null; SQL accepts null to clear measured output.
-        const { error } = await supabase.rpc('set_session_output_weight', {
+        const { error } = await supabase.rpc('correct_session_output_weight', {
             p_session_id: p.sessionId,
             p_output_grams: p.outputGrams as number,
-            p_inbound_grams: p.inboundGrams,
-            p_inbound_is_estimate: p.inboundIsEstimate,
         });
         if (error) throw error;
     },
@@ -267,17 +274,19 @@ export const roastSessionApi = {
      * upserts roasted inbound for the new green weight. Does not touch a
      * batch-level deduct.
      */
-    setChargeWeight: async (p: {
-        sessionId: string;
-        weightGrams: number;
-        inboundGrams: number;
-        inboundIsEstimate: boolean;
-    }): Promise<void> => {
-        const { error } = await supabase.rpc('set_session_charge_weight', {
+    setChargeWeight: async (p: { sessionId: string; weightGrams: number }): Promise<void> => {
+        const { error } = await supabase.rpc('correct_session_charge_weight', {
             p_session_id: p.sessionId,
             p_weight_grams: p.weightGrams,
-            p_inbound_grams: p.inboundGrams,
-            p_inbound_is_estimate: p.inboundIsEstimate,
+        });
+        if (error) throw error;
+    },
+
+    /** Atomic level correction; measured output is preserved. */
+    setRoastLevel: async (p: { sessionId: string; roastLevel: string | null }): Promise<void> => {
+        const { error } = await supabase.rpc('set_session_roast_level', {
+            p_session_id: p.sessionId,
+            p_roast_level: p.roastLevel as string,
         });
         if (error) throw error;
     },

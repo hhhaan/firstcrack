@@ -13,10 +13,10 @@ export const Pricing = ({ onNavigate }: { onNavigate?: (view: View) => void }) =
 
     return (
         <PageLayout>
-            <PageHeader title={t('pricing.title')} subtitle={t('pricing.subtitle')} />
+            <PageHeader title={t('pricing.title')} />
 
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
-                <div className="order-1 xl:order-2 xl:sticky xl:top-6">
+            <div className="grid min-w-[1040px] grid-cols-[minmax(0,1fr)_360px] gap-6 items-start">
+                <div className="order-2 sticky top-6">
                     <PricingResultPanel
                         marginPct={calc.displayMargin}
                         onMarginChange={calc.handleMarginChange}
@@ -31,7 +31,7 @@ export const Pricing = ({ onNavigate }: { onNavigate?: (view: View) => void }) =
                     />
                 </div>
 
-                <div className="order-2 xl:order-1 flex min-w-0 flex-col gap-6">
+                <div className="order-1 flex min-w-0 flex-col gap-6">
                     <SourcePanel
                         mode={calc.mode}
                         onModeChange={calc.handleModeChange}

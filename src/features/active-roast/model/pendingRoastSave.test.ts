@@ -27,6 +27,16 @@ beforeEach(() => {
     vi.restoreAllMocks();
 });
 describe('durable per-session recovery', () => {
+    it('preserves the display preference without deriving numbers from legacy titles', () => {
+        writePendingRoastSave(createPendingRoastSave({ ...params, batchTitleNumbering: 'both' }, true));
+        expect(readPendingRoastSave('owner', params.sessionId)?.params).toMatchObject({
+            batchTitleNumbering: 'both',
+        });
+        writePendingRoastSave(
+            createPendingRoastSave({ ...params, formData: { ...params.formData, batchName: 'Legacy #99' } }, true),
+        );
+        expect(readPendingRoastSave('owner', params.sessionId)?.params).not.toHaveProperty('profileBatchNumber');
+    });
     it('clearing A preserves B and foreign-owner A', () => {
         const a = createPendingRoastSave(params, true);
         const b = createPendingRoastSave({ ...params, sessionId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' }, true);

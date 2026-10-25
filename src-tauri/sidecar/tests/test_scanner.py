@@ -42,7 +42,11 @@ async def test_scan_protocol_unknown():
         await scan_protocol("nope")
 
 
+<<<<<<< HEAD
 async def _close_client(_reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+=======
+async def _close_client(_reader, writer):
+>>>>>>> origin/main
     writer.close()
     await writer.wait_closed()
 

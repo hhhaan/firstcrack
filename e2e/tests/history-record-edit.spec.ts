@@ -32,6 +32,44 @@ const seed = (db: MockDb) => {
 };
 
 test.describe('history record edit (#623)', () => {
+    test('oversized compound notes keep every value available with keyboard scrolling', async ({
+        authedPage: page,
+        db,
+    }) => {
+        await page.setViewportSize({ width: 1024, height: 680 });
+        const session = seed(db);
+        const note = `${'한글메모'.repeat(120)} 마지막값`;
+        (session.events as Record<string, unknown>[])[1] = {
+            id: 'n',
+            type: 'Note',
+            time_sec: 30,
+            gas: '0',
+            airflow: '1.234 kPa',
+            drum: '55.5',
+            note,
+        };
+        await goNav(page, 'history');
+        await page.getByText('E2E History Bean').first().click();
+        const trigger = page.getByRole('button', { name: 'Event details', exact: true });
+        await trigger.click();
+        const details = page.getByRole('group', { name: 'Event details', exact: true });
+        await expect(details).toContainText('Gas 0');
+        await expect(details).toContainText('Airflow 1.234 kPa');
+        await expect(details).toContainText('Drum 55.5 RPM');
+        await expect(details).toContainText(note);
+        await expect.poll(() => details.evaluate((el) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(0);
+        await details.focus();
+        await page.keyboard.press('End');
+        await expect.poll(() => details.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
+        const box = await details.boundingBox();
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(680);
+        await page.keyboard.press('Escape');
+        await expect(details).toBeHidden();
+        await expect(trigger).toBeFocused();
+        expect((session.events as Record<string, unknown>[])[1].note).toBe(note);
+    });
+
     test('edit key events → validation → save → persisted, stock untouched', async ({ authedPage: page, db }) => {
         const session = seed(db);
         const stockBefore = db.stockEvents.length;

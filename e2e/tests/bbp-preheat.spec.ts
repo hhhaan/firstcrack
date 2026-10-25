@@ -102,7 +102,9 @@ test('reload during first-batch preheat restarts the curve near zero', async ({ 
     const before = await page.evaluate(() => window.__FC_E2E__?.bbpLive?.());
 
     await page.reload();
-    expect(await page.evaluate(() => performance.getEntriesByType('navigation')[0]?.type)).toBe('reload');
+    expect(
+        await page.evaluate(() => (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming)?.type),
+    ).toBe('reload');
     await expect(page.getByTestId('app-sidebar')).toBeVisible({ timeout: 20_000 });
     await goNav(page, 'roast');
     await expect(status).toBeVisible({ timeout: 20_000 });

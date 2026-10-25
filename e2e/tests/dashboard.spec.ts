@@ -5,7 +5,8 @@ test('dashboard metrics use saved roasts and remain readable at desktop sizes', 
     authedPage: page,
     db,
 }, testInfo) => {
-    const today = new Date();
+    await page.clock.setFixedTime(new Date(2026, 9, 22, 12));
+    const today = new Date(2026, 9, 22);
     today.setHours(0, 0, 0, 0);
     const previousMonth = new Date(today.getFullYear(), today.getMonth() - 1, 15);
     for (const [date, weight, duration] of [
@@ -52,7 +53,28 @@ test('dashboard metrics use saved roasts and remain readable at desktop sizes', 
         const content = page.getByTestId('app-content');
         await expect.poll(() => content.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
         await expect(metrics.getByRole('heading')).toHaveCount(4);
+        const chart = weight.getByRole('img');
+        const countBluePixels = () =>
+            chart.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+                const context = canvas.getContext('2d');
+                if (!context) throw new Error('Missing chart canvas context');
+                const { data } = context.getImageData(0, 0, Math.floor(canvas.width / 3), canvas.height);
+                let bluePixels = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] > 0 && data[i + 1] > data[i] * 1.2 && data[i + 2] > data[i + 1] * 1.05) {
+                        bluePixels++;
+                    }
+                }
+                return bluePixels;
+            });
+        await page.mouse.move(0, 0);
+        await expect.poll(countBluePixels).toBeGreaterThan(20);
+        const beforeHover = await countBluePixels();
+        const bounds = await chart.boundingBox();
+        if (!bounds) throw new Error('Missing chart bounds');
+        await page.mouse.move(bounds.x + bounds.width * 0.75, bounds.y + bounds.height * 0.5);
         await page.screenshot({ path: testInfo.outputPath(`dashboard-${width}.png`), animations: 'disabled' });
+        expect(await countBluePixels()).toBeGreaterThan(beforeHover * 0.8);
     }
     await page.getByRole('button', { name: en.dashboard.viewAll, exact: true }).click();
     await expect(page.getByTestId('nav-history')).toHaveAttribute('aria-current', 'page');

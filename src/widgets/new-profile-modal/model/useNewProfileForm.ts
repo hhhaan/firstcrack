@@ -12,13 +12,13 @@ import {
     summarizeSessionEvents,
 } from '@entities/roast-profile';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { useFormEscape } from '@shared/lib/useFormEscape';
 import type { RoastProfile } from '@shared/types/database.types';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { fmtDate } from '../lib/format';
 import { INITIAL_PROFILE_FORM, type ProfileFormMode, type ProfileFormState } from '../lib/types';
 
 interface UseNewProfileFormArgs {
-    open: boolean;
     onClose: () => void;
     onCreated: (profile: RoastProfile) => void;
     editingProfile?: RoastProfileWithSource | null;
@@ -34,12 +34,9 @@ export type NewProfileFormFields = {
     sources: ProfileSource[];
 };
 
-/** Close/unmount must return the session picker — leftover create values caused #471. */
-export const resolveNewProfileFormState = (
-    open: boolean,
-    editingProfile?: RoastProfileWithSource | null,
-): NewProfileFormFields => {
-    if (!open || !editingProfile) {
+/** The keyed modal owns reset: each open starts a fresh draft. */
+export const resolveNewProfileFormState = (editingProfile?: RoastProfileWithSource | null): NewProfileFormFields => {
+    if (!editingProfile) {
         return {
             mode: 'session-list',
             form: INITIAL_PROFILE_FORM,
@@ -60,14 +57,13 @@ export const resolveNewProfileFormState = (
 };
 
 export const useNewProfileForm = ({
-    open,
     onClose,
     onCreated,
     editingProfile,
     onUpdated,
     initialSessionId,
 }: UseNewProfileFormArgs) => {
-    const initial = resolveNewProfileFormState(open, editingProfile);
+    const initial = resolveNewProfileFormState(editingProfile);
     const [mode, setMode] = useState<ProfileFormMode>(initial.mode);
     const [form, setForm] = useState<ProfileFormState>(initial.form);
     const [selectedSessionId, setSelectedSessionId] = useState<string | null>(initial.selectedSessionId);
@@ -75,31 +71,11 @@ export const useNewProfileForm = ({
     const nameRef = useRef<HTMLInputElement>(null);
 
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed', { enabled: open });
-    const { data: beans = [] } = useBeans(workspaceOwnerId, { enabled: open });
-    const { data: blends = [] } = useBlends(workspaceOwnerId, { enabled: open });
+    const { data: sessions = [] } = useRoastSessions(workspaceOwnerId, 'completed');
+    const { data: beans = [] } = useBeans(workspaceOwnerId);
+    const { data: blends = [] } = useBlends(workspaceOwnerId);
 
-    // Derive initial state from props during render to avoid stale UI commits
-    const [prevOpen, setPrevOpen] = useState(open);
-    const [prevEditingProfile, setPrevEditingProfile] = useState(editingProfile);
-    if (open !== prevOpen || editingProfile !== prevEditingProfile) {
-        setPrevOpen(open);
-        setPrevEditingProfile(editingProfile);
-        const next = resolveNewProfileFormState(open, editingProfile);
-        setMode(next.mode);
-        setForm(next.form);
-        setSelectedSessionId(next.selectedSessionId);
-        setSources(next.sources);
-    }
-
-    useEffect(() => {
-        if (!open) return undefined;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [open, onClose]);
+    useFormEscape(true, onClose);
 
     useEffect(() => {
         if (mode === 'from-session') {
@@ -130,10 +106,10 @@ export const useNewProfileForm = ({
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: handleSessionSelect는 렌더마다 재생성 — mode 가드로 1회만 실행
     useEffect(() => {
-        if (open && initialSessionId && !editingProfile && mode === 'session-list' && sessions.length > 0) {
+        if (initialSessionId && !editingProfile && mode === 'session-list' && sessions.length > 0) {
             handleSessionSelect(initialSessionId);
         }
-    }, [open, initialSessionId, editingProfile, mode, sessions.length]);
+    }, [initialSessionId, editingProfile, mode, sessions.length]);
 
     const selectedSession = selectedSessionId ? (sessions.find((s) => s.id === selectedSessionId) ?? null) : null;
 

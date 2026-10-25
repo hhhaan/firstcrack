@@ -82,7 +82,7 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
             </div>
 
             <div className="mb-6 pr-10">
-                <h2 className="font-(--font-display) text-[26px] leading-[1.2] text-primary tracking-[0.24px] mb-1">
+                <h2 className="font-(--font-display) text-3xl font-normal leading-9 text-primary tracking-[0.24px] mb-1">
                     {blend.name}
                 </h2>
                 <div className="flex gap-1.5 flex-wrap">

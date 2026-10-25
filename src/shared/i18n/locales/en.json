@@ -455,6 +455,8 @@
                 "customRorTicksError": "Enter up to 100 valid numbers within −100–300°C/min.",
                 "controlChart": "Control Chart",
                 "controlChartDescription": "Control chart series and axis range. Chart visibility is set under Data Visibility.",
+                "mergeControlChart": "Merge into temperature chart",
+                "mergeControlChartDescription": "Overlay control curves in the bottom 25% of the temperature chart. Turn off to show them separately below.",
                 "controlDrum": "Drum",
                 "controlDrumDescription": "Drum RPM series on the control band",
                 "controlHeat": "Heat",
@@ -497,7 +499,7 @@
                 "alertsEnabled": "Enable alarms",
                 "alertsEnabledDescription": "Show a warning banner during the roast.",
                 "alertSound": "Alarm sound",
-                "alertSoundDescription": "Beep when an alarm first triggers.",
+                "alertSoundDescription": "Play a sound when TP is detected or an alarm first triggers.",
                 "alertSoundKind": "Alarm tone",
                 "alertSoundKindDescription": "Use Preview to check it cuts through the roastery noise.",
                 "alertSoundPreview": "Preview",
@@ -948,6 +950,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "Batch title numbering",
+            "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",
+            "profile": "Profile total",
+            "total": "Overall total",
+            "both": "Profile + overall",
+            "none": "No number"
+        },
         "noteEntry": {
             "events": "Events",
             "eventRecorded": "Recorded: {{event}}",
@@ -964,6 +974,9 @@
         },
         "autoChargeHeld": "Automatic Charge starts once the temperature recovers. Press Charge to start now.",
         "header": {
+            "batchTitle": "Roast title",
+            "sourceChangeTitle": "Change roast source",
+            "sourceChangeUnlinks": "Changing the source unlinks this batch from its schedule.",
             "profileSources": "Profile sources",
             "noBeanSelected": "No bean selected",
             "target": "Target:",
@@ -993,6 +1006,13 @@
         "log": {
             "expand": "Expand roast log",
             "collapse": "Collapse roast log",
+            "source": "Log source",
+            "current": "Current",
+            "reference": "Profile",
+            "referenceLoading": "Loading recorded events.",
+            "referenceError": "Could not load profile records.",
+            "referenceEmpty": "No recorded events.",
+            "referenceLiveContinues": "The live roast continues recording while you view this log.",
             "title": "Roast Log",
             "editRangeHint": "Enter time as m:ss and temperature within the measured curve range.",
             "deleteNote": "Delete note"
@@ -1215,6 +1235,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "MMM d, yyyy (eee)",
         "monthFormat": "MMMM yyyy",
         "weekDateFormat": "M/d",
@@ -1376,6 +1397,9 @@
     },
     "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     "history": {
+        "batchNumbers": {
+            "label": "Batch numbers"
+        },
         "title": "Roast History",
         "subtitle": "{{count}} sessions recorded",
         "subtitleLoading": "Loading...",
@@ -1428,6 +1452,10 @@
             "summary": "Summary",
             "colorWhole": "Color (whole)",
             "colorGround": "Color (ground)",
+            "colorReadingsHint": "Separate multiple readings with commas.",
+            "colorAverage_one": "Average {{value}} · {{count}} reading",
+            "colorAverage_other": "Average {{value}} · {{count}} readings",
+            "colorInvalidNumbers": "Enter numbers separated by commas.",
             "colorTooLong": "Color text is too long.",
             "keyEvents": "Key events",
             "heatRecord": "Heat record",
@@ -1451,7 +1479,6 @@
             "noCurves": "No curve data in selected sessions",
             "noCurveData": "No curve data",
             "events": "Events",
-            "tempAndRor": "Temp & RoR",
             "phases": "Phases",
             "phaseDrying": "Drying",
             "phaseMaillard": "Maillard",
@@ -1466,7 +1493,24 @@
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
             "level": "Level",
-            "weight": "Weight"
+            "weight": "Weight",
+            "workspaceHint": "Compare roast curves and batch results in one place.",
+            "chartHint": "Move cursor · Scroll to zoom · Hover a batch to highlight",
+            "chartKeyboardHint": "Use Left and Right arrows to move through time. Home moves to the start, End to the end.",
+            "roasts": "Roasts ({{count}})",
+            "display": "Display",
+            "roastGraph": "Roast graph",
+            "otherGraphs": "Other graphs",
+            "sections": "Table",
+            "modulation": "Modulation chart",
+            "controlChart": "Control chart",
+            "statistics": "Statistics",
+            "metrics": "Batch comparison",
+            "batch": "Roast batch",
+            "sensors": "Sensors",
+            "temperatures": "Temperature",
+            "resetZoom": "Reset zoom",
+            "noSelectedSensorData": "No recorded values for this sensor in the visible batches."
         },
         "cupping": {
             "title": "Cupping",
@@ -1813,7 +1857,6 @@
     },
     "pricing": {
         "title": "Margin Calculator",
-        "subtitle": "Calculate roasted cost and set selling price by margin",
         "source": {
             "title": "Source",
             "mode": {
@@ -2018,7 +2061,6 @@
     },
     "orders": {
         "title": "Orders",
-        "subtitle": "Pull store orders, see what to roast, and manage finished goods.",
         "loading": "Loading…",
         "locked": {
             "subtitle": "E-commerce order integration",

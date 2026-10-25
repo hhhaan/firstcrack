@@ -1,5 +1,5 @@
+import { createDevicePreference } from './device-preference';
 import { logger } from './logger';
-import { settingsGet, settingsSet } from './settings-store';
 
 export const PRICING_FIXED_OVERHEADS_KEY = 'pricing.fixedOverheads';
 
@@ -40,32 +40,8 @@ const readLocal = (): StoredFixedOverhead[] => {
     }
 };
 
-const writeLocal = (items: StoredFixedOverhead[]) => {
-    try {
-        localStorage.setItem(PRICING_FIXED_OVERHEADS_KEY, JSON.stringify(items));
-    } catch (err) {
-        /* web dev fallback only */
-        logger.capture(err, { scope: 'pricingStore.writeLocal' });
-    }
-};
+const preference = createDevicePreference(PRICING_FIXED_OVERHEADS_KEY, readLocal(), normalize);
 
-export const pricingStore = {
-    getFixedOverheads: async (): Promise<StoredFixedOverhead[]> => {
-        const val = await settingsGet<unknown>(PRICING_FIXED_OVERHEADS_KEY);
-        const items = normalize(val);
-        // Empty array may be a first-run store miss — fall through to localStorage.
-        if (items.length > 0) return items;
-        return readLocal();
-    },
-
-    setFixedOverheads: async (items: StoredFixedOverhead[]): Promise<void> => {
-        const safe = normalize(items);
-        try {
-            writeLocal(safe);
-        } catch (err) {
-            logger.capture(err, { scope: 'pricingStore.setFixedOverheads' });
-            /* quota / private mode */
-        }
-        await settingsSet(PRICING_FIXED_OVERHEADS_KEY, safe);
-    },
-};
+export const useFixedOverheads = preference.useValue;
+export const getFixedOverheads = preference.get;
+export const setFixedOverheads = preference.update;

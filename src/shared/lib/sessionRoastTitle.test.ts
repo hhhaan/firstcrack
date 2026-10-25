@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { sessionDistinctTitle, sessionRoastTitle } from './sessionRoastTitle';
+import { sessionBatchNumberLabel, sessionDistinctTitle, sessionRoastTitle } from './sessionRoastTitle';
+
+it('renders independent batch metadata and leaves unknown legacy numbers empty', () => {
+    expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: 13 })).toBe('#9 · Σ#13');
+    expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: 13 })).toBe('Σ#13');
+    expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: null })).toBe('#9');
+    expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: null })).toBeNull();
+});
 
 it('keeps batch titles separate from linked beans with a consistent legacy fallback', () => {
     const session = { batch_name: '  Batch C ', bean_label: 'Legacy title', beans: { name: 'Green B' } };

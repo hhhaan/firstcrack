@@ -7,7 +7,8 @@ import {
 } from '@entities/roast';
 import { useCreateRoastProfile } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
-import { formatDateShort } from '@shared/lib/format';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
+import { formatDateTimeShort } from '@shared/lib/format';
 import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastProfile } from '@shared/types/database.types';
@@ -28,8 +29,6 @@ import { HistorySessionDetail } from './ui/HistorySessionDetail';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 import { SessionCompareModal } from './ui/SessionCompareModal';
-
-const MAX_COMPARE = 4;
 
 const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
@@ -185,7 +184,11 @@ export const History = () => {
     const handleRowClick = (id: string): void => {
         if (compareMode) {
             setCompareIds((prev) =>
-                prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= MAX_COMPARE ? prev : [...prev, id],
+                prev.includes(id)
+                    ? prev.filter((x) => x !== id)
+                    : prev.length >= COMPARE_COLORS.length
+                      ? prev
+                      : [...prev, id],
             );
             return;
         }
@@ -249,11 +252,11 @@ export const History = () => {
         : null;
     const handleConfirmDelete = useCallback(() => {
         if (!deletingId) return;
-        deleteSession.mutate(deletingId, {
-            onSuccess: () => {
-                setDeletingId(null);
-                setSelectedId((prev) => (prev === deletingId ? null : prev));
-            },
+        const id = deletingId;
+        setDeletingId(null);
+        setSelectedId((prev) => (prev === id ? null : prev));
+        deleteSession.mutate(id, {
+            onError: () => setDeletingId((current) => current ?? id),
         });
     }, [deletingId, deleteSession]);
 
@@ -291,7 +294,9 @@ export const History = () => {
     return (
         <PageLayout>
             <div data-testid="history-page" className="contents">
-                {selectedSession ? (
+                {showCompare && compareSessions.length >= 2 ? (
+                    <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
+                ) : selectedSession ? (
                     <HistorySessionDetail
                         session={selectedSession}
                         onBack={() => setSelectedId(null)}
@@ -376,9 +381,6 @@ export const History = () => {
                         {renderContent()}
                     </>
                 )}
-                {showCompare && compareSessions.length >= 2 && (
-                    <SessionCompareModal sessions={compareSessions} onClose={() => setShowCompare(false)} />
-                )}
                 {promoteSessionId != null && (
                     <NewProfileModal
                         open
@@ -391,7 +393,7 @@ export const History = () => {
                     open={deletingId !== null}
                     sessionName={
                         deletingSession
-                            ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateShort(deletingSession.roasted_at)})`.trim()
+                            ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateTimeShort(deletingSession.roasted_at)})`.trim()
                             : ''
                     }
                     isLoading={deleteSession.isPending}

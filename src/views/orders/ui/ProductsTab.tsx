@@ -15,8 +15,7 @@ export function ProductsTab() {
     const { t } = useTranslation();
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: products = [] } = useProducts(userId);
-    const [addOpen, setAddOpen] = useState(false);
-    const [editing, setEditing] = useState<Product | null>(null);
+    const [form, setForm] = useState<Product | 'new' | null>(null);
     // ProductsTable's empty state carries its own "new product" CTA; without this the two would
     // stack in the same column (in Beans they don't collide — that button lives in the PageHeader).
     const hasActive = products.some((p) => p.is_active);
@@ -26,10 +25,7 @@ export function ProductsTab() {
             {hasActive ? (
                 <div className="flex justify-end">
                     <SurfaceButton
-                        onClick={() => {
-                            setEditing(null);
-                            setAddOpen(true);
-                        }}
+                        onClick={() => setForm('new')}
                         icon={<Plus size={14} strokeWidth={2} />}
                         className="px-4 py-2"
                     >
@@ -38,12 +34,7 @@ export function ProductsTab() {
                 </div>
             ) : null}
 
-            <ProductsTable
-                addOpen={addOpen}
-                onAddOpenChange={setAddOpen}
-                editing={editing}
-                onEditingChange={setEditing}
-            />
+            <ProductsTable form={form} onFormChange={setForm} />
         </div>
     );
 }

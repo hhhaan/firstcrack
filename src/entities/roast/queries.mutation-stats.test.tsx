@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { roastProfileQueryRoots } from '@shared/lib/query-keys';
+import { blendQueryRoots, roastProfileQueryRoots } from '@shared/lib/query-keys';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -92,6 +92,49 @@ describe('roast mutations refresh profile stats', () => {
         expect(qc.getQueryState(consistencyKey)?.isInvalidated).toBe(true);
     };
 
+    it('updates the blend join optimistically and restores the single source if persistence fails', async () => {
+        const key = roastSessionKeys.all(uid);
+        const single = {
+            id: 's1',
+            status: 'completed',
+            bean_id: 'bean-1',
+            blend_id: null,
+            beans: { name: 'Single' },
+            blends: null,
+        };
+        qc.setQueryData(key, [single]);
+        qc.setQueryData([...blendQueryRoots.all, uid], [{ id: 'blend-1', name: 'House blend' }]);
+        let finish = () => {};
+        const gate = new Promise<void>((resolve) => {
+            finish = resolve;
+        });
+        vi.mocked(roastSessionApi.update).mockImplementationOnce(async () => {
+            await gate;
+            throw new Error('save failed');
+        });
+        await act(async () =>
+            root.render(
+                <QueryClientProvider client={qc}>
+                    <Probe />
+                </QueryClientProvider>,
+            ),
+        );
+        let pending: Promise<unknown> = Promise.resolve();
+        await act(async () => {
+            pending = latest.update
+                .mutateAsync({ id: 's1', bean_id: null, blend_id: 'blend-1' })
+                .catch(() => undefined);
+        });
+        expect(qc.getQueryData(key)).toMatchObject([
+            { bean_id: null, blend_id: 'blend-1', beans: null, blends: { name: 'House blend' } },
+        ]);
+        await act(async () => {
+            finish();
+            await pending;
+        });
+        expect(qc.getQueryData(key)).toEqual([single]);
+    });
+
     it('save, update, delete, output weight, and record edit share one stats invalidation', async () => {
         await act(async () => {
             root.render(
@@ -115,16 +158,12 @@ describe('roast mutations refresh profile stats', () => {
             latest.weight.mutateAsync({
                 sessionId: 's1',
                 outputGrams: 850,
-                inboundGrams: 850,
-                inboundIsEstimate: false,
             }),
         );
         await run(() =>
             latest.charge.mutateAsync({
                 sessionId: 's1',
                 weightGrams: 900,
-                inboundGrams: 740,
-                inboundIsEstimate: true,
             }),
         );
         await run(() =>
@@ -171,10 +210,6 @@ describe('roast mutations refresh profile stats', () => {
 
     it('patches the history page before the server answers', async () => {
         qc.setQueryData(pageKey, { data: [row], total: 1 });
-        qc.setQueryData(
-            [...roastProfileQueryRoots.profiles, uid],
-            [{ id: 'p1', name: 'Washed', target_level: 'Light' }],
-        );
         let release: (() => void) | undefined;
         const gate = () =>
             new Promise<void>((resolve) => {
@@ -190,12 +225,12 @@ describe('roast mutations refresh profile stats', () => {
 
         let pending: Promise<unknown> = Promise.resolve();
         await act(async () => {
-            pending = latest.update.mutateAsync({ id: 's1', notes: 'next', profile_id: 'p1' });
+            pending = latest.update.mutateAsync({ id: 's1', notes: 'next' });
         });
         for (let i = 0; i < 20 && pageRow().notes !== 'next'; i++) await flush();
         expect(pageRow().notes).toBe('next');
-        expect(pageRow().profile_id).toBe('p1');
-        expect(pageRow().roast_profiles).toEqual({ name: 'Washed', target_level: 'Light' });
+        expect(pageRow().profile_id).toBe(row.profile_id);
+        expect(pageRow().roast_profiles).toEqual(row.roast_profiles);
 
         await act(async () => {
             release?.();
@@ -235,8 +270,6 @@ describe('roast mutations refresh profile stats', () => {
             pending = latest.weight.mutateAsync({
                 sessionId: 's1',
                 outputGrams: 850,
-                inboundGrams: 850,
-                inboundIsEstimate: false,
             });
         });
         for (let i = 0; i < 20 && pageRow().output_weight_grams !== 850; i++) await flush();
@@ -252,8 +285,6 @@ describe('roast mutations refresh profile stats', () => {
             pending = latest.charge.mutateAsync({
                 sessionId: 's1',
                 weightGrams: 900,
-                inboundGrams: 740,
-                inboundIsEstimate: true,
             });
         });
         for (let i = 0; i < 20 && pageRow().weight_grams !== 900; i++) await flush();
@@ -289,16 +320,12 @@ describe('roast mutations refresh profile stats', () => {
         expect(pageRow().drop_temp_celsius).toBe(180);
 
         await act(async () => {
-            await latest.weight
-                .mutateAsync({ sessionId: 's1', outputGrams: 850, inboundGrams: 850, inboundIsEstimate: false })
-                .catch(() => undefined);
+            await latest.weight.mutateAsync({ sessionId: 's1', outputGrams: 850 }).catch(() => undefined);
         });
         expect(pageRow().output_weight_grams).toBeNull();
 
         await act(async () => {
-            await latest.charge
-                .mutateAsync({ sessionId: 's1', weightGrams: 900, inboundGrams: 740, inboundIsEstimate: true })
-                .catch(() => undefined);
+            await latest.charge.mutateAsync({ sessionId: 's1', weightGrams: 900 }).catch(() => undefined);
         });
         expect(pageRow().weight_grams).toBe(1000);
     });

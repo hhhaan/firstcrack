@@ -3,14 +3,16 @@ export type { RoastSessionFilterMeta, RoastSessionInsert } from './api';
 export { roastSessionApi } from './api';
 export { useBbpCurve, useHistoryChart, useHistoryCharts } from './chart-queries';
 export {
-    applyOptimisticSessionBeanOrigin,
+    beginOptimisticSessionBeanOrigin,
+    finishOptimisticRoastSessionEdit,
+    revertOptimisticRoastSessionEdit,
+} from './historyOptimistic';
+export {
     invalidateAfterCreateRoastSession,
     invalidateRoastSessionQueries,
     isRoastRecordConflict,
     patchRoastSessionTsvPaths,
-    restoreRoastSessionCaches,
     roastSessionKeys,
-    snapshotRoastSessionCaches,
     useCompletedMonthSessionCount,
     useCompletedSessionCount,
     useDeleteRoastSession,
@@ -21,6 +23,7 @@ export {
     useRoastSessionsPaginated,
     useSetChargeWeight,
     useSetOutputWeight,
+    useSetRoastLevel,
     useUpdateRoastRecord,
     useUpdateRoastSession,
 } from './queries';

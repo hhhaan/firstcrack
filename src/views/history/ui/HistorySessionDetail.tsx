@@ -1,7 +1,7 @@
-import { sessionBeanName } from '@entities/roast';
 import { formatTemp, useRoastSettings } from '@features/active-roast';
-import { formatDateShort, formatDuration } from '@shared/lib/format';
+import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
+import { sessionBatchNumberLabel } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { ChevronLeft, FileText, Package } from 'lucide-react';
@@ -29,7 +29,6 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
     const { t } = useTranslation();
     const [exportContainer, setExportContainer] = useState<HTMLDivElement | null>(null);
     const { temperatureUnit } = useRoastSettings();
-    const beanName = sessionBeanName(session);
     const metrics = sessionRoastMetrics(session);
     const results = [
         { label: 'history.table.duration', value: formatDuration(metrics.roastDurationSec) },
@@ -52,11 +51,20 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                 <div className="min-w-0 flex-1">
                     <RecordTitleEditor key={session.id} session={session} />
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
-                        {beanName && <span>{formatDateShort(session.roasted_at)}</span>}
+                        <span>{formatDateTimeShort(session.roasted_at)}</span>
                         {session.beans?.origin && (
                             <span className="text-[12px] text-secondary">{session.beans.origin}</span>
                         )}
                         {session.roast_level && <Badge tone="neutral">{session.roast_level}</Badge>}
+                        {sessionBatchNumberLabel(session) && (
+                            <span
+                                data-testid="history-batch-numbers"
+                                className="font-mono"
+                                title={t('history.batchNumbers.label')}
+                            >
+                                {sessionBatchNumberLabel(session)}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -91,15 +99,15 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                     <SessionScorecard session={session} />
                     <RecordSections session={session} />
                 </div>
-                <aside className="grid min-w-0 gap-5 @min-[640px]:grid-cols-2 @min-[1000px]:grid-cols-1">
-                    <section className="min-w-0 rounded-2xl border border-border bg-surface-warm p-5">
-                        <h2 className="m-0 mb-5 flex items-center gap-2 text-[13px] font-semibold text-primary">
+                <aside className="grid min-w-0 gap-4 @min-[640px]:grid-cols-2 @min-[1000px]:grid-cols-1">
+                    <section className="min-w-0 rounded-2xl border border-border bg-surface-warm p-4">
+                        <h2 className="m-0 mb-3 flex items-center gap-2 text-[13px] font-semibold text-primary">
                             <Package size={15} strokeWidth={1.5} className="text-muted" />
                             {t('history.expanded.summary')}
                         </h2>
                         <SummaryMetaEditor key={session.id} session={session} />
-                        <div className="mt-5 space-y-4 border-t border-border-subtle pt-5">
-                            <div className="grid grid-cols-2 gap-3">
+                        <div className="mt-3 space-y-3 border-t border-border-subtle pt-3">
+                            <div className="grid grid-cols-2 gap-2">
                                 <ChargeWeightEditor key={session.id} session={session} />
                                 <OutputWeightEditor session={session} />
                             </div>
@@ -107,8 +115,8 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                             <QcMeasurementEditor key={`qc-${session.id}`} session={session} />
                         </div>
                     </section>
-                    <section className="min-w-0 rounded-2xl border border-border bg-main-bg p-5">
-                        <h2 className="m-0 mb-4 flex items-center gap-2 text-[13px] font-semibold text-primary">
+                    <section className="min-w-0 rounded-2xl border border-border bg-main-bg p-4">
+                        <h2 className="m-0 mb-3 flex items-center gap-2 text-[13px] font-semibold text-primary">
                             <FileText size={15} strokeWidth={1.5} className="text-muted" />
                             {t('history.expanded.notes')}
                         </h2>

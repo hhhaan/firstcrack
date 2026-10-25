@@ -1,7 +1,7 @@
 import type { Machine } from '@entities/machine';
 import { parseRruleToInterval, type RecurrenceInterval } from '@shared/lib/rrule';
 import type { PlanBatchWithProgress } from '@shared/types/database.types';
-import { useEffect } from 'react';
+import { type Dispatch, type SetStateAction, useEffect, useRef } from 'react';
 import { type BatchType, DEFAULT_BATCH_SIZE, DEFAULT_YIELD } from '../lib/types';
 
 const todayDate = () => new Date();
@@ -23,7 +23,7 @@ type Params = {
     machines: Machine[];
     setDate: (d: Date | undefined) => void;
     setRecurringInterval: (v: RecurrenceInterval | null) => void;
-    setMachineId: (v: string) => void;
+    setMachineId: Dispatch<SetStateAction<string>>;
     setBatchType: (v: BatchType) => void;
     setProfileId: (v: string) => void;
     setBeanId: (v: string) => void;
@@ -53,8 +53,20 @@ export const useBatchFormReset = ({
     setNotes,
     setSourceAttempted,
 }: Params) => {
+    const initializedFor = useRef<{ batchId: string | null; dateKey: string | undefined } | null>(null);
+
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            initializedFor.current = null;
+            return;
+        }
+        const batchId = editingBatch?.id ?? null;
+        if (initializedFor.current?.batchId === batchId && initializedFor.current.dateKey === currentDateKey) {
+            const firstMachineId = machines[0]?.id;
+            if (firstMachineId) setMachineId((current) => current || firstMachineId);
+            return;
+        }
+        initializedFor.current = { batchId, dateKey: currentDateKey };
         setSourceAttempted(false);
 
         if (editingBatch) {

@@ -8,7 +8,7 @@ import {
 import { sidecar } from '@shared/lib/sidecar';
 import type { Dispatch, SetStateAction } from 'react';
 import { useEffect } from 'react';
-import type { MachineModalTab, TestState } from './types';
+import type { ConnectionTest, MachineModalTab } from './types';
 
 type Args = {
     open: boolean;
@@ -18,8 +18,7 @@ type Args = {
     isCustom: boolean;
     customProtocol: string;
     setError: (v: string) => void;
-    setTestState: (v: TestState) => void;
-    setTestMessage: (v: string) => void;
+    setConnectionTest: (value: ConnectionTest) => void;
     testConnectedRef: { current: boolean };
     setSerialPorts: Dispatch<SetStateAction<SerialPort[]>>;
     setTab: (v: MachineModalTab) => void;
@@ -39,8 +38,7 @@ export const useAddMachineFormSync = ({
     isCustom,
     customProtocol,
     setError,
-    setTestState,
-    setTestMessage,
+    setConnectionTest,
     testConnectedRef,
     setSerialPorts,
     setTab,
@@ -53,14 +51,13 @@ export const useAddMachineFormSync = ({
     useEffect(() => {
         if (!open) return;
         setError('');
-        setTestState('idle');
-        setTestMessage('');
+        setConnectionTest({ status: 'idle' });
         testConnectedRef.current = false;
         void sidecar
             .getSerialPorts()
             .catch(() => [])
             .then((ports) => setSerialPorts(ports as SerialPort[]));
-    }, [open, setError, setTestState, setTestMessage, testConnectedRef, setSerialPorts]);
+    }, [open, setError, setConnectionTest, testConnectedRef, setSerialPorts]);
 
     useEffect(() => {
         if (!open) return;

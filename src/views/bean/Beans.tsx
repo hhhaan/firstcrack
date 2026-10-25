@@ -68,20 +68,17 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
     const [activeTab, setActiveTab] = useState<InventoryTab>('green');
     const [blendModalOpen, setBlendModalOpen] = useState(false);
-    const [isBlendAddOpen, setIsBlendAddOpen] = useState(false);
-    const [editingBlend, setEditingBlend] = useState<BlendWithComponents | null>(null);
-    const [productAddOpen, setProductAddOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+    const [blendForm, setBlendForm] = useState<BlendWithComponents | 'new' | null>(null);
+    const [productForm, setProductForm] = useState<Product | 'new' | null>(null);
 
     const [tab, setTab] = useState<'single' | 'blend'>('single');
     const [search, setSearch] = useState('');
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [modalConfig, setModalConfig] = useState<{
         tab: 'new' | 'restock' | 'edit';
         beanId: string | null;
         initialData?: Bean | null;
-    }>({ tab: 'new', beanId: null });
+    } | null>(null);
 
     const openModal = (
         nextTab: 'new' | 'restock' | 'edit',
@@ -89,7 +86,6 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
         initialData: Bean | null = null,
     ) => {
         setModalConfig({ tab: nextTab, beanId, initialData });
-        setIsAddModalOpen(true);
     };
 
     const openBeanFirst = () => {
@@ -102,12 +98,11 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
             openBeanFirst();
             return;
         }
-        setIsBlendAddOpen(true);
+        setBlendForm('new');
     };
 
     const openProductAdd = () => {
-        setEditingProduct(null);
-        setProductAddOpen(true);
+        setProductForm('new');
     };
 
     const selected = visibleBeans.find((b) => b.id === selectedId) ?? visibleBeans[0] ?? null;
@@ -232,16 +227,13 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
                         hasBeans={beans.length > 0}
                         onAddOpen={openBlendAdd}
                         onNeedBeans={openBeanFirst}
-                        onEditOpen={(blend: BlendWithComponents) => setEditingBlend(blend)}
+                        onEditOpen={setBlendForm}
                     />
                     <AddBlendModal
-                        key={editingBlend?.id ?? 'new'}
-                        open={isBlendAddOpen || !!editingBlend}
-                        onClose={() => {
-                            setIsBlendAddOpen(false);
-                            setEditingBlend(null);
-                        }}
-                        editing={editingBlend}
+                        key={blendForm && blendForm !== 'new' ? blendForm.id : 'new'}
+                        open={blendForm !== null}
+                        onClose={() => setBlendForm(null)}
+                        editing={blendForm === 'new' ? null : blendForm}
                     />
                 </>
             )}
@@ -278,18 +270,20 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
     return (
         <PageLayout>
-            <AddBeanModal
-                open={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                userId={userId}
-                existingBeans={beans}
-                initialTab={modalConfig.tab}
-                initialBeanId={modalConfig.beanId}
-                initialData={modalConfig.initialData}
-                onSuccess={(bean) => {
-                    if (bean) setSelectedId(bean.id);
-                }}
-            />
+            {modalConfig && (
+                <AddBeanModal
+                    open
+                    onClose={() => setModalConfig(null)}
+                    userId={userId}
+                    existingBeans={beans}
+                    initialTab={modalConfig.tab}
+                    initialBeanId={modalConfig.beanId}
+                    initialData={modalConfig.initialData}
+                    onSuccess={(bean) => {
+                        if (bean) setSelectedId(bean.id);
+                    }}
+                />
+            )}
 
             <PageHeader title={t('beans.title')} actions={headerActions} />
 
@@ -302,12 +296,7 @@ export const Beans = ({ onNavigate, onUpgrade }: BeansProps) => {
 
             {activeTab === 'products' &&
                 (canProducts ? (
-                    <ProductsTable
-                        addOpen={productAddOpen}
-                        onAddOpenChange={setProductAddOpen}
-                        editing={editingProduct}
-                        onEditingChange={setEditingProduct}
-                    />
+                    <ProductsTable form={productForm} onFormChange={setProductForm} />
                 ) : (
                     <InventoryLocked tab="products" onUpgrade={onUpgrade} />
                 ))}

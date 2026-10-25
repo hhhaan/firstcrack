@@ -1,22 +1,13 @@
-import { useBeans, useUpdateBean } from '@entities/bean';
+import { useBeans } from '@entities/bean';
+import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
-import {
-    applyOptimisticSessionBeanOrigin,
-    invalidateRoastSessionQueries,
-    restoreRoastSessionCaches,
-    roastSessionKeys,
-    snapshotRoastSessionCaches,
-    useSetOutputWeight,
-    useUpdateRoastSession,
-} from '@entities/roast';
-import { useRoastProfiles } from '@entities/roast-profile';
-import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
+import { useSetRoastLevel, useUpdateRoastSession } from '@entities/roast';
+import { useUpdateRoastBeanOrigin } from '@features/update-roast-bean-origin';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { FormSelect } from '@shared/ui/FormSelect';
-import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoastStockRecorded } from '../hooks/useRoastStockRecorded';
@@ -33,20 +24,21 @@ const isKnownLevel = (level: string): level is (typeof ROAST_LEVELS)[number] =>
  * Freeze what is shown now so changing the bean source cannot rename the roast.
  */
 const frozenTitleFor = (session: RoastSessionWithRelations): string | null =>
-    session.batch_name?.trim() ? null : session.bean_label?.trim() || session.beans?.name?.trim() || null;
+    session.batch_name?.trim()
+        ? null
+        : session.blends?.name?.trim() || session.bean_label?.trim() || session.beans?.name?.trim() || null;
 
-/** History edit of the linked green bean, its origin, linked profile, and roast level. */
+/** History edit of the linked green bean, its origin, saved profile, and roast level. */
 export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
-    const qc = useQueryClient();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const { data: profiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: beans = [] } = useBeans(workspaceOwnerId);
+    const { data: blends = [] } = useBlends(workspaceOwnerId);
     const authUserId = useAuthStore((state) => state.user?.id ?? '');
     const { hidden: hiddenBeans } = useCatalogVisibility(authUserId, workspaceOwnerId, 'beans');
-    const { mutateAsync: updateBean, isPending: beanPending } = useUpdateBean(workspaceOwnerId);
+    const { mutateAsync: updateOrigin, isPending: beanPending } = useUpdateRoastBeanOrigin(workspaceOwnerId);
     const { mutateAsync: updateSession, isPending: sessionPending } = useUpdateRoastSession(workspaceOwnerId);
-    const { mutateAsync: setOutputWeight, isPending: weightPending } = useSetOutputWeight(workspaceOwnerId);
+    const { mutateAsync: setRoastLevel, isPending: levelPending } = useSetRoastLevel(workspaceOwnerId);
     const canWrite = isWorkspaceReady && !!workspaceOwnerId;
     // Stock that already moved stays booked to the original bean — relinking would desync the ledgers.
     const { data: stockRecorded = false, isPending: stockCheckPending } = useRoastStockRecorded(
@@ -56,32 +48,33 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     const beanLocked = stockRecorded || stockCheckPending;
     const storedOrigin = session.beans?.origin ?? '';
     const [origin, setOrigin] = useState(storedOrigin);
-    const [profileId, setProfileId] = useState(session.profile_id ?? '');
     const [level, setLevel] = useState(session.roast_level ?? '');
 
     useEffect(() => {
         setOrigin(storedOrigin);
-        setProfileId(session.profile_id ?? '');
         setLevel(session.roast_level ?? '');
-    }, [storedOrigin, session.profile_id, session.roast_level]);
+    }, [storedOrigin, session.roast_level]);
 
     const beanOptions = useMemo(() => {
+        const singleGroup = t('newProfileModal.singleOrigin');
+        const blendGroup = t('newProfileModal.blend');
         const visible = beans
             .filter((bean) => bean.id === session.bean_id || !hiddenBeans.has(bean.id))
-            .map((bean) => ({ id: bean.id, name: bean.name }));
+            .map((bean) => ({ id: bean.id, name: bean.name, group: singleGroup }));
         if (session.bean_id && !visible.some((bean) => bean.id === session.bean_id)) {
-            visible.unshift({ id: session.bean_id, name: session.beans?.name ?? session.bean_id });
+            visible.unshift({ id: session.bean_id, name: session.beans?.name ?? session.bean_id, group: singleGroup });
         }
-        return visible;
-    }, [beans, hiddenBeans, session.bean_id, session.beans?.name]);
+        const blendOptions = blends.map((blend) => ({ id: `blend:${blend.id}`, name: blend.name, group: blendGroup }));
+        if (session.blend_id && !blendOptions.some((blend) => blend.id === `blend:${session.blend_id}`)) {
+            blendOptions.unshift({
+                id: `blend:${session.blend_id}`,
+                name: session.blends?.name ?? session.blend_id,
+                group: blendGroup,
+            });
+        }
+        return [...visible, ...blendOptions];
+    }, [beans, blends, hiddenBeans, session.bean_id, session.beans?.name, session.blend_id, session.blends?.name, t]);
 
-    const profileOptions = profiles.map((profile) => ({ id: profile.id, name: profile.name }));
-    if (session.profile_id && !profileOptions.some((profile) => profile.id === session.profile_id)) {
-        profileOptions.unshift({
-            id: session.profile_id,
-            name: session.roast_profiles?.name || session.profile_id,
-        });
-    }
     const levelOptions = [...ROAST_LEVELS] as string[];
     if (session.roast_level && !isKnownLevel(session.roast_level)) levelOptions.unshift(session.roast_level);
 
@@ -90,29 +83,26 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
     const commitOrigin = async () => {
         const next = origin.trim();
         if (next === storedOrigin.trim() || !session.bean_id || !canWrite) return;
-        await qc.cancelQueries({ queryKey: roastSessionKeys.all(workspaceOwnerId) });
-        const snapshot = snapshotRoastSessionCaches(qc, workspaceOwnerId);
-        applyOptimisticSessionBeanOrigin(qc, workspaceOwnerId, session.bean_id, next === '' ? null : next);
         try {
-            await updateBean({ id: session.bean_id, origin: next === '' ? null : next });
-            await invalidateRoastSessionQueries(qc, workspaceOwnerId);
+            await updateOrigin({ id: session.bean_id, origin: next === '' ? null : next });
         } catch {
-            restoreRoastSessionCaches(qc, snapshot);
             setOrigin(storedOrigin);
         }
     };
 
     const commitBean = async (raw: string) => {
         if (beanLocked) return;
-        const next = raw === '' ? null : raw;
-        if (next === session.bean_id || !canWrite) return;
+        const blendId = raw.startsWith('blend:') ? raw.slice('blend:'.length) : null;
+        const next = blendId || raw === '' ? null : raw;
+        if ((next === (session.bean_id ?? null) && blendId === (session.blend_id ?? null)) || !canWrite) return;
         const frozenTitle = frozenTitleFor(session);
         try {
             // A linked inventory bean supersedes the free-text label in the same write.
             await updateSession({
                 id: session.id,
                 bean_id: next,
-                ...(next ? { bean_label: null } : {}),
+                blend_id: blendId,
+                ...(next || blendId ? { bean_label: null } : {}),
                 ...(frozenTitle ? { batch_name: frozenTitle } : {}),
             });
         } catch {
@@ -125,12 +115,13 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         if (beanLocked) return;
         const next = raw.trim() || null;
         if (!canWrite) return;
-        if (next === (session.bean_label?.trim() || null) && !session.bean_id) return;
+        if (next === (session.bean_label?.trim() || null) && !session.bean_id && !session.blend_id) return;
         const frozenTitle = frozenTitleFor(session);
         try {
             await updateSession({
                 id: session.id,
                 bean_id: null,
+                blend_id: null,
                 bean_label: next,
                 ...(frozenTitle ? { batch_name: frozenTitle } : {}),
             });
@@ -139,56 +130,23 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
         }
     };
 
-    const commitProfile = async (raw: string) => {
-        const next = raw === '' ? null : raw;
-        if (next === session.profile_id || !canWrite) return;
-        try {
-            await updateSession({ id: session.id, profile_id: next });
-        } catch {
-            setProfileId(session.profile_id ?? '');
-        }
-    };
-
     const commitLevel = async (raw: string) => {
         const next = raw === '' ? null : raw;
         const prev = session.roast_level ?? null;
         if (next === prev || !canWrite) return;
         try {
-            await updateSession({ id: session.id, roast_level: next });
+            await setRoastLevel({ sessionId: session.id, roastLevel: next });
         } catch {
             setLevel(prev ?? '');
             return;
         }
-        const measured = session.output_weight_grams != null && session.output_weight_grams > 0;
-        if (measured) return;
-        const inbound = buildRoastedInbound({
-            greenGrams: session.weight_grams,
-            outputWeightGrams: null,
-            roastLevel: next,
-        });
-        if (!inbound) return;
-        try {
-            await setOutputWeight({
-                sessionId: session.id,
-                outputGrams: null,
-                inboundGrams: inbound.grams,
-                inboundIsEstimate: true,
-            });
-        } catch {
-            setLevel(prev ?? '');
-            try {
-                await updateSession({ id: session.id, roast_level: prev });
-            } catch {
-                // Level saved; the previous estimate stays until the next output edit.
-            }
-        }
     };
 
-    const busy = sessionPending || weightPending;
+    const busy = sessionPending || levelPending;
 
     return (
-        <div className="space-y-4">
-            <div>
+        <div className="grid grid-cols-2 items-start gap-2">
+            <div className="col-span-2 min-w-0">
                 <label htmlFor={`history-bean-${session.id}`} className={labelCls}>
                     {t('activeRoast.summary.bean')}
                 </label>
@@ -196,9 +154,10 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     id={`history-bean-${session.id}`}
                     data-testid="history-bean"
                     items={beanOptions}
-                    selectedId={session.bean_id ?? ''}
+                    selectedId={session.blend_id ? `blend:${session.blend_id}` : (session.bean_id ?? '')}
                     initialQuery={session.bean_label ?? ''}
                     compact
+                    className="[&_input]:h-8 [&_input]:min-h-8 [&_input]:rounded-md [&_input]:py-1 [&_input]:pl-2 [&_input]:shadow-none"
                     disabled={sessionPending || !canWrite || beanLocked}
                     placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
                     emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
@@ -214,7 +173,18 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                     <p className="mt-1 mb-0 text-[11px] text-muted">{t('history.expanded.beanLocked')}</p>
                 )}
             </div>
-            <div>
+            <div className="col-span-2 min-w-0">
+                <span className={labelCls}>{t('history.table.profile')}</span>
+                <p
+                    id={`history-profile-${session.id}`}
+                    data-testid="history-profile"
+                    className="m-0 text-[13px] text-secondary"
+                >
+                    {session.roast_profiles?.name || '—'}
+                    {session.profile_batch_number != null && ` #${session.profile_batch_number}`}
+                </p>
+            </div>
+            <div className="min-w-0">
                 <label htmlFor={`history-origin-${session.id}`} className={labelCls}>
                     {t('history.expanded.origin')}
                 </label>
@@ -231,37 +201,13 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') e.currentTarget.blur();
                         }}
-                        className="w-full rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary outline-none focus:border-border"
+                        className="h-8 w-full min-w-0 rounded-md border border-border-subtle bg-main-bg px-2 py-1 text-[13px] text-primary outline-none focus:border-strong-border focus-visible:ring-2 focus-visible:ring-strong-border/40"
                     />
                 ) : (
-                    <p className="m-0 text-[13px] text-secondary">—</p>
+                    <p className="m-0 flex h-8 items-center text-[13px] text-secondary">—</p>
                 )}
             </div>
-            <div>
-                <label htmlFor={`history-profile-${session.id}`} className={labelCls}>
-                    {t('history.table.profile')}
-                </label>
-                <FormSelect
-                    id={`history-profile-${session.id}`}
-                    data-testid="history-profile"
-                    aria-label={t('history.table.profile')}
-                    value={profileId}
-                    disabled={busy || !canWrite}
-                    onChange={(e) => {
-                        setProfileId(e.target.value);
-                        void commitProfile(e.target.value);
-                    }}
-                    className="py-1.5 text-[13px]"
-                >
-                    <option value="">—</option>
-                    {profileOptions.map((profile) => (
-                        <option key={profile.id} value={profile.id}>
-                            {profile.name}
-                        </option>
-                    ))}
-                </FormSelect>
-            </div>
-            <div>
+            <div className="min-w-0">
                 <label htmlFor={`history-level-${session.id}`} className={labelCls}>
                     {t('history.table.level')}
                 </label>
@@ -275,7 +221,7 @@ export const SummaryMetaEditor = ({ session }: { session: RoastSessionWithRelati
                         setLevel(e.target.value);
                         void commitLevel(e.target.value);
                     }}
-                    className="py-1.5 text-[13px]"
+                    className="min-h-8 rounded-md py-1 pl-2 text-[13px] shadow-none"
                 >
                     <option value="">—</option>
                     {levelOptions.map((level) => (

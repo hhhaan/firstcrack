@@ -93,6 +93,12 @@
 
 /* ── Sensor & chart tokens (light) ──────────────────────────── */
 :root {
+    --color-compare-blue: oklch(0.6 0.17 225);
+    --color-compare-green: oklch(0.6 0.18 155);
+    --color-compare-yellow: oklch(0.78 0.16 88);
+    --color-compare-purple: oklch(0.58 0.16 280);
+    --color-compare-teal: oklch(0.62 0.16 165);
+
     --color-sensor-bt: oklch(0.6 0.18 155);
     --color-sensor-bt-target: oklch(0.6 0.18 155 / 0.55);
     --color-sensor-et: oklch(0.6 0.17 225);
@@ -157,6 +163,12 @@
 
 /* ── Dark theme ──────────────────────────────────────────────── */
 html.dark {
+    --color-compare-blue: oklch(0.78 0.13 225);
+    --color-compare-green: oklch(0.78 0.14 155);
+    --color-compare-yellow: oklch(0.88 0.14 88);
+    --color-compare-purple: oklch(0.76 0.13 280);
+    --color-compare-teal: oklch(0.8 0.12 165);
+
     --color-main-bg: #111111;
     --color-roast-bg: #111111;
     --color-shell-bg: #090909;
@@ -287,6 +299,24 @@ html[lang="en"] {
     display: none;
     width: 0;
     height: 0;
+}
+
+.visible-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: var(--color-scrollbar-thumb-hover) transparent;
+}
+
+.visible-scrollbar::-webkit-scrollbar {
+    display: block;
+    width: 12px;
+    height: 12px;
+}
+
+.visible-scrollbar::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: var(--color-scrollbar-thumb-hover);
+    background-clip: padding-box;
 }
 
 *,

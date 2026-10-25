@@ -455,6 +455,8 @@
                 "customRorTicksError": "请输入最多100个有效数字，RoR 须在 −100–300°C/min 范围内。",
                 "controlChart": "控制图表",
                 "controlChartDescription": "控制图表的显示项和轴范围。图表显示开关位于数据可见性中。",
+                "mergeControlChart": "合并到温度图表",
+                "mergeControlChartDescription": "开启后将控制曲线叠加在温度图表底部25%的区域，关闭后在下方单独显示。",
                 "controlDrum": "滚筒",
                 "controlDrumDescription": "控制区的滚筒 RPM 系列",
                 "controlHeat": "火力",
@@ -497,7 +499,7 @@
                 "alertsEnabled": "启用警报",
                 "alertsEnabledDescription": "烘焙过程中显示警告横幅。",
                 "alertSound": "警报声",
-                "alertSoundDescription": "警报首次触发时发出提示音。",
+                "alertSoundDescription": "检测到TP或警报首次触发时发出提示音。",
                 "alertSoundKind": "警报音色",
                 "alertSoundKindDescription": "请用试听确认在烘焙车间噪音中能否听清。",
                 "alertSoundPreview": "试听",
@@ -948,6 +950,14 @@
         }
     },
     "activeRoast": {
+        "batchTitleSettings": {
+            "title": "批次标题编号",
+            "description": "保存烘焙记录时分配编号，同一工作区的所有设备共享编号。取消或丢弃的烘焙不占用编号。",
+            "profile": "曲线累计",
+            "total": "全部累计",
+            "both": "曲线＋全部",
+            "none": "无编号"
+        },
         "noteEntry": {
             "events": "事件",
             "eventRecorded": "已记录：{{event}}",
@@ -964,6 +974,9 @@
         },
         "autoChargeHeld": "温度回升后将自动入豆。若要立即开始，请按 Charge。",
         "header": {
+            "batchTitle": "烘焙标题",
+            "sourceChangeTitle": "更改烘焙原料",
+            "sourceChangeUnlinks": "更改原料会解除当前批次与生产计划的关联。",
             "profileSources": "曲线候选原料",
             "noBeanSelected": "未选生豆",
             "target": "目标:",
@@ -993,6 +1006,13 @@
         "log": {
             "expand": "展开烘焙日志",
             "collapse": "收起烘焙日志",
+            "source": "日志来源",
+            "current": "当前",
+            "reference": "曲线",
+            "referenceLoading": "正在加载记录。",
+            "referenceError": "无法加载曲线记录。",
+            "referenceEmpty": "没有已保存的事件。",
+            "referenceLiveContinues": "查看期间当前烘焙仍持续记录。",
             "title": "烘焙记录",
             "editRangeHint": "时间请输入 m:ss 格式，温度需在实测曲线范围内。",
             "deleteNote": "删除备注"
@@ -1215,6 +1235,7 @@
         }
     },
     "schedule": {
+        "title": "Roast Schedule",
         "dateFormat": "yyyy年M月d日 (eee)",
         "monthFormat": "yyyy年 M月",
         "weekDateFormat": "M/d",
@@ -1376,6 +1397,9 @@
     },
     "months": ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"],
     "history": {
+        "batchNumbers": {
+            "label": "批次编号"
+        },
         "title": "烘焙记录",
         "subtitle": "{{count}}条记录",
         "subtitleLoading": "加载中...",
@@ -1428,6 +1452,10 @@
             "summary": "概要",
             "colorWhole": "色值（整豆）",
             "colorGround": "色值（研磨）",
+            "colorReadingsHint": "多次测量值请用逗号分隔。",
+            "colorAverage_one": "平均 {{value}} · {{count}}次测量",
+            "colorAverage_other": "平均 {{value}} · {{count}}次测量",
+            "colorInvalidNumbers": "请输入以逗号分隔的数字。",
             "colorTooLong": "色值输入过长。",
             "keyEvents": "关键事件",
             "heatRecord": "火力记录",
@@ -1451,7 +1479,6 @@
             "noCurves": "所选记录没有曲线数据",
             "noCurveData": "No curve data",
             "events": "Events",
-            "tempAndRor": "Temp & RoR",
             "phases": "Phases",
             "phaseDrying": "Drying",
             "phaseMaillard": "Maillard",
@@ -1466,7 +1493,24 @@
             "dtr": "DTR",
             "dtrRolling": "DTR Rolling",
             "level": "Level",
-            "weight": "Weight"
+            "weight": "Weight",
+            "workspaceHint": "在同一视图中比较烘焙曲线与各批次结果。",
+            "chartHint": "移动光标查看数值 · 滚动缩放 · 悬停批次以突出显示",
+            "chartKeyboardHint": "使用左右方向键移动时间。Home移至起点，End移至终点。",
+            "roasts": "烘焙 ({{count}})",
+            "display": "显示",
+            "roastGraph": "烘焙曲线",
+            "otherGraphs": "其他图表",
+            "sections": "表格",
+            "modulation": "阶段图",
+            "controlChart": "控制图",
+            "statistics": "统计",
+            "metrics": "批次比较",
+            "batch": "烘焙批次",
+            "sensors": "显示传感器",
+            "temperatures": "温度",
+            "resetZoom": "重置缩放",
+            "noSelectedSensorData": "当前显示的批次中没有此传感器的记录。"
         },
         "table": {
             "date": "日期",
@@ -1813,7 +1857,6 @@
     },
     "pricing": {
         "title": "利润计算器",
-        "subtitle": "计算烘焙后成本，并按毛利率设定售价",
         "source": {
             "title": "来源",
             "mode": {
@@ -2018,7 +2061,6 @@
     },
     "orders": {
         "title": "订单",
-        "subtitle": "汇总店铺订单、查看需烘焙量并管理成品库存。",
         "loading": "加载中…",
         "locked": {
             "subtitle": "电商订单集成",

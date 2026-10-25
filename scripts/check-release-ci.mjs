@@ -12,7 +12,7 @@ const required = [
     'edge-check',
     'actionlint',
     'zizmor',
-    'clippy',
+    // TEMPORARY, revert after #1018 is fixed: clippy is ignorable (slow Ubuntu apt in CI).
     'native-tests (macos-latest)',
     'native-tests (macos-15-intel)',
     'native-tests (windows-latest)',

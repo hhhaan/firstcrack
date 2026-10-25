@@ -104,6 +104,7 @@ describe('saveRoastCore', () => {
         await saveRoastCore(deps, {
             ...baseParams,
             targetProfileId: 'profile-a',
+            batchTitleNumbering: 'none',
             formData: { ...baseParams.formData, batchName: '  Batch C  ' },
         });
         expect(deps.saveOp).toHaveBeenCalledWith(
@@ -113,6 +114,7 @@ describe('saveRoastCore', () => {
                     bean_id: 'bean-1',
                     bean_label: null,
                     profile_id: 'profile-a',
+                    batch_title_numbering: 'none',
                 }),
             }),
         );
@@ -127,6 +129,8 @@ describe('saveRoastCore', () => {
         // Snapshot once — a later bean relink in History must not rename the roast.
         expect(arg.session.batch_name).toBe('Aricha');
         expect(arg.session.bean_id).toBe('bean-1');
+        expect(arg.session).not.toHaveProperty('profile_batch_number');
+        expect(arg.session).not.toHaveProperty('total_batch_number');
     });
 
     it('snapshots a free-text bean label as the title', async () => {
@@ -326,6 +330,22 @@ describe('saveRoastCore', () => {
             expect(useBbpStore.getState().finalized).toBe(liveBbp);
         },
     );
+
+    it('prefixes Charge-relative BBP notes onto the saved event log', async () => {
+        const deps = makeDeps();
+        await saveRoastCore(deps, {
+            ...baseParams,
+            bbpSummary: {
+                sessionId: '11111111-1111-4111-8111-111111111111',
+                seconds: 240,
+                chargeTemp: 200,
+                events: [{ id: 'bbp-note', type: 'Note', time_sec: -180, note: 'soak', gas: '70' }],
+            },
+        });
+        const events = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0].session.events;
+        expect(events[0]).toMatchObject({ id: 'bbp-note', type: 'Note', time_sec: -180, gas: '70' });
+        expect(events.map((event: { type: string }) => event.type)).toEqual(['Note', 'Charge', 'First Crack', 'Drop']);
+    });
 
     it('멱등키: 로컬 sessionId를 session.id로 전달', async () => {
         const deps = makeDeps();

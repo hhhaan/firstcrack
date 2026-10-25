@@ -291,7 +291,7 @@ export async function upsertCanonicalOrders(
             p_connection_id: ctx.connectionId,
             p_orders: batch,
         });
-        if (error) throw error;
+        if (error) throw new Error(error.message, { cause: error });
         const batchResult = parseBatchResult(data);
         result.upserted += batchResult.upserted;
         result.cancelledCompensations += batchResult.cancelledCompensations;

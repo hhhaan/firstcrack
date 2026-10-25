@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
     applyTimeEdit,
     carryReplayEventIds,
+    commitEditTime,
     editedHeatSet,
     formatEditTime,
     type HeaterBounds,
     heaterEventsToJson,
     heaterFitsBounds,
+    isPartialTime,
     normalizeHeaterPlan,
     numericHeaterStep,
     parseEditTime,
@@ -62,6 +64,8 @@ describe('parseHeaterEvents', () => {
 describe('parseEditTime', () => {
     it('m:ss 와 초 60을 허용한다', () => {
         expect(parseEditTime('1:30')).toBe(90);
+        expect(parseEditTime('-3:00')).toBe(-180);
+        expect(parseEditTime('-1:30')).toBe(-90);
         expect(parseEditTime('0:60')).toBe(60);
         expect(parseEditTime('12:05')).toBe(725);
         expect(parseEditTime('1:99')).toBeNull();
@@ -99,6 +103,31 @@ const typeInto = (chars: string) => {
 };
 
 describe('applyTimeEdit', () => {
+    it('keeps BBP signs through typing, paste, blur, and parse', () => {
+        expect(typeInto('-0130')).toMatchObject({ value: '-01:30', caret: 6 });
+        const pasted = applyTimeEdit('02:00', 0, 5, '-01:30', 'insert');
+        expect(pasted).toMatchObject({ value: '-01:30', caret: 6 });
+        expect(commitEditTime(pasted.value)).toBe('-01:30');
+        expect(commitEditTime('-2:')).toBe('-02:00');
+        expect(parseEditTime(commitEditTime(pasted.value))).toBe(-90);
+        expect(isPartialTime('-')).toBe(true);
+        expect(isPartialTime('-01:30')).toBe(true);
+        expect(isPartialTime('--01:30')).toBe(false);
+    });
+
+    it('edits signed digits and removes only the selected sign', () => {
+        expect(applyTimeEdit('-05:30', 6, 6, '', 'backspace')).toMatchObject({ value: '-05:30', caret: 5 });
+        for (const [from, to, kind] of [
+            [0, 0, 'delete'],
+            [1, 1, 'backspace'],
+            [0, 1, 'delete'],
+        ] as const) {
+            expect(applyTimeEdit('-12:34', from, to, '', kind).value).toBe('12:34');
+        }
+        expect(applyTimeEdit('-01:30', 0, 6, '02:00', 'insert').value).toBe('02:00');
+        expect(applyTimeEdit('-01:30', 0, 6, 'a', 'insert').value).toBe('-01:30');
+    });
+
     it('네 칸을 왼쪽부터 채운다', () => {
         let state = { value: '', caret: 0, suppress: false, secondsOpen: false, digits: '' };
         const seen: string[] = ['|'];
@@ -284,6 +313,7 @@ describe('validateHeaterDraft', () => {
     it('names the first broken field instead of one invalid result', () => {
         expect(issueOf([row('80', '1:99')])).toEqual({ code: 'time', row: 1 });
         expect(issueOf([row('80', 'abc')])).toEqual({ code: 'time', row: 1 });
+        expect(issueOf([row('80', '-01:30')])).toEqual({ code: 'time', row: 1 });
         expect(issueOf([row('80', '1:00', '')])).toEqual({ code: 'bt', row: 1 });
         expect(issueOf([row('')])).toEqual({ code: 'heat-empty', row: 1 });
         expect(issueOf([row('80'), row('101')])).toEqual({ code: 'heat-range', row: 2 });
@@ -598,12 +628,14 @@ describe('history-edited Heat set (#623)', () => {
 
     it('edited plan replaces recorded Heater log rows and keeps every other event', () => {
         const events = [
+            { id: 'bbp-heat', type: 'Heater', time_sec: -30, temp_c: 200, note: '90%' },
             { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
             { id: 'h', type: 'Heater', time_sec: 100, temp_c: 130, note: '50%' },
             { id: 'n', type: 'Note', time_sec: 110, note: 'x' },
         ];
         expect(withEditedHeaterLog(events, null, 'kPa')).toBe(events);
         expect(withEditedHeaterLog(events, edit, 'kPa')).toEqual([
+            { id: 'bbp-heat', type: 'Heater', time_sec: -30, temp_c: 200, note: '90%' },
             { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
             { id: 'heater-plan-0', type: 'Heater', time_sec: 0, temp_c: 200, note: '65kPa' },
             { id: 'heater-plan-1', type: 'Heater', time_sec: 90, temp_c: 120, note: '45kPa' },

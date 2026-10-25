@@ -1,14 +1,15 @@
 import { summarizeSessionEvents } from '@entities/roast-profile';
 import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
+import { roastColorDisplay } from '@features/active-roast/lib/roastColorText';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateShort, formatDuration } from '@shared/lib/format';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { computeRoastWeights } from '@shared/lib/roastWeight';
-import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
+import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
 import { TablePagination } from '@shared/ui/TablePagination';
-import { COMPARE_COLORS } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { Check, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -54,7 +55,7 @@ type Column = {
 };
 
 const columnsFor = (unit: TemperatureUnit): Column[] => [
-    { key: 'date', label: 'Date', width: '100px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
+    { key: 'date', label: 'Date', width: '112px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
         key: null,
         label: 'roastTitle',
@@ -67,6 +68,13 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         label: 'Bean',
         sortable: true,
         render: (s) => s.beans?.name?.trim() || '—',
+    },
+    {
+        key: null,
+        label: 'batchNumbers',
+        width: '140px',
+        sortable: false,
+        render: (s) => sessionBatchNumberLabel(s) ?? '—',
     },
     {
         key: 'profile',
@@ -149,6 +157,20 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
     },
     {
         key: null,
+        label: 'colorWhole',
+        width: '160px',
+        sortable: false,
+        render: (s) => roastColorDisplay(s.color_whole),
+    },
+    {
+        key: null,
+        label: 'colorGround',
+        width: '160px',
+        sortable: false,
+        render: (s) => roastColorDisplay(s.color_ground),
+    },
+    {
+        key: null,
         label: '',
         width: '48px',
         sortable: false,
@@ -226,6 +248,7 @@ export const HistoryTable = ({
             date: t('history.table.date'),
             bean: t('activeRoast.summary.bean'),
             roastTitle: t('history.recordText.title'),
+            batchNumbers: t('history.batchNumbers.label'),
             profile: t('history.table.profile'),
             weight: t('history.table.weight'),
             charge: t('history.table.chargeTemp'),
@@ -234,11 +257,15 @@ export const HistoryTable = ({
             loss: t('history.table.loss'),
             dtr: t('history.table.dtr'),
             level: t('history.table.level'),
+            colorWhole: t('history.expanded.colorWhole'),
+            colorGround: t('history.expanded.colorGround'),
         };
         return map[key] || key;
     };
 
     const getCellTitle = (col: Column, session: RoastSessionWithRelations): string | undefined => {
+        if (col.label === 'colorWhole') return session.color_whole ?? undefined;
+        if (col.label === 'colorGround') return session.color_ground ?? undefined;
         if (col.key === 'level') {
             return session.roast_level ?? '—';
         }
@@ -310,11 +337,17 @@ export const HistoryTable = ({
                                                     : { borderColor: 'var(--color-muted)' }
                                             }
                                         >
-                                            {compareIdx >= 0 && <Check size={11} strokeWidth={3} color="#fff" />}
+                                            {compareIdx >= 0 && (
+                                                <Check
+                                                    size={11}
+                                                    strokeWidth={3}
+                                                    className="text-white dark:text-palette-black"
+                                                />
+                                            )}
                                         </div>
                                     </td>
                                 )}
-                                {columns.map((col) => {
+                                {columns.map((col, colIdx) => {
                                     const isActions = col.key === null && col.label === '';
                                     const cellClass = isActions
                                         ? stickyActionsCls
@@ -327,7 +360,7 @@ export const HistoryTable = ({
                                     const cellTitle = getCellTitle(col, session);
                                     return (
                                         <td
-                                            key={col.key ?? 'actions'}
+                                            key={col.key ?? `col-${colIdx}`}
                                             title={cellTitle}
                                             className={`overflow-hidden px-4 py-4 text-sm whitespace-nowrap ${cellClass} ${responsiveClass}`}
                                             style={{ width: col.width, minWidth: col.minWidth }}

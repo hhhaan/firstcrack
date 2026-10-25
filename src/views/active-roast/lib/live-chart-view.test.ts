@@ -30,6 +30,7 @@ describe('resolveLiveChartView', () => {
         expect(view.bbpRange).toEqual({ start: 0, end: 59 });
         expect(view.livePoints.map((p) => p.time)).toEqual([0, 59]);
         expect(view.targetPoints.map((p) => p.t)).toEqual([0, 90]);
+        expect(view.eventTimeOrigin).toBe(1);
     });
 
     it('shows only the roast timeline after Charge', () => {
@@ -72,6 +73,7 @@ describe('resolveLiveChartView', () => {
         expect(view.xMin).toBe(0);
         expect(view.xMaxFloor).toBe(900);
         expect(view.bbpRange).toEqual({ start: 0, end: 900 });
+        expect(view.eventTimeOrigin).toBe(60);
     });
 
     it('starts the retained 15 minute window at zero', () => {

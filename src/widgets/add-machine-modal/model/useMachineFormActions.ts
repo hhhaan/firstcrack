@@ -12,7 +12,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { assembleConnectionParams } from './assembleConnectionParams';
-import type { CommitAction, SuccessActions } from './types';
+import type { CommitAction, ConnectionTest, SuccessActions } from './types';
 
 type Args = {
     isEdit: boolean;
@@ -36,8 +36,7 @@ type Args = {
     testConnectedRef: { current: boolean };
     setSaving: (v: boolean) => void;
     setError: (v: string) => void;
-    setTestState: (v: 'idle' | 'testing' | 'success' | 'failed') => void;
-    setTestMessage: (v: string) => void;
+    setConnectionTest: (value: ConnectionTest) => void;
 };
 
 export const useMachineFormActions = ({
@@ -57,8 +56,7 @@ export const useMachineFormActions = ({
     testConnectedRef,
     setSaving,
     setError,
-    setTestState,
-    setTestMessage,
+    setConnectionTest,
 }: Args) => {
     const { t } = useTranslation();
     const accountPlan = useAccountPlan();
@@ -155,13 +153,11 @@ export const useMachineFormActions = ({
         }
 
         if (!canConnectRoaster(connectKey, accountPlan)) {
-            setTestState('failed');
-            setTestMessage(t('machines.enterpriseOnly'));
+            setConnectionTest({ status: 'failed', message: t('machines.enterpriseOnly') });
             return;
         }
 
-        setTestState('testing');
-        setTestMessage('');
+        setConnectionTest({ status: 'testing' });
         setError('');
 
         let connected = false;
@@ -171,20 +167,22 @@ export const useMachineFormActions = ({
             connected = status.connected;
             if (status.connected) {
                 const temps = await sidecar.getTemperatures().catch(() => null);
-                setTestState('success');
-                setTestMessage(
-                    temps?.bt != null ? t('addMachine.connectedWithBt', { bt: temps.bt }) : t('common.connected'),
-                );
+                setConnectionTest({
+                    status: 'success',
+                    message:
+                        temps?.bt != null ? t('addMachine.connectedWithBt', { bt: temps.bt }) : t('common.connected'),
+                });
                 testConnectedRef.current = true;
             } else {
-                setTestState('failed');
-                setTestMessage(status.error ?? t('addMachine.connectionFailed'));
+                setConnectionTest({ status: 'failed', message: status.error ?? t('addMachine.connectionFailed') });
             }
         } catch (e) {
             // 타임아웃 후에도 사이드카가 핸드셰이크를 쥐고 있으면 다음 시도가 락에 막힌다
             void sidecar.disconnect().catch(() => null);
-            setTestState('failed');
-            setTestMessage(e instanceof Error ? e.message : t('addMachine.connectionFailed'));
+            setConnectionTest({
+                status: 'failed',
+                message: e instanceof Error ? e.message : t('addMachine.connectionFailed'),
+            });
         } finally {
             endMachineConnectAttempt(connected);
         }

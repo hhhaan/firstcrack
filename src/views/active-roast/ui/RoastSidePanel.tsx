@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
+import type { ReferenceRoastLog } from './RoastLogViewer';
 import { RoastSidePanelLayout } from './RoastSidePanelLayout';
 
 const TARGET_DELTA_COLORS: Record<TargetDeltaResult['status'], string> = {
@@ -51,6 +52,7 @@ interface RoastSidePanelProps {
     logEntries: LogEntry[];
     pressedButtons: Set<string>;
     roastLogDisplayEntries: RoastLogDisplayEntry[];
+    referenceLog?: ReferenceRoastLog;
     noteInput: string;
     onNoteChange: (value: string) => void;
     onNoteSubmit: () => void;
@@ -98,6 +100,7 @@ export const RoastSidePanel = ({
     logEntries,
     pressedButtons,
     roastLogDisplayEntries,
+    referenceLog,
     noteInput,
     onNoteChange,
     onNoteSubmit,
@@ -135,6 +138,7 @@ export const RoastSidePanel = ({
     return (
         <RoastSidePanelLayout
             roastLogDisplayEntries={roastLogDisplayEntries}
+            referenceLog={referenceLog}
             onRemoveLogEntry={onRemoveLogEntry}
             logEditOptions={logEditOptions}
             deletableEvent={reviewing ? isReviewDeletableEvent : undefined}

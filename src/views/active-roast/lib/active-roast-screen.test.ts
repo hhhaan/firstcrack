@@ -35,6 +35,7 @@ const chartInput = {
     heatPower: [2],
     fanSpeed: [3],
     heatSet: [4],
+    controlChanges: [{ timeSec: 1, values: { fan: 40 } }],
     heatTarget: { xs: [0], values: [80] },
     referenceXs: [] as number[],
     referenceDrum: [] as (number | null)[],
@@ -80,22 +81,25 @@ describe('buildChartFrame', () => {
         expect(frame.onMoveEvent).toBe(chartInput.onMoveEvent);
     });
 
-    it('hides roast markers and labels a recording wait as BBP', () => {
+    it('hides roast-phase marks during BBP and keeps note editing', () => {
         const frame = buildChartFrame({
             ...chartInput,
             bbpActive: true,
             bbpRecording: true,
+            charged: false,
         });
         expect(frame.testId).toBe('bbp-target-status');
         expect(frame.bbpElapsed).toBe(12);
         expect(frame.bbpSpan).toBe(40);
         expect(frame.elapsed).toBe(12.8);
         expect(frame.charged).toBe(false);
-        expect(frame.eventMarkers).toEqual([]);
+        expect(frame.eventMarkers).toEqual(chartInput.eventMarkers);
         expect(frame.turningPoints).toEqual([]);
         expect(frame.showFcBand).toBe(false);
         expect(frame.controlData?.heatTarget).toBeUndefined();
-        expect(frame.onEventMarkerDrag).toBeUndefined();
+        expect(frame.controlData?.changes).toEqual(chartInput.controlChanges);
+        expect(frame.onEventMarkerDrag).toBe(chartInput.onEventMarkerDrag);
+        expect(frame.onAddNote).toBe(chartInput.onAddNote);
         expect(frame.onAddEvent).toBeUndefined();
         expect(frame.bbpRange?.label).toBe('BBP');
     });

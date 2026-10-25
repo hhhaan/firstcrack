@@ -160,6 +160,7 @@ const emptyBbp = {
     liveGeneration: '',
     startMs: 0,
     points: [],
+    events: [],
     finalized: null,
     finalizedPoints: [],
 };

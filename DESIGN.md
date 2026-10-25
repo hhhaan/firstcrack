@@ -92,6 +92,18 @@
 
 Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
+### Compare colors
+
+비교 곡선은 배치마다 다른 색이다. 순서는 파랑, 초록, 노랑이고 그다음은 인디고, 틸이다. 배치는 번호와 마커 모양도 유지하고, 숨겨도 번호와 모양은 그대로다.
+
+| Token | Light | Dark |
+|---|---|---|
+| `--color-compare-blue` | `oklch(0.6 0.17 225)` | `oklch(0.78 0.13 225)` |
+| `--color-compare-green` | `oklch(0.6 0.18 155)` | `oklch(0.78 0.14 155)` |
+| `--color-compare-yellow` | `oklch(0.78 0.16 88)` | `oklch(0.88 0.14 88)` |
+| `--color-compare-purple` | `oklch(0.58 0.16 280)` | `oklch(0.76 0.13 280)` |
+| `--color-compare-teal` | `oklch(0.62 0.16 165)` | `oklch(0.8 0.12 165)` |
+
 ### Sensor colors
 
 | Token | Light | Dark | 의미 |
@@ -171,7 +183,8 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 - 선 두께(px): 라이브 BT `1.2`, ET/RoR/ET RoR `0.9`, 제어 실측·Heat set `1.0`, Heat target `1.5` dotted, 참조 곡선 `0.8` dashed, 마킹 세로선 `0.6`, 제어 이벤트 세로선 `1.0`.
 - 참조 곡선(BT·ET·RoR·Drum·Heater·Fan)은 라이브와 같은 채널 색의 `*-target` 토큰이다. 라이브보다 뒤에 그린다. 프로파일에 없는 채널과 저장되지 않은 ET RoR는 만들지 않는다. 결측 샘플은 null이며 0으로 채우거나 끊긴 구간을 잇지 않는다.
 - Heat target(프로파일 화력 지시)과 Heat set(라이브 지시)은 참조 Heater와 다른 시리즈다. 지시값을 참조 곡선으로 복제하지 않는다. 순서: 참조 제어 → Heat target → Heat set → 실측 Heat.
-- 이벤트 라벨: `이름|mm:ss|온도`. `600 10px monospace`. 앵커 오른쪽 `4px`에서 왼쪽 정렬. 동일 시각은 소스 순서로 `14px`씩 위로 쌓는다. 축 눈금·페이즈 바 글씨는 이 크기를 따르지 않는다.
+- 히터·메모·배기·드럼·주요 이벤트·참조 이벤트를 포함한 모든 이벤트 라벨은 `600 10px monospace`로 차트 상단 `8px` 아래부터 시간순으로 위에서 아래로 쌓고, 같은 시각은 소스 순서를 유지한다. 각 이벤트의 시간축 위치 오른쪽 `4px`에서 왼쪽 정렬하며, 이벤트 점은 원래 위치에 유지한다. 기본형은 `이름|mm:ss|온도` 한 줄이고, 복합 메모의 내부 줄바꿈은 유지한다. 축 눈금·페이즈 바 글씨는 이 크기를 따르지 않는다.
+- 참조 이벤트는 원본 이벤트의 실선·색상·라벨을 유지하고, 선·라벨·점의 불투명도를 `0.3`으로 낮춘다.
 - `eventMarkerStyle`: `point`(포인트+곡선 라벨), `line`(세로선+가장자리 라벨), `both`(곡선 라벨+제어 차트까지 관통하는 세로선). 기본은 `both`.
 
 ### Shadows

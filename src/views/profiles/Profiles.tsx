@@ -12,6 +12,7 @@ import {
 } from '@entities/roast-profile';
 import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
+import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDuration } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
@@ -19,6 +20,7 @@ import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
 import type { View } from '@shared/types/view';
+import { Badge } from '@shared/ui/Badge';
 import { CatalogVisibilityButton, CatalogVisibilityFilter } from '@shared/ui/CatalogVisibilityControls';
 import { MasterDetailLayout } from '@shared/ui/MasterDetailLayout';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -86,13 +88,6 @@ const ProfileDetailSkeleton = () => (
     </div>
 );
 
-const COMPARE_COLORS = [
-    'var(--color-palette-blue)',
-    'var(--color-palette-indigo)',
-    'var(--color-palette-yellow)',
-    'var(--color-palette-teal)',
-] as const;
-
 interface ProfilesProps {
     onNavigate: (view: View) => void;
 }
@@ -102,7 +97,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const unit = useRoastSettings().temperatureUnit;
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: profiles = [], isLoading, isError } = useRoastProfiles(workspaceOwnerId);
+    const { data: profiles = [], batchCounters, isLoading, isError } = useRoastProfiles(workspaceOwnerId);
     const listFailed = isError && !isLoading && profiles.length === 0;
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
     const { mutate: deleteProfile } = useDeleteRoastProfile(workspaceOwnerId);
@@ -111,11 +106,11 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [defaultId, setDefaultId] = useState<string | null>(null);
-    const [compareMode, setCompareMode] = useState(false);
-    const [compareIds, setCompareIds] = useState<string[]>([]);
-    const [showNewModal, setShowNewModal] = useState(false);
-    const [showEditModal, setShowEditModal] = useState(false);
+    const defaultId = userProfile?.default_roast_profile_id ?? null;
+    const [comparison, setComparison] = useState<string[] | null>(null);
+    const compareMode = comparison !== null;
+    const compareIds = comparison ?? [];
+    const [profileModal, setProfileModal] = useState<'new' | 'edit' | null>(null);
     const [search, setSearch] = useState('');
     const [showHidden, setShowHidden] = useState(false);
     const { hidden, setHidden } = useCatalogVisibility(user?.id ?? '', workspaceOwnerId, 'profiles');
@@ -126,13 +121,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             setSelectedId(profiles[0].id);
         }
     }, [profiles.length, selectedId]);
-
-    // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
-    useEffect(() => {
-        if (userProfile !== undefined) {
-            setDefaultId(userProfile?.default_roast_profile_id ?? null);
-        }
-    }, [userProfile?.default_roast_profile_id]);
 
     const sortedProfiles = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -166,35 +154,22 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const selectedHasReal = selectedRealCurve.length > 0;
 
     const setDefault = (id: string | null) => {
-        const previous = defaultId;
-        setDefaultId(id);
-        updateProfile(
-            { default_roast_profile_id: id },
-            {
-                onError: (err) => {
-                    setDefaultId(previous);
-                    logger.capture(err instanceof Error ? err : new Error('Failed to update default profile'), {
-                        profileId: id,
-                    });
-                },
-            },
-        );
+        updateProfile({ default_roast_profile_id: id });
     };
 
     const enterCompareMode = () => {
-        setCompareMode(true);
-        if (selectedVisibleId) setCompareIds([selectedVisibleId]);
+        setComparison(selectedVisibleId ? [selectedVisibleId] : []);
     };
 
     const exitCompareMode = () => {
-        setCompareMode(false);
-        setCompareIds([]);
+        setComparison(null);
     };
 
     const toggleCompareId = (id: string) => {
-        setCompareIds((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id],
-        );
+        setComparison((prev) => {
+            if (prev === null) return null;
+            return prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= 4 ? prev : [...prev, id];
+        });
     };
 
     const handleProfileClick = (id: string, shiftKey: boolean) => {
@@ -203,8 +178,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             return;
         }
         if (shiftKey && id !== selectedVisibleId) {
-            setCompareMode(true);
-            setCompareIds([selectedVisibleId ?? id, id]);
+            setComparison([selectedVisibleId ?? id, id]);
             return;
         }
         setSelectedId(id);
@@ -234,7 +208,6 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
     const handleDelete = (id: string) => {
         deleteProfile(id);
         if (id === defaultId) {
-            setDefaultId(null);
             updateProfile({ default_roast_profile_id: null });
         }
         if (selectedVisibleId === id) setSelectedId(sortedProfiles.find((p) => p.id !== id)?.id ?? null);
@@ -267,12 +240,13 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
         return (
             <ProfileDetail
                 selected={selected}
+                batchNumber={batchCounters ? (batchCounters[selected.id] ?? 0) : undefined}
                 selectedRealCurve={selectedRealCurve}
                 selectedHasReal={selectedHasReal}
                 defaultId={defaultId}
                 chartKey={chartKey}
                 onSetDefault={setDefault}
-                onEdit={() => setShowEditModal(true)}
+                onEdit={() => setProfileModal('edit')}
                 onDuplicate={(profile) => void handleDuplicate(profile)}
                 onDelete={handleDelete}
                 onNavigate={onNavigate}
@@ -325,7 +299,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 {compareMode && (
                                     <div className="flex justify-end -mt-1 mb-1">
                                         <div
-                                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white' : 'bg-surface dark:bg-surface-elevated '}`}
+                                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isCompareSelected ? 'text-white dark:text-palette-black' : 'bg-surface dark:bg-surface-elevated '}`}
                                             style={
                                                 isCompareSelected
                                                     ? { backgroundColor: COMPARE_COLORS[compareIdx] }
@@ -352,6 +326,16 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                             <span className="text-sm font-medium leading-5 text-primary tracking-[0.14px]">
                                                 {profile.name}
                                             </span>
+                                            {batchCounters && (
+                                                <Badge
+                                                    size="sm"
+                                                    className="tabular-nums"
+                                                    title={t('history.batchNumbers.label')}
+                                                    data-testid="profile-batch-number"
+                                                >
+                                                    #{batchCounters[profile.id] ?? 0}
+                                                </Badge>
+                                            )}
                                             {defaultId === profile.id && (
                                                 <Star
                                                     size={11}
@@ -398,7 +382,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                                 {compareMode ? t('profiles.compare.exit') : t('profiles.compare.enter')}
                             </SurfaceButton>
                         )}
-                        <PillButton onClick={() => setShowNewModal(true)}>
+                        <PillButton onClick={() => setProfileModal('new')}>
                             <Plus size={15} strokeWidth={2.5} />
                             {t('profiles.newProfile')}
                         </PillButton>
@@ -416,7 +400,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
             ) : !isLoading && profiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center gap-4 py-24 rounded-2xl border border-border bg-main-bg">
                     <p className="text-sm text-muted tracking-[0.14px]">{t('profiles.empty')}</p>
-                    <PillButton onClick={() => setShowNewModal(true)}>
+                    <PillButton onClick={() => setProfileModal('new')}>
                         <Plus size={14} strokeWidth={2.5} />
                         {t('profiles.createFirst')}
                     </PillButton>
@@ -425,16 +409,18 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 <MasterDetailLayout left={profileList} detail={renderDetail()} />
             )}
 
-            {showNewModal && <NewProfileModal open onClose={() => setShowNewModal(false)} onCreated={handleCreated} />}
-            {showEditModal && selected && (
+            {profileModal === 'new' && (
+                <NewProfileModal open onClose={() => setProfileModal(null)} onCreated={handleCreated} />
+            )}
+            {profileModal === 'edit' && selected && (
                 <NewProfileModal
                     open
-                    onClose={() => setShowEditModal(false)}
+                    onClose={() => setProfileModal(null)}
                     onCreated={() => {}}
                     editingProfile={selected}
                     onUpdated={async (updated) => {
                         await updateRoastProfile(updated);
-                        setShowEditModal(false);
+                        setProfileModal(null);
                     }}
                 />
             )}

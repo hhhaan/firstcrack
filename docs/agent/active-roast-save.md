@@ -29,6 +29,14 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 
 `useRoastingStore` owns prepared selection/handoff, the running session and selection, and one latest completed batch. Charge copies preparation into the running batch. Defaults and future handoffs only update preparation; an approved reference change updates the running reference and next preparation together. The existing form-prefill values also live in this model.
 
+An explicit source correction updates the active batch without replacing its session, number, curve or next preparation. Automatic titles follow the selected source; edited titles stay unchanged. Changing the source detaches the active schedule handoff so saving cannot restore the plan's original bean or blend. Completed snapshots remain unchanged.
+
+`useRoastProfiles` fetches and caches all workspace counters alongside the profile list via `get_roast_batch_counters`. Live automatic titles display the cached counter + 1; changing profiles only reads this cache. Successful saves invalidate it. Edited titles stay unchanged. Preview numbers are display-only and never enter session identity or pending checkpoints. No number is reserved at Charge, profile changes, Drop, or discard. `save_roast_op` assigns the final workspace-wide and workspace/profile sequences inside its transaction, and its returned title replaces the preview if another device saved first. Independent nullable `roast_sessions.profile_batch_number` and `total_batch_number` survive title edits and hidden title numbering. A missing profile has no profile number. Counters start from the existing completed-record counts; existing records themselves keep null numbers. Never backfill from title suffixes (see [batch-number research](roast-batch-numbering-research.md)).
+
+The pending checkpoint preserves form data and the title-numbering preference, not allocated numbers. Manual titles use `none`; automatic titles receive the requested suffix during the same server save. Live save and recovery share the existing idempotent session UUID; retrying an existing session returns its committed title and numbers. Failed saves roll back the counters, and deleting a saved roast does not recycle its numbers. There is no local number ledger, reservation queue, or delayed checkpoint enrichment. Offline saves remain pending until the database can assign numbers.
+
+History renders its profile as read-only. The update payload excludes `profile_id` and both number fields; a database trigger also rejects changes to completed identities. Existing profile deletion may still clear the reference via its foreign key without changing the saved numbers. History list/detail/compare and PDF read the saved metadata; CSV exports independent numeric columns. Raw curve TSV stays unchanged and is associated through the session UUID.
+
 Drop/End atomically capture summary, owner, selection, charge origin, curve/logs and machine context, then release the running session into Charge wait. Drop additionally retains the cancel snapshot and pre-Drop Replay state. Cancel restores the same session and frozen elapsed time; next Charge or submission locks cancellation. The view reducer owns modal visibility only, not completed data.
 
 Model actions perform memory updates only. View hooks write the existing v2 pending checkpoint from the completed snapshot before issuing the sidecar reset, and retain summary data if checkpointing fails. Async save and discard apply only to the matching owner/session; screen remounts cannot reinitialize the running selection. Live collection and controller safety remain separate. This is an ownership/error-recovery refactor; subscription performance and a multi-completed-batch queue are separate work.
@@ -76,6 +84,12 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 
 ---
 
+## Batch-number migration verification (2026-10-22)
+
+The historical chain cannot bootstrap an empty database: placeholder migrations omit the original tables, so `20260510200500_enable_rls.sql` fails with `relation public.beans does not exist`. Validate the new migration using `supabase db reset --local` against an isolated pre-change public-schema snapshot. This tests the new migration against that snapshot, not replay of the complete historical chain. The isolated reset and `supabase/tests/roast_batch_numbers.sql` passed authenticated saves, retry identity, counter rollback, immutable metadata, title modes, legacy nulls and stock invariants. `python3 supabase/tests/roast_batch_numbers_concurrency.py <local-db-container>` passed six concurrent distinct saves and six same-UUID retries. Security advisors returned no errors. Public database types were regenerated locally; the new fields match the existing table/save return shapes (the record-update return already aliases the row). Snapshot-only role defaults were omitted and application signup triggers restored for the isolated check. Production migration application stays on the release path.
+
+2026-10-22: On explicit user request, deployed the numbering and counter-read migrations to the hosted project, fetched its two preceding correction migrations, and regenerated the public/GraphQL types. The merged local reset, SQL checks and concurrency checks passed before deployment. Hosted read-only checks confirmed authenticated counter reads, denied anonymous execution and complete counter seeding. Type generation exposed the missing `NOT NULL` constraint on generated `roast_plan_batches.batch_count`; the validated constraint migration was also deployed. Save input now derives from the database Insert type. The hosted security advisor reports one pre-existing `active_subscriptions` security-definer-view issue, outside these migrations.
+
 ## Stock side-effects
 
 | Effect | Mechanism | reference_id |
@@ -86,6 +100,22 @@ Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):
 | History charge correction | `set_session_charge_weight` | rescales session-owned `roast` events to the new `weight_grams`. Minimum is 0, same as the summary (`null` is not used). 0 does not rewrite those events — a roast ledger row cannot be 0g — and drops the estimated roasted inbound. Batch-level deduct (`reference_id` = plan batch) is left alone. A positive weight's estimated inbound follows the new green weight |
 
 Blends: `buildRoastStockEvents` expands components before batch insert.
+
+### Saved-roast corrections
+
+History sends only the operator's correction: `correct_session_charge_weight`,
+`correct_session_output_weight`, or `set_session_roast_level`. Each locks the
+current session row and derives roasted inbound in the same transaction. A level
+correction preserves measured output and its stock; clearing measured output
+restores the estimate from the current charge and level.
+
+The legacy four-argument `set_session_*_weight` RPCs delegate to these operations
+and ignore client-derived inbound arguments. Existing installed clients still
+perform level and estimate edits separately; only the new level RPC makes that
+operation atomic. Deploy the migration before clients call the new RPCs.
+
+Regression SQL: `supabase/tests/saved_roast_corrections.sql` (local database only;
+run with `psql -v ON_ERROR_STOP=1`). It rolls back all fixtures and injected failures.
 
 ---
 
@@ -116,6 +146,7 @@ Saved events are **not** immutable: History edits key marks (time/temp) and the 
 
 - Single write path: RPC `update_roast_session_record` (`entities/roast` `useUpdateRoastRecord`, view hook `views/history/hooks/useRoastRecordSave.ts`).
 - Compare-and-swap on `events` + `heater_events`; concurrent edit → `PT409`. Key marks change in place (`time_sec`/`temp_c`). A Note may also change `note`, `gas`, `airflow`, and `drum` (string, or omit the key to clear). Unknown rows/fields are rejected if altered.
+- BBP Note/Heater/Control rows retain negative Charge-relative times; phase marks stay nonnegative. A roast Heat set override preserves BBP Heater log rows.
 - Same TX re-derives `drop_temp_celsius`, `duration_seconds` (End only) and summary columns of profiles with `source_session_id` = record.
 - `roast_sessions.heater_events` NULL = recorded TSV Heat set. Replay/heat target precedence: batch > `roast_profiles.heater_events` > source record `heater_events` > TSV (`profileHeaterEvents`).
 - Never re-runs deduct / roasted inbound / save_roast_op. TSV and BBP curves stay as measured. No sidecar command is sent.

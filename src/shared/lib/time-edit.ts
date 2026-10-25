@@ -19,6 +19,7 @@ const clampIndex = (value: string, index: number) => Math.max(0, Math.min(index,
 
 /** 입력 중 부분 시각. 초는 비거나 한 자리, 00–59, 60만. */
 export const isPartialTime = (value: string): boolean => {
+    if (value.startsWith('-')) value = value.slice(1);
     const colon = value.indexOf(':');
     if (colon < 0) return MINUTES_RE.test(value);
     if (value.includes(':', colon + 1)) return false;
@@ -103,7 +104,7 @@ const filledSlots = (value: string, digits: string, owned: boolean): string => {
 };
 
 /** `00:00` 칸. 숫자는 왼쪽부터 채우고 커서는 다음 칸으로 간다. */
-export const applyTimeEdit = (
+const applyUnsignedTimeEdit = (
     prev: string,
     start: number,
     end: number,
@@ -169,8 +170,42 @@ export const applyTimeEdit = (
     return slots === before ? keep() : showSlots(slots);
 };
 
+/** Keep the sign outside the four digit slots, including selection and caret offsets. */
+export const applyTimeEdit = (
+    prev: string,
+    start: number,
+    end: number,
+    text: string,
+    kind: TimeEditKind,
+    suppress = false,
+    secondsOpen = false,
+    digits = '',
+): TimeEdit => {
+    const offset = prev.startsWith('-') ? 1 : 0;
+    const from = clampIndex(prev, start);
+    const to = clampIndex(prev, Math.max(from, end));
+    const insertingSign = kind === 'insert' && text.trim().startsWith('-');
+    const removingSign =
+        offset > 0 &&
+        ((from === 0 && to > 0) ||
+            (from === to && ((kind === 'backspace' && from === 1) || (kind === 'delete' && from === 0))));
+    const negative = insertingSign || (offset > 0 && !(removingSign && (kind !== 'insert' || /\d/.test(text))));
+    const edit = applyUnsignedTimeEdit(
+        prev.slice(offset),
+        Math.max(0, from - offset),
+        Math.max(0, to - offset),
+        insertingSign ? text.trim().slice(1) : text,
+        removingSign && kind !== 'insert' && to <= 1 ? 'insert' : kind,
+        suppress,
+        secondsOpen,
+        digits,
+    );
+    return negative ? { ...edit, value: `-${edit.value}`, caret: edit.caret + 1 } : edit;
+};
+
 /** 아직 초가 없는 분은 `mm:00`으로 맞춘다. 포커스를 벗어날 때 쓴다. */
 export const commitEditTime = (value: string): string => {
+    if (value.startsWith('-')) return `-${commitEditTime(value.slice(1))}`;
     const slots = slotsOf(value);
     if (slots) return showSlots(slots).value;
     const minutes = /^(\d{1,3}):?$/.exec(value.trim());
@@ -179,10 +214,13 @@ export const commitEditTime = (value: string): string => {
 };
 
 export const parseEditTime = (value: string): number | null => {
-    const match = SOFT_TIME_RE.exec(value.trim());
+    const trimmed = value.trim();
+    const negative = trimmed.startsWith('-');
+    const match = SOFT_TIME_RE.exec(negative ? trimmed.slice(1) : trimmed);
     if (!match) return null;
     const raw = match[2];
     const seconds = raw == null || raw === '' ? 0 : raw.length === 1 ? Number(raw) * 10 : Number(raw);
     if (seconds > 60) return null;
-    return Number(match[1]) * 60 + seconds;
+    const parsed = Number(match[1]) * 60 + seconds;
+    return negative ? -parsed : parsed;
 };

@@ -49,8 +49,7 @@ it('uses the tested identity when adding and reserves a fresh ID for the next ad
             testConnectedRef,
             setSaving: vi.fn(),
             setError: vi.fn(),
-            setTestState: vi.fn(),
-            setTestMessage: vi.fn(),
+            setConnectionTest: vi.fn(),
         });
         return null;
     };

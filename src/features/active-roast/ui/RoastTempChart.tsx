@@ -15,7 +15,6 @@ import {
     eventLabelText,
     isCurveMarkerVisible,
     isEventMarkerVisible,
-    LABEL_BELOW_EVENTS,
     layoutCurveLabelBoxes,
     nearestBtAt,
     noteAnchoredAtTop,
@@ -142,6 +141,7 @@ interface Props {
     showControlHeat?: boolean;
     showControlFan?: boolean;
     controlChartHeightPct?: number;
+    mergeControlChart?: boolean;
     controlYMin?: number;
     controlYMax?: number;
     phaseSegments?: PhaseSegment[];
@@ -191,6 +191,7 @@ const chartStructureKey = (input: {
     showTargetDeltaLabel: boolean;
     showRoR: boolean;
     showRoRET: boolean;
+    mergeControlChart: boolean;
     hasControlData: boolean;
     hasHeatSet: boolean;
     showControlDrum: boolean;
@@ -228,6 +229,7 @@ const chartStructureKey = (input: {
         input.showTargetDeltaLabel,
         input.showRoR,
         input.showRoRET,
+        input.mergeControlChart,
         input.hasControlData,
         input.hasHeatSet,
         input.showControlDrum,
@@ -319,6 +321,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showControlHeat = true,
         showControlFan = true,
         controlChartHeightPct = 21,
+        mergeControlChart = false,
         controlYMin = 0,
         controlYMax = 100,
         phaseSegments = [],
@@ -464,6 +467,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 showControlHeat,
                 showControlFan,
                 controlChartHeightPct,
+                mergeControlChart,
                 controlYMin,
                 controlYMax,
                 phaseSegments,
@@ -517,6 +521,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             showControlHeat,
             showControlFan,
             controlChartHeightPct,
+            mergeControlChart,
             controlYMin,
             controlYMax,
             phaseSegments,
@@ -552,6 +557,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showTargetDeltaLabel,
         showRoR,
         showRoRET,
+        mergeControlChart,
         hasControlData: !!controlData,
         hasHeatSet: !!controlData?.heatSet?.some((value) => value != null),
         showControlDrum,
@@ -632,15 +638,19 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const chart = chartInstanceRef.current;
             const point = localPoint(clientX, clientY);
             if (!chart || !point) return null;
+            if (point.x < 0 || point.y < 0 || point.x > chart.getWidth() || point.y > chart.getHeight()) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
             const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
             const layoutInputs = [
                 ...eventMarkers.flatMap((marker) => {
                     if (hideChargeLabel && marker.event === 'Charge') return [];
-                    if (!isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual)) return [];
+                    const visible = marker.reference
+                        ? Number.isFinite(marker.timeSec) && marker.timeSec >= xMin && marker.timeSec <= xMax
+                        : isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual);
+                    if (!visible) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
-                    const nearest = nearestBtAt(xs, btActual, marker.timeSec);
+                    const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
                     const atTop = noteAnchoredAtTop(marker.event);
                     const displayY = atTop
                         ? axisTop
@@ -665,10 +675,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 marker.event,
                                 marker.timeSec,
                                 temp,
-                                marker.event === 'Note' ? formatRoastNote(marker) : marker.note,
+                                marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
                             ),
-                            below: atTop || LABEL_BELOW_EVENTS.has(marker.event),
-                            topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
+                            below: true,
+                            labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
+                            topInsetPx: noteLabelTopInsetPx(true, fontScale),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
@@ -697,15 +708,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             yPx: y ?? Number.NaN,
                             text: eventLabelText('TP', tp.timeSec, temp),
                             below: true,
+                            labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
+                            topInsetPx: noteLabelTopInsetPx(true, fontScale),
                             color: '',
                             showDot: eventMarkerStyle === 'point',
                         },
                     ];
                 }),
             ];
-            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale);
+            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale, chart.getHeight());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
+                if (marker.reference) return [];
                 if (!marker?.logId || marker.event === 'Charge' || (savedReview && marker.event === 'Drop')) return [];
                 const x = input.xPx;
                 const anchorY = input.yPx;
@@ -713,6 +727,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 const box = boxes[index];
                 const labelHit = Boolean(
                     box &&
+                        box.bottom > box.top &&
                         point.x >= box.left - 4 &&
                         point.x <= box.right + 4 &&
                         point.y >= box.top - 4 &&

@@ -48,7 +48,7 @@ export interface UseRoastProfileSelectionReturn {
     selectedBeanId: string | null;
     selectedBlendId: string | null;
     setSelectedBlendId: (id: string | null, name?: string | null) => void;
-    setSelectedBeanId: (id: string | null) => void;
+    setSelectedBeanId: (id: string | null, name?: string | null) => void;
     handoffBeanName: string | null;
     setUserSelectedTarget: (id: string | null) => Promise<boolean | undefined>;
 }
@@ -184,16 +184,33 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
             .getState()
             .applyProfileSource(candidates.length === 1 ? candidates[0] : null, candidates.length > 1);
     }, [isActive, charged, params.sourceCandidatesReady, params.sourceCandidates]);
-    const setSelectedBlendId = useCallback((id: string | null, name: string | null = null) => {
-        const store = useRoastingStore.getState();
-        if (!isChargedPhase(store.phase)) store.prepareBlend(id, name);
-    }, []);
+    const setSelectedBlendId = useCallback(
+        (id: string | null, name: string | null = null) => {
+            const store = useRoastingStore.getState();
+            if (isChargedPhase(store.phase))
+                store.editRunningSource(
+                    { beanId: null, blendId: id, beanName: name },
+                    store.sessionId,
+                    workspaceOwnerId ?? null,
+                );
+            else store.prepareBlend(id, name);
+        },
+        [workspaceOwnerId],
+    );
     const setUserSelectedTarget = useCallback((id: string | null) => applyTarget(id, 'user'), [applyTarget]);
-    const setSelectedBeanId = useCallback((id: string | null) => {
-        const store = useRoastingStore.getState();
-        if (isChargedPhase(store.phase)) return;
-        store.prepareBean(id);
-    }, []);
+    const setSelectedBeanId = useCallback(
+        (id: string | null, name: string | null = null) => {
+            const store = useRoastingStore.getState();
+            if (isChargedPhase(store.phase))
+                store.editRunningSource(
+                    { beanId: id, blendId: null, beanName: name },
+                    store.sessionId,
+                    workspaceOwnerId ?? null,
+                );
+            else store.prepareBean(id, name);
+        },
+        [workspaceOwnerId],
+    );
     return {
         targetProfileId: selection.profileId,
         selectedBeanId: selection.beanId,

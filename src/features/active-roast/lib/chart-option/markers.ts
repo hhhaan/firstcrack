@@ -10,6 +10,7 @@ import {
     MARKER_LABEL_MIN_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
+    REFERENCE_CURVE_OPACITY,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import { controlChangeLabel, formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -80,8 +81,9 @@ export const isEventMarkerVisible = (
 };
 
 const formatMarkerTime = (timeSec: number) => {
-    const sec = Math.max(0, Math.floor(timeSec));
-    return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+    const sign = timeSec < 0 ? '-' : '';
+    const sec = Math.floor(Math.abs(timeSec));
+    return `${sign}${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
 };
 
 const hasMarkerTemp = (temp: string) => {
@@ -97,13 +99,18 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
             : note?.trim() || event;
         return `${body}|${formatMarkerTime(timeSec)}`;
     }
-    const name =
-        event === 'Note'
-            ? note?.trim() || event
-            : event === 'Heater' && note
-              ? `${event}→${note}`
-              : roastEventLabel(event);
+    let name: string;
+    if (event === 'Note') {
+        name = note?.trim() || event;
+    } else if (event === 'Heater' && note) {
+        name = `${event}→${note}`;
+    } else {
+        name = roastEventLabel(event);
+    }
     const time = formatMarkerTime(timeSec);
+    if (event === 'Note' && name.includes('\n')) {
+        return `${hasMarkerTemp(temp) ? `${time} | ${temp}` : time}\n${name}`;
+    }
     return hasMarkerTemp(temp) ? `${name}|${time}|${temp}` : `${name}|${time}`;
 };
 
@@ -125,8 +132,30 @@ const markerLabelAdvance = (text: string) => {
 export const estimateLabelWidth = (text: string, scale = 1) =>
     Math.min(
         scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
-        Math.max(scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale), scaleChartPx(markerLabelAdvance(text), scale)),
+        Math.max(
+            scaleChartPx(MARKER_LABEL_MIN_WIDTH_PX, scale),
+            ...text.split('\n').map((line) => scaleChartPx(markerLabelAdvance(line), scale)),
+        ),
     );
+
+/** Wrap canvas text explicitly so packing and pointer hit boxes use the same lines. */
+export const wrapMarkerLabel = (text: string, width: number, scale = 1): string =>
+    text
+        .split('\n')
+        .flatMap((line) => {
+            const lines: string[] = [];
+            let current = '';
+            for (const char of line) {
+                if (current && scaleChartPx(markerLabelAdvance(current + char), scale) > width) {
+                    lines.push(current);
+                    current = '';
+                }
+                current += char;
+            }
+            lines.push(current);
+            return lines;
+        })
+        .join('\n');
 
 export interface MarkerLabelGeometry {
     x: number;
@@ -141,8 +170,11 @@ export interface CurveLabelItem {
     y: number;
     text: string;
     color: string;
+    opacity?: number;
     below: boolean;
     showDot: boolean;
+    /** Event text starts at the plot top; its point stays at y. */
+    labelAtTop?: boolean;
     /** Extra pixels below the anchor. Notes use this to clear the top axis line. */
     topInsetPx?: number;
 }
@@ -154,7 +186,9 @@ export interface CurveLabelLayoutInput {
     text: string;
     below: boolean;
     color: string;
+    opacity?: number;
     showDot: boolean;
+    labelTopPx?: number;
     topInsetPx?: number;
 }
 
@@ -167,16 +201,30 @@ export interface CurveLabelBox {
     bottom: number;
     below: boolean;
     text: string;
+    /** Complete original content; oversized labels have a compact canvas preview. */
+    fullText: string;
     color: string;
+    opacity: number;
     showDot: boolean;
+    labelAtTop: boolean;
     anchorX: number;
     anchorY: number;
     timeSec: number;
 }
 
-const boxesOverlap = (a: CurveLabelBox, b: CurveLabelBox, scale: number) => {
+const labelsNeedStacking = (a: CurveLabelBox, b: CurveLabelBox, scale: number) => {
     const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
-    return a.left < b.right + gap && a.right + gap > b.left && a.top < b.bottom + gap && a.bottom + gap > b.top;
+    if (a.bottom <= a.top || b.bottom <= b.top) return false;
+    if (a.labelAtTop && b.labelAtTop) return true;
+    if (a.left >= b.right + gap || a.right + gap <= b.left) return false;
+    return a.labelAtTop === b.labelAtTop || (a.top < b.bottom + gap && a.bottom + gap > b.top);
+};
+
+const moveLabelBox = (box: CurveLabelBox, top: number) => {
+    const offset = top - box.top;
+    box.top = top;
+    box.bottom += offset;
+    box.textY += offset;
 };
 
 const makeLabelBox = (
@@ -184,19 +232,33 @@ const makeLabelBox = (
     textY: number,
     canvasWidth: number,
     scale: number,
+    canvasHeight: number,
 ): CurveLabelBox => {
     const gutter = scaleChartPx(MARKER_LABEL_CANVAS_GUTTER_PX, scale);
     const xOffset = scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale);
     const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
     const width = Math.min(estimateLabelWidth(item.text, scale), Math.max(0, canvasWidth - gutter));
+    const lines = wrapMarkerLabel(item.text, width, scale).split('\n');
+    const maxLines = Math.max(0, Math.floor(canvasHeight / stack));
+    // Oversized labels leave room for other marks. The event-details panel retains every value.
+    let visible = lines;
+    if (lines.length > maxLines) {
+        visible = [];
+        if (maxLines > 0) visible = [...lines.slice(0, Math.min(2, maxLines - 1)), '…'];
+    }
+    const text = visible.join('\n');
+    const height = stack * visible.length;
+    textY = item.below
+        ? Math.max(0, Math.min(textY, Math.max(0, canvasHeight - height)))
+        : Math.max(height, Math.min(textY, canvasHeight));
     const rawX = item.xPx + xOffset;
     // Clamp only anchors already on the canvas. Off-chart anchors must stay off-chart.
     const anchorOnCanvas = item.xPx >= 0 && item.xPx <= canvasWidth;
     const x = anchorOnCanvas
         ? Math.max(xOffset, Math.min(rawX, Math.max(xOffset, canvasWidth - xOffset - width)))
         : rawX;
-    const top = item.below ? textY : textY - stack;
-    const bottom = item.below ? textY + stack : textY;
+    const top = item.below ? textY : textY - height;
+    const bottom = item.below ? textY + height : textY;
     return {
         x,
         textY,
@@ -205,9 +267,12 @@ const makeLabelBox = (
         top,
         bottom,
         below: item.below,
-        text: item.text,
+        text,
+        fullText: item.text,
         color: item.color,
+        opacity: item.opacity ?? 1,
         showDot: item.showDot,
+        labelAtTop: item.labelTopPx != null,
         anchorX: item.xPx,
         anchorY: item.yPx,
         timeSec: item.timeSec,
@@ -215,7 +280,7 @@ const makeLabelBox = (
 };
 
 const labelTextY = (item: CurveLabelLayoutInput, scale: number) =>
-    item.yPx + markerLabelDy(item.below, 0, scale) + (item.topInsetPx ?? 0);
+    (item.labelTopPx ?? item.yPx) + markerLabelDy(item.below, 0, scale) + (item.topInsetPx ?? 0);
 
 /**
  * Axis max converts to the plot top and can land a fraction above it.
@@ -227,13 +292,14 @@ export const clampCurveLabelY = (yPx: number, plotY: number, plotHeight: number)
     return plotY - yPx <= 1 ? plotY : null;
 };
 
-/** Time-ordered greedy packing. Prefer the curve side, then flip if still blocked. */
+/** Neighboring labels read chronologically from top to bottom while their curve anchors stay fixed. */
 export const layoutCurveLabelBoxes = (
     items: CurveLabelLayoutInput[],
     canvasWidth = Infinity,
     scale = 1,
+    canvasHeight = Infinity,
 ): CurveLabelBox[] => {
-    const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
+    const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
     const order = items
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => Number.isFinite(item.xPx) && Number.isFinite(item.yPx))
@@ -241,28 +307,23 @@ export const layoutCurveLabelBoxes = (
     const placed: CurveLabelBox[] = [];
     const byIndex: CurveLabelBox[] = [];
     for (const { item, index } of order) {
-        let textY = labelTextY(item, scale);
-        let box = makeLabelBox(item, textY, canvasWidth, scale);
-        const trySteps = (dir: number) => {
-            const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
-            let step = 0;
-            let next = box;
-            while (placed.some((prior) => boxesOverlap(next, prior, scale)) && step < 24) {
-                // Box is `stack` tall and overlap includes `gap`, so one stack still collides.
-                textY += dir * (stack + gap);
-                next = makeLabelBox(item, textY, canvasWidth, scale);
-                step += 1;
+        const box = makeLabelBox(item, labelTextY(item, scale), canvasWidth, scale, canvasHeight);
+        for (const prior of placed) {
+            if (labelsNeedStacking(box, prior, scale)) {
+                moveLabelBox(box, Math.max(box.top, prior.bottom + gap));
             }
-            return next;
-        };
-        box = trySteps(item.below ? 1 : -1);
-        if (placed.some((prior) => boxesOverlap(box, prior, scale))) {
-            textY = labelTextY(item, scale);
-            box = makeLabelBox(item, textY, canvasWidth, scale);
-            box = trySteps(item.below ? -1 : 1);
         }
         placed.push(box);
         byIndex[index] = box;
+    }
+    // Make room above a bottom-edge cluster without reversing its event order.
+    for (let index = placed.length - 1; index >= 0; index--) {
+        const box = placed[index];
+        let bottom = canvasHeight;
+        for (let next = index + 1; next < placed.length; next++) {
+            if (labelsNeedStacking(box, placed[next], scale)) bottom = Math.min(bottom, placed[next].top - gap);
+        }
+        moveLabelBox(box, Math.max(0, Math.min(box.top, bottom - (box.bottom - box.top))));
     }
     return items.map((_, index) => byIndex[index]).filter(Boolean);
 };
@@ -289,12 +350,6 @@ export const getMarkerLabelGeometry = ({
     text,
     rank,
 });
-
-/**
- * 커브 기준 하단 라벨 — 같은 시각 상단 이벤트와 겹침 완화.
- * FC Start(상단) vs FC Rolling/FC End(하단). Drop은 커브 위(우측 군집 회피).
- */
-export const LABEL_BELOW_EVENTS = new Set(['FC Rolling', 'FC End', 'TP']);
 
 export interface MarkerBuildParams {
     charged: boolean;
@@ -362,9 +417,11 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     // tempLine: 온도 차트만. line: 온도 차트와 컨트롤 차트.
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];
-    const markerVisible = (event: string, timeSec: number) =>
-        isEventMarkerVisible(event, timeSec, xMin, xMax, xs, btActual);
-    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m.event, m.timeSec));
+    const markerVisible = (marker: RoastEventMarker) =>
+        marker.reference
+            ? Number.isFinite(marker.timeSec) && marker.timeSec >= xMin && marker.timeSec <= xMax
+            : isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual);
+    const lineEvents = eventMarkers.filter((m) => m.event !== 'Charge' && markerVisible(m));
     if (charged && Number.isFinite(currentTimeSec) && currentTimeSec >= xMin && currentTimeSec <= xMax) {
         const nowLineStyle = {
             color: colors.currentTimeLine,
@@ -407,7 +464,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             color: markerColor(m.event),
             width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
-            opacity: 1,
+            opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
         },
         label: { show: false },
     }));
@@ -428,11 +485,11 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
 
     const showDot = eventMarkerStyle === 'point';
     const labeledEvents = (hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers).filter(
-        (m) => markerVisible(m.event, m.timeSec),
+        markerVisible,
     );
     const curveLabels: CurveLabelItem[] = [
         ...labeledEvents.map((m) => {
-            const nearest = nearestBtAt(xs, btActual, m.timeSec);
+            const nearest = m.reference ? null : nearestBtAt(xs, btActual, m.timeSec);
             const atTop = noteAnchoredAtTop(m.event);
             const y = atTop
                 ? tempYMax
@@ -447,12 +504,14 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                     m.event,
                     m.timeSec,
                     markerTemp(m, nearest),
-                    m.event === 'Note' ? formatRoastNote(m) : m.note,
+                    m.event === 'Note' ? formatRoastNote(m, '\n') : m.note,
                 ),
                 color: markerLabelColor(m.event),
-                below: atTop || LABEL_BELOW_EVENTS.has(m.event),
+                opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
+                below: true,
                 showDot: m.event === 'Charge' ? false : showDot,
-                topInsetPx: noteLabelTopInsetPx(atTop, fontScale),
+                labelAtTop: true,
+                topInsetPx: noteLabelTopInsetPx(true, fontScale),
             };
         }),
         ...visibleTurningPoints.map((tp) => ({
@@ -462,6 +521,8 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             color: colors.markerLabelColor,
             below: true,
             showDot,
+            labelAtTop: true,
+            topInsetPx: noteLabelTopInsetPx(true, fontScale),
         })),
     ];
 
