@@ -1,199 +1,166 @@
-# Firstcrack authenticated read-only MCP — implementation and activation boundary
+# FirstCrack MCP: independent OAuth issuer
 
-Status: local source implementation, disabled by default. No hosted settings, database,
-OAuth clients/grants, deployment, plugin release or sharing have been changed.
+Status (2026-10-25): source implementation and disposable local integration checks.
+Disabled by default. No operational keys, database roles/permissions, Auth settings,
+OAuth clients/grants, plugin releases, pushes or deployments were created/changed.
 
-**Activation is blocked by an authentication design issue, not just deployment approval.**
-Reviewed upstream Supabase Auth routes (`internal/api/api.go`, `auth.go`, `user.go`) authenticate
-user tokens for account mutation independently of PostgREST RLS and do not show a reader-role
-check on `UserUpdate`. Hosted behavior was not probed with a real write. Native Supabase OAuth
-JWTs must not be exported to the plugin as an isolated read-only credential. The landing adapter
-now refuses native approval server-side regardless of feature flags; its approve button is disabled.
-The native token-hook SQL is an experimental proposal, **not a safe activation plan**.
+## Credential boundary
 
-The safe alternative requiring a design decision is an independent MCP issuer/token boundary
-on existing hosting: existing Supabase login verifies identity, while the plugin receives only
-MCP credentials that Supabase Auth cannot accept. Any upstream credentials stay server-side;
-data queries use a least-privileged reader role with RLS and verified identity/workspace context.
-Its signing key, persistent grant storage and credentials have not been created or configured.
-Building a separate issuer before selecting that architecture would exceed this work unit.
+The external client receives **opaque MCP credentials**, never a native Supabase access
+or refresh token. Native tokens remain blocked as MCP credentials; the landing helper
+`decideNativeConsent` still refuses native OAuth approval regardless of feature flags.
+Supabase custom scopes are not supported by its native OAuth server; `firstcrack:read`
+is supported by **this independent issuer**, not by enabling that Supabase feature.
 
-## Implemented source
+This is a separate logical authorization server on existing hosting, not a new hosting
+project. The selected source design uses:
 
-`supabase/functions/firstcrack-mcp/` implements stateless Streamable HTTP JSON responses:
-`initialize`, `ping`, `tools/list`, `tools/call`, notifications and an explicit protected-resource
-metadata URL advertised by the `WWW-Authenticate` challenge. GET/SSE sessions are not offered.
-The server negotiates MCP 2025-06-18 or 2025-03-26 and rejects unsupported transport headers.
+| Public endpoint | Existing hosting / implementation |
+| --- | --- |
+| `https://firstcrackiscoming.com/.well-known/oauth-authorization-server/oauth/mcp` | Cloudflare Pages `fc-landing`, RFC 8414 discovery |
+| `https://firstcrackiscoming.com/oauth/mcp/{authorize,token,revoke}` | Same landing; fixed-backend proxy, no cookies/native bearer forwarded |
+| `https://firstcrackiscoming.com/oauth/consent` | Existing SSR login and explicit roastery selection |
+| `https://firstcrackiscoming.com/account/connections` | Existing SSR identity, own grants and CSRF-protected revocation |
+| `https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/firstcrack-oauth/*` | New Edge function, private issuer/token store operations |
+| `https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/firstcrack-mcp` | Existing proposed Streamable HTTP MCP endpoint and protected-resource discovery |
 
-The seven read tools cover the caller's profile, the connected roastery, green bean definitions,
-products, orders with quantities, stored day plans and saved roast sessions. Only allowlisted
-columns are returned; each page is capped at 100 items. Order raw payloads, buyer details,
-billing identifiers, credentials and roast file paths are excluded.
+These are **proposed activation URLs**, not a claim that routes are deployed. The exact
+host callback and client registration remain unconfirmed. No dynamic registration,
+client secret, OAuth provider enablement, Auth token hook or PostgREST hook is needed.
 
-Limits: this is not an inventory balance tool. Bean definitions do not report stock balances.
-Stored day plans do not expand virtual recurring occurrences. There are no production writes,
-stock adjustments, equipment controls, live sensor feeds or sample fallback on login/read failure.
+1. A static enabled client must match issuer, resource and the exact HTTPS callback.
+   Authorization Code + S256 PKCE and state are required; unknown/duplicate parameters
+   and scope/resource expansion are rejected.
+2. SSR verifies the existing Supabase login. The native bearer is sent only to the fixed
+   internal issuer endpoint. That endpoint independently uses verified claims + live
+   Auth identity and native RLS to list the user's current workspaces. No editable
+   user metadata or submitted subject ID supplies identity.
+3. A same-origin, CSRF-protected POST selects one of those workspaces. The store checks
+   membership again and binds the grant to user, client, resource and workspace owner.
+   Domain `user_id` can be the team owner, not the logged-in member.
+4. Codes expire after 2 minutes (pending requests after 10); access tokens after at most
+   5 minutes. Refresh rotates on every use, with an absolute 30-day grant lifetime.
+   Code/refresh replay revokes the grant family in a committed transaction, including
+   concurrent refresh. Refresh cannot select another user, workspace or scope.
+5. Tokens contain 256 random bits. Only SHA-256 hashes are persisted; plaintext bearer
+   values exist in HTTPS responses/client storage. No operational signing key is required.
+6. Every MCP request and read rechecks the opaque token, active client/grant, issuer,
+   resource, expiry and current membership. No cache delays revocation/membership removal.
+   The user can revoke only their own grants, or revoke by possession of a client-bound
+   token. A foreign grant ID gives no existence signal.
 
-## Identity and authorization
+## Database authority
 
-1. Supabase `auth.getClaims(token)` verifies the JWT signature and expiry.
-2. `auth.getUser(token)` checks the Auth identity and must match the verified `sub`.
-3. Server policy verifies the configured issuer, resource audience, expiry, not-before,
-   approved OAuth `client_id`, standard `openid` scope, signed `firstcrack_access: read`, dedicated `firstcrack_reader` role,
-   non-anonymous identity and signed `firstcrack_workspace_owner_id` UUID.
-4. Every tool rechecks `has_workspace_access` using the caller's JWT. It never uses service role.
-5. Workspace data uses the connection's owner ID, which can differ from the member's user ID.
-   A tool argument cannot switch to another owner, even another roastery the user belongs to.
-   The personal profile is always filtered by the verified subject.
+`supabase/proposals/firstcrack-mcp-opaque-issuer.sql` is a **review proposal**, not an
+auto-applied migration. Private tables store static clients, pending authorizations,
+grants and token hashes; none are exposed through PostgREST or to native users.
 
-The initial token-hook proposal binds the workspace to the verified subject's own workspace.
-It does not issue team-workspace grants. Client-supplied IDs and editable `user_metadata` never populate authorization claims.
-Current membership is checked again for each read, so removing membership blocks an existing token.
+- `firstcrack_mcp_store`: NOLOGIN private-table/function owner; no customer-table SELECT.
+- `firstcrack_mcp_issuer`: NOLOGIN execution role for fixed issuer operations only.
+- `firstcrack_mcp_gateway`: NOLOGIN execution role for access lookup and fixed read tools.
+- `firstcrack_mcp_data`: NOLOGIN customer query-function owner, column SELECT only,
+  not a customer-table owner and no BYPASSRLS. Restrictive policies enforce the bound
+  owner alongside existing membership policies. Reads use a read-only transaction.
 
-`_shared/auth.ts#getAuthenticatedUser` now accepts verified first-party `authenticated` sessions
-without an OAuth `client_id` only. This prevents integration tokens from invoking existing service-role
-Edge Function writes. This intentionally rejects all third-party Supabase OAuth client tokens on
-those existing handlers; ordinary Google/password desktop sessions are preserved. Channel OAuth
-credentials stored by the existing sales-channel adapters are a separate flow.
+Two separate server-only LOGIN credentials must inherit only the matching issuer or
+gateway execution role. Runtime startup rejects superuser/BYPASSRLS, store/data-owner,
+service-role, native-authenticated and opposite-runtime membership. The gateway cannot
+submit a trusted subject: SQL derives identity from the stored token hash. No client
+gets a DB credential or JWT usable by Auth/PostgREST/legacy write RPCs. There is no
+service-role Supabase client in this flow. Server credentials still require normal
+secret protection; the issuer credential is the authority to issue grants.
 
-## Database proposal — not activated
+The inherited `firstcrack-reader.sql` and `firstcrack-oauth-token-hook.sql` proposals
+are **superseded experimental material. Do not activate them**. Restrictive database
+roles/scopes on native tokens do not isolate managed Auth account mutation APIs.
+`_shared/auth.ts` continues to reject integration JWTs on existing privileged handlers;
+its verified subject must match the live native Auth identity.
 
-`supabase/proposals/firstcrack-reader.sql` is a review proposal, **not a migration**. It describes:
+## Read tools and limits
 
-- A non-login, non-inheriting, non-bypass reader role with column-level SELECT grants only.
-- Restrictive RLS bound to the selected workspace, alongside existing owner/member policies.
-- A connection-scope restriction on `has_workspace_access` for the reader role only, retaining
-  native session membership behavior even when the member belongs to several roasteries.
-- A PostgREST pre-request guard that rejects writes and non-allowlisted RPCs, checks membership
-  and scope, and enables a read-only transaction. PUBLIC SECURITY DEFINER RPCs can otherwise
-  bypass table grants, so granting SELECT alone is insufficient.
-- An approval-required PostgREST hook configuration step, left commented out. Any hosted
-  pre-existing hook must be inspected and composed rather than replaced.
+| Tool | Returned data |
+| --- | --- |
+| `get_my_profile` | Caller's own name, business and country; no billing/email identifiers |
+| `list_my_workspaces` | Connected roastery only |
+| `list_green_beans` | Definitions/origin/threshold; no balance calculation |
+| `list_products` | Product identity, weight and bean/blend/profile links |
+| `list_orders` | Status, dates and line quantities; no raw payload/buyer details |
+| `list_production_plans` | Saved day plans and batches |
+| `list_roast_sessions` | Saved roast summaries, input/output and duration |
 
-`supabase/tests/firstcrack-reader-boundary.sql` creates an isolated scratch fixture and exercises
-the proposal, including another membership outside the selected workspace, protected columns,
-table writes, a legacy PUBLIC SECURITY DEFINER write RPC, the permitted membership RPC and
-membership removal. It does **not** replay all production migrations or prove hosted configuration.
-Do not run this fixture on a real or linked database.
+Pages default to 50, maximum 100; offsets maximum 10000. Nested order lines and plan
+batches are capped at 1000 per parent. Workspace choices and recent connection lists
+are capped at 100. Raw roast files/curves, inventory balances, virtual recurring plan
+instances, equipment and live sensor data are not included. No production registration,
+stock adjustment or `compute_inventory_alerts` call exists. Login/read failures never
+fall back to sample data. Sample simulation remains a separate plugin skill/flow.
 
-## OAuth provider constraint and credential prototype
+## Local verification
 
-The official [OAuth flow guide](https://supabase.com/docs/guides/auth/oauth-server/oauth-flows)
-explicitly says: **"Custom scopes are not currently supported."** Standard OIDC scopes do not
-restrict database permissions. The earlier `firstcrack:read` scope was therefore replaced by
-standard `openid` plus an independently verified application permission and reader DB role.
-
-`supabase/proposals/firstcrack-oauth-token-hook.sql` proposes an Auth token hook with a private,
-disabled-by-default client allowlist. Approved OAuth tokens receive the reader role, resource
-audience, `firstcrack_access: read`, and workspace owner derived from the verified subject. Native
-password/social-provider sessions remain unchanged. Refresh is subject to the same transformation.
-The hook does not trust user-editable metadata and is not callable by the reader role. It has not
-been configured in hosted Auth. Its audience array retains `authenticated` for Auth/PostgREST
-compatibility and adds the exact resource audience; hosted compatibility still requires testing.
-
-The existing landing source was located in **`hhhaan/fc-landing`** and checked out separately.
-Its new `apps/landing/src/pages/oauth/consent.astro` reuses existing SSR login cookies and the
-`/login?next=...` → `/auth/callback` return path. It shows the verified client, own-workspace read
-scope and deny controls, with Origin/CSRF checks and exact callback allowlisting. Native approval is disabled and refused server-side.
-It is disabled unless both `MCP_OAUTH_ENABLED` and `MCP_OAUTH_READONLY_READY` are explicitly true
-and verified client/callback allowlists are configured. No persistent setting has been changed.
-Already auto-approved provider responses fail closed with 409 because they omit review details;
-reconnecting such a grant currently requires revocation and a new consent flow.
-
-The host's exact redirect URI must come from its management screen. Do not invent it, enable
-dynamic registration or pass native desktop access/refresh tokens to the plugin. Ordinary native
-sessions remain separate. This first flow supports personal workspaces only; a team-workspace
-picker requires a separately designed server-side grant binding before it can be offered.
-
-## Conditions before any activation
-
-1. Select and approve an isolated MCP issuer/credential design. Do not activate the native
-   token-hook prototype as an external credential boundary. Reuse the current login/consent
-   controller and MCP tool interfaces, replacing their issuer-specific adapters.
-2. Complete full local Supabase replay and all alternate-path tests, including Auth account
-   updates and grant administration, before provisioning hosted credentials or grants.
-3. Obtain the host's exact callback URI and verify its metadata, PKCE, resource binding,
-   token refresh, expiry, revocation and native session coexistence with a test account.
-4. Only after these pass, approve the existing deployment/configuration paths and update the
-   existing USER/PRIVATE plugin with backend ID `plugins_6adabf9c7ed48191b394c7d62778dccd`, checking
-   current release against `pluginrel_6adadf34170c8191addd45e9f73e1432` again before publication.
-   Preserve both manifests, images, plugin identity/audience and sample default prompt.
-
-Current disabled runtime names: `FIRSTCRACK_MCP_ENABLED`, `FIRSTCRACK_MCP_RESOURCE_URL`,
-`FIRSTCRACK_MCP_CLIENT_IDS`, `FIRSTCRACK_MCP_ALLOWED_ORIGINS`; landing names:
-`MCP_OAUTH_ENABLED`, `MCP_OAUTH_READONLY_READY`, `MCP_OAUTH_CLIENT_IDS`, `MCP_OAUTH_REDIRECT_URIS`.
-No values were set in hosted systems. `supabase/config.toml` remains unchanged; the new function
-still inherits the gateway's JWT requirement. Future public discovery must be reviewed separately.
-
-## Local validation
+Apply both repository patches before the integration run. From `firstcrack`:
 
 ```sh
-pnpm --config.verify-deps-before-run=false test supabase/functions/firstcrack-mcp supabase/functions/_shared/auth.test.ts supabase/functions/handlers.test.ts
-pnpm --config.verify-deps-before-run=false exec biome check supabase/functions/firstcrack-mcp supabase/functions/_shared/auth.ts supabase/functions/_shared/auth.test.ts
-pnpm --config.verify-deps-before-run=false dlx deno@2.9.6 check --no-lock --node-modules-dir=none supabase/functions/firstcrack-mcp/index.ts
+# Default sibling checkout is ../fc-landing; override with an absolute path if needed.
+MCP_TEST_LANDING_ROOT=/path/to/fc-landing bash supabase/tests/test-mcp-opaque.sh
+# Optional MCP_TEST_DOCKER_HOST selects a local test Docker daemon.
+pnpm --config.verify-deps-before-run=false exec vitest run supabase/functions
+pnpm --config.verify-deps-before-run=false dlx deno@2.9.6 check --no-lock --node-modules-dir=none supabase/functions/*/index.ts supabase/tests/mcp-opaque.integration.ts
+pnpm --config.verify-deps-before-run=false typecheck
 ```
 
-Cryptographic tests use ephemeral local ES256 keys with the real installed Supabase SDK and a stubbed
-Auth/JWKS transport. They are not a live account or host OAuth test. The scratch SQL check runs only
-against a disposable PostgreSQL 15 container with no host port published.
+The runner creates and destroys only its own loopback PostgreSQL 17 container, matching
+the hosted project's reported major version. It uses real proposal SQL/RLS/functions,
+separate fixture DB credentials, the actual landing consent/proxy controllers, actual
+Supabase SDK native identity verification and the official MCP SDK 1.32.2 over local HTTP.
+HTTPS logical fixture origins are mapped to loopback; real credentials/remote requests
+are refused. Native Auth/JWKS are fixture implementations, not hosted Auth verification.
+It verifies login return, invalid/expired/non-native proofs, exact callback/resource,
+PKCE, code expiry/replay, user/roastery isolation, access/refresh/grant expiry, SDK automatic
+refresh, rotation/concurrent replay, user/token revocation and membership removal.
 
-Verified locally on 2026-10-25: all 287 Edge Function Vitest tests passed; all 18 Edge Function
-entrypoints passed Deno checking; the changed TypeScript files passed Biome; the isolated SQL
-boundary fixture passed; frontend/test/e2e typechecking passed. The initial typecheck failure
-was a missing declared `@tauri-apps/plugin-global-shortcut@2.4.1` dependency in the preinstalled
-environment. It was installed into a temporary pnpm project and linked into ignored `node_modules`
-for validation, without changing this repository's dependency manifests or lockfile.
+Full local Supabase replay is **not completed**: `public.ecr.aws` image pulls were denied
+by environment HTTP policy. No bypass or linked reset was attempted. The SQL stays outside
+`migrations/` until that gate passes; fixture coverage cannot prove the entire migration
+chain, real gateway behavior, deployed RLS interactions or hosted browser/desktop coexistence.
+The Cloudflare build uses only fixture public config and reports existing adapter warnings.
 
-Landing consent tests pass (11 cases) and `pnpm build:landing` passes. Actual local Astro HTTP requests verified
-303 → existing login, login HTML 200, and cross-origin approval 403, using fixture configuration
-with no real account. SQL scratch checks verify the token hook, refresh scope, native sessions
-and denied reader access to the hook/configuration. The official MCP SDK 1.32.2 passed a local HTTP
-fixture through protected-resource/issuer discovery, S256 PKCE (wrong verifier denied), code exchange,
-initialization, seven tools, a signed authenticated read and foreign-workspace denial:
+Final local results: **297 Edge Vitest tests**, **119 integration assertions**, **16
+landing tests**, all **19 Edge entrypoints** plus integration-script Deno checks, all
+three desktop TypeScript configurations, and the three landing controller TypeScript
+checks passed. The landing production build passed (existing adapter warnings). Actual
+local Astro HTTP requests returned consent/connections → existing login 303, login HTML
+200 and cross-origin grant revocation 403. Runtime-only billing/service bindings for
+that HTTP check were explicit unused fixture placeholders, not operational credentials.
 
-```sh
-pnpm --config.verify-deps-before-run=false dlx deno@2.9.6 run --no-lock --node-modules-dir=none --allow-net=127.0.0.1 --allow-env supabase/tests/firstcrack-mcp-protocol.ts
-```
+## Operational approval package — none executed
 
-This OAuth fixture is not the hosted Supabase issuer, and the Auth/JWKS identity in that fixture
-is simulated. No real account login, OAuth client or hosted grant was created.
-
-Full local Supabase verification is blocked: CLI 2.121.0 `supabase start` in an isolated temporary
-project failed to pull from `https://public.ecr.aws/v2/` (Forbidden). The attempt was stopped; no
-mirror/proxy bypass or retry was used and `supabase db reset --local` was **not executed**. No
-local containers remain from that attempt. The hosted project's metadata reports PostgreSQL 17;
-the repository local config and scratch tests use PostgreSQL 15, another item for compatibility review.
-
-## Targets and approval scope after the issuer design decision
-
-No actions in this table have been executed. This is not permission to activate the native-token prototype.
-
-| Target | Proposed change and access | Impact and prerequisites |
+| Target | Exact proposed action / stored material | Effect |
 | --- | --- | --- |
-| Execution environment only | Allow image pulls from `public.ecr.aws` to complete isolated local Supabase replay/testing | No production access; currently blocked by network policy. Do this before DB activation approval. |
-| Supabase **first crack**, project `vjdgdolfxvnxushxrmff` | Review/apply reader role, column grants, selected-workspace RLS, membership guard, appropriate internal reader boundary after issuer design review; native token hook stays unapproved | Read-only access to the seven DTOs above, own workspace only. No service-role client, production writes or equipment control. Full local replay and existing hook/policy audit must pass first. |
-| Existing Auth/login plus an isolated MCP issuer on existing hosting | First approve the issuer boundary, signing-key/grant-store provisioning and exact host callback. Do not enable the native-token hook for external access. | This introduces persistent delegated read access; the plugin credential must be rejected by Supabase Auth mutation APIs. Native browser/desktop sessions must remain separate. |
-| Same Supabase project's `firstcrack-mcp` function | Approve function-specific gateway discovery configuration, existing deployment and disabled-by-default runtime bindings | Public metadata/401 discovery only; every data method remains authenticated. Other functions' gateway settings are unchanged. |
-| Cloudflare Pages **fc-landing**, `firstcrackiscoming.com` | Deploy the existing landing repository's consent route and configure exact client/callback allowlists; enable only after issuer/DB checks | Reuses browser session cookies, does not share them with the plugin and does not replace desktop login. Callback value is still unverified and must be obtained from the host. |
-| Existing USER/PRIVATE `firstcrack-test` plugin | Update its existing manifests/MCP connection with expected-release conflict protection after hosted smoke tests | Preserve plugin identity, images, scope/audience and demo prompt. No new plugin, hosting project, sharing or public release. |
+| Local test environment | Permit required Supabase image pulls; run `supabase start` + `supabase db reset --local` against an isolated project | Must precede turning SQL into a migration; no hosted reset |
+| Supabase `vjdgdolfxvnxushxrmff` | Review latest policies/helpers; apply opaque-issuer tables, functions, SELECT columns and role-specific policies via the normal migration path | Persistent delegated read access to the seven DTOs; no change to native Auth scopes/hooks or existing user write rights |
+| Same project | Provision two limited LOGIN DB credentials; store DSNs only as Edge server secrets `FIRSTCRACK_OAUTH_DATABASE_URL` and `FIRSTCRACK_MCP_DATABASE_URL` | Secret values must never enter repository, browser, plugin or logs. No signing key/client secret required |
+| Same project | Add a disabled static `private.mcp_clients` record, then enable only after approved host client ID/exact callback verification | Public PKCE client; no new native Supabase OAuth grant/provider setup |
+| Same project | Deploy `firstcrack-oauth` and `firstcrack-mcp` with function-specific `verify_jwt=false`; configure `FIRSTCRACK_MCP_ISSUER_URL`, `FIRSTCRACK_MCP_RESOURCE_URL`, `FIRSTCRACK_MCP_CLIENT_IDS`, optional `FIRSTCRACK_MCP_ALLOWED_ORIGINS`, `FIRSTCRACK_OAUTH_CONSENT_URL`; finally enable `FIRSTCRACK_OAUTH_ENABLED`/`FIRSTCRACK_MCP_ENABLED` | Public discovery/OAuth routes; all identity/read paths authenticate internally. Source `config.toml` records the required gate settings but they have not been applied |
+| Cloudflare Pages `fc-landing` | Deploy landing source; set server-only `MCP_OAUTH_ISSUER_URL`, `MCP_OAUTH_RESOURCE_URL`, `MCP_OAUTH_CLIENT_IDS`, `MCP_OAUTH_REDIRECT_URIS`; finally enable `MCP_OAUTH_ENABLED` and `MCP_OAUTH_READONLY_READY` | Reuses existing password/Google SSR login. No desktop callback/session changes. External app never receives native cookies/tokens |
+| Existing USER/PRIVATE plugin `plugins_6adabf9c7ed48191b394c7d62778dccd` | After hosted checks, add tested streamable-http endpoint/auth through its existing update path | Obtain exact callback/client ID from host management, never invent them. Re-read current release and use expected-release conflict protection. Preserve both manifests, images, ID/audience and sample default prompt; sample commands remain explicit |
 
-Rollback must start by disabling the MCP/consent feature flags, disabling the approved OAuth client
-and revoking its refresh grants/sessions. Retain the DB reader restrictions and privileged-EF guard
-until outstanding tokens are expired/revoked. Only then restore previous Auth/PostgREST hooks and
-remove the new grants/role. **Removing the token hook while OAuth refresh remains enabled could
-mint unrestricted native-role tokens**, so it is not a safe standalone rollback. The plugin can
-be returned to its previous sample-only release without changing its identity or audience.
+Sequence: complete isolated replay and permission audit → approve specific hosted changes
+→ provision disabled store/client/secrets → deploy with flags off → verify discovery and
+failure behavior → enable for one consenting test user → exercise real login, multi-roastery
+consent, expiry/refresh/replay/revocation and unchanged desktop login → update the existing
+private plugin → expand only within approved scope. A real host/client registration is
+still required; localhost SDK evidence is not a finished plugin login.
 
-## References
+Rollback: disable issuer/MCP/landing flags first; disable the static client and revoke its
+grants; return the plugin to sample-only configuration; roll back Edge/landing releases.
+Remove/rotate the dedicated LOGIN credentials and grants after requests are stopped.
+Keep native-token refusal and customer RLS intact. No native token hook is installed by
+this design and none should be enabled as a shortcut. Expired private records need a
+separately reviewed retention/cleanup policy; no operational scheduler was installed.
 
-- [Supabase OAuth server](https://supabase.com/docs/guides/auth/oauth-server)
-- [MCP authentication](https://supabase.com/docs/guides/auth/oauth-server/mcp-authentication)
-- [Token security and RLS](https://supabase.com/docs/guides/auth/oauth-server/token-security)
-- [Verified claims](https://supabase.com/docs/reference/javascript/auth-getclaims)
-- [OpenAI plugin authentication](https://developers.openai.com/plugins/build/auth)
-
-Supabase docs were read through the connected documentation tool. Direct fetches of the Supabase
-changelog and OpenAI auth page were denied by the environment's HTTP policy (403); that page's
-current host-specific requirements are not claimed as verified. No proxy bypass was attempted.
-
-Upstream evidence: https://github.com/supabase/auth/blob/master/internal/api/user.go and https://github.com/supabase/auth/blob/master/internal/api/auth.go . These reads do not establish the hosted version or prove managed Auth isolation.
+References: [Supabase OAuth constraints](https://supabase.com/docs/guides/auth/oauth-server/oauth-flows),
+[OpenAI plugin auth](https://developers.openai.com/plugins/build/auth),
+[RFC 9700](https://www.rfc-editor.org/rfc/rfc9700), [RFC 8707](https://www.rfc-editor.org/rfc/rfc8707).
+Supabase documentation was read through its documentation connector. This environment
+blocked the direct OpenAI auth-page fetch; current host-specific redirect/registration
+requirements remain to be checked in the host management interface before activation.

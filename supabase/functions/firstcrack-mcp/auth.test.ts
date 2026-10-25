@@ -33,7 +33,7 @@ describe('verified token policy', () => {
         });
     });
 
-    it.each(['', 'profile', 'openid:read', undefined])('rejects an absent read scope: %s', (scope) => {
+    it.each(['', 'openid', 'firstcrack:read-write', undefined])('rejects an absent read scope: %s', (scope) => {
         expect(authorizeClaims({ ...validClaims(), scope }, config)).toEqual({
             status: 403,
             error: 'insufficient_scope',
@@ -51,7 +51,7 @@ describe('activation configuration', () => {
     const env = {
         FIRSTCRACK_MCP_ENABLED: 'true',
         FIRSTCRACK_MCP_RESOURCE_URL: config.resource,
-        SUPABASE_URL: 'https://project.example',
+        FIRSTCRACK_MCP_ISSUER_URL: config.issuer,
         FIRSTCRACK_MCP_CLIENT_IDS: 'approved-client',
         FIRSTCRACK_MCP_ALLOWED_ORIGINS: 'https://host.example',
     };
@@ -65,7 +65,8 @@ describe('activation configuration', () => {
         { FIRSTCRACK_MCP_RESOURCE_URL: 'http://insecure.example/mcp' },
         { FIRSTCRACK_MCP_RESOURCE_URL: 'https://user:password@project.example/mcp' },
         { FIRSTCRACK_MCP_RESOURCE_URL: `${config.resource}?token=unsafe` },
-        { SUPABASE_URL: 'https://project.example/untrusted/path' },
+        { FIRSTCRACK_MCP_ISSUER_URL: 'https://identity.example/oauth/mcp?untrusted=1' },
+        { FIRSTCRACK_MCP_ISSUER_URL: 'https://project.example/auth/v1' },
         { FIRSTCRACK_MCP_ALLOWED_ORIGINS: '*' },
         { FIRSTCRACK_MCP_ALLOWED_ORIGINS: 'https://host.example/some-path' },
     ])('fails closed for incomplete configuration: %j', (change) => {

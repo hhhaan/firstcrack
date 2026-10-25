@@ -1,3 +1,4 @@
+/** Legacy SDK verification fixture; production MCP accepts opaque tokens through mcp-oauth/access.ts only. */
 import type { VerifiedClaims } from './auth.ts';
 
 type AuthVerifier = {

@@ -10,7 +10,7 @@ import { getAuthenticatedUser } from './auth.ts';
 beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('Deno', { env: { get: () => 'test-only' } });
-    mocks.getClaims.mockResolvedValue({ data: { claims: { role: 'authenticated' } }, error: null });
+    mocks.getClaims.mockResolvedValue({ data: { claims: { role: 'authenticated', sub: 'member' } }, error: null });
     mocks.getUser.mockResolvedValue({ data: { user: { id: 'member' } }, error: null });
 });
 
@@ -45,5 +45,10 @@ describe('privileged Edge Function authentication boundary', () => {
         mocks.getClaims.mockRejectedValue(new Error('JWT has expired'));
         expect(await getAuthenticatedUser(request())).toBeNull();
         expect(mocks.getUser).not.toHaveBeenCalled();
+    });
+
+    it('requires the verified JWT subject to match the live Auth identity', async () => {
+        mocks.getUser.mockResolvedValue({ data: { user: { id: 'another-user' } }, error: null });
+        expect(await getAuthenticatedUser(request())).toBeNull();
     });
 });

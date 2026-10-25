@@ -2,7 +2,7 @@ import type { McpConfig } from './auth.ts';
 
 export const config: McpConfig = {
     resource: 'https://project.example/functions/v1/firstcrack-mcp',
-    issuer: 'https://project.example/auth/v1',
+    issuer: 'https://identity.example/oauth/mcp',
     clientIds: ['approved-client'],
     allowedOrigins: ['https://host.example'],
 };
@@ -13,9 +13,9 @@ export const validClaims = () => ({
     iss: config.issuer,
     aud: ['authenticated', config.resource],
     sub: memberId,
-    role: 'firstcrack_reader',
+    role: 'firstcrack_mcp_data',
     client_id: 'approved-client',
-    scope: 'openid',
+    scope: 'firstcrack:read',
     firstcrack_access: 'read',
     firstcrack_workspace_owner_id: ownerId,
     exp: Math.floor(Date.now() / 1000) + 600,

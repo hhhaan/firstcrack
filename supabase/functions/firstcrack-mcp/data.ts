@@ -2,6 +2,7 @@ import { type Principal, READ_SCOPE, UUID } from './auth.ts';
 
 type QueryResult = { data: unknown; error: unknown };
 export type ReadSelection = {
+    tool: string;
     table: string;
     columns: string;
     ownerColumn: string;
@@ -145,6 +146,7 @@ export async function readTool(client: ReadClient, principal: Principal, name: s
     if (access.data !== true) throw new ToolFailure('이 로스터리를 조회할 권한이 없습니다.');
 
     const { data, error } = await client.selectRows({
+        tool: name,
         table: spec.table,
         columns: spec.columns,
         ownerColumn: spec.ownerColumn,

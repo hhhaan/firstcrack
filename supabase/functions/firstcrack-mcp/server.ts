@@ -5,7 +5,7 @@ const VERSIONS = ['2025-06-18', '2025-03-26'];
 const MAX_BODY_BYTES = 65536;
 type Dependencies = {
     config: McpConfig | null;
-    /** Must verify the signature and the current user with the configured Auth server. */
+    /** Must validate an opaque credential against its current grant; native JWTs are rejected. */
     verify: (req: Request, token: string) => Promise<VerifiedClaims | null>;
     userClient: (req: Request) => ReadClient;
     reportError: (error: unknown) => Promise<void>;

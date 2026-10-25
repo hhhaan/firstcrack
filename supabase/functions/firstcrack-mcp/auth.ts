@@ -1,5 +1,5 @@
-export const READ_SCOPE = 'openid';
-export const READER_ROLE = 'firstcrack_reader';
+export const READ_SCOPE = 'firstcrack:read';
+export const READER_ROLE = 'firstcrack_mcp_data';
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type McpConfig = {
@@ -14,7 +14,7 @@ export function readMcpConfig(env: (key: string) => string | undefined): McpConf
     if (env('FIRSTCRACK_MCP_ENABLED') !== 'true') return null;
     try {
         const resource = new URL(env('FIRSTCRACK_MCP_RESOURCE_URL') ?? '');
-        const project = new URL(env('SUPABASE_URL') ?? '');
+        const issuer = new URL(env('FIRSTCRACK_MCP_ISSUER_URL') ?? '');
         const clientIds = (env('FIRSTCRACK_MCP_CLIENT_IDS') ?? '')
             .split(',')
             .map((id) => id.trim())
@@ -23,16 +23,17 @@ export function readMcpConfig(env: (key: string) => string | undefined): McpConf
             .split(',')
             .map((origin) => origin.trim())
             .filter(Boolean);
-        for (const url of [resource, project]) {
+        for (const url of [resource, issuer]) {
             if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) return null;
         }
-        if (project.pathname !== '/' || clientIds.length === 0) return null;
+        // Never advertise the native Supabase OAuth issuer, even under misconfiguration.
+        if (issuer.pathname !== '/oauth/mcp' || clientIds.length === 0) return null;
         if (allowedOrigins.some((origin) => new URL(origin).origin !== origin || !origin.startsWith('https://'))) {
             return null;
         }
         return {
             resource: resource.href.replace(/\/$/, ''),
-            issuer: `${project.origin}/auth/v1`,
+            issuer: issuer.href.replace(/\/$/, ''),
             clientIds,
             allowedOrigins,
         };
@@ -47,7 +48,7 @@ export type AuthResult =
     | { principal: Principal }
     | { status: 401 | 403; error: 'invalid_token' | 'insufficient_scope' };
 
-/** Only call with claims returned by a cryptographic verifier, never a decoded JWT. */
+/** Only accept authoritative opaque-token storage results, never client-supplied claims or decoded JWTs. */
 export function authorizeClaims(claims: VerifiedClaims, config: McpConfig, now = Date.now() / 1000): AuthResult {
     const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
     if (

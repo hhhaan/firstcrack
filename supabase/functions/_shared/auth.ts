@@ -39,7 +39,7 @@ export const getAuthenticatedUser = async (req: Request) => {
             return null;
 
         const { data, error } = await supabase.auth.getUser();
-        if (error || !data.user) return null;
+        if (error || !data.user || data.user.id !== verified.claims.sub) return null;
         return data.user;
     } catch {
         // Expired/malformed JWTs can reject rather than return an AuthError.
