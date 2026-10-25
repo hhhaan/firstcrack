@@ -36,7 +36,7 @@ describe('review heater plan', () => {
 
     it('clears the plan when the last Heater mark is removed', () => {
         expect(reviewHeaterToSave([heater('h', 30, '80%')], [], [{ t: 30, bt: 160, heater: 80 }], [])).toBeNull();
-        expect(heaterEventsFromLog([])).toBeNull();
+        expect(heaterEventsFromLog([], null, null)).toBeNull();
     });
 
     it('keeps Heater marks outside the edited view in the complete saved plan', () => {
@@ -46,5 +46,27 @@ describe('review heater plan', () => {
             { t: 10, bt: 160, heater: 90 },
             { t: 30, bt: 160, heater: 70 },
         ]);
+    });
+
+    it('keeps each step condition and metadata when an edited Heater moves past another step', () => {
+        const previous = [heater('first', 30, '80%'), heater('second', 60, '50%')];
+        const next = [heater('first', 75, '70%', 170), previous[1]];
+        const stored = [
+            { t: 30, bt: 160, heater: 80, trigger: 'bt', extra: { keep: true } },
+            { t: 60, bt: 160, heater: 50, trigger: 'time' },
+        ];
+        expect(reviewHeaterToSave(previous, next, stored, next)).toEqual([
+            stored[1],
+            { ...stored[0], t: 75, bt: 170, heater: 70 },
+        ]);
+    });
+
+    it('keeps unseen step conditions when a visible Heater is deleted', () => {
+        const unseen = heater('unseen', 60, '50%');
+        const stored = [
+            { t: 30, bt: 160, heater: 80, trigger: 'bt' },
+            { t: 60, bt: 160, heater: 50, trigger: 'time' },
+        ];
+        expect(reviewHeaterToSave([heater('visible', 30, '80%')], [], stored, [unseen])).toEqual([stored[1]]);
     });
 });

@@ -97,7 +97,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                 <div className="@container min-w-0 space-y-6">
                     <HistorySessionChart session={session} exportContainer={exportContainer} />
                     <SessionScorecard session={session} />
-                    <RecordSections session={session} />
+                    <RecordSections key={session.id} session={session} />
                 </div>
                 <aside className="grid min-w-0 gap-4 @min-[640px]:grid-cols-2 @min-[1000px]:grid-cols-1">
                     <section className="min-w-0 rounded-2xl border border-border bg-surface-warm p-4">
