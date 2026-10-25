@@ -66,10 +66,10 @@ export interface ReplayControlInputs {
     observationQuality: ObservationQuality | null;
     /**
      * Last-valid observation wall-clock. Explicit `null` = this generation has no last-valid (hold).
-     * Omit to skip the proposed long-gap stop in tests.
+     * Omit with `nowMs` to skip last-valid age hold in tests.
      */
     lastValidReceivedAtMs?: number | null;
-    /** Wall-clock for last-valid age. Omit with lastValid to skip long-gap stop in tests. */
+    /** Wall-clock for last-valid age. Omit with lastValid to skip age hold in tests. */
     nowMs?: number | null;
     /** 논리 명령 응답(지원 맵은 설정값 읽기 검증 포함). 요청값 불일치·null은 실패, 실측 확인은 별도. */
     writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
@@ -98,9 +98,7 @@ export type ReplayStopReason =
     | 'manual'
     | 'profileChanged'
     | 'timingGap'
-    | 'writeFailed'
-    /** Last-valid observation older than the proposed R06 limit. Not a shipping-approved safety rating. */
-    | 'observationStale';
+    | 'writeFailed';
 
 const replayStopCause = ({
     sidecarConnected,
@@ -129,18 +127,11 @@ const replayStopCause = ({
  * ponytail: sidecar heartbeat로 판정을 옮기면(#308) 이 감지는 그쪽 책임이 된다.
  */
 const SAMPLE_GAP_LIMIT_S = 5;
-/**
- * Proposed long-gap policy: last-valid observation age above this stops Replay.
- * Not equipment-validated and not a shipping-approved safety limit — under review (#529).
- */
+/** Last-valid age above this holds ordinary writes. Replay stays on. */
 export const PROPOSED_OBSERVATION_STALE_LIMIT_MS = 5_000;
 
 /** NaN !== NaN, so a bad elapsed or timestamp must not schedule another render. */
 const sameNumber = (left: number, right: number) => left === right || (Number.isNaN(left) && Number.isNaN(right));
-
-const sameStamp = (left: number | null | undefined, right: number | null | undefined) =>
-    left === right ||
-    (typeof left === 'number' && typeof right === 'number' && Number.isNaN(left) && Number.isNaN(right));
 
 /**
  * Render-phase plan updates compare these keys, not array identity.
@@ -277,11 +268,6 @@ export const useReplayControl = ({
     const [safeOffIssued, setSafeOffIssued] = useState(false);
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
-    /**
-     * Previously accepted last-valid wall-clock for R06 age. A recovery sample that
-     * refreshes last-valid first is still a gap against this, not against the new stamp.
-     */
-    const [trustedLastValidMs, setTrustedLastValidMs] = useState<number | null>(null);
     /**
      * 이벤트 write가 /control 응답 대기 중 — 그동안 판정을 멈춰 같은 이벤트를 두 번 쓰지
      * 않는다 (#312). 응답 세대: 배치·프로파일 경계뿐 아니라 사용자 OFF·수동/PID 중단·재시작
@@ -429,48 +415,14 @@ export const useReplayControl = ({
     // 타이밍 갭 판정 (#313) — 렌더 중인 이유는 profileChanged와 같다: 복귀 커밋에서
     // 아래 판정 effect가 stale active로 밀린 이벤트를 한 번 더 쓰는 것을 막는다.
     // 복귀 후 catch-up write는 하지 않는다 — 그동안의 실기 상태를 모른다.
-    let replayRunning = active;
     if (!sameNumber(elapsed, prevElapsed)) {
         setPrevElapsed(elapsed);
-        if (replayRunning && roasting && stopCause == null && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
+        if (active && roasting && stopCause == null && elapsed - prevElapsed > SAMPLE_GAP_LIMIT_S) {
             // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
             bumpWriteGenOnRenderStop();
             setWriting(false);
-            replayRunning = false;
             setActive(false);
             setStopReason('timingGap');
-        }
-    }
-
-    // R06 last-valid age — proposed >5s, not equipment-validated.
-    // Elapsed ticks must check even with no new sample. A recovery sample that
-    // refreshes last-valid first is still a gap against trustedLastValidMs.
-    // stopCause가 있으면 렌더 중 중지하지 않는다 — DROP zero effect가 active를 봐야 한다.
-    // Explicit null last-valid is this generation's unknown: hold, do not age against
-    // a prior generation, do not invent trust from nowMs.
-    if (!roasting && !sameStamp(trustedLastValidMs, lastValidReceivedAtMs ?? null)) {
-        setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
-    }
-    if (replayRunning && roasting && stopCause == null && lastValidReceivedAtMs !== undefined && nowMs != null) {
-        if (lastValidReceivedAtMs === null) {
-            if (trustedLastValidMs != null) setTrustedLastValidMs(null);
-        } else {
-            let trusted = trustedLastValidMs;
-            if (trusted == null) {
-                trusted = lastValidReceivedAtMs;
-                setTrustedLastValidMs(trusted);
-            }
-            const recoveryGap = lastValidReceivedAtMs > trusted ? lastValidReceivedAtMs - trusted : 0;
-            const clockGap = nowMs - trusted;
-            if (Math.max(recoveryGap, clockGap) > PROPOSED_OBSERVATION_STALE_LIMIT_MS) {
-                // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
-                bumpWriteGenOnRenderStop();
-                setWriting(false);
-                setActive(false);
-                setStopReason('observationStale');
-            } else if (!sameStamp(lastValidReceivedAtMs, trustedLastValidMs)) {
-                setTrustedLastValidMs(lastValidReceivedAtMs);
-            }
         }
     }
 
@@ -523,10 +475,8 @@ export const useReplayControl = ({
             if (!enabled) return;
             // 시작·재개 모두 현재 조건의 마지막 화력으로 동기화한다.
             setIndex(0);
-            // Explicit resume ages from the current last-valid only — never invent one from nowMs.
-            setTrustedLastValidMs(lastValidReceivedAtMs ?? null);
         },
-        [lastValidReceivedAtMs, plan, referenceMachineMismatch],
+        [plan, referenceMachineMismatch],
     );
 
     const toggle = useCallback(() => {
@@ -551,8 +501,12 @@ export const useReplayControl = ({
 
     // 현재 generation의 유효 관측이 있을 때만 일반 TIME/BT write. production의 null/unknown
     // (observation 미수신·generation 초기화)은 hold다 — 표시용 last-good BT로 발화하지 않는다.
-    // active·index는 유지 — 중단은 R06. DROP zero는 위의 stopCause 경로라 이 게이트 밖이다.
-    const observationHold = active && observationQuality !== 'valid';
+    // last-valid 나이가 한도를 넘어도 On·index는 유지한다. DROP zero는 stopCause 경로라 이 게이트 밖이다.
+    const lastValidAgeHold =
+        lastValidReceivedAtMs !== undefined &&
+        nowMs != null &&
+        (lastValidReceivedAtMs === null || nowMs - lastValidReceivedAtMs > PROPOSED_OBSERVATION_STALE_LIMIT_MS);
+    const observationHold = active && (observationQuality !== 'valid' || lastValidAgeHold);
 
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: PID·연결 상태는 새 liveBt와 같은 커밋에 바뀔 수 있다 —
@@ -566,7 +520,7 @@ export const useReplayControl = ({
     // effect가 다시 돌면 기존 Level/순서/catch-up이 최신 정상 샘플로 재평가한다.
     useEffect(() => {
         if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
-        if (observationQuality !== 'valid') return;
+        if (observationQuality !== 'valid' || lastValidAgeHold) return;
         if (writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
         if (result.nextIndex === index || result.heater == null) return;
@@ -614,6 +568,7 @@ export const useReplayControl = ({
         index,
         writing,
         observationQuality,
+        lastValidAgeHold,
         writeHeater,
         retryHeater,
     ]);

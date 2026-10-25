@@ -22,7 +22,7 @@ export const useReplayStopDiagnostics = ({
         if (reportedStop.current === stopReason) return;
         reportedStop.current = stopReason;
         // writeFailed already follows the request/sidecar reporting and filtering policy.
-        if (stopReason !== 'timingGap' && stopReason !== 'observationStale') return;
+        if (stopReason !== 'timingGap') return;
         try {
             // Distinct incidents survive SDK dedupe while sharing the same issue fingerprint.
             logger.capture(new Error(`Replay stopped: ${stopReason} (${crypto.randomUUID()})`), {
