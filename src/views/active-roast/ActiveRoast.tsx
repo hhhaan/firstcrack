@@ -1175,7 +1175,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         replayMachineMismatch,
         replayDropTime,
         referenceTpTime,
-        replayHeaterEvents: profileHeaterEvents(targetProfile),
+        replayHeaterEvents: heatEvents,
         liveBt: replayBt,
         elapsed,
         roasting: phase === 'roasting',
