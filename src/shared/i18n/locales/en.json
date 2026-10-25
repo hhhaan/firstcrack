@@ -1168,8 +1168,8 @@
             }
         },
         "dialogs": {
-            "unsavedCloseTitle": "Unsaved Roast Record",
-            "unsavedCloseMsg": "If you quit without saving, this roast record will not be saved. Do you want to quit?",
+            "unsavedCloseTitle": "Confirm Quit",
+            "unsavedCloseMsg": "You have an unsaved record. Quit?",
             "closeWithoutSaving": "Quit Without Saving",
             "keepUsing": "Keep Using",
             "end": "End",

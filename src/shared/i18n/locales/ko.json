@@ -1449,8 +1449,8 @@
         "dialogs": {
             "machineRequiredTitle": "머신 연결 필요",
             "machineRequiredMsg": "연결된 머신이 없습니다. 연결 후 다시 시도하세요.",
-            "unsavedCloseTitle": "저장되지 않은 로스팅 기록",
-            "unsavedCloseMsg": "저장하지 않고 종료하면 이 로스팅 기록은 저장되지 않습니다. 종료하시겠습니까?",
+            "unsavedCloseTitle": "종료 확인",
+            "unsavedCloseMsg": "저장되지 않은 기록이 있습니다. 종료할까요?",
             "closeWithoutSaving": "저장하지 않고 종료",
             "keepUsing": "계속 사용",
             "saveFailedTitle": "저장 실패",

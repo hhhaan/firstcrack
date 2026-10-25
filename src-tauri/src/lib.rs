@@ -527,6 +527,8 @@ pub fn run() {
     let app = builder
         .setup(|app| {
             browser_defaults::create_main_window(app)?;
+            #[cfg(target_os = "macos")]
+            browser_defaults::configure_quit_menu(app)?;
             #[cfg(desktop)]
             {
                 configure_main_window(app);

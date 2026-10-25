@@ -77,6 +77,50 @@ pub fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+pub fn configure_quit_menu(app: &tauri::App) -> tauri::Result<()> {
+    use tauri::{
+        menu::{Menu, MenuItem},
+        Manager,
+    };
+
+    let menu = Menu::default(app.handle())?;
+    let menus = menu.items()?;
+    let application_menu = menus
+        .first()
+        .and_then(|item| item.as_submenu())
+        .ok_or_else(|| std::io::Error::other("Default application menu is missing"))?;
+    let items = application_menu.items()?;
+    // Native Quit calls Cocoa terminate: directly, bypassing ExitRequested and the close guard.
+    let native_quit = items
+        .last()
+        .and_then(|item| item.as_predefined_menuitem())
+        .ok_or_else(|| std::io::Error::other("Default application Quit item is missing"))?;
+    let quit = MenuItem::with_id(
+        app,
+        "guarded-quit",
+        native_quit.text()?,
+        true,
+        Some("CmdOrCtrl+Q"),
+    )?;
+    application_menu.remove(native_quit)?;
+    application_menu.append(&quit)?;
+    app.set_menu(menu)?;
+    app.on_menu_event(|app, event| {
+        if event.id() != "guarded-quit" {
+            return;
+        }
+        if let Some(window) = app.get_webview_window("main") {
+            if let Err(error) = window.close() {
+                eprintln!("[close] Could not request main window close: {error}");
+            }
+        } else {
+            app.exit(0);
+        }
+    });
+    Ok(())
+}
+
 pub fn init<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     let builder = tauri::plugin::Builder::new("browser-defaults")
         .js_init_script(include_str!("browser_defaults.js"));
