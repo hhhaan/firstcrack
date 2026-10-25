@@ -383,7 +383,7 @@ export const History = () => {
                                     onSelect={setOriginFilter}
                                 />
                                 <FilterDropdown
-                                    label={t('history.allProfiles')}
+                                    label={t('history.table.profile')}
                                     value={profileFilter}
                                     options={[...profileOptions.keys()]}
                                     optionLabel={(id) => profileOptions.get(id) ?? id}

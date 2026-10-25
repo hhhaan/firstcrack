@@ -23,7 +23,7 @@ test('history filters by profile across pages, combines search, and clears back 
     const history = page.getByTestId('history-page');
     const rows = history.locator('tbody tr');
 
-    await history.getByRole('button', { name: 'All Profiles', exact: true }).click();
+    await history.getByRole('button', { name: 'Profile', exact: true }).click();
     await history.getByRole('button', { name: 'Espresso', exact: true }).click();
     await expect(rows).toHaveCount(10);
     await expect(history).toContainText('of 11');
@@ -44,7 +44,26 @@ test('history filters by profile across pages, combines search, and clears back 
     await expect(rows).toContainText('Filter batch');
 
     await history.getByRole('button', { name: 'Filter', exact: true }).click();
-    await history.getByRole('button', { name: 'All Profiles', exact: true }).click();
+    await history.getByRole('button', { name: 'Profile', exact: true }).click();
     await expect(history).toContainText('13 sessions recorded');
     await expect(history.getByText('Unlinked batch', { exact: true })).toBeVisible();
+});
+
+test('history profile filter and its reset option render in Korean', async ({ authedPage: page, db }) => {
+    db.seedCompletedSession({
+        batch_name: '테스트 배치',
+        profile_id: 'profile-test',
+        roast_profiles: { name: '테스트 프로파일', target_level: 'Medium' },
+    });
+    await page.addInitScript(() => localStorage.setItem('fc.language', 'ko'));
+    await page.reload();
+    await expect(page.getByTestId('app-sidebar')).toBeVisible();
+    await goNav(page, 'history');
+
+    const history = page.getByTestId('history-page');
+    await history.getByRole('button', { name: '프로파일', exact: true }).click();
+    await expect(history.getByRole('button', { name: '프로파일', exact: true })).toHaveCount(2);
+    await expect(history.getByRole('button', { name: '테스트 프로파일', exact: true })).toBeVisible();
+    await expect(history).not.toContainText('history.allProfiles');
+    await expect(history).not.toContainText('history.table.profile');
 });
