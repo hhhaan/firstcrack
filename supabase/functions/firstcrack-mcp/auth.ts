@@ -1,4 +1,4 @@
-export const READ_SCOPE = 'firstcrack:read';
+export const READ_SCOPE = 'openid';
 export const READER_ROLE = 'firstcrack_reader';
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -56,6 +56,7 @@ export function authorizeClaims(claims: VerifiedClaims, config: McpConfig, now =
         typeof claims.sub !== 'string' ||
         !UUID.test(claims.sub) ||
         claims.role !== READER_ROLE ||
+        claims.firstcrack_access !== 'read' ||
         typeof claims.firstcrack_workspace_owner_id !== 'string' ||
         !UUID.test(claims.firstcrack_workspace_owner_id) ||
         claims.is_anonymous === true ||

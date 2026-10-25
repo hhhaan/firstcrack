@@ -84,7 +84,8 @@ BEGIN
     owner_id := (claims ->> 'firstcrack_workspace_owner_id')::uuid;
     IF claims ->> 'role' IS DISTINCT FROM 'firstcrack_reader'
        OR owner_id IS NULL
-       OR NOT ('firstcrack:read' = ANY(regexp_split_to_array(coalesce(claims ->> 'scope', ''), '\s+')))
+       OR claims ->> 'firstcrack_access' IS DISTINCT FROM 'read'
+       OR NOT ('openid' = ANY(regexp_split_to_array(coalesce(claims ->> 'scope', ''), '\s+')))
        OR public.has_workspace_access(owner_id) IS DISTINCT FROM true THEN
         RAISE insufficient_privilege USING MESSAGE = 'Integration connection not authorized';
     END IF;

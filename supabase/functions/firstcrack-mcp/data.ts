@@ -1,4 +1,4 @@
-import { type Principal, UUID } from './auth.ts';
+import { type Principal, READ_SCOPE, UUID } from './auth.ts';
 
 type QueryResult = { data: unknown; error: unknown };
 export type ReadSelection = {
@@ -102,8 +102,8 @@ export const tools = Object.entries(catalog).map(([name, spec]) => ({
         additionalProperties: false,
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
-    securitySchemes: [{ type: 'oauth2', scopes: ['firstcrack:read'] }],
-    _meta: { securitySchemes: [{ type: 'oauth2', scopes: ['firstcrack:read'] }] },
+    securitySchemes: [{ type: 'oauth2', scopes: [READ_SCOPE] }],
+    _meta: { securitySchemes: [{ type: 'oauth2', scopes: [READ_SCOPE] }] },
 }));
 
 function parseArguments(value: unknown, workspace: boolean) {

@@ -18,6 +18,8 @@ describe('verified token policy', () => {
         { nbf: Date.now() / 1000 + 1000 },
         { sub: 'not-a-user' },
         { role: 'service_role' },
+        { firstcrack_access: undefined },
+        { firstcrack_access: 'write' },
         { role: 'authenticated' },
         { client_id: 'unapproved-client' },
         { client_id: undefined },
@@ -31,7 +33,7 @@ describe('verified token policy', () => {
         });
     });
 
-    it.each(['', 'openid profile', 'firstcrack:read-write', undefined])('rejects an absent read scope: %s', (scope) => {
+    it.each(['', 'profile', 'openid:read', undefined])('rejects an absent read scope: %s', (scope) => {
         expect(authorizeClaims({ ...validClaims(), scope }, config)).toEqual({
             status: 403,
             error: 'insufficient_scope',
@@ -40,10 +42,7 @@ describe('verified token policy', () => {
 
     it('never uses user-editable metadata for permissions or workspace scope', () => {
         expect(
-            authorizeClaims(
-                { ...validClaims(), scope: undefined, user_metadata: { scope: 'firstcrack:read' } },
-                config,
-            ),
+            authorizeClaims({ ...validClaims(), scope: undefined, user_metadata: { scope: 'openid' } }, config),
         ).toEqual({ status: 403, error: 'insufficient_scope' });
     });
 });

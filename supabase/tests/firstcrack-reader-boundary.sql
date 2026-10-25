@@ -82,7 +82,7 @@ $$;
 
 \ir ../proposals/firstcrack-reader.sql
 
-SET request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"firstcrack_reader","scope":"firstcrack:read","firstcrack_workspace_owner_id":"22222222-2222-4222-8222-222222222222"}';
+SET request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"firstcrack_reader","scope":"openid","firstcrack_access":"read","firstcrack_workspace_owner_id":"22222222-2222-4222-8222-222222222222"}';
 SET request.method = 'GET';
 SET request.path = '/beans';
 SET ROLE firstcrack_reader;
@@ -147,7 +147,7 @@ DO $$ BEGIN
     END IF;
 END $$;
 RESET ROLE;
-SET request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"firstcrack_reader","scope":"firstcrack:read","firstcrack_workspace_owner_id":"22222222-2222-4222-8222-222222222222"}';
+SET request.jwt.claims = '{"sub":"11111111-1111-4111-8111-111111111111","role":"firstcrack_reader","scope":"openid","firstcrack_access":"read","firstcrack_workspace_owner_id":"22222222-2222-4222-8222-222222222222"}';
 DELETE FROM organization_members WHERE org_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 SET ROLE firstcrack_reader;
 SET request.method = 'GET';

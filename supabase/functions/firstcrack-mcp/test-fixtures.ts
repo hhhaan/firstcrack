@@ -11,11 +11,12 @@ export const ownerId = '22222222-2222-4222-8222-222222222222';
 export const otherOwnerId = '33333333-3333-4333-8333-333333333333';
 export const validClaims = () => ({
     iss: config.issuer,
-    aud: config.resource,
+    aud: ['authenticated', config.resource],
     sub: memberId,
     role: 'firstcrack_reader',
     client_id: 'approved-client',
-    scope: 'firstcrack:read',
+    scope: 'openid',
+    firstcrack_access: 'read',
     firstcrack_workspace_owner_id: ownerId,
     exp: Math.floor(Date.now() / 1000) + 600,
     iat: Math.floor(Date.now() / 1000) - 10,

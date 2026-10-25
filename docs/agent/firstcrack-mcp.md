@@ -3,6 +3,21 @@
 Status: local source implementation, disabled by default. No hosted settings, database,
 OAuth clients/grants, deployment, plugin release or sharing have been changed.
 
+**Activation is blocked by an authentication design issue, not just deployment approval.**
+Reviewed upstream Supabase Auth routes (`internal/api/api.go`, `auth.go`, `user.go`) authenticate
+user tokens for account mutation independently of PostgREST RLS and do not show a reader-role
+check on `UserUpdate`. Hosted behavior was not probed with a real write. Native Supabase OAuth
+JWTs must not be exported to the plugin as an isolated read-only credential. The landing adapter
+now refuses native approval server-side regardless of feature flags; its approve button is disabled.
+The native token-hook SQL is an experimental proposal, **not a safe activation plan**.
+
+The safe alternative requiring a design decision is an independent MCP issuer/token boundary
+on existing hosting: existing Supabase login verifies identity, while the plugin receives only
+MCP credentials that Supabase Auth cannot accept. Any upstream credentials stay server-side;
+data queries use a least-privileged reader role with RLS and verified identity/workspace context.
+Its signing key, persistent grant storage and credentials have not been created or configured.
+Building a separate issuer before selecting that architecture would exceed this work unit.
+
 ## Implemented source
 
 `supabase/functions/firstcrack-mcp/` implements stateless Streamable HTTP JSON responses:
@@ -24,15 +39,15 @@ stock adjustments, equipment controls, live sensor feeds or sample fallback on l
 1. Supabase `auth.getClaims(token)` verifies the JWT signature and expiry.
 2. `auth.getUser(token)` checks the Auth identity and must match the verified `sub`.
 3. Server policy verifies the configured issuer, resource audience, expiry, not-before,
-   approved OAuth `client_id`, `firstcrack:read` scope, dedicated `firstcrack_reader` role,
+   approved OAuth `client_id`, standard `openid` scope, signed `firstcrack_access: read`, dedicated `firstcrack_reader` role,
    non-anonymous identity and signed `firstcrack_workspace_owner_id` UUID.
 4. Every tool rechecks `has_workspace_access` using the caller's JWT. It never uses service role.
 5. Workspace data uses the connection's owner ID, which can differ from the member's user ID.
    A tool argument cannot switch to another owner, even another roastery the user belongs to.
    The personal profile is always filtered by the verified subject.
 
-The selected workspace must be validated server-side during consent/token issuance and bound to
-that grant. Client-supplied IDs and editable `user_metadata` must never populate authorization claims.
+The initial token-hook proposal binds the workspace to the verified subject's own workspace.
+It does not issue team-workspace grants. Client-supplied IDs and editable `user_metadata` never populate authorization claims.
 Current membership is checked again for each read, so removing membership blocks an existing token.
 
 `_shared/auth.ts#getAuthenticatedUser` now accepts verified first-party `authenticated` sessions
@@ -61,49 +76,54 @@ table writes, a legacy PUBLIC SECURITY DEFINER write RPC, the permitted membersh
 membership removal. It does **not** replay all production migrations or prove hosted configuration.
 Do not run this fixture on a real or linked database.
 
-## OAuth and login still require integration
+## OAuth provider constraint and credential prototype
 
-The desktop repository contains Supabase login/deep-link handling, but no landing SSR login,
-`next`/callback/consent implementation and no existing MCP server. No landing source was attached
-to this workspace; its cookie and redirect behavior cannot yet be verified or reused here.
+The official [OAuth flow guide](https://supabase.com/docs/guides/auth/oauth-server/oauth-flows)
+explicitly says: **"Custom scopes are not currently supported."** Standard OIDC scopes do not
+restrict database permissions. The earlier `firstcrack:read` scope was therefore replaced by
+standard `openid` plus an independently verified application permission and reader DB role.
 
-The supported candidate is Supabase OAuth 2.1 Authorization Code with S256 PKCE, using the existing
-user base and an explicit consent page. The host's exact redirect URI must come from its management
-screen. Do not invent it, auto-register a client, enable dynamic registration or reuse native desktop
-access/refresh tokens in the plugin. Keep the desktop session and each integration grant separate.
+`supabase/proposals/firstcrack-oauth-token-hook.sql` proposes an Auth token hook with a private,
+disabled-by-default client allowlist. Approved OAuth tokens receive the reader role, resource
+audience, `firstcrack_access: read`, and workspace owner derived from the verified subject. Native
+password/social-provider sessions remain unchanged. Refresh is subject to the same transformation.
+The hook does not trust user-editable metadata and is not callable by the reader role. It has not
+been configured in hosted Auth. Its audience array retains `authenticated` for Auth/PostgREST
+compatibility and adds the exact resource audience; hosted compatibility still requires testing.
 
-Important unresolved issuer capability: Supabase's documented standard OAuth scopes (`openid`,
-`email`, `profile`, `phone`) control OIDC information, **not** database permissions. Support for issuing
-the custom `firstcrack:read` scope and binding a workspace-specific grant has not been verified.
-Default `aud: authenticated`, `role: authenticated` tokens are deliberately refused by this server.
-An approved issuer integration must issue the dedicated role, resource audience and signed workspace
-scope, and must preserve those restrictions on refresh. Compatibility of that audience/role with
-Auth `getUser`, PostgREST and the currently hosted JWT settings still needs an end-to-end check.
-Do not enable the feature simply by adding a scope label or a `readOnlyHint` annotation.
+The existing landing source was located in **`hhhaan/fc-landing`** and checked out separately.
+Its new `apps/landing/src/pages/oauth/consent.astro` reuses existing SSR login cookies and the
+`/login?next=...` → `/auth/callback` return path. It shows the verified client, own-workspace read
+scope and deny controls, with Origin/CSRF checks and exact callback allowlisting. Native approval is disabled and refused server-side.
+It is disabled unless both `MCP_OAUTH_ENABLED` and `MCP_OAUTH_READONLY_READY` are explicitly true
+and verified client/callback allowlists are configured. No persistent setting has been changed.
+Already auto-approved provider responses fail closed with 409 because they omit review details;
+reconnecting such a grant currently requires revocation and a new consent flow.
 
-## Reviewable activation steps — none executed
+The host's exact redirect URI must come from its management screen. Do not invent it, enable
+dynamic registration or pass native desktop access/refresh tokens to the plugin. Ordinary native
+sessions remain separate. This first flow supports personal workspaces only; a team-workspace
+picker requires a separately designed server-side grant binding before it can be offered.
 
-1. Supply/inspect the existing landing source and verified HTTPS resource URL; implement its login,
-   exact-return callback, consent, workspace selection, denial and revocation using the supported
-   issuer APIs. Verify custom scope issuance, resource binding, S256 PKCE, refresh and expiry.
-2. Convert the DB proposal into a CLI-generated migration only after reviewing existing hosted
-   grants, RLS, PUBLIC functions and PostgREST configuration. Replay the full local Supabase chain,
-   test actual PostgREST requests and all alternate write paths, then obtain approval to apply it.
-3. Review the gateway setting needed for unauthenticated metadata/401 discovery. `supabase/config.toml`
-   remains unchanged; this new function still inherits `verify_jwt = true`. A future approved
-   function-specific `verify_jwt = false` must rely on this handler's verified authentication.
-4. Deploy through the existing Edge Function workflow only when authorized. Keep disabled until
-   OAuth and DB boundaries pass. Configure these server-side names without committing their values:
-   `FIRSTCRACK_MCP_ENABLED`, `FIRSTCRACK_MCP_RESOURCE_URL`, `FIRSTCRACK_MCP_CLIENT_IDS`,
-   `FIRSTCRACK_MCP_ALLOWED_ORIGINS`. `SUPABASE_URL`/`SUPABASE_ANON_KEY` are the existing platform bindings.
-5. Check hosted protected-resource and authorization-server metadata, PKCE, missing/invalid/expired
-   tokens, client/audience/scope mismatch, read-only enforcement, workspace isolation and revocation.
-6. Only then update the existing standalone plugin via `update_plugin` with conflict protection:
-   backend ID `plugins_6adabf9c7ed48191b394c7d62778dccd`, expected release
-   `pluginrel_6adadf34170c8191addd45e9f73e1432` (recheck before publishing).
-   Preserve USER/PRIVATE audience, both manifests, images, ID and existing default prompt. Add the
-   verified Streamable HTTP endpoint without creating a new plugin or hosting project. Keep the
-   explicit sample demo available separately; live authentication failures must remain errors.
+## Conditions before any activation
+
+1. Select and approve an isolated MCP issuer/credential design. Do not activate the native
+   token-hook prototype as an external credential boundary. Reuse the current login/consent
+   controller and MCP tool interfaces, replacing their issuer-specific adapters.
+2. Complete full local Supabase replay and all alternate-path tests, including Auth account
+   updates and grant administration, before provisioning hosted credentials or grants.
+3. Obtain the host's exact callback URI and verify its metadata, PKCE, resource binding,
+   token refresh, expiry, revocation and native session coexistence with a test account.
+4. Only after these pass, approve the existing deployment/configuration paths and update the
+   existing USER/PRIVATE plugin with backend ID `plugins_6adabf9c7ed48191b394c7d62778dccd`, checking
+   current release against `pluginrel_6adadf34170c8191addd45e9f73e1432` again before publication.
+   Preserve both manifests, images, plugin identity/audience and sample default prompt.
+
+Current disabled runtime names: `FIRSTCRACK_MCP_ENABLED`, `FIRSTCRACK_MCP_RESOURCE_URL`,
+`FIRSTCRACK_MCP_CLIENT_IDS`, `FIRSTCRACK_MCP_ALLOWED_ORIGINS`; landing names:
+`MCP_OAUTH_ENABLED`, `MCP_OAUTH_READONLY_READY`, `MCP_OAUTH_CLIENT_IDS`, `MCP_OAUTH_REDIRECT_URIS`.
+No values were set in hosted systems. `supabase/config.toml` remains unchanged; the new function
+still inherits the gateway's JWT requirement. Future public discovery must be reviewed separately.
 
 ## Local validation
 
@@ -117,12 +137,52 @@ Cryptographic tests use ephemeral local ES256 keys with the real installed Supab
 Auth/JWKS transport. They are not a live account or host OAuth test. The scratch SQL check runs only
 against a disposable PostgreSQL 15 container with no host port published.
 
-Verified locally on 2026-10-25: all 285 Edge Function Vitest tests passed; all 18 Edge Function
+Verified locally on 2026-10-25: all 287 Edge Function Vitest tests passed; all 18 Edge Function
 entrypoints passed Deno checking; the changed TypeScript files passed Biome; the isolated SQL
 boundary fixture passed; frontend/test/e2e typechecking passed. The initial typecheck failure
 was a missing declared `@tauri-apps/plugin-global-shortcut@2.4.1` dependency in the preinstalled
 environment. It was installed into a temporary pnpm project and linked into ignored `node_modules`
 for validation, without changing this repository's dependency manifests or lockfile.
+
+Landing consent tests pass (11 cases) and `pnpm build:landing` passes. Actual local Astro HTTP requests verified
+303 → existing login, login HTML 200, and cross-origin approval 403, using fixture configuration
+with no real account. SQL scratch checks verify the token hook, refresh scope, native sessions
+and denied reader access to the hook/configuration. The official MCP SDK 1.32.2 passed a local HTTP
+fixture through protected-resource/issuer discovery, S256 PKCE (wrong verifier denied), code exchange,
+initialization, seven tools, a signed authenticated read and foreign-workspace denial:
+
+```sh
+pnpm --config.verify-deps-before-run=false dlx deno@2.9.6 run --no-lock --node-modules-dir=none --allow-net=127.0.0.1 --allow-env supabase/tests/firstcrack-mcp-protocol.ts
+```
+
+This OAuth fixture is not the hosted Supabase issuer, and the Auth/JWKS identity in that fixture
+is simulated. No real account login, OAuth client or hosted grant was created.
+
+Full local Supabase verification is blocked: CLI 2.121.0 `supabase start` in an isolated temporary
+project failed to pull from `https://public.ecr.aws/v2/` (Forbidden). The attempt was stopped; no
+mirror/proxy bypass or retry was used and `supabase db reset --local` was **not executed**. No
+local containers remain from that attempt. The hosted project's metadata reports PostgreSQL 17;
+the repository local config and scratch tests use PostgreSQL 15, another item for compatibility review.
+
+## Targets and approval scope after the issuer design decision
+
+No actions in this table have been executed. This is not permission to activate the native-token prototype.
+
+| Target | Proposed change and access | Impact and prerequisites |
+| --- | --- | --- |
+| Execution environment only | Allow image pulls from `public.ecr.aws` to complete isolated local Supabase replay/testing | No production access; currently blocked by network policy. Do this before DB activation approval. |
+| Supabase **first crack**, project `vjdgdolfxvnxushxrmff` | Review/apply reader role, column grants, selected-workspace RLS, membership guard, appropriate internal reader boundary after issuer design review; native token hook stays unapproved | Read-only access to the seven DTOs above, own workspace only. No service-role client, production writes or equipment control. Full local replay and existing hook/policy audit must pass first. |
+| Existing Auth/login plus an isolated MCP issuer on existing hosting | First approve the issuer boundary, signing-key/grant-store provisioning and exact host callback. Do not enable the native-token hook for external access. | This introduces persistent delegated read access; the plugin credential must be rejected by Supabase Auth mutation APIs. Native browser/desktop sessions must remain separate. |
+| Same Supabase project's `firstcrack-mcp` function | Approve function-specific gateway discovery configuration, existing deployment and disabled-by-default runtime bindings | Public metadata/401 discovery only; every data method remains authenticated. Other functions' gateway settings are unchanged. |
+| Cloudflare Pages **fc-landing**, `firstcrackiscoming.com` | Deploy the existing landing repository's consent route and configure exact client/callback allowlists; enable only after issuer/DB checks | Reuses browser session cookies, does not share them with the plugin and does not replace desktop login. Callback value is still unverified and must be obtained from the host. |
+| Existing USER/PRIVATE `firstcrack-test` plugin | Update its existing manifests/MCP connection with expected-release conflict protection after hosted smoke tests | Preserve plugin identity, images, scope/audience and demo prompt. No new plugin, hosting project, sharing or public release. |
+
+Rollback must start by disabling the MCP/consent feature flags, disabling the approved OAuth client
+and revoking its refresh grants/sessions. Retain the DB reader restrictions and privileged-EF guard
+until outstanding tokens are expired/revoked. Only then restore previous Auth/PostgREST hooks and
+remove the new grants/role. **Removing the token hook while OAuth refresh remains enabled could
+mint unrestricted native-role tokens**, so it is not a safe standalone rollback. The plugin can
+be returned to its previous sample-only release without changing its identity or audience.
 
 ## References
 
@@ -135,3 +195,5 @@ for validation, without changing this repository's dependency manifests or lockf
 Supabase docs were read through the connected documentation tool. Direct fetches of the Supabase
 changelog and OpenAI auth page were denied by the environment's HTTP policy (403); that page's
 current host-specific requirements are not claimed as verified. No proxy bypass was attempted.
+
+Upstream evidence: https://github.com/supabase/auth/blob/master/internal/api/user.go and https://github.com/supabase/auth/blob/master/internal/api/auth.go . These reads do not establish the hosted version or prove managed Auth isolation.

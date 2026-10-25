@@ -92,7 +92,7 @@ describe('HTTP authentication and discovery', () => {
     });
 
     it('returns an insufficient-scope challenge and refuses a native user token', async () => {
-        verify.mockResolvedValue({ ...validClaims(), scope: 'openid' });
+        verify.mockResolvedValue({ ...validClaims(), scope: 'profile' });
         const response = await call('list_orders');
         expect(response.status).toBe(403);
         expect(response.headers.get('WWW-Authenticate')).toContain('insufficient_scope');
