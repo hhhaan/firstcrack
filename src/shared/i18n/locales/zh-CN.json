@@ -1689,7 +1689,9 @@
             "compareMode": "比较模式 · 已选{{count}}条",
             "editDisabledMulti": "多选时无法编辑",
             "roastLog": "烘焙日志",
-            "extraSensors": "附加传感器读数"
+            "extraSensors": "附加传感器读数",
+            "batches": "烘焙批次",
+            "referenceFailed": "无法更改参考曲线。"
         }
     },
     "newProfileModal": {

@@ -1677,7 +1677,9 @@
             "compareMode": "Compare mode · {{count}} selected",
             "editDisabledMulti": "Cannot edit when multiple selected",
             "roastLog": "Roast Log",
-            "extraSensors": "Extra sensor readings"
+            "extraSensors": "Extra sensor readings",
+            "batches": "Batches",
+            "referenceFailed": "Could not change the reference curve."
         }
     },
     "newProfileModal": {
