@@ -116,6 +116,8 @@ export const useSetProfileReference = (userId: string) => {
             sourceSessionId: string;
             sourceSession: RoastProfileWithSource['source_session'];
         }) => roastProfileApi.setReferenceSession(id, sourceSessionId),
+        // The row shows profiles.detail.referenceFailed. MutationCache still reports the failure.
+        meta: { silentError: true, feature: 'profiles' },
         onSuccess: (updated, { sourceSession }) => {
             applyReferenceSessionCache(qc, userId, updated, sourceSession);
         },

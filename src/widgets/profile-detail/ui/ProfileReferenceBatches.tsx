@@ -5,7 +5,6 @@ import {
     useSetProfileReference,
 } from '@entities/roast-profile';
 import { formatDateShort } from '@shared/lib/format';
-import { logger } from '@shared/lib/logger';
 import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
 import { useTranslation } from 'react-i18next';
@@ -38,8 +37,7 @@ export const ProfileReferenceBatches = ({
             id: profileId,
             sourceSessionId: batch.id,
             sourceSession: sourceSessionOf(batch),
-        }).catch((err: unknown) => {
-            logger.capture(err, { feature: 'profiles' });
+        }).catch(() => {
             useToastStore.getState().show(t('profiles.detail.referenceFailed'));
         });
     };

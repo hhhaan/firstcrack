@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type { ProfileReferenceBatch } from '@entities/roast-profile';
+import { useToastStore } from '@shared/store/toast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -65,7 +66,9 @@ describe('ProfileReferenceBatches', () => {
         act(() => root?.unmount());
         host?.remove();
         list.current = [];
-        mutateAsync.mockClear();
+        mutateAsync.mockReset();
+        mutateAsync.mockImplementation(() => Promise.resolve());
+        for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
     });
 
     it('marks the current reference and selects another batch without its heater plan', () => {
@@ -96,5 +99,20 @@ describe('ProfileReferenceBatches', () => {
     it('renders nothing when the profile has no saved batches', () => {
         render();
         expect(host.textContent).toBe('');
+    });
+
+    it('shows the reference failure', async () => {
+        list.current = batches;
+        mutateAsync.mockImplementationOnce(() => Promise.reject(new Error('update failed')));
+        render();
+        const row = host.querySelector<HTMLTableRowElement>('[data-current="false"]');
+
+        await act(async () => {
+            row?.click();
+        });
+
+        expect(useToastStore.getState().toasts.map((toast) => toast.message)).toEqual([
+            'profiles.detail.referenceFailed',
+        ]);
     });
 });
