@@ -274,125 +274,130 @@ export const HistoryTable = ({
     };
 
     return (
-        <div className="@container overflow-x-auto rounded-2xl border border-border bg-main-bg [-webkit-overflow-scrolling:touch]">
-            <table className="w-full table-fixed border-collapse" style={{ minWidth: tableMinPx }}>
-                <colgroup>
-                    {compareMode && <col style={{ width: '40px' }} />}
-                    {columns.map((col, colIdx) => (
-                        <col key={col.key || `col-${colIdx}`} style={col.width ? { width: col.width } : undefined} />
-                    ))}
-                </colgroup>
-                <thead>
-                    <tr className="border-b border-divider dark:border-border">
-                        {compareMode && <th style={{ width: '40px' }} />}
-                        {columns.map((col, colIdx) => {
-                            const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
+        <div className="@container overflow-hidden rounded-2xl border border-border bg-main-bg">
+            <div className="overflow-x-auto [-webkit-overflow-scrolling:touch]">
+                <table className="w-full table-fixed border-collapse" style={{ minWidth: tableMinPx }}>
+                    <colgroup>
+                        {compareMode && <col style={{ width: '40px' }} />}
+                        {columns.map((col, colIdx) => (
+                            <col
+                                key={col.key || `col-${colIdx}`}
+                                style={col.width ? { width: col.width } : undefined}
+                            />
+                        ))}
+                    </colgroup>
+                    <thead>
+                        <tr className="border-b border-divider dark:border-border">
+                            {compareMode && <th style={{ width: '40px' }} />}
+                            {columns.map((col, colIdx) => {
+                                const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
+                                return (
+                                    <th
+                                        key={col.key || `col-${colIdx}`}
+                                        onClick={() => col.sortable && col.key && onSort(col.key)}
+                                        className={`h-12 px-4 py-0 text-left text-sm font-medium leading-5 text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${col.key === null && col.label === '' ? stickyActionsCls : ''}`}
+                                        style={{ width: col.width, minWidth: col.minWidth }}
+                                    >
+                                        <span className="flex items-center gap-1 whitespace-nowrap">
+                                            {colLabel(col.key || col.label)}
+                                            {col.sortable && col.key && (
+                                                <SortIcon col={col.key} sortKey={sortKey} sortAsc={sortAsc} />
+                                            )}
+                                        </span>
+                                    </th>
+                                );
+                            })}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sessions.map((session) => {
+                            const compareIdx = compareIds.indexOf(session.id);
                             return (
-                                <th
-                                    key={col.key || `col-${colIdx}`}
-                                    onClick={() => col.sortable && col.key && onSort(col.key)}
-                                    className={`h-12 px-4 py-0 text-left text-sm font-medium leading-5 text-muted select-none whitespace-nowrap ${responsiveClass} ${col.sortable ? 'cursor-pointer' : 'cursor-default'} ${col.key === null && col.label === '' ? stickyActionsCls : ''}`}
-                                    style={{ width: col.width, minWidth: col.minWidth }}
+                                <tr
+                                    key={session.id}
+                                    data-testid="history-open-row"
+                                    tabIndex={0}
+                                    onClick={() => onRowClick(session.id)}
+                                    onKeyDown={(event) => {
+                                        if (event.target !== event.currentTarget) return;
+                                        if (event.key !== 'Enter' && event.key !== ' ') return;
+                                        event.preventDefault();
+                                        onRowClick(session.id);
+                                    }}
+                                    className="group cursor-pointer border-b border-divider transition hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-border dark:hover:bg-surface-elevated"
                                 >
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                        {colLabel(col.key || col.label)}
-                                        {col.sortable && col.key && (
-                                            <SortIcon col={col.key} sortKey={sortKey} sortAsc={sortAsc} />
-                                        )}
-                                    </span>
-                                </th>
+                                    {compareMode && (
+                                        <td className="px-4 py-4" style={{ width: '40px' }}>
+                                            <div
+                                                className="flex h-4 w-4 items-center justify-center rounded border transition"
+                                                style={
+                                                    compareIdx >= 0
+                                                        ? {
+                                                              backgroundColor:
+                                                                  COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
+                                                              borderColor:
+                                                                  COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
+                                                          }
+                                                        : { borderColor: 'var(--color-muted)' }
+                                                }
+                                            >
+                                                {compareIdx >= 0 && (
+                                                    <Check
+                                                        size={11}
+                                                        strokeWidth={3}
+                                                        className="text-white dark:text-palette-black"
+                                                    />
+                                                )}
+                                            </div>
+                                        </td>
+                                    )}
+                                    {columns.map((col, colIdx) => {
+                                        const isActions = col.key === null && col.label === '';
+                                        const cellClass = isActions
+                                            ? stickyActionsCls
+                                            : col.key === 'date'
+                                              ? 'font-mono text-muted'
+                                              : col.key === 'bean'
+                                                ? 'font-medium tracking-[0.14px] text-primary'
+                                                : 'tracking-[0.14px] text-secondary';
+                                        const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
+                                        const cellTitle = getCellTitle(col, session);
+                                        return (
+                                            <td
+                                                key={col.key ?? `col-${colIdx}`}
+                                                title={cellTitle}
+                                                className={`overflow-hidden px-4 py-4 text-sm whitespace-nowrap ${cellClass} ${responsiveClass}`}
+                                                style={{ width: col.width, minWidth: col.minWidth }}
+                                            >
+                                                {isActions ? (
+                                                    <span className="inline-flex items-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                onDeleteClick(session.id);
+                                                            }}
+                                                            className={`${rowActionCls} hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626]`}
+                                                            aria-label={t('history.delete.title')}
+                                                            title={t('history.delete.title')}
+                                                        >
+                                                            <Trash2 size={14} strokeWidth={2} />
+                                                        </button>
+                                                    </span>
+                                                ) : (
+                                                    col.render(session)
+                                                )}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
                             );
                         })}
-                    </tr>
-                </thead>
-                <tbody>
-                    {sessions.map((session) => {
-                        const compareIdx = compareIds.indexOf(session.id);
-                        return (
-                            <tr
-                                key={session.id}
-                                data-testid="history-open-row"
-                                tabIndex={0}
-                                onClick={() => onRowClick(session.id)}
-                                onKeyDown={(event) => {
-                                    if (event.target !== event.currentTarget) return;
-                                    if (event.key !== 'Enter' && event.key !== ' ') return;
-                                    event.preventDefault();
-                                    onRowClick(session.id);
-                                }}
-                                className="group cursor-pointer border-b border-divider transition hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-(--color-primary) dark:border-border dark:hover:bg-surface-elevated"
-                            >
-                                {compareMode && (
-                                    <td className="px-4 py-4" style={{ width: '40px' }}>
-                                        <div
-                                            className="flex h-4 w-4 items-center justify-center rounded border transition"
-                                            style={
-                                                compareIdx >= 0
-                                                    ? {
-                                                          backgroundColor:
-                                                              COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
-                                                          borderColor:
-                                                              COMPARE_COLORS[compareIdx % COMPARE_COLORS.length],
-                                                      }
-                                                    : { borderColor: 'var(--color-muted)' }
-                                            }
-                                        >
-                                            {compareIdx >= 0 && (
-                                                <Check
-                                                    size={11}
-                                                    strokeWidth={3}
-                                                    className="text-white dark:text-palette-black"
-                                                />
-                                            )}
-                                        </div>
-                                    </td>
-                                )}
-                                {columns.map((col, colIdx) => {
-                                    const isActions = col.key === null && col.label === '';
-                                    const cellClass = isActions
-                                        ? stickyActionsCls
-                                        : col.key === 'date'
-                                          ? 'font-mono text-muted'
-                                          : col.key === 'bean'
-                                            ? 'font-medium tracking-[0.14px] text-primary'
-                                            : 'tracking-[0.14px] text-secondary';
-                                    const responsiveClass = col.hideOnMd ? 'md:hidden lg:table-cell' : '';
-                                    const cellTitle = getCellTitle(col, session);
-                                    return (
-                                        <td
-                                            key={col.key ?? `col-${colIdx}`}
-                                            title={cellTitle}
-                                            className={`overflow-hidden px-4 py-4 text-sm whitespace-nowrap ${cellClass} ${responsiveClass}`}
-                                            style={{ width: col.width, minWidth: col.minWidth }}
-                                        >
-                                            {isActions ? (
-                                                <span className="inline-flex items-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={(event) => {
-                                                            event.stopPropagation();
-                                                            onDeleteClick(session.id);
-                                                        }}
-                                                        className={`${rowActionCls} hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626]`}
-                                                        aria-label={t('history.delete.title')}
-                                                        title={t('history.delete.title')}
-                                                    >
-                                                        <Trash2 size={14} strokeWidth={2} />
-                                                    </button>
-                                                </span>
-                                            ) : (
-                                                col.render(session)
-                                            )}
-                                        </td>
-                                    );
-                                })}
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
 
-            <div className="flex flex-col gap-3 border-t border-divider dark:border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-t border-divider px-5 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-border">
                 <span className="text-xs tracking-[0.14px] text-muted">
                     {filteredTotal === 0
                         ? t('history.noSessionsFound')

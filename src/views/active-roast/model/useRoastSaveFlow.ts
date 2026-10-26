@@ -91,11 +91,14 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const savedSessionId = snapshot?.sessionId ?? state.sessionId;
             const bbp = useBbpStore.getState().finalized;
             const forcedProfileId = savedProfileIdRef.current?.();
-            const identity = (snapshot?.selection ?? selection).identity;
             const profileId =
                 forcedProfileId !== undefined ? forcedProfileId : (snapshot?.selection ?? selection).profileId;
+            const batchName =
+                formData.batchName === undefined
+                    ? snapshot?.selection.identity?.title
+                    : formData.batchName?.trim() || null;
             return {
-                formData: { ...formData, batchName: formData.batchName?.trim() || snapshot?.selection.identity?.title },
+                formData: { ...formData, batchName },
                 userId: snapshot?.sessionOwnerId ?? useRoastingStore.getState().sessionOwnerId ?? workspaceOwnerId,
                 elapsed: snapshot?.elapsed ?? state.elapsed,
                 roastStartTime: snapshot?.roastStartMs ?? useRoastingStore.getState().roastStartMs,
@@ -105,7 +108,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 selectedBlendId: (snapshot ? snapshot.selection.blendId : selection.blendId) ?? null,
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
                 targetProfileId: profileId,
-                batchTitleNumbering: identity?.edited ? 'none' : getRoastSettings().batchTitleNumbering,
+                batchTitleNumbering: getRoastSettings().batchTitleNumbering,
                 planBatchHandoff: snapshot ? snapshot.selection.planBatchHandoff : selection.planBatchHandoff,
                 sessionId: savedSessionId,
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
@@ -160,9 +163,11 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 // Durable intent: written BEFORE any auth gate so the roast survives
                 // an auth kick to the login screen, a crash, or a force quit.
                 // Recovered (auto-saved) by PendingRoastRecovery on next launch.
+                const enteredTitle = formData.batchName?.trim();
                 const formPatch: SaveRoastFormData = {
                     notes: formData.notes,
-                    batchName: formData.batchName?.trim() || snapshot.selection.identity?.title,
+                    // Empty is an explicit clear. A missing field keeps the title from the roast header.
+                    batchName: enteredTitle || (formData.batchName == null ? snapshot.selection.identity?.title : null),
                     weightGrams: formData.weightGrams,
                     outputWeightKg: formData.outputWeightKg,
                     roastLevel: formData.roastLevel,
@@ -180,11 +185,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     userId: ownerId,
                     formData: { ...baseParams.formData, ...formPatch },
                     logEntries: frozen?.logEntries ?? baseParams.logEntries,
-                    batchTitleNumbering:
-                        snapshot.selection.identity?.edited ||
-                        (formData.batchName?.trim() && formData.batchName.trim() !== snapshot.selection.identity?.title)
-                            ? 'none'
-                            : (baseParams.batchTitleNumbering ?? getRoastSettings().batchTitleNumbering),
+                    batchTitleNumbering: baseParams.batchTitleNumbering ?? getRoastSettings().batchTitleNumbering,
                     ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
                 };
                 const pending = existing

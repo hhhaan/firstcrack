@@ -66,7 +66,6 @@ interface RoastChartContainerProps {
     phaseSegments: PhaseSegment[];
     showFcBand?: boolean;
     unit: TemperatureUnit;
-    targetProfileName?: string;
     bbpRange?: { start: number; end: number; label?: string };
     onCursorIdx: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
@@ -128,7 +127,6 @@ export const RoastChartContainer = ({
     phaseSegments,
     showFcBand = true,
     unit,
-    targetProfileName,
     bbpRange,
     onCursorIdx,
     onEventMarkerDrag,
@@ -244,7 +242,6 @@ export const RoastChartContainer = ({
         >
             <ChartLegend
                 showTarget={showTargetCurve && showProfileBt}
-                targetLabel={targetProfileName}
                 showET={showET}
                 showRoR={showRoR}
                 showRoRET={showRoRET}

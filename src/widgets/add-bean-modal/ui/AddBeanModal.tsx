@@ -99,6 +99,8 @@ export const AddBeanModal = ({
         initialData: initialData ?? null,
         stockSummaries,
         reset,
+        getValues,
+        setValue,
         setTab,
         setSelectedBeanId,
         setRestockAmount,

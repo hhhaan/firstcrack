@@ -1,6 +1,8 @@
 /**
  * Injected before app loads — stubs Tauri plugins so the real Vite entry works in Chromium.
  */
+
+import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
 declare global {
@@ -12,7 +14,10 @@ declare global {
     }
 }
 
+const browserDefaults = readFileSync(new URL('../../src-tauri/src/browser_defaults.js', import.meta.url), 'utf8');
+
 export const tauriInitScript = `
+${browserDefaults}
 (() => {
   window.isTauri = true;
   window.__TAURI_OS_PLUGIN_INTERNALS__ = {

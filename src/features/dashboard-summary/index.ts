@@ -6,3 +6,4 @@ export type {
     UpcomingBatch,
 } from './model/useDashboard';
 export { useDashboard } from './model/useDashboard';
+export { useDashboardMonth } from './model/useDashboardMonth';

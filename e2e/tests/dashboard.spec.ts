@@ -42,6 +42,14 @@ test('dashboard metrics use saved roasts and remain readable at desktop sizes', 
         .locator('section')
         .filter({ has: page.getByRole('heading', { name: en.dashboard.kpi.beansRoasted, exact: true }) });
     await expect(weight.getByText('10.0', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: en.dashboard.previousMonth }).click();
+    await expect(page.getByTestId('dashboard-month-label')).toHaveText('Sep 2026');
+    await expect(weight.getByText('2.0', { exact: true })).toBeVisible();
+    await expect(metrics.getByText('Sep 1 – Sep 30')).toHaveCount(2);
+    await page.getByRole('button', { name: en.dashboard.nextMonth }).click();
+    await expect(page.getByTestId('dashboard-month-label')).toHaveText(en.dashboard.thisMonth);
+    await expect(weight.getByText('10.0', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: en.dashboard.nextMonth })).toBeDisabled();
     await expect(metrics.getByRole('heading', { name: en.dashboard.kpi.avgRoastTime, exact: true })).toHaveCount(0);
     await expect(metrics.getByRole('img')).toHaveCount(3);
     await expect(metrics.getByText('350.00', { exact: true })).toBeVisible();

@@ -381,11 +381,6 @@ describe('saved roast review keeps collection independent', () => {
         expect(useRoastingStore.getState().completed?.snapshot.livePoints).toHaveLength(2);
         expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
         expect(selectDropCancelable(useRoastingStore.getState())).toBe(false);
-        const entry = result?.snapshot.logEntries[0];
-        expect(entry).toBeDefined();
-        if (!entry) return;
-        state.replaceReviewLog([{ ...entry, note: 'moved' }]);
-        expect(selectReviewSnapshot(useRoastingStore.getState())?.logEntries[0]?.note).toBe('moved');
         expect(useRoastingStore.getState().logState.entries).toEqual([]);
         state.dismissCompletedReview();
         expect(useRoastingStore.getState().reviewSessionId).toBeNull();

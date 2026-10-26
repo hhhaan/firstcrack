@@ -6,6 +6,7 @@ import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useFieldDraft } from './useFieldDraft';
 
 const CHARGE_MAX_GRAMS = MAX_BATCH_WEIGHT_KG * 1000;
 
@@ -69,12 +70,13 @@ export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelat
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync: setChargeWeight, isPending } = useSetChargeWeight(workspaceOwnerId);
-    const [draft, setDraft] = useState(() => String(session.weight_grams));
+    const { draft, setDraft, dirty, conflict, resetDraft } = useFieldDraft(String(session.weight_grams));
     const [invalid, setInvalid] = useState(false);
     const min =
         session.output_weight_grams != null && session.output_weight_grams > 0 ? session.output_weight_grams : 0;
 
     const commit = async () => {
+        if (!dirty || conflict) return;
         const trimmed = draft.trim();
         if (trimmed === String(session.weight_grams)) {
             setInvalid(false);
@@ -87,8 +89,12 @@ export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelat
             return;
         }
         setInvalid(false);
-        if (next === session.weight_grams) return;
+        if (next === session.weight_grams) {
+            resetDraft();
+            return;
+        }
         if (!isWorkspaceReady || !workspaceOwnerId) return;
+        setDraft(String(next));
         try {
             await setChargeWeight({
                 sessionId: session.id,
@@ -126,12 +132,21 @@ export const ChargeWeightEditor = ({ session }: { session: RoastSessionWithRelat
                 onBlur={() => void commit()}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') {
+                        resetDraft();
+                        setInvalid(false);
+                    }
                 }}
                 className={inputCls(invalid)}
             />
             {invalid && (
                 <p className={formErrorCls}>
                     {t('history.expanded.chargeWeightInvalid', { min, max: CHARGE_MAX_GRAMS })}
+                </p>
+            )}
+            {conflict && (
+                <p role="alert" className={formErrorCls}>
+                    {t('history.edit.conflict')}
                 </p>
             )}
         </div>
@@ -159,18 +174,23 @@ const MeasurementField = ({
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const { mutateAsync: updateSession, isPending } = useUpdateRoastSession(workspaceOwnerId);
     const stored = session[column];
-    const [draft, setDraft] = useState(() => (stored == null ? '' : String(stored)));
+    const { draft, setDraft, dirty, conflict, resetDraft } = useFieldDraft(stored == null ? '' : String(stored));
     const [invalid, setInvalid] = useState(false);
 
     const commit = async () => {
+        if (!dirty || conflict) return;
         const next = parseDecimal(draft, min, max);
         if (next === undefined) {
             setInvalid(true);
             return;
         }
         setInvalid(false);
-        if (next === (stored ?? null)) return;
+        if (next === (stored ?? null)) {
+            resetDraft();
+            return;
+        }
         if (!isWorkspaceReady || !workspaceOwnerId) return;
+        setDraft(next == null ? '' : String(next));
         try {
             await updateSession({ id: session.id, [column]: next });
         } catch {
@@ -206,10 +226,19 @@ const MeasurementField = ({
                 onBlur={() => void commit()}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') {
+                        resetDraft();
+                        setInvalid(false);
+                    }
                 }}
                 className={inputCls(invalid)}
             />
             {invalid && <p className={formErrorCls}>{t('history.expanded.qcInvalid', { min, max })}</p>}
+            {conflict && (
+                <p role="alert" className={formErrorCls}>
+                    {t('history.edit.conflict')}
+                </p>
+            )}
         </div>
     );
 };

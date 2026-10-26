@@ -97,7 +97,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                 <div className="@container min-w-0 space-y-6">
                     <HistorySessionChart session={session} exportContainer={exportContainer} />
                     <SessionScorecard session={session} />
-                    <RecordSections session={session} />
+                    <RecordSections key={session.id} session={session} />
                 </div>
                 <aside className="grid min-w-0 gap-4 @min-[640px]:grid-cols-2 @min-[1000px]:grid-cols-1">
                     <section className="min-w-0 rounded-2xl border border-border bg-surface-warm p-4">
@@ -109,7 +109,7 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                         <div className="mt-3 space-y-3 border-t border-border-subtle pt-3">
                             <div className="grid grid-cols-2 gap-2">
                                 <ChargeWeightEditor key={session.id} session={session} />
-                                <OutputWeightEditor session={session} />
+                                <OutputWeightEditor key={session.id} session={session} />
                             </div>
                             <RoastColorEditor key={`color-${session.id}`} session={session} />
                             <QcMeasurementEditor key={`qc-${session.id}`} session={session} />

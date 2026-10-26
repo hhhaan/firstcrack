@@ -1,6 +1,6 @@
 [package]
 name = "roastery-agent"
-version = "1.3.3"
+version = "1.3.5"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-tauri = { version = "2.12", features = ["devtools"] }
+tauri = { version = "2.12", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-opener = "2.7"
 # 2.8.2 depends on tauri-plugin-fs ^2.7, a minor ahead of @tauri-apps/plugin-fs.
@@ -45,8 +45,11 @@ tauri-plugin-sentry = "0.5.0"
 tauri-plugin-single-instance = { version = "2.5", features = ["deep-link"] }
 # Tilde: 2.11+ is a minor ahead of @tauri-apps/plugin-updater.
 tauri-plugin-updater = "~2.10.1"
-tauri-plugin-process = "2.4"
 tokio = { version = "1", features = ["time", "sync"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+webview2-com = "0.39"
+windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse"] }
 
 # App Nap 억제 (#308). beginActivity 토큰을 프로세스 수명 동안 보유.
 [target.'cfg(target_os = "macos")'.dependencies]

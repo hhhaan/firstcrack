@@ -112,6 +112,21 @@ it.each([false, true])('renders event text and points with source opacity (refer
     ]);
 });
 
+it('paints an opaque background behind printed event text so curves cannot cross the letters', () => {
+    const { curveLabels } = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'point',
+        eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
+    });
+    const rendered = buildCurveLabelSeries(curveLabels, 1, '#ffffff').renderItem(
+        { dataIndex: 0, coordSys: { x: 0, y: 0, width: 700, height: 300 } },
+        { coord: () => [120, 100], getWidth: () => 800 },
+    );
+    const label = rendered?.children.find((child) => child.type === 'text');
+    expect(label?.style.backgroundColor).toBe('#ffffff');
+    expect(label?.style.width).toBeLessThan(200);
+});
+
 it('stacks major event text at the plot top while keeping points on BT', () => {
     const { curveLabels } = buildMarkers({
         ...baseParams,
@@ -141,6 +156,23 @@ it('stacks major event text at the plot top while keeping points on BT', () => {
             style: expect.objectContaining({ text: 'Yellow|01:00|100.0°C' }),
         }),
     ]);
+});
+
+it('keeps the final event label inside the plot and away from the right axis', () => {
+    const { curveLabels } = buildMarkers({
+        ...baseParams,
+        eventMarkerStyle: 'point',
+        eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
+    });
+    const rendered = buildCurveLabelSeries(curveLabels).renderItem(
+        { dataIndex: 0, coordSys: { x: 32, y: 10, width: 700, height: 300 } },
+        { coord: () => [732, 100], getWidth: () => 800, getHeight: () => 400 },
+    );
+    const label = rendered?.children.find((child) => child.type === 'text');
+    const dot = rendered?.children.find((child) => child.type === 'circle');
+    expect(label).toBeDefined();
+    expect(label?.x + estimateLabelWidth(label?.style.text)).toBeLessThan(732);
+    expect(dot?.shape.cx).toBe(732);
 });
 
 describe('FC band vs dual-mark Rolling', () => {

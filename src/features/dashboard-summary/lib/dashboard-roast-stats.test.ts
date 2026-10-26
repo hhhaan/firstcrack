@@ -1,5 +1,6 @@
+import { endOfMonth } from 'date-fns';
 import { describe, expect, it } from 'vitest';
-import { dailyRoastMetrics, splitDashboardMonths } from './dashboard-roast-stats';
+import { dailyRoastMetrics, dashboardMonthStats, splitDashboardMonths } from './dashboard-roast-stats';
 
 describe('splitDashboardMonths', () => {
     it('keeps a local-month boundary session in this month when ISO string order would not', () => {
@@ -40,5 +41,34 @@ describe('dailyRoastMetrics', () => {
     it('keeps a zero baseline through today when there are no sessions', () => {
         const result = dailyRoastMetrics([], new Date(2026, 0, 1));
         expect(result).toEqual([{ date: new Date(2026, 0, 1), batches: 0, kgRoasted: 0 }]);
+    });
+
+    it('includes a roast on the last evening of a past month', () => {
+        const asOf = endOfMonth(new Date(2026, 8, 1));
+        const result = dailyRoastMetrics(
+            [{ roasted_at: new Date(2026, 8, 30, 22, 15).toISOString(), weight_grams: 1000 }],
+            asOf,
+        );
+        expect(result).toHaveLength(30);
+        expect(result[29]).toMatchObject({ batches: 1, kgRoasted: 1 });
+    });
+});
+
+describe('dashboardMonthStats', () => {
+    it('counts the selected month against the previous month and ignores later months', () => {
+        const stats = dashboardMonthStats(
+            [
+                { roasted_at: new Date(2026, 8, 2, 9).toISOString(), weight_grams: 2000 },
+                { roasted_at: new Date(2026, 7, 15, 9).toISOString(), weight_grams: 1000 },
+                { roasted_at: new Date(2026, 9, 1, 9).toISOString(), weight_grams: 9000 },
+            ],
+            new Date(2026, 8, 1),
+            new Date(2026, 9, 22),
+        );
+        expect(stats.batchesThisMonth).toBe(1);
+        expect(stats.kgRoastedThisMonth).toBe(2);
+        expect(stats.batchesLastMonth).toBe(1);
+        expect(stats.kgRoastedLastMonth).toBe(1);
+        expect(stats.dailyMetrics).toHaveLength(30);
     });
 });

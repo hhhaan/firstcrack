@@ -93,9 +93,16 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "機器の接続を解除してからアップデートしてください。",
+        "finishRoastFirst": "ロースト終了後にアップデートしてください。",
+        "update": "アップデート",
         "checking": "アップデートを確認中…",
         "downloading": "アップデートをダウンロード中…",
+        "downloadingProgress": "アップデートをダウンロード中… {{progress}}%",
         "ready": "更新の準備完了 (v{{version}}) · 再起動",
+        "restart": "再起動",
+        "upToDate": "最新バージョンです",
+        "available": "新しいバージョンがあります (v{{version}})",
         "applying": "再起動中…",
         "checkError": "アップデートの確認中にエラーが発生しました。",
         "relaunchError": "再起動に失敗しました。",
@@ -664,7 +671,8 @@
                 "title": "ソフトウェア情報",
                 "description": "現在のアプリバージョンとソフトウェア詳細を確認します。",
                 "version": "アプリバージョン",
-                "versionDescription": "現在インストールされているアプリのバージョンです。"
+                "versionDescription": "現在インストールされているアプリのバージョンです。",
+                "check": "アップデートを確認"
             },
             "feedback": {
                 "label": "フィードバック",
@@ -846,6 +854,8 @@
         "previousClose": "前日終値",
         "lastSixMonths": "過去6か月",
         "thisMonth": "今月",
+        "previousMonth": "前の月",
+        "nextMonth": "次の月",
         "refresh": "先物価格を更新",
         "greeting": {
             "morning": "おはようございます",
@@ -855,6 +865,7 @@
         "viewActiveRoast": "進行中の焙煎を見る",
         "kpi": {
             "batchesThisMonth": "今月のバッチ数",
+            "batchesInMonth": "{{month}}のバッチ",
             "beansRoasted": "焙煎量",
             "avgRoastTime": "平均ロースト時間",
             "successRate": "成功率",
@@ -1071,6 +1082,8 @@
         },
         "summary": {
             "title": "ロースト完了",
+            "batchName": "ローストタイトル",
+            "batchNamePlaceholder": "空欄の場合は生豆名を使います",
             "totalTime": "総時間",
             "development": "開発",
             "finalBt": "最終BT",
@@ -1158,9 +1171,10 @@
             }
         },
         "dialogs": {
-            "roastInProgressTitle": "ロースト中",
-            "roastInProgressMsg": "ローストが進行中です。本当に終了しますか？",
-            "unsavedCloseMsg": "未保存のローストがあります。保存せずに終了しますか？",
+            "unsavedCloseTitle": "終了の確認",
+            "unsavedCloseMsg": "保存せずに終了すると、このロースト記録は保存されません。終了しますか？",
+            "closeWithoutSaving": "保存せずに終了",
+            "keepUsing": "使用を続ける",
             "end": "終了",
             "cancel": "キャンセル",
             "machineRequiredTitle": "マシン接続が必要",

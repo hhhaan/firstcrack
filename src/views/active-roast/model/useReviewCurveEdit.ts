@@ -1,106 +1,138 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { isRoastRecordConflict, useRoastSession, useUpdateRoastRecord } from '@entities/roast';
+import { isRoastRecordConflict, roastSessionKeys, useRoastSession, useUpdateRoastRecord } from '@entities/roast';
 import { recordSummary } from '@features/active-roast/lib/record-summary';
 import { type ReviewEventReject, reviewEventsFromLog } from '@features/active-roast/lib/review-record-events';
-import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
+import {
+    logEntryTimeSec,
+    parseStoredRoastEvents,
+    storedEventsToLogEntries,
+} from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp } from '@features/active-roast/lib/temperature';
 import { selectReviewSnapshot } from '@features/active-roast/model/batch';
+import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { formatElapsed } from '@shared/lib/format';
-import type { Json } from '@shared/types/database.types';
+import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { reviewHeaterToSave } from './review-heater';
 
 const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
 
-type ExpectedRecord = { events: Json; heater: Json | null };
-type PendingEdit = { entries: LogEntry[]; previous: LogEntry[] | null };
+type PendingEdit = { entries: LogEntry[]; previous: LogEntry[] };
 
-/** Chart edits on a saved curve update the frozen log, then the saved record. */
-export const useReviewCurveEdit = (sessionId: string | null) => {
+const savedRecordLog = (row: RoastSessionWithRelations, unit: TemperatureUnit): LogEntry[] =>
+    storedEventsToLogEntries(
+        parseStoredRoastEvents(row.events).filter((event) => event.time_sec >= 0),
+        unit,
+        true,
+    );
+
+/** Saved events and Heat set share History's cache; only queued intent is local. */
+export const useReviewCurveEdit = (sessionId: string | null, unit: TemperatureUnit = 'C') => {
     const { t } = useTranslation();
-    const { workspaceOwnerId } = useActiveWorkspace();
-    const session = useRoastSession(workspaceOwnerId, sessionId ?? '');
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    const snapshotOwnerId = useRoastingStore((state) => selectReviewSnapshot(state)?.sessionOwnerId ?? null);
+    const target = useMemo(
+        () => ({ sessionId, snapshotOwnerId, workspaceOwnerId, isWorkspaceReady }),
+        [sessionId, snapshotOwnerId, workspaceOwnerId, isWorkspaceReady],
+    );
+    const ownerId = isWorkspaceReady && snapshotOwnerId === workspaceOwnerId ? workspaceOwnerId : '';
+    const session = useRoastSession(ownerId, sessionId ?? '');
+    const qc = useQueryClient();
     const { mutateAsync } = useUpdateRoastRecord(workspaceOwnerId);
-    const expected = useRef<ExpectedRecord | null>(null);
     const pending = useRef<PendingEdit | null>(null);
-    const inflight = useRef(false);
-    const heatTouched = useRef(false);
-    const saveRef = useRef<(entries: LogEntry[], previous: LogEntry[] | null) => Promise<void>>(async () => {});
+    const inflight = useRef<PendingEdit | null>(null);
+    const generation = useRef<typeof target | null>(null);
+    const saveRef = useRef<(entries: LogEntry[], previous: LogEntry[]) => Promise<void>>(async () => {});
     const [error, setError] = useState<string | null>(null);
-    const [reviewHeaterEvents, setReviewHeaterEvents] = useState<Json | null>(null);
+    const [draft, setDraft] = useState<{ target: typeof target; edit: PendingEdit } | null>(null);
+    const readRecord = useCallback(
+        () => qc.getQueryData<RoastSessionWithRelations>(roastSessionKeys.detail(ownerId, sessionId ?? '')),
+        [qc, ownerId, sessionId],
+    );
+    const getReviewLog = useCallback(() => {
+        if (generation.current !== target) return [];
+        if (pending.current) return pending.current.entries;
+        if (inflight.current) return inflight.current.entries;
+        const row = readRecord();
+        return row ? savedRecordLog(row, unit) : (selectReviewSnapshot(useRoastingStore.getState())?.logEntries ?? []);
+    }, [readRecord, target, unit]);
     const rejectText = useCallback(
         (reason: ReviewEventReject) => {
             if (reason === 'duplicate') return t('history.edit.duplicate');
             if (reason === 'order') return t('history.edit.invalidOrder');
+            if (reason === 'conflict') return t('history.edit.conflict');
             return t('history.edit.protected');
         },
         [t],
     );
 
     useEffect(() => {
-        if (sessionId == null) return;
-        expected.current = null;
+        generation.current = target;
         pending.current = null;
-        heatTouched.current = false;
-        setReviewHeaterEvents(null);
+        inflight.current = null;
+        setDraft(null);
         setError(null);
-    }, [sessionId]);
-
-    useEffect(() => {
-        if (!session.data || heatTouched.current) return;
-        setReviewHeaterEvents(session.data.heater_events);
-    }, [session.data]);
+        return () => {
+            generation.current = null;
+        };
+    }, [target]);
 
     const save = useCallback(
-        async (entries: LogEntry[], previousLog: LogEntry[] | null) => {
+        async (entries: LogEntry[], previousLog: LogEntry[]) => {
+            const review = selectReviewSnapshot(useRoastingStore.getState());
+            if (!review || review.sessionId !== sessionId || review.sessionOwnerId !== snapshotOwnerId) return;
+            const epoch = target;
+            if (generation.current !== epoch || !ownerId) return;
             // One save at a time. A newer edit replaces anything still waiting.
             if (inflight.current) {
-                pending.current = { entries, previous: previousLog };
+                pending.current = { entries, previous: pending.current?.previous ?? previousLog };
+                setDraft({ target, edit: pending.current });
                 return;
             }
-            const row = session.data;
-            const current = expected.current ?? (row ? { events: row.events, heater: row.heater_events } : null);
-            if (!row || !current || !sessionId) {
-                pending.current = { entries, previous: previousLog };
+            const row = readRecord();
+            if (!row || !sessionId) {
+                pending.current = { entries, previous: pending.current?.previous ?? previousLog };
+                setDraft({ target, edit: pending.current });
                 return;
             }
-            const built = reviewEventsFromLog(current.events, entries);
-            const heater = reviewHeaterToSave(previousLog, entries, current.heater);
+            const built = reviewEventsFromLog(row.events, entries, previousLog);
             if (!built.ok) {
                 setError(rejectText(built.reason));
-                if (previousLog) useRoastingStore.getState().replaceReviewLog(previousLog);
-                setReviewHeaterEvents(current.heater);
+                setDraft(null);
                 return;
             }
-            if (!built.changed && heater === current.heater) return;
-            useRoastingStore.getState().replaceReviewLog(entries);
-            if (heater !== current.heater) {
-                heatTouched.current = true;
-                setReviewHeaterEvents(heater);
-            }
+            const heater = reviewHeaterToSave(
+                previousLog,
+                entries,
+                row.heater_events,
+                storedEventsToLogEntries(parseStoredRoastEvents(built.events), unit, true),
+                storedEventsToLogEntries(parseStoredRoastEvents(row.events), unit, true),
+            );
+            setDraft(null);
+            if (!built.changed && heater === row.heater_events) return;
             const summary = recordSummary(row, built.events);
-            const previous = current;
-            expected.current = { events: built.events, heater };
-            inflight.current = true;
+            inflight.current = { entries, previous: previousLog };
             try {
-                const updated = await mutateAsync({
+                await mutateAsync({
                     sessionId: row.id,
-                    expectedEvents: previous.events,
-                    expectedHeaterEvents: previous.heater,
+                    expectedEvents: row.events,
+                    expectedHeaterEvents: row.heater_events,
                     events: built.events,
                     heaterEvents: heater,
                     dropTempCelsius: summary.dropTempCelsius,
                     durationSeconds: summary.durationSeconds,
                     profileSummary: summary.profileSummary,
                 });
-                expected.current = { events: updated.events, heater: updated.heater_events };
-                setReviewHeaterEvents(updated.heater_events);
+                if (epoch !== generation.current) return;
                 setError(null);
             } catch (cause) {
-                expected.current = previous;
+                if (epoch !== generation.current) return;
+                // A newer queued intent includes this failed edit and can retry it.
+                if (pending.current) pending.current.previous = previousLog;
                 if (isRoastRecordConflict(cause)) setError(t('history.edit.conflict'));
                 else {
                     const text = `${(cause as { message?: unknown } | null)?.message ?? ''}`;
@@ -111,13 +143,16 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
                     );
                 }
             } finally {
-                inflight.current = false;
-                const next = pending.current;
-                pending.current = null;
-                if (next) await saveRef.current(next.entries, next.previous);
+                if (epoch === generation.current) {
+                    inflight.current = null;
+                    const next = pending.current;
+                    pending.current = null;
+                    setDraft(null);
+                    if (next) await saveRef.current(next.entries, next.previous);
+                }
             }
         },
-        [mutateAsync, rejectText, session.data, sessionId, t],
+        [mutateAsync, ownerId, readRecord, rejectText, sessionId, snapshotOwnerId, target, t, unit],
     );
 
     useEffect(() => {
@@ -125,7 +160,7 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
     }, [save]);
 
     useEffect(() => {
-        if (!session.data || !pending.current) return;
+        if (!session.data || !pending.current || inflight.current) return;
         const job = pending.current;
         pending.current = null;
         void save(job.entries, job.previous);
@@ -133,32 +168,35 @@ export const useReviewCurveEdit = (sessionId: string | null) => {
 
     const apply = useCallback(
         (entries: LogEntry[]) => {
-            const previous = selectReviewSnapshot(useRoastingStore.getState())?.logEntries ?? null;
-            const loaded = expected.current != null || session.data != null;
-            const stored = expected.current?.events ?? session.data?.events;
-            if (!loaded) {
-                pending.current = { entries, previous };
-                return;
-            }
-            const built = reviewEventsFromLog(stored, entries);
-            if (!built.ok) {
-                setError(rejectText(built.reason));
-                return;
-            }
+            const review = selectReviewSnapshot(useRoastingStore.getState());
+            if (!review || review.sessionId !== sessionId || review.sessionOwnerId !== snapshotOwnerId) return;
+            const previous = getReviewLog();
             setError(null);
-            const previousHeater = expected.current?.heater ?? session.data?.heater_events ?? null;
-            const heater = reviewHeaterToSave(previous, entries, previousHeater);
-            if (heater !== previousHeater) {
-                heatTouched.current = true;
-                setReviewHeaterEvents(heater);
-            }
-            useRoastingStore.getState().replaceReviewLog(entries);
             void save(entries, previous);
         },
-        [rejectText, save, session.data],
+        [getReviewLog, save, sessionId, snapshotOwnerId],
     );
 
-    return { applyReviewLog: apply, reviewSaveError: error, reviewHeaterEvents };
+    const queued = draft?.target === target ? draft.edit : null;
+    const reviewLogEntries = useMemo(
+        () => queued?.entries ?? (session.data ? savedRecordLog(session.data, unit) : null),
+        [queued, session.data, unit],
+    );
+    const reviewHeaterEvents = useMemo(() => {
+        const row = session.data;
+        if (!row || !queued) return row?.heater_events ?? null;
+        const built = reviewEventsFromLog(row.events, queued.entries, queued.previous);
+        return built.ok
+            ? reviewHeaterToSave(
+                  queued.previous,
+                  queued.entries,
+                  row.heater_events,
+                  storedEventsToLogEntries(parseStoredRoastEvents(built.events), unit, true),
+                  storedEventsToLogEntries(parseStoredRoastEvents(row.events), unit, true),
+              )
+            : row.heater_events;
+    }, [queued, session.data, unit]);
+    return { applyReviewLog: apply, getReviewLog, reviewLogEntries, reviewSaveError: error, reviewHeaterEvents };
 };
 
 export const appendReviewEntry = (

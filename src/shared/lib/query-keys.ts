@@ -6,6 +6,8 @@
 
 export const dashboardKeys = {
     all: (userId: string) => ['dashboard', userId] as const,
+    /** Selected-month KPI. Prefixed by `all` so dashboard invalidation refetches it. */
+    month: (userId: string, ym: string) => ['dashboard', userId, 'month', ym] as const,
 };
 
 /** Profile row — gates (`useEffectivePlan`) + entity `useProfile` share this cache. */

@@ -1,8 +1,8 @@
 import type { StockSummary } from '@entities/bean-stock-event';
 import { persistedId } from '@shared/lib/optimistic-id';
 import type { Bean } from '@shared/types/database.types';
-import { useEffect } from 'react';
-import type { UseFormReset } from 'react-hook-form';
+import { useEffect, useRef } from 'react';
+import type { UseFormGetValues, UseFormReset, UseFormSetValue } from 'react-hook-form';
 import { type BeanForm, EMPTY_BEAN_FORM } from '../lib/schema';
 import type { BeanModalTab } from '../lib/types';
 
@@ -13,6 +13,8 @@ type Params = {
     initialData: Bean | null;
     stockSummaries: Record<string, StockSummary>;
     reset: UseFormReset<BeanForm>;
+    getValues: UseFormGetValues<BeanForm>;
+    setValue: UseFormSetValue<BeanForm>;
     setTab: (tab: BeanModalTab) => void;
     setSelectedBeanId: (id: string | null) => void;
     setRestockAmount: (v: string) => void;
@@ -32,6 +34,8 @@ export const useAddBeanFormReset = ({
     initialData,
     stockSummaries,
     reset,
+    getValues,
+    setValue,
     setTab,
     setSelectedBeanId,
     setRestockAmount,
@@ -43,8 +47,27 @@ export const useAddBeanFormReset = ({
     setShowAllBeans,
     setNameIsAuto,
 }: Params) => {
+    const initialized = useRef<{
+        tab: BeanModalTab;
+        beanId: string | null;
+        source: Bean | null;
+        stock: string;
+    } | null>(null);
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            initialized.current = null;
+            return;
+        }
+        const stock = initialData?.id ? ((stockSummaries[initialData.id]?.effectiveGrams ?? 0) / 1000).toString() : '';
+        const previous = initialized.current;
+        if (previous?.tab === initialTab && previous.beanId === initialBeanId && previous.source === initialData) {
+            if (initialData && getValues('stock') === previous.stock) {
+                setValue('stock', stock);
+                previous.stock = stock;
+            }
+            return;
+        }
+        initialized.current = { tab: initialTab, beanId: initialBeanId, source: initialData, stock };
         setTab(initialTab);
         setSelectedBeanId(persistedId(initialBeanId));
         setRestockAmount('');
@@ -65,7 +88,7 @@ export const useAddBeanFormReset = ({
                 process: initialData.process ?? 'Washed',
                 variety: initialData.variety ?? '',
                 altitude: initialData.altitude_masl?.toString() ?? '',
-                stock: initialData.id ? ((stockSummaries[initialData.id]?.effectiveGrams ?? 0) / 1000).toString() : '',
+                stock,
                 capacity: initialData.capacity_grams ? (initialData.capacity_grams / 1000).toString() : '5',
                 costPerKg: initialData.cost_per_kg?.toString() ?? '',
                 tastingNotes: initialData.tasting_notes ?? '',
@@ -80,6 +103,8 @@ export const useAddBeanFormReset = ({
         initialData,
         stockSummaries,
         reset,
+        getValues,
+        setValue,
         setTab,
         setSelectedBeanId,
         setRestockAmount,

@@ -1,8 +1,10 @@
 import { useActiveWorkspace } from '@entities/organization';
-import { useDashboard } from '@features/dashboard-summary';
+import { useDashboard, useDashboardMonth } from '@features/dashboard-summary';
 import { useCoffeeFutures } from '@shared/api/coffee-futures';
 import type { View } from '@shared/types/view';
 import { PageLayout } from '@shared/ui/PageLayout';
+import { isSameMonth, startOfMonth } from 'date-fns';
+import { useState } from 'react';
 import { DashboardHeader } from './components/DashboardHeader';
 import { InventoryAlerts } from './components/InventoryAlerts';
 import { KpiSection } from './components/KpiSection';
@@ -15,21 +17,26 @@ interface DashboardProps {
 
 export const Dashboard = ({ onNavigate }: DashboardProps) => {
     const { workspaceOwnerId: userId } = useActiveWorkspace();
+    const [month, setMonth] = useState(() => startOfMonth(new Date()));
     const db = useDashboard(userId);
+    const pastMonth = useDashboardMonth(userId, month);
     const coffee = useCoffeeFutures();
+    const current = isSameMonth(month, new Date());
+    const kpi = current ? db : pastMonth;
 
     return (
         <PageLayout>
-            <DashboardHeader onNavigate={onNavigate} />
+            <DashboardHeader month={month} onMonthChange={setMonth} onNavigate={onNavigate} />
 
             <KpiSection
-                batchesThisMonth={db.batchesThisMonth}
-                batchesLastMonth={db.batchesLastMonth}
-                kgRoastedThisMonth={db.kgRoastedThisMonth}
-                kgRoastedLastMonth={db.kgRoastedLastMonth}
-                dailyMetrics={db.dailyMetrics}
+                month={month}
+                batchesThisMonth={kpi.batchesThisMonth}
+                batchesLastMonth={kpi.batchesLastMonth}
+                kgRoastedThisMonth={kpi.kgRoastedThisMonth}
+                kgRoastedLastMonth={kpi.kgRoastedLastMonth}
+                dailyMetrics={kpi.dailyMetrics}
                 monthlyBatches={db.monthlyBatches}
-                loading={db.loading}
+                loading={kpi.loading}
                 coffeeFutures={coffee.data}
                 coffeeFuturesLoading={coffee.loading}
                 coffeeFuturesRefreshing={coffee.refreshing}

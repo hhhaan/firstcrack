@@ -93,9 +93,16 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "请断开设备连接后再进行更新。",
+        "finishRoastFirst": "请在烘焙结束后进行更新。",
+        "update": "更新",
         "checking": "正在检查更新…",
         "downloading": "正在下载更新…",
+        "downloadingProgress": "正在下载更新… {{progress}}%",
         "ready": "更新已就绪 (v{{version}}) · 重启",
+        "restart": "重启",
+        "upToDate": "已是最新版本",
+        "available": "有新版本 (v{{version}})",
         "applying": "正在重新启动…",
         "checkError": "检查更新时出错。",
         "relaunchError": "重启失败。",
@@ -664,7 +671,8 @@
                 "title": "软件信息",
                 "description": "查看当前应用版本和软件详细信息。",
                 "version": "应用版本",
-                "versionDescription": "当前安装的应用版本。"
+                "versionDescription": "当前安装的应用版本。",
+                "check": "检查更新"
             },
             "feedback": {
                 "label": "反馈",
@@ -846,6 +854,8 @@
         "previousClose": "前收盘价",
         "lastSixMonths": "最近6个月",
         "thisMonth": "本月",
+        "previousMonth": "上个月",
+        "nextMonth": "下个月",
         "refresh": "刷新期货价格",
         "greeting": {
             "morning": "早上好",
@@ -855,6 +865,7 @@
         "viewActiveRoast": "查看进行中的烘焙",
         "kpi": {
             "batchesThisMonth": "本月批次数",
+            "batchesInMonth": "{{month}}批次",
             "beansRoasted": "烘焙量",
             "avgRoastTime": "平均烘焙时间",
             "successRate": "成功率",
@@ -1071,6 +1082,8 @@
         },
         "summary": {
             "title": "烘焙完成",
+            "batchName": "烘焙标题",
+            "batchNamePlaceholder": "留空则使用生豆名称",
             "totalTime": "总时间",
             "development": "发展期",
             "finalBt": "最终 BT",
@@ -1158,9 +1171,10 @@
             }
         },
         "dialogs": {
-            "roastInProgressTitle": "烘焙进行中",
-            "roastInProgressMsg": "烘焙正在进行中。确定要结束吗？",
-            "unsavedCloseMsg": "有未保存的烘焙。确定不保存并结束吗？",
+            "unsavedCloseTitle": "确认退出",
+            "unsavedCloseMsg": "不保存就退出，此次烘焙记录将不会保存。确定要退出吗？",
+            "closeWithoutSaving": "不保存并退出",
+            "keepUsing": "继续使用",
             "end": "结束",
             "cancel": "取消",
             "machineRequiredTitle": "需要连接设备",

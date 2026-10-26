@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
-import { updateRoastSettings } from '@features/active-roast/model/settings';
+import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import type { LogEntry } from '@shared/types/roast';
 import { act, type ComponentProps, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -186,6 +186,7 @@ describe('RoastSidePanel live readings (#358)', () => {
 
     it('saved-curve review adds Yellow and does not drop', () => {
         const onMarkEvent = vi.fn();
+        const onAddEvent = vi.fn();
         const onHandleDrop = vi.fn();
         renderPanel({
             phase: 'standby',
@@ -194,6 +195,8 @@ describe('RoastSidePanel live readings (#358)', () => {
             bbpChargeWait: true,
             reviewing: true,
             onMarkEvent,
+            onAddEvent,
+            logEditOptions: { unit: 'C', livePoints: [], maxTimeSec: 600, onEditEntry: vi.fn() },
             onHandleDrop,
         });
         const button = (label: string) =>
@@ -201,8 +204,18 @@ describe('RoastSidePanel live readings (#358)', () => {
                 (item.textContent ?? '').includes(label),
             ) as HTMLButtonElement;
         const yellow = button('Yellow');
-        expect(yellow.disabled).toBe(true);
+        expect(yellow.disabled).toBe(false);
         act(() => yellow.click());
+        const time = container.querySelector<HTMLInputElement>('input[name="time"]');
+        expect(time).not.toBeNull();
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(time, '2:00');
+            time?.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        act(() =>
+            container.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
+        );
+        expect(onAddEvent).toHaveBeenCalledWith('Yellow', 120, undefined);
         expect(onMarkEvent).not.toHaveBeenCalled();
         const drop = button('Mark Drop');
         expect(drop.disabled).toBe(true);
@@ -210,7 +223,44 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(onHandleDrop).not.toHaveBeenCalled();
     });
 
-    it('saved-curve review deletes phase marks, end, notes, and custom marks', () => {
+    it.each(['FC Rolling', 'Aroma'])('adds %s to a snapshot without calling live marking', (event) => {
+        const previous = getRoastSettings().eventButtons;
+        const onAddEvent = vi.fn();
+        const onMarkEvent = vi.fn();
+        const onCycleFc = vi.fn();
+        try {
+            updateRoastSettings({
+                eventButtons: { ...previous, custom: [{ id: 'aroma', name: 'Aroma', enabled: true }] },
+            });
+            renderPanel({
+                reviewing: true,
+                phase: 'standby',
+                fcDualMarkEnabled: true,
+                fcDualUnwind: true,
+                logEntries: [{ id: 'fc', event: 'FC Start', time: '1:00', timeSec: 60, temp: '', note: '' }],
+                onAddEvent,
+                onMarkEvent,
+                onCycleFc,
+                logEditOptions: { unit: 'C', livePoints: [], maxTimeSec: 600, onEditEntry: vi.fn() },
+            });
+            const button = [...container.querySelectorAll('button')].find((item) => item.textContent?.includes(event));
+            expect(button?.disabled).toBe(false);
+            act(() => button?.click());
+            const time = container.querySelector<HTMLInputElement>('input[name="time"]');
+            act(() => {
+                Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(time, '2:00');
+                time?.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+            act(() => time?.closest('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+            expect(onAddEvent).toHaveBeenCalledWith(event, 120, undefined);
+            expect(onMarkEvent).not.toHaveBeenCalled();
+            expect(onCycleFc).not.toHaveBeenCalled();
+        } finally {
+            updateRoastSettings({ eventButtons: previous });
+        }
+    });
+
+    it('saved-curve review deletes phase marks, notes, and custom marks but protects End', () => {
         renderPanel({
             reviewing: true,
             phase: 'standby',
@@ -229,12 +279,21 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(side.querySelector('[aria-label="Delete yellow"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete note"]')).not.toBeNull();
         expect(side.querySelector('[aria-label="Delete 시바"]')).not.toBeNull();
-        expect(side.querySelector('[aria-label="Delete end"]')).not.toBeNull();
+        expect(side.querySelector('[aria-label="Delete end"]')).toBeNull();
         expect(side.querySelector('[aria-label="Delete charge"]')).toBeNull();
         expect(side.querySelector('[aria-label="Delete drop"]')).toBeNull();
     });
 
-    it('saved-curve review leaves the yellow button disabled', () => {
+    it('disables End Roast while reviewing a completed snapshot', () => {
+        const onEndRoast = vi.fn();
+        renderPanel({ reviewing: true, roastEnded: true, onEndRoast });
+        const end = container.querySelector<HTMLButtonElement>('[data-testid="roast-end"]');
+        expect(end?.disabled).toBe(true);
+        act(() => end?.click());
+        expect(onEndRoast).not.toHaveBeenCalled();
+    });
+
+    it('saved-curve review leaves an existing Yellow disabled without deleting it', () => {
         const onMarkEvent = vi.fn();
         renderPanel({
             reviewing: true,
@@ -242,6 +301,8 @@ describe('RoastSidePanel live readings (#358)', () => {
             bbpChargeWait: true,
             logEntries: [{ id: 'y', time: '1:00', event: 'Yellow', temp: '', note: '' }],
             onMarkEvent,
+            onAddEvent: vi.fn(),
+            logEditOptions: { unit: 'C', livePoints: [], maxTimeSec: 600, onEditEntry: vi.fn() },
         });
         const yellow = [...container.querySelectorAll('button')].find((item) =>
             (item.textContent ?? '').includes('Yellow'),

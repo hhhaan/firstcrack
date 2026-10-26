@@ -1,8 +1,14 @@
 {
     "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
     // husky pre-commit이 `node scripts/...`로 직접 호출한다. husky 플러그인은 known binary만 본다.
-    // CI invokes the billing schema fixture directly through tsc, outside the application import graph.
-    "entry": ["scripts/check-version-sync.mjs", "supabase/tests/polar-database-types.ts"],
+    // CI invokes billing types through tsc; the MCP runner invokes its integration fixture through Deno.
+    "entry": [
+        "scripts/check-version-sync.mjs",
+        "supabase/tests/polar-database-types.ts",
+        "supabase/tests/mcp-opaque.integration.ts"
+    ],
+    // Deno resolves the pinned npm: imports; Knip otherwise reports a nonexistent package named "npm".
+    "ignoreIssues": { "supabase/tests/mcp-opaque.integration.ts": ["unlisted"] },
     "ignore": [
         // Deno. `deno check`(edge-check)와 vitest가 본다. `npm:` specifier는 knip이 패키지 `npm`으로 오인한다.
         "supabase/functions/**",
@@ -13,7 +19,9 @@
         "src/widgets/blend-detail/index.ts",
         "src/widgets/blend-list/index.ts",
         // App.tsx에서 첫 실행 테마 선택은 주석으로 꺼 둔 상태.
-        "src/widgets/theme-select-modal/**"
+        "src/widgets/theme-select-modal/**",
+        // RoastSettingsTab에서 배치 제목 번호 UI는 주석으로 꺼 둔 상태.
+        "src/widgets/settings/ui/BatchTitleSettings.tsx"
     ],
     // types:gen의 supabase CLI. npm 패키지가 아니다.
     "ignoreBinaries": ["supabase"],

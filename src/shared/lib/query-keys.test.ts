@@ -41,6 +41,7 @@ describe('query key factories', () => {
 
     it('cross-slice keys stay hierarchical', () => {
         expect(dashboardKeys.all('u1')).toEqual(['dashboard', 'u1']);
+        expect(dashboardKeys.month('u1', '2026-09')).toEqual(['dashboard', 'u1', 'month', '2026-09']);
         expect(weatherKeys.coords).toEqual(['weather', 'coords']);
         expect(weatherKeys.current(1, 2)).toEqual(['weather', 'current', 1, 2]);
         expect(coffeeFuturesKeys.all).toEqual(['coffee-futures']);

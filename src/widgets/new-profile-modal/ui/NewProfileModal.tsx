@@ -1,6 +1,7 @@
 import { useActiveWorkspace } from '@entities/organization';
 import {
     profileHeaterEvents,
+    type RoastProfileUpdate,
     type RoastProfileWithSource,
     resolveSourceSession,
     useResolvedProfileCurve,
@@ -33,7 +34,7 @@ interface NewProfileModalProps {
     onClose: () => void;
     onCreated: (profile: RoastProfile) => void;
     editingProfile?: RoastProfileWithSource | null;
-    onUpdated?: (profile: RoastProfile) => void;
+    onUpdated?: (profile: RoastProfileUpdate) => void;
     /** 열릴 때 이 세션으로 바로 from-session 모드 진입 */
     initialSessionId?: string | null;
 }
@@ -81,6 +82,7 @@ const NewProfileModalOpen = ({
                         nameRef={form.nameRef}
                         isEditing={!!editingProfile}
                         isValid={form.isValid}
+                        saveConflict={form.saveConflict}
                         selectedSession={form.selectedSession}
                         summary={form.summary}
                         beans={form.beans}

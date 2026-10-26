@@ -93,9 +93,16 @@
         }
     },
     "updater": {
+        "disconnectMachineFirst": "장비 연결을 해제한 후 업데이트를 진행해 주세요.",
+        "finishRoastFirst": "로스팅 종료 후 업데이트를 진행해 주세요.",
+        "update": "업데이트",
         "checking": "업데이트 확인 중…",
         "downloading": "업데이트 다운로드 중…",
+        "downloadingProgress": "업데이트 다운로드 중… {{progress}}%",
         "ready": "업데이트 준비됨 (v{{version}}) · 재시작",
+        "restart": "재시작",
+        "upToDate": "최신 버전입니다",
+        "available": "새 버전 있음 (v{{version}})",
         "applying": "재시작 중…",
         "checkError": "업데이트 확인 중 오류가 발생했습니다.",
         "relaunchError": "재시작에 실패했습니다.",
@@ -664,7 +671,8 @@
                 "title": "소프트웨어 정보",
                 "description": "현재 앱 버전과 소프트웨어 정보를 확인합니다.",
                 "version": "앱 버전",
-                "versionDescription": "현재 설치된 앱 버전입니다."
+                "versionDescription": "현재 설치된 앱 버전입니다.",
+                "check": "업데이트 확인"
             },
             "feedback": {
                 "label": "피드백",
@@ -846,6 +854,8 @@
         "previousClose": "전일 종가",
         "lastSixMonths": "최근 6개월",
         "thisMonth": "이번 달",
+        "previousMonth": "이전 달",
+        "nextMonth": "다음 달",
         "refresh": "선물가 새로고침",
         "greeting": {
             "morning": "Good morning",
@@ -855,6 +865,7 @@
         "viewActiveRoast": "진행 중 로스팅 보기",
         "kpi": {
             "batchesThisMonth": "이번 달 배치",
+            "batchesInMonth": "{{month}} 배치",
             "beansRoasted": "로스팅량",
             "avgRoastTime": "평균 로스팅 시간",
             "successRate": "성공률",
@@ -1441,9 +1452,10 @@
         "dialogs": {
             "machineRequiredTitle": "머신 연결 필요",
             "machineRequiredMsg": "연결된 머신이 없습니다. 연결 후 다시 시도하세요.",
-            "roastInProgressTitle": "로스팅 진행 중",
-            "roastInProgressMsg": "로스팅이 진행 중입니다. 정말 종료하시겠습니까?",
-            "unsavedCloseMsg": "저장되지 않은 로스트가 있습니다. 저장하지 않고 종료하시겠습니까?",
+            "unsavedCloseTitle": "종료 확인",
+            "unsavedCloseMsg": "저장하지 않고 종료하면 이 로스팅 기록은 저장되지 않습니다. 종료하시겠습니까?",
+            "closeWithoutSaving": "저장하지 않고 종료",
+            "keepUsing": "계속 사용",
             "saveFailedTitle": "저장 실패",
             "saveFailedMsg": "로스팅 세션 저장에 실패했습니다.\n\n{{error}}",
             "beanDeletedTitle": "원두를 찾을 수 없음",
@@ -1463,6 +1475,8 @@
         },
         "summary": {
             "title": "로스팅 완료",
+            "batchName": "로스팅 제목",
+            "batchNamePlaceholder": "비워 두면 생두 이름을 사용합니다",
             "batchWeight": "생두 투입량",
             "finalBt": "최종 BT",
             "totalTime": "총 시간",

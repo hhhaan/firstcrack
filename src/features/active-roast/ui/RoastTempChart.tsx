@@ -25,7 +25,7 @@ import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
-import { isReviewDeletableEvent } from '@features/active-roast/lib/review-record-events';
+import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TurningPoint } from '@features/active-roast/lib/turningPoints';
@@ -429,10 +429,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     }, []);
 
     const makeOption = useCallback(
-        (colors = getResolvedChartColors()) =>
+        (colors = getResolvedChartColors(), print = false) =>
             buildRoastChartOption({
                 axisSettings,
                 report,
+                print,
                 xs,
                 btTarget,
                 btActual,
@@ -716,11 +717,18 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ];
                 }),
             ];
-            const boxes = layoutCurveLabelBoxes(layoutInputs, chart.getWidth(), fontScale, chart.getHeight());
+            const grid = Array.isArray(option.grid) ? option.grid[0] : option.grid;
+            const labelRight = chart.getWidth() - (typeof grid?.right === 'number' ? grid.right : 0);
+            const boxes = layoutCurveLabelBoxes(layoutInputs, labelRight, fontScale, chart.getHeight());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
                 if (marker.reference) return [];
-                if (!marker?.logId || marker.event === 'Charge' || (savedReview && marker.event === 'Drop')) return [];
+                if (
+                    !marker?.logId ||
+                    marker.event === 'Charge' ||
+                    (savedReview && !isReviewEditableEvent(marker.event))
+                )
+                    return [];
                 const x = input.xPx;
                 const anchorY = input.yPx;
                 if (!Number.isFinite(x)) return [];
@@ -762,6 +770,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             localPoint,
             onEventMarkerDrag,
             onEventMarkerEdit,
+            option.grid,
             tempMaxC,
             tempMinC,
             temperatureUnit,
@@ -876,7 +885,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             document.body.appendChild(el);
             const clone = echarts.init(el, undefined, { renderer: 'canvas', devicePixelRatio: pixelRatio });
             try {
-                clone.setOption(makeOption(getResolvedChartColors(true)), true);
+                clone.setOption(makeOption(getResolvedChartColors(true), true), true);
                 return clone.getDataURL({ ...opts, pixelRatio });
             } finally {
                 if (clone !== chart) clone.dispose();
@@ -1118,6 +1127,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
 
     return (
         <div
+            data-app-context-menu
             data-tour="active-roast-chart"
             style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}
         >

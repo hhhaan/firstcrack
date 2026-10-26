@@ -10,6 +10,7 @@ export interface SessionFilterCriteria {
     fromYM: string;
     toYM: string;
     originFilter: string;
+    profileFilter: string;
 }
 
 const qMatch = (s: RoastSessionWithRelations, q: string): boolean => {
@@ -43,12 +44,12 @@ export const normalizeYMRange = (fromYM: string, toYM: string): { fromYM: string
     fromYM && toYM && fromYM > toYM ? { fromYM: toYM, toYM: fromYM } : { fromYM, toYM };
 
 /**
- * Full filter: search + level + date range + origin — single pass.
+ * Full filter: search + level + date range + origin + profile — single pass.
  * Used by displayTotal and list filtering (rawSessions).
  */
 export const filterSessions = (
     sessions: RoastSessionWithRelations[],
-    { search, levelFilter, fromYM, toYM, originFilter }: SessionFilterCriteria,
+    { search, levelFilter, fromYM, toYM, originFilter, profileFilter }: SessionFilterCriteria,
 ): RoastSessionWithRelations[] => {
     const q = search.toLowerCase();
     return sessions.filter((s) => {
@@ -56,6 +57,7 @@ export const filterSessions = (
         if (!ymInRange(s.roasted_at, fromYM, toYM)) return false;
         if (q && !qMatch(s, q)) return false;
         if (originFilter !== 'all' && s.beans?.origin !== originFilter) return false;
+        if (profileFilter !== 'all' && s.profile_id !== profileFilter) return false;
         return true;
     });
 };

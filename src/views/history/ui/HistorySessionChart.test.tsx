@@ -55,6 +55,7 @@ vi.mock('@features/active-roast', async () => ({
         return resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS);
     },
     CurveSwatch: () => null,
+    useRoastingStore: (selector: (state: { phase: string }) => unknown) => selector({ phase: 'idle' }),
 }));
 const curveStyleModule = await vi.importActual<typeof import('@features/active-roast/lib/curve-style')>(
     '@features/active-roast/lib/curve-style',

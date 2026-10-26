@@ -11,7 +11,7 @@ const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
 export const useRoastRecordSave = (session: RoastSessionWithRelations) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const canWrite = useWriteAccess() && isWorkspaceReady && !!workspaceOwnerId;
+    const canWrite = useWriteAccess() && isWorkspaceReady && !!workspaceOwnerId && session.user_id === workspaceOwnerId;
     const { mutateAsync, isPending } = useUpdateRoastRecord(workspaceOwnerId);
 
     const save = async (events: Json, heaterEvents: Json | null) => {

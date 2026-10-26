@@ -37,9 +37,12 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
     const unit = useRoastSettings().temperatureUnit;
     const machines = useMachines((s) => s.machines);
     const heaterUnit = profileHeaterBounds(session, machines, ROASTER_REGISTRY).unit;
-    const record = useRoastRecordSave(session);
     const curve = useHistoryChart(session.tsv_path ?? null);
-    const [open, setOpen] = useState<'events' | 'heat' | null>(null);
+    const [open, setOpen] = useState<{
+        section: 'events' | 'heat';
+        session: RoastSessionWithRelations;
+    } | null>(null);
+    const record = useRoastRecordSave(open?.session ?? session);
     const eventsBtn = useRef<HTMLButtonElement>(null);
     const heatBtn = useRef<HTMLButtonElement>(null);
 
@@ -48,7 +51,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
     const readOnlyTitle = record.canWrite ? undefined : t('history.edit.readOnly');
 
     const close = () => {
-        const back = open === 'heat' ? heatBtn.current : eventsBtn.current;
+        const back = open?.section === 'heat' ? heatBtn.current : eventsBtn.current;
         setOpen(null);
         requestAnimationFrame(() => back?.focus());
     };
@@ -66,7 +69,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                         className={editCls}
                         disabled={!record.canWrite || record.isPending || marks.length === 0}
                         title={readOnlyTitle}
-                        onClick={() => setOpen('events')}
+                        onClick={() => setOpen({ section: 'events', session })}
                     >
                         {t('history.edit.editEvents')}
                     </button>
@@ -111,7 +114,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                             className={editCls}
                             disabled={!record.canWrite || record.isPending || curve.isLoading}
                             title={readOnlyTitle}
-                            onClick={() => setOpen('heat')}
+                            onClick={() => setOpen({ section: 'heat', session })}
                         >
                             {t('history.edit.editHeat')}
                         </button>
@@ -139,18 +142,18 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                 )}
             </Section>
 
-            {open === 'events' && (
+            {open?.section === 'events' && (
                 <RecordEventsEditor
-                    events={session.events}
+                    events={open.session.events}
                     unit={unit}
                     onSave={record.saveEvents}
                     errorText={record.errorText}
                     onClose={close}
                 />
             )}
-            {open === 'heat' && (
+            {open?.section === 'heat' && (
                 <RecordHeaterEditor
-                    session={session}
+                    session={open.session}
                     points={curve.points}
                     unit={unit}
                     onSave={record.saveHeater}

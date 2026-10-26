@@ -327,6 +327,14 @@ verify_jwt = true
 [functions.order-webhook]
 verify_jwt = false
 
+# MCP uses opaque credentials and verifies every request inside the function.
+# Source configuration only; both handlers still return 503 unless explicitly enabled.
+[functions.firstcrack-mcp]
+verify_jwt = false
+
+[functions.firstcrack-oauth]
+verify_jwt = false
+
 # [functions.MY_FUNCTION_NAME]
 # enabled = true
 # verify_jwt = true

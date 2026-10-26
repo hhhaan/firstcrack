@@ -36,7 +36,7 @@ import { Lock, Play } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumericFormat } from 'react-number-format';
-import { BatchTitleSettings } from './BatchTitleSettings';
+// import { BatchTitleSettings } from './BatchTitleSettings'; // 배치 제목 번호 UI 복구 시 주석 해제
 import { CurveStyleSection } from './CurveStyleSection';
 import { EventButtonSection } from './EventButtonSection';
 import { RoastingSettingsImport } from './RoastingSettingsImport';
@@ -1354,7 +1354,9 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
             <SmoothingControls />
+            {/* 배치 제목 번호 UI는 숨김. 기본값은 프로파일 누적. 복구 시 주석 해제.
             <BatchTitleSettings />
+            */}
 
             <SettingsSection group="sensors">
                 <SettingsSection.Header title={tk('rorSpan')} description={tk('rorSpanDescription')} />

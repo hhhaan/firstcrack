@@ -28,9 +28,8 @@ vi.mock('@features/export-history-pdf', async () => ({
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it('exports the selected batch title in the filename and PDF header while retaining the actual bean', async () => {
-    const chartRef = { current: { getDataURL: () => 'data:image/png;base64,AA==' } } as Parameters<
-        typeof useHistoryPdfExport
-    >[0]['chartRef'];
+    const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
+    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
     const session = {
         batch_name: 'Batch A',
         profile_batch_number: 9,
@@ -47,6 +46,7 @@ it('exports the selected batch title in the filename and PDF header while retain
     try {
         await act(async () => root.render(createElement(Probe, { value: session })));
         await act(async () => latest.onExportPdf());
+        expect(getDataURL).toHaveBeenCalledWith({ width: 100, height: 100, pixelRatio: 200 / 72 });
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('batch-a'),
@@ -104,6 +104,37 @@ it('exports the selected batch title in the filename and PDF header while retain
                 header: expect.not.objectContaining({ roastTitle: expect.anything() }),
             }),
         );
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('disables PDF export while a roast is in progress', async () => {
+    mocks.exportPdf.mockClear();
+    const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
+    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
+    const session = { roasted_at: '2026-10-19T14:35:47' } as unknown as RoastSessionWithRelations;
+    let latest!: ReturnType<typeof useHistoryPdfExport>;
+    const Probe = ({ roasting }: { roasting: boolean }) => {
+        latest = useHistoryPdfExport({
+            session,
+            chartRef,
+            hasControls: false,
+            unit: 'C',
+            canCapture: true,
+            roasting,
+        });
+        return null;
+    };
+    const root = createRoot(document.createElement('div'));
+    try {
+        await act(async () => root.render(createElement(Probe, { roasting: true })));
+        expect(latest.canExport).toBe(false);
+        await act(async () => latest.onExportPdf());
+        expect(getDataURL).not.toHaveBeenCalled();
+        expect(mocks.exportPdf).not.toHaveBeenCalled();
+        await act(async () => root.render(createElement(Probe, { roasting: false })));
+        expect(latest.canExport).toBe(true);
     } finally {
         act(() => root.unmount());
     }

@@ -1,4 +1,4 @@
-export { type RoastProfileWithSource, roastProfileCopyInsert } from './api';
+export { type RoastProfileUpdate, type RoastProfileWithSource, roastProfileCopyInsert } from './api';
 export { profileHeaterEvents, resolveSourceSession, type SourceSessionSnapshot } from './lib/resolve-source-session';
 export {
     type ProfileSource,

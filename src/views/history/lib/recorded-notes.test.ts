@@ -11,12 +11,12 @@ const events = [
 describe('recorded notes', () => {
     it('lists roast-log notes in time order and keeps the comment separate from controls', () => {
         expect(recordedNotes(events)).toEqual([
-            { index: 2, timeSec: 61, time: '1:01', comment: 'first', gas: '3' },
-            { index: 1, timeSec: 125, time: '2:05', comment: 'second' },
+            { id: 'n1', index: 2, timeSec: 61, time: '1:01', comment: 'first', gas: '3' },
+            { id: 'n2', index: 1, timeSec: 125, time: '2:05', comment: 'second' },
         ]);
         expect(recordedNotes(null)).toEqual([]);
         expect(recordedNotes([{ id: 'b', type: 'Note', time_sec: -180, note: 'soak' }])).toEqual([
-            { index: 0, timeSec: -180, time: '-3:00', comment: 'soak' },
+            { id: 'b', index: 0, timeSec: -180, time: '-3:00', comment: 'soak' },
         ]);
     });
 
