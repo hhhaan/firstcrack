@@ -18,7 +18,7 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 |----------|------|------|-----------|
 | `get-upload-url` | user JWT | R2 PUT presign (`profile`/`bbp`); owner or `has_workspace_access` | `functions/get-upload-url/index.ts`, `_shared/r2.ts` |
 | `get-download-url` | user JWT | R2 GET presign; key must match owned profile shape | `functions/get-download-url/index.ts` |
-| `firstcrack-mcp` | independent opaque MCP bearer; disabled by default, `verify_jwt=false` | Read-only selected-workspace tools; DB activation/deployment pending approval | `functions/firstcrack-mcp/`, `_shared/mcp-oauth/`, `../docs/agent/firstcrack-mcp.md` |
+| `firstcrack-mcp` | independent opaque MCP bearer; disabled by default, `verify_jwt=false` | Read-only selected-workspace tools. Issuer migration waits for Deploy migrations. Flags stay off until Edge secrets are set | `functions/firstcrack-mcp/`, `_shared/mcp-oauth/`, `../docs/agent/firstcrack-mcp.md` |
 | `firstcrack-oauth` | public S256 PKCE endpoints; internal consent/grant routes verify native first-party JWT; disabled by default, `verify_jwt=false` | Independent opaque access/rotating refresh tokens, private grants and user revocation; never exports native tokens | `functions/firstcrack-oauth/`, `_shared/mcp-oauth/` |
 | `channel-connect` | user JWT | Validate Naver/Shopify creds; store connection + secrets (service role) | `functions/channel-connect/` |
 | `channel-disconnect` | user JWT | Delete connection (orders kept) | `functions/channel-disconnect/` |

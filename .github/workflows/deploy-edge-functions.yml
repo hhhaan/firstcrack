@@ -146,6 +146,8 @@ jobs:
       # on first call with 503 BOOT_ERROR — deno check cannot see it. Call each one.
       # Anon bearer gets past the gateway so the function itself boots; any app-level
       # 4xx is a pass; transport errors, 5xx, and BOOT_ERROR fail.
+      # firstcrack-mcp and firstcrack-oauth stay disabled until Edge flags are set.
+      # Their own 503 disabled body is a successful boot. Any other 503 still fails.
       - name: Probe deployed functions
         if: steps.changed.outputs.functions != '[]'
         env:
@@ -163,6 +165,13 @@ jobs:
               -H "Content-Type: application/json" --data '{}'); then
               echo "::error::${fn}: request failed (HTTP ${code})"
               fail=1
+              continue
+            fi
+            if [[ "$fn" == firstcrack-mcp || "$fn" == firstcrack-oauth ]] \
+              && [[ "$code" == "503" ]] \
+              && ! grep -q BOOT_ERROR body.txt \
+              && grep -q -E 'Firstcrack connection is not enabled|temporarily_unavailable' body.txt; then
+              echo "  OK: ${fn} disabled (HTTP ${code})"
               continue
             fi
             if [[ ! "$code" =~ ^[234][0-9]{2}$ ]] || grep -q BOOT_ERROR body.txt; then

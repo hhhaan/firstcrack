@@ -193,6 +193,39 @@ test('deployment probes reject transport errors, 5xx and boot errors', (t) => {
         });
         assert.equal(result.status, expected, `${code}/${exit}: ${result.stdout}\n${result.stderr}`);
     }
+    for (const [fn, body] of [
+        ['firstcrack-mcp', '{"error":"Firstcrack connection is not enabled"}'],
+        ['firstcrack-oauth', '{"error":"temporarily_unavailable"}'],
+    ]) {
+        const disabled = spawnSync('bash', ['-e', '-c', runBlock('Probe deployed functions')], {
+            cwd,
+            env: {
+                ...env,
+                FUNCTIONS_JSON: JSON.stringify([fn]),
+                SUPABASE_URL: 'https://fixture.invalid',
+                ANON_KEY: 'fixture',
+                HTTP_CODE: '503',
+                CURL_EXIT: '0',
+                BODY: body,
+            },
+            encoding: 'utf8',
+        });
+        assert.equal(disabled.status, 0, `${fn}: ${disabled.stdout}\n${disabled.stderr}`);
+        const booted = spawnSync('bash', ['-e', '-c', runBlock('Probe deployed functions')], {
+            cwd,
+            env: {
+                ...env,
+                FUNCTIONS_JSON: JSON.stringify([fn]),
+                SUPABASE_URL: 'https://fixture.invalid',
+                ANON_KEY: 'fixture',
+                HTTP_CODE: '503',
+                CURL_EXIT: '0',
+                BODY: `${body} BOOT_ERROR`,
+            },
+            encoding: 'utf8',
+        });
+        assert.equal(booted.status, 1, fn);
+    }
     // A successful curl that writes no body must not inherit a previous BOOT_ERROR response.
     writeFileSync(join(cwd, 'body.txt'), 'BOOT_ERROR');
     mock('curl', 'printf 204');

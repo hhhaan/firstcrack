@@ -17,9 +17,9 @@ for _ in {1..30}; do
     sleep 1
 done
 [[ "$ready" == true ]] || { echo 'Fixture PostgreSQL failed to start' >&2; exit 1; }
-"${docker_cmd[@]}" exec "$container" mkdir -p /tmp/mcp/tests /tmp/mcp/proposals
+"${docker_cmd[@]}" exec "$container" mkdir -p /tmp/mcp/tests /tmp/mcp/migrations
 "${docker_cmd[@]}" cp supabase/tests/mcp-opaque-fixture.sql "$container:/tmp/mcp/tests/fixture.sql"
-"${docker_cmd[@]}" cp supabase/proposals/firstcrack-mcp-opaque-issuer.sql "$container:/tmp/mcp/proposals/firstcrack-mcp-opaque-issuer.sql"
+"${docker_cmd[@]}" cp supabase/migrations/20261026120000_firstcrack_mcp_read_issuer.sql "$container:/tmp/mcp/migrations/20261026120000_firstcrack_mcp_read_issuer.sql"
 "${docker_cmd[@]}" exec "$container" psql -v ON_ERROR_STOP=1 -U postgres -f /tmp/mcp/tests/fixture.sql >/dev/null
 port=$("${docker_cmd[@]}" inspect -f '{{(index (index .NetworkSettings.Ports "5432/tcp") 0).HostPort}}' "$container")
 pnpm --config.verify-deps-before-run=false dlx deno@2.9.6 run -A --no-lock --node-modules-dir=none \

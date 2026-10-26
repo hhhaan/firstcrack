@@ -1,5 +1,5 @@
 -- SUPERSEDED EXPERIMENT: do not activate for external MCP credentials.
--- Use firstcrack-mcp-opaque-issuer.sql; native Auth tokens are not isolated read-only credentials.
+-- Use migration 20261026120000_firstcrack_mcp_read_issuer.sql; native Auth tokens are not isolated read-only credentials.
 -- REVIEW PROPOSAL ONLY. Never applied by migrations or enabled in Auth automatically.
 -- NOT A SAFE EXTERNAL CREDENTIAL BOUNDARY: DB role/RLS cannot restrict the managed
 -- Auth service's own account mutation endpoints. Do not activate this native-token

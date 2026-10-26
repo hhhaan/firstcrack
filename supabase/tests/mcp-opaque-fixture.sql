@@ -109,7 +109,7 @@ INSERT INTO roast_day_plans(id,user_id,date) VALUES
  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','33333333-3333-4333-8333-333333333333','2026-10-25');
 INSERT INTO roast_plan_batches(id,plan_id,bean_name,batch_count) VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','selected batch',2);
-\ir ../proposals/firstcrack-mcp-opaque-issuer.sql
+\ir ../migrations/20261026120000_firstcrack_mcp_read_issuer.sql
 CREATE ROLE mcp_issuer_test LOGIN INHERIT;
 CREATE ROLE mcp_gateway_test LOGIN INHERIT;
 GRANT firstcrack_mcp_issuer TO mcp_issuer_test;

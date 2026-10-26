@@ -1,5 +1,5 @@
 -- SUPERSEDED EXPERIMENT: do not activate for external MCP credentials.
--- Use firstcrack-mcp-opaque-issuer.sql; native Auth tokens are not isolated read-only credentials.
+-- Use migration 20261026120000_firstcrack_mcp_read_issuer.sql; native Auth tokens are not isolated read-only credentials.
 -- REVIEW PROPOSAL ONLY. Not a migration and never applied by release automation.
 -- Requires approval, a full local Supabase reset/test and hosted configuration review.
 -- Do not enable OAuth or FIRSTCRACK_MCP_ENABLED before every boundary is verified.

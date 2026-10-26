@@ -1,8 +1,10 @@
 # FirstCrack MCP: independent OAuth issuer
 
-Status (2026-10-25): source implementation and disposable local integration checks.
-Disabled by default. No operational keys, database roles/permissions, Auth settings,
-OAuth clients/grants, plugin releases, pushes or deployments were created/changed.
+Status (2026-10-26): read-only issuer SQL is migration
+`20261026120000_firstcrack_mcp_read_issuer.sql`. It is not applied until Deploy
+migrations runs. Both Edge functions stay disabled until their flags and database
+URLs are set as secrets. No LOGIN passwords, OAuth client rows, or hosted deploys
+are in this change.
 
 ## Credential boundary
 
@@ -51,8 +53,9 @@ client secret, OAuth provider enablement, Auth token hook or PostgREST hook is n
 
 ## Database authority
 
-`supabase/proposals/firstcrack-mcp-opaque-issuer.sql` is a **review proposal**, not an
-auto-applied migration. Private tables store static clients, pending authorizations,
+`supabase/migrations/20261026120000_firstcrack_mcp_read_issuer.sql` is the issuer
+schema. `supabase/proposals/firstcrack-mcp-opaque-issuer.sql` only points at it and
+raises if applied. Private tables store static clients, pending authorizations,
 grants and token hashes; none are exposed through PostgREST or to native users.
 
 - `firstcrack_mcp_store`: NOLOGIN private-table/function owner; no customer-table SELECT.
@@ -112,7 +115,7 @@ pnpm --config.verify-deps-before-run=false typecheck
 ```
 
 The runner creates and destroys only its own loopback PostgreSQL 17 container, matching
-the hosted project's reported major version. It uses real proposal SQL/RLS/functions,
+the hosted project's reported major version. It uses the issuer migration SQL/RLS/functions,
 separate fixture DB credentials, the actual landing consent/proxy controllers, actual
 Supabase SDK native identity verification and the official MCP SDK 1.32.2 over local HTTP.
 HTTPS logical fixture origins are mapped to loopback; real credentials/remote requests
@@ -121,13 +124,12 @@ It verifies login return, invalid/expired/non-native proofs, exact callback/reso
 PKCE, code expiry/replay, user/roastery isolation, access/refresh/grant expiry, SDK automatic
 refresh, rotation/concurrent replay, user/token revocation and membership removal.
 
-Full local Supabase replay is **not completed**: `public.ecr.aws` image pulls were denied
-by environment HTTP policy. No bypass or linked reset was attempted. The SQL stays outside
-`migrations/` until that gate passes; fixture coverage cannot prove the entire migration
-chain, real gateway behavior, deployed RLS interactions or hosted browser/desktop coexistence.
+The issuer SQL is `supabase/migrations/20261026120000_firstcrack_mcp_read_issuer.sql`.
+Fixture coverage cannot prove the entire migration chain, real gateway behavior,
+deployed RLS interactions or hosted browser/desktop coexistence.
 The Cloudflare build uses only fixture public config and reports existing adapter warnings.
 
-Final local results: **297 Edge Vitest tests**, **120 integration assertions**, **16
+Final local results: **297 Edge Vitest tests**, **119 integration assertions**, **16
 landing tests**, all **19 Edge entrypoints** plus integration-script Deno checks, all
 three desktop TypeScript configurations, and the three landing controller TypeScript
 checks passed. The landing production build passed (existing adapter warnings). Actual
