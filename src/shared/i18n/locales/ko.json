@@ -2317,6 +2317,7 @@
             "componentInputs": "컴포넌트 투입량",
             "available": "잔량 {{kg}}kg",
             "insufficientHint": "장부 잔량 초과 — 진행은 가능하며 잔량이 음수로 기록됩니다",
+            "outputExceedsInput": "산출량은 투입 합계를 넘을 수 없습니다",
             "actualOutput": "실측 산출량",
             "submit": "블렌딩 기록",
             "note": "메모 (선택)"
@@ -2345,7 +2346,8 @@
             "history": "이력",
             "order_fulfillment": "주문 이행",
             "order_cancel": "주문 취소"
-        }
+        },
+        "alertRefreshFailed": "입고는 저장되었습니다. 재고 알림은 다시 계산하지 못했습니다."
     },
     "inventoryAsset": {
         "totalLabel": "총 재고 자산",

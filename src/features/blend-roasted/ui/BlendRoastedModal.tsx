@@ -61,7 +61,8 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
     }, [open]);
 
     const inputSum = useMemo(() => Object.values(inputs).reduce((a, b) => a + (b || 0), 0), [inputs]);
-    const canSubmit = !!blendId && !!selected && inputSum > 0 && outputGrams > 0 && !isPending;
+    const outputTooHigh = outputGrams > inputSum;
+    const canSubmit = !!blendId && !!selected && inputSum > 0 && outputGrams > 0 && !outputTooHigh && !isPending;
 
     if (!open) return null;
 
@@ -206,6 +207,11 @@ export const BlendRoastedModal = ({ open, onClose }: Props) => {
                                     g
                                 </span>
                             </div>
+                            {outputTooHigh && (
+                                <p className="mt-1.5 text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                                    {t('inventory.blending.outputExceedsInput')}
+                                </p>
+                            )}
                         </div>
 
                         <div>

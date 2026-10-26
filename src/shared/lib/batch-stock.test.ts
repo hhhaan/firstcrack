@@ -33,12 +33,13 @@ describe('isBatchStockShort', () => {
         expect(isBatchStockShort(batch({ bean_id: null, blend_id: null }), 0)).toBe(false);
     });
 
-    it('true when effective < needed', () => {
+    it('ignores this batch reservation already inside effectiveGrams', () => {
+        expect(isBatchStockShort(batch(), 5000)).toBe(false);
+        expect(isBatchStockShort(batch(), 0)).toBe(false);
+        expect(isBatchStockShort(batch(), -1)).toBe(true);
         expect(
-            isBatchStockShort(batch(), { effectiveGrams: 9999, currentGrams: 0, availableGrams: 0, reservedGrams: 0 }),
+            isBatchStockShort(batch(), { effectiveGrams: -1, currentGrams: 0, availableGrams: 0, reservedGrams: 0 }),
         ).toBe(true);
-        expect(isBatchStockShort(batch(), 10000)).toBe(false);
-        expect(isBatchStockShort(batch(), 9999)).toBe(true);
     });
 
     it('false when needed is 0 (all sessions done)', () => {

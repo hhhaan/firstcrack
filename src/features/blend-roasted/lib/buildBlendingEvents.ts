@@ -23,6 +23,8 @@ export const buildBlendingEvents = ({
     const active = inputs.filter((i) => i.grams > 0);
     if (active.length === 0) throw new Error('blending needs at least one input');
     if (outputGrams <= 0) throw new Error('output must be positive');
+    const inputGrams = active.reduce((sum, input) => sum + input.grams, 0);
+    if (outputGrams > inputGrams) throw new Error('output exceeds input');
 
     return [
         ...active.map(

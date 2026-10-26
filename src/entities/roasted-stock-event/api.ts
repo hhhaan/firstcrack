@@ -36,6 +36,12 @@ export const roastedStockEventApi = {
         if (error) throw error;
     },
 
+    insertBlendingOp: async (events: RoastedStockEventInsert[]): Promise<void> => {
+        if (!events.length) return;
+        const { error } = await supabase.rpc('insert_blending_op', { p_events: events });
+        if (error) throw error;
+    },
+
     getUserRoastedStock: async (userId: string): Promise<Record<string, RoastedStockSummary>> => {
         const { data, error } = await supabase.rpc('get_user_roasted_stock', { p_user_id: userId });
         if (error) throw error;

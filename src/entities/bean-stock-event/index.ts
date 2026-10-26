@@ -8,6 +8,7 @@ export type {
 } from './lib/asset-value';
 export {
     buildGreenInventoryAssets,
+    buildGreenInventoryAssetsFromWac,
     buildWacByBeanId,
     calcBeanAssetLine,
     calcInventoryAsset,
