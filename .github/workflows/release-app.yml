@@ -60,7 +60,7 @@ jobs:
       - name: Add iOS Rust target
         run: rustup target add aarch64-apple-ios
 
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
 
@@ -124,7 +124,7 @@ jobs:
         # 태블릿 타깃은 arm64로 시작 — 구형 armv7 기기 지원 필요 시 armv7-linux-androideabi 추가
         run: rustup target add aarch64-linux-android
 
-      - uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: src-tauri
 
