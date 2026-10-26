@@ -22,10 +22,12 @@ export const ProfileStartButton = ({
 }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { data: beans = [], isSuccess: beansReady } = useBeans(workspaceOwnerId);
-    const { data: blends = [], isSuccess: blendsReady } = useBlends(workspaceOwnerId);
-    const { data: history = [], isSuccess: historyReady } = useProfileSourceHistory(workspaceOwnerId, profile.id);
+    const { data: beans = [], isPending: beansPending } = useBeans(workspaceOwnerId);
+    const { data: blends = [], isPending: blendsPending } = useBlends(workspaceOwnerId);
+    const { data: history = [], isPending: historyPending } = useProfileSourceHistory(workspaceOwnerId, profile.id);
     const sources = profileSourceCandidates(profile, history, beans, blends);
+    const inventoryOn = !!workspaceOwnerId;
+    const waiting = (inventoryOn && (beansPending || blendsPending)) || (inventoryOn && !!profile.id && historyPending);
     const [open, setOpen] = useState(false);
     const start = (source?: RoastSourceCandidate) => {
         useRoastingStore.getState().setPendingProfile(profile.id, source);
@@ -38,7 +40,7 @@ export const ProfileStartButton = ({
             <PopoverTrigger asChild>
                 <button
                     type="button"
-                    disabled={!beansReady || !blendsReady || !historyReady}
+                    disabled={waiting}
                     onClick={() => {
                         if (sources.length <= 1) start(sources[0]);
                     }}
