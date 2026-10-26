@@ -3,11 +3,37 @@
 -- PostgREST exposes public and graphql_public only. LOGIN passwords and client
 -- rows are not created here. Edge flags stay off until set as secrets.
 -- Independent opaque OAuth tokens: no Supabase user JWT is issued to the MCP client.
-DO $$ BEGIN
-    CREATE ROLE firstcrack_mcp_store NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
-    CREATE ROLE firstcrack_mcp_issuer NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
-    CREATE ROLE firstcrack_mcp_gateway NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
-    CREATE ROLE firstcrack_mcp_data NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
+-- Hosted Postgres 16+ grants a non-superuser creator ADMIN on each new role
+-- with SET FALSE and INHERIT FALSE. Deploy fails in the ownership block at
+-- ALTER TABLE private.mcp_clients OWNER TO firstcrack_mcp_store
+-- (SQLSTATE 42501: must be able to SET ROLE). ENABLE ROW LEVEL SECURITY,
+-- REVOKE, GRANT, and CREATE POLICY after that change also need INHERIT.
+-- State both options: a SET-only grant leaves a NOINHERIT deployer unable
+-- to act as the new owner. PG15 has no WITH SET/INHERIT syntax. Membership
+-- itself allows SET ROLE there.
+DO $$
+DECLARE
+    role_name text;
+BEGIN
+    FOREACH role_name IN ARRAY ARRAY[
+        'firstcrack_mcp_store',
+        'firstcrack_mcp_issuer',
+        'firstcrack_mcp_gateway',
+        'firstcrack_mcp_data'
+    ]
+    LOOP
+        IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = role_name) THEN
+            EXECUTE format(
+                'CREATE ROLE %I NOLOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS',
+                role_name
+            );
+        END IF;
+        IF current_setting('server_version_num')::integer >= 160000 THEN
+            EXECUTE format('GRANT %I TO CURRENT_USER WITH SET TRUE, INHERIT TRUE', role_name);
+        ELSE
+            EXECUTE format('GRANT %I TO CURRENT_USER', role_name);
+        END IF;
+    END LOOP;
 END $$;
 CREATE SCHEMA IF NOT EXISTS private;
 GRANT USAGE ON SCHEMA private TO firstcrack_mcp_store, firstcrack_mcp_issuer, firstcrack_mcp_gateway, firstcrack_mcp_data;
