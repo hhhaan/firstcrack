@@ -1,5 +1,5 @@
 import { normalizeYMRange } from '@shared/lib/sessionFilter';
-import { ChevronDown, X } from 'lucide-react';
+import { FilterMenuTrigger, filterMenuItemCls, filterMenuListCls, filterMenuPanelCls } from '@shared/ui/FilterMenu';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { YearMonthRangeFields } from './YearMonthRangeFields';
@@ -128,44 +128,25 @@ export const DateRangeFilter = ({
 
     return (
         <div ref={ref} className="relative">
-            <button
-                type="button"
-                onClick={() => (open ? closePanel() : setOpen(true))}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm shadow-xs font-medium tracking-[0.14px] transition ${
-                    isActive
-                        ? 'border-strong-border text-primary'
-                        : 'text-secondary hover:border-strong-border hover:text-primary'
-                }`}
-            >
-                {triggerLabel}
-                {isActive ? (
-                    <X
-                        size={11}
-                        strokeWidth={2.5}
-                        className="text-muted hover:text-primary"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onPresetChange('all');
-                            closePanel();
-                        }}
-                    />
-                ) : (
-                    <ChevronDown size={11} strokeWidth={2} className="text-muted" />
-                )}
-            </button>
+            <FilterMenuTrigger
+                active={isActive}
+                label={triggerLabel}
+                onToggle={() => (open ? closePanel() : setOpen(true))}
+                onClear={() => {
+                    onPresetChange('all');
+                    closePanel();
+                }}
+            />
 
             {open && (
-                <div className="absolute border border-border-subtle dark:border-border top-full left-0 z-50 mt-2 flex rounded-lg bg-main-bg overflow-hidden shadow-xs">
-                    {/* 프리셋 목록 */}
-                    <div className="flex shrink-0 flex-col gap-0.5 py-2 px-2 w-36">
+                <div className={filterMenuPanelCls}>
+                    <div className={`${filterMenuListCls} w-36`}>
                         {DATE_PRESETS.map((p) => (
                             <button
                                 type="button"
                                 key={p.value}
                                 onClick={() => handlePresetClick(p.value)}
-                                className={`w-full rounded-md px-2.5 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface cursor-pointer border-none bg-transparent ${
-                                    preset === p.value ? 'font-semibold text-primary' : 'text-secondary'
-                                }`}
+                                className={filterMenuItemCls(preset === p.value)}
                             >
                                 {t(`history.datePresets.${p.value}`)}
                             </button>

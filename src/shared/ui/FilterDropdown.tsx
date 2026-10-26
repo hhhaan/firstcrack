@@ -1,5 +1,5 @@
-import { ChevronDown, Filter } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
+import { FilterMenuTrigger, filterMenuItemCls, filterMenuListCls, filterMenuPanelCls } from './FilterMenu';
 
 interface FilterDropdownProps {
     label: string;
@@ -30,47 +30,41 @@ export const FilterDropdown = ({
         return () => document.removeEventListener('mousedown', handler);
     }, [open]);
 
+    const select = (next: string) => {
+        onSelect(next);
+        setOpen(false);
+    };
+
     return (
         <div ref={ref} className="relative">
-            <button
-                type="button"
-                onClick={() => setOpen((o) => !o)}
-                className={`inline-flex items-center gap-1 whitespace-nowrap h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm shadow-xs font-medium tracking-[0.14px] transition ${
-                    isActive
-                        ? 'border-strong-border text-primary'
-                        : 'text-secondary hover:border-strong-border hover:text-primary'
-                }`}
-            >
-                <Filter size={12} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
-                {isActive ? optionLabel(value) : label}
-                <ChevronDown size={11} strokeWidth={2} className={isActive ? 'text-primary' : 'text-muted'} />
-            </button>
+            <FilterMenuTrigger
+                active={isActive}
+                label={isActive ? optionLabel(value) : label}
+                onToggle={() => setOpen((o) => !o)}
+                onClear={() => select('all')}
+            />
 
             {open && (
-                <div className="absolute top-full left-0 z-50 mt-1 min-w-35 rounded-lg bg-main-bg dark:bg-surface-elevated py-1 shadow-xs">
-                    <button
-                        type="button"
-                        onClick={() => {
-                            onSelect('all');
-                            setOpen(false);
-                        }}
-                        className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === 'all' ? 'font-medium text-primary' : 'text-secondary'}`}
-                    >
-                        {label}
-                    </button>
-                    {options.map((opt) => (
+                <div className={filterMenuPanelCls}>
+                    <div className={`${filterMenuListCls} w-max min-w-36 max-w-48`}>
                         <button
                             type="button"
-                            key={opt}
-                            onClick={() => {
-                                onSelect(opt);
-                                setOpen(false);
-                            }}
-                            className={`w-full px-3 py-1.5 text-left text-[13px] tracking-[0.14px] transition hover:bg-surface ${value === opt ? 'font-medium text-primary' : 'text-secondary'}`}
+                            onClick={() => select('all')}
+                            className={filterMenuItemCls(value === 'all')}
                         >
-                            {optionLabel(opt)}
+                            {label}
                         </button>
-                    ))}
+                        {options.map((opt) => (
+                            <button
+                                type="button"
+                                key={opt}
+                                onClick={() => select(opt)}
+                                className={filterMenuItemCls(value === opt)}
+                            >
+                                {optionLabel(opt)}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
         </div>
