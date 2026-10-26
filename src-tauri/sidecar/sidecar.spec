@@ -25,11 +25,8 @@ hiddenimports += [
     'adapters.phidget',
     'adapters.s7',
     'adapters.kaleido',
+    'adapters.kaleido_link',
     'adapters.probat_ws',
-    'extern.atypes',
-    'extern.util',
-    'extern.async_comm',
-    'extern.kaleido',
 ]
 
 a = Analysis(
