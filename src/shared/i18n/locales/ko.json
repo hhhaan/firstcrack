@@ -1677,7 +1677,9 @@
             "compareMode": "비교 모드 · {{count}}개 선택됨",
             "editDisabledMulti": "다중 선택 시 편집 불가",
             "roastLog": "로스팅 로그",
-            "extraSensors": "추가 센서 읽기값"
+            "extraSensors": "추가 센서 읽기값",
+            "batches": "로스팅 배치",
+            "referenceFailed": "기준 곡선을 바꾸지 못했습니다."
         }
     },
     "newProfileModal": {

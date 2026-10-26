@@ -3,7 +3,12 @@ import type { RoastProfile } from '@shared/types/database.types';
 import { QueryCache, QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import type { RoastProfileWithSource } from './api';
-import { applyCreatedRoastProfileCache, applyUpdatedRoastProfileCache, roastProfileKeys } from './queries';
+import {
+    applyCreatedRoastProfileCache,
+    applyReferenceSessionCache,
+    applyUpdatedRoastProfileCache,
+    roastProfileKeys,
+} from './queries';
 
 const uid = 'user-1';
 
@@ -103,5 +108,38 @@ describe('roast profile mutation cache (#471)', () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
 
         expect(missingQueryFnErrors).toEqual([]);
+    });
+
+    it('reference change swaps the curve and leaves copied stats and the heater plan', () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+        const existing = listRow({
+            id: 'p1',
+            source_session_id: 's1',
+            drop_temp_celsius: 196,
+            duration_sec: 725,
+            heater_events: [{ heater: 4 }],
+        });
+        qc.setQueryData(roastProfileKeys.all(uid), [existing]);
+
+        applyReferenceSessionCache(
+            qc,
+            uid,
+            profile({
+                id: 'p1',
+                source_session_id: 's2',
+                drop_temp_celsius: 196,
+                duration_sec: 725,
+                heater_events: [{ heater: 4 }],
+            }),
+            { tsv_path: 'r2/s2.tsv', events: null, heater_events: [{ heater: 9 }] },
+        );
+
+        expect(qc.getQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(uid))?.[0]).toMatchObject({
+            source_session_id: 's2',
+            drop_temp_celsius: 196,
+            duration_sec: 725,
+            heater_events: [{ heater: 4 }],
+            source_session: { tsv_path: 'r2/s2.tsv', heater_events: [{ heater: 9 }] },
+        });
     });
 });

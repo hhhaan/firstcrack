@@ -8,6 +8,22 @@ export type RoastProfileUpdate = { id: string } & Partial<
     Omit<RoastProfile, 'id' | 'created_at' | 'updated_at' | 'user_id'>
 > & { sources?: ProfileSource[] };
 
+/** Completed roast saved under a profile. The reference curve is chosen from this list. */
+export type ProfileReferenceBatch = {
+    id: string;
+    roasted_at: string | null;
+    batch_name: string | null;
+    bean_label: string | null;
+    profile_batch_number: number | null;
+    total_batch_number: number | null;
+    tsv_path: string | null;
+    bbp_tsv_path: string | null;
+    bbp_seconds: number | null;
+    heater_events?: Json | null;
+    beans: { name: string } | null;
+    blends: { name: string } | null;
+};
+
 /** events: 소스 세션 로그 — Replay 컷오프(Drop 마크)에 쓴다 */
 type SourceSessionRow = {
     tsv_path: string | null;
@@ -42,6 +58,11 @@ export const roastProfileCopyInsert = (profile: RoastProfileWithSource, name: st
     void _defaultBlend;
     return { ...copy, name, ...(profile.sources && { sources: registeredProfileSources(profile) }) };
 };
+
+const REFERENCE_BATCHS_WITH_HEATER =
+    'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, heater_events, beans(name), blends(name)';
+const REFERENCE_BATCHS_WITHOUT_HEATER =
+    'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, beans(name), blends(name)';
 
 const SELECT_WITH_SESSION_HEATER =
     '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
@@ -139,6 +160,48 @@ export const roastProfileApi = {
                 sources.push({ bean_id: row.bean_id, blend_id: row.blend_id ?? row.plan_batch?.blend_id ?? null });
             if (!data || data.length < 1000) return sources;
         }
+    },
+
+    /** Completed batches saved with this profile, newest first. Pages past the PostgREST cap. */
+    referenceBatches: async (profileId: string): Promise<ProfileReferenceBatch[]> => {
+        const load = async (columns: string): Promise<{ rows: ProfileReferenceBatch[]; error: unknown }> => {
+            const rows: ProfileReferenceBatch[] = [];
+            for (let from = 0; ; from += 1000) {
+                const { data, error } = await supabase
+                    .from('roast_sessions')
+                    .select(columns)
+                    .eq('profile_id', profileId)
+                    .eq('status', 'completed')
+                    .order('roasted_at', { ascending: false })
+                    .order('created_at', { ascending: false })
+                    .range(from, from + 999);
+                if (error) return { rows, error };
+                rows.push(...((data ?? []) as unknown as ProfileReferenceBatch[]));
+                if (!data || data.length < 1000) return { rows, error: null };
+            }
+        };
+        const select = omitSessionHeaterColumn ? REFERENCE_BATCHS_WITHOUT_HEATER : REFERENCE_BATCHS_WITH_HEATER;
+        const first = await load(select);
+        if (first.error && !omitSessionHeaterColumn && isMissingSessionHeaterColumn(first.error)) {
+            omitSessionHeaterColumn = true;
+            const second = await load(REFERENCE_BATCHS_WITHOUT_HEATER);
+            if (second.error) throw second.error;
+            return second.rows;
+        }
+        if (first.error) throw first.error;
+        return first.rows;
+    },
+
+    /** Point the profile curve at one saved batch. Does not write the heater plan or copied stats. */
+    setReferenceSession: async (id: string, sourceSessionId: string): Promise<RoastProfile> => {
+        const { data, error } = await supabase
+            .from('roast_profiles')
+            .update({ source_session_id: sourceSessionId })
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) throw error;
+        return data;
     },
 
     /** Sessions that name a bean, newest first. The hook groups them into counts. */

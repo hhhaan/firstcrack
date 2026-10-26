@@ -1677,7 +1677,9 @@
             "compareMode": "比較モード · {{count}}件選択中",
             "editDisabledMulti": "複数選択時は編集できません",
             "roastLog": "ローストログ",
-            "extraSensors": "追加センサーの読み取り値"
+            "extraSensors": "追加センサーの読み取り値",
+            "batches": "バッチ",
+            "referenceFailed": "基準カーブを変更できませんでした。"
         }
     },
     "newProfileModal": {

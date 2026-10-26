@@ -1,4 +1,9 @@
-export { type RoastProfileUpdate, type RoastProfileWithSource, roastProfileCopyInsert } from './api';
+export {
+    type ProfileReferenceBatch,
+    type RoastProfileUpdate,
+    type RoastProfileWithSource,
+    roastProfileCopyInsert,
+} from './api';
 export { profileHeaterEvents, resolveSourceSession, type SourceSessionSnapshot } from './lib/resolve-source-session';
 export {
     type ProfileSource,
@@ -15,11 +20,13 @@ export {
     useDeleteRoastProfile,
     useProfileBeanHistory,
     useProfileConsistency,
+    useProfileReferenceBatches,
     useProfileSourceHistory,
     useResolvedProfileCurve,
     useRoastProfileCurve,
     useRoastProfileCurves,
     useRoastProfiles,
+    useSetProfileReference,
     useSourceSessionEvents,
     useUpdateRoastProfile,
 } from './queries';

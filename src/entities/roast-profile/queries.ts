@@ -19,6 +19,7 @@ export const roastProfileKeys = {
     detail: (id: string) => [...profilesRoot, 'detail', id] as const,
     sourceEvents: (sessionId: string) => [...profilesRoot, 'source_events', sessionId] as const,
     beanHistory: (profileId: string) => [...beanHistoryRoot, profileId] as const,
+    referenceBatches: (profileId: string) => [...beanHistoryRoot, profileId, 'batches'] as const,
     consistency: (profileId: string) => [...consistencyRoot, profileId] as const,
 };
 
@@ -87,6 +88,46 @@ export const useUpdateRoastProfile = (userId: string) => {
         },
     });
 };
+
+/** Swap the curve embed without waiting for the list refetch. Copied stats stay on the row. */
+export const applyReferenceSessionCache = (
+    qc: QueryClient,
+    userId: string,
+    updated: RoastProfile,
+    sourceSession: RoastProfileWithSource['source_session'],
+) => {
+    const ownerId = updated.user_id || userId;
+    qc.setQueryData<RoastProfileWithSource[]>(roastProfileKeys.all(ownerId), (old) =>
+        old?.map((profile) =>
+            profile.id === updated.id ? { ...profile, ...updated, source_session: sourceSession } : profile,
+        ),
+    );
+    void qc.invalidateQueries({ queryKey: roastProfileKeys.all(ownerId) });
+};
+
+export const useSetProfileReference = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({
+            id,
+            sourceSessionId,
+        }: {
+            id: string;
+            sourceSessionId: string;
+            sourceSession: RoastProfileWithSource['source_session'];
+        }) => roastProfileApi.setReferenceSession(id, sourceSessionId),
+        onSuccess: (updated, { sourceSession }) => {
+            applyReferenceSessionCache(qc, userId, updated, sourceSession);
+        },
+    });
+};
+
+export const useProfileReferenceBatches = (profileId: string) =>
+    useQuery({
+        queryKey: roastProfileKeys.referenceBatches(profileId),
+        queryFn: () => roastProfileApi.referenceBatches(profileId),
+        enabled: !!profileId,
+    });
 
 export const useDeleteRoastProfile = (userId: string) => {
     const qc = useQueryClient();

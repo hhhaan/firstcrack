@@ -30,6 +30,7 @@ import {
 } from '../lib/export-profile-csv';
 import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
+import { ProfileReferenceBatches } from './ProfileReferenceBatches';
 import { ProfileStartButton } from './ProfileStartButton';
 
 interface ProfileDetailProps {
@@ -213,6 +214,8 @@ export const ProfileDetail = ({
                     ]}
                 />
             </div>
+
+            <ProfileReferenceBatches profileId={selected.id} sourceSessionId={selected.source_session_id} />
 
             {extraSensorColumns.length > 0 && (
                 <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5 overflow-x-auto">
