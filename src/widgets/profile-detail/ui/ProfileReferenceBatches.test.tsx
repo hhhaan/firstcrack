@@ -38,7 +38,7 @@ const batches: ProfileReferenceBatch[] = [
     },
 ];
 
-const mutateAsync = vi.fn();
+const mutateAsync = vi.fn(() => Promise.resolve());
 const { list } = vi.hoisted(() => ({ list: { current: [] as ProfileReferenceBatch[] } }));
 
 vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }) }));
@@ -65,7 +65,7 @@ describe('ProfileReferenceBatches', () => {
         act(() => root?.unmount());
         host?.remove();
         list.current = [];
-        mutateAsync.mockReset();
+        mutateAsync.mockClear();
     });
 
     it('marks the current reference and selects another batch without its heater plan', () => {
