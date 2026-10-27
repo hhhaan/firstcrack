@@ -57,8 +57,15 @@ export function createMcpHandler(deps: Dependencies) {
 
         const pathname = new URL(req.url).pathname;
         const resourcePath = new URL(config.resource).pathname;
-        // The Supabase gateway may remove /functions/v1 before forwarding to the worker.
-        const basePaths = [resourcePath, resourcePath.replace(/^\/functions\/v1(?=\/)/, '')];
+        // Public resource may be a first-party host. The worker still receives the function path.
+        const basePaths = [
+            ...new Set([
+                resourcePath,
+                resourcePath.replace(/^\/functions\/v1(?=\/)/, ''),
+                '/functions/v1/firstcrack-mcp',
+                '/firstcrack-mcp',
+            ]),
+        ];
         const metadataPaths = basePaths.map((path) => `${path}/.well-known/oauth-protected-resource`);
         if (metadataPaths.includes(pathname) && req.method === 'GET') {
             return json({

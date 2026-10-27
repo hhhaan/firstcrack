@@ -24,7 +24,7 @@ project. The selected source design uses:
 | `https://firstcrackiscoming.com/oauth/consent` | Existing SSR login and explicit roastery selection |
 | `https://firstcrackiscoming.com/account/connections` | Existing SSR identity, own grants and CSRF-protected revocation |
 | `https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/firstcrack-oauth/*` | New Edge function, private issuer/token store operations |
-| `https://vjdgdolfxvnxushxrmff.supabase.co/functions/v1/firstcrack-mcp` | Existing proposed Streamable HTTP MCP endpoint and protected-resource discovery |
+| `https://api.firstcrackiscoming.com/mcp` | Public Streamable HTTP MCP endpoint and protected-resource discovery. The landing host forwards it to the existing `firstcrack-mcp` function. |
 
 These are **proposed activation URLs**, not a claim that routes are deployed. The exact
 host callback and client registration remain unconfirmed. No dynamic registration,

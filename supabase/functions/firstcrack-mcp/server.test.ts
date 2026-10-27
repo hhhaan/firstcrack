@@ -58,6 +58,20 @@ describe('HTTP authentication and discovery', () => {
         expect(userClient).not.toHaveBeenCalled();
     });
 
+    it('serves the function path when the public resource is on the first-party host', async () => {
+        const hosted = createMcpHandler({
+            config: { ...config, resource: 'https://firstcrackiscoming.com/mcp' },
+            verify,
+            userClient,
+            reportError,
+        });
+        const response = await hosted(new Request('http://worker/firstcrack-mcp', { method: 'POST' }));
+        expect(response.status).toBe(401);
+        expect(response.headers.get('WWW-Authenticate')).toContain(
+            'https://firstcrackiscoming.com/mcp/.well-known/oauth-protected-resource',
+        );
+    });
+
     it('supports the path forwarded by the Supabase gateway', async () => {
         const response = await handler(
             new Request('http://worker/firstcrack-mcp/.well-known/oauth-protected-resource'),
