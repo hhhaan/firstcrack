@@ -217,6 +217,7 @@ async function exchange(request: Awaited<ReturnType<typeof start>>, auth = authA
     check(decision.kind === 'redirect', 'Consent approval failed');
     const redirect = new URL(decision.location);
     check(redirect.searchParams.get('state') === request.state, 'OAuth state changed');
+    check(redirect.searchParams.get('iss') === issuer, 'Authorization response omitted iss');
     const code = redirect.searchParams.get('code') ?? '';
     const body = new URLSearchParams({
         client_id: 'fixture-client',

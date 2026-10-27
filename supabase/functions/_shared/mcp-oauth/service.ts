@@ -23,6 +23,7 @@ export class IssuerService {
         const base = this.config.issuer;
         return {
             issuer: base,
+            authorization_response_iss_parameter_supported: true,
             authorization_endpoint: `${base}/authorize`,
             token_endpoint: `${base}/token`,
             revocation_endpoint: `${base}/revoke`,
@@ -124,6 +125,7 @@ export class IssuerService {
         if (typeof result.redirect_uri !== 'string' || typeof result.state !== 'string')
             throw new Error('Invalid issuer redirect result');
         const target = new URL(result.redirect_uri);
+        target.searchParams.set('iss', this.config.issuer);
         target.searchParams.set('state', result.state);
         if (decision === 'approve') target.searchParams.set('code', code);
         else target.searchParams.set('error', 'access_denied');
