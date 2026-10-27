@@ -221,13 +221,7 @@ export const RoastSummaryModal = ({
                         {t('activeRoast.summary.title')}
                     </h2>
 
-                    {showBbpLive && (
-                        <div className="mb-3.5">
-                            <RoastSummaryLiveStatus ambientLine={ambientLine || null} />
-                        </div>
-                    )}
-
-                    <div className={`grid grid-cols-3 gap-1.5 ${!showBbpLive && ambientLine ? 'mb-1' : 'mb-3.5'}`}>
+                    <div className={`grid grid-cols-3 gap-1.5 ${ambientLine ? 'mb-1' : 'mb-3.5'}`}>
                         {[
                             { label: t('activeRoast.summary.totalTime'), value: summaryData.totalTime },
                             { label: t('activeRoast.summary.development'), value: summaryData.development },
@@ -240,7 +234,7 @@ export const RoastSummaryModal = ({
                         ))}
                     </div>
 
-                    {!showBbpLive && ambientLine ? (
+                    {ambientLine ? (
                         <p className="text-[11px] text-muted font-(--font-mono) tracking-[0.14px] mb-3.5">
                             {ambientLine}
                         </p>
@@ -574,6 +568,7 @@ export const RoastSummaryModal = ({
                 </ModalScrollBody>
 
                 <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex flex-col gap-2 bg-main-bg dark:bg-main-bg">
+                    {showBbpLive && <RoastSummaryLiveStatus />}
                     <button
                         type="button"
                         data-testid="roast-summary-save"
