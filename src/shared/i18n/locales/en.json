@@ -962,6 +962,12 @@
     },
     "activeRoast": {
         "batchTitleSettings": {
+            "nameSource": {
+                "title": "Batch title name",
+                "description": "Choose the name used in automatic titles. Roasts without a profile use the green bean name.",
+                "profile": "Save with profile name",
+                "bean": "Save with green bean name"
+            },
             "title": "Batch title numbering",
             "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",
             "profile": "Profile total",

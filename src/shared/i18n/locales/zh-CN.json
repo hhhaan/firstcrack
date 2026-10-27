@@ -962,6 +962,12 @@
     },
     "activeRoast": {
         "batchTitleSettings": {
+            "nameSource": {
+                "title": "批次标题名称",
+                "description": "选择自动标题使用的名称。未选择曲线时使用生豆名称。",
+                "profile": "使用曲线名称保存",
+                "bean": "使用生豆名称保存"
+            },
             "title": "批次标题编号",
             "description": "保存烘焙记录时分配编号，同一工作区的所有设备共享编号。取消或丢弃的烘焙不占用编号。",
             "profile": "曲线累计",

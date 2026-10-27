@@ -23,6 +23,12 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
+it('keeps bean names as the default title source and accepts only the profile option', () => {
+    expect(normalizeRoastSettings({}).batchTitleSource).toBe('bean');
+    expect(normalizeRoastSettings({ batchTitleSource: 'profile' }).batchTitleSource).toBe('profile');
+    expect(normalizeRoastSettings({ batchTitleSource: 'invalid' } as never).batchTitleSource).toBe('bean');
+});
+
 it('migrates RoR grid settings into the shared grid without activating an inactive number list', () => {
     const migrated = normalizeRoastSettings({
         rorGridInterval: 1,

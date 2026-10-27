@@ -21,6 +21,7 @@ export type PidDropBehavior = 'hold' | 'zero';
 
 /** Stored roast-screen settings. Persistence and normalization live in `settings.ts`. */
 export type RoastSettings = {
+    batchTitleSource: 'profile' | 'bean';
     batchTitleNumbering: BatchTitleNumbering;
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
