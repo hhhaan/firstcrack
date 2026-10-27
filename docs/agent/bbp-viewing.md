@@ -18,8 +18,10 @@ measured interval is a translucent band so the grid stays visible. While waiting
 still only the measured span (#547): the 15-minute FIFO cap is not a reserved
 background. No saved and no measured BBP means no BBP region, and a shorter
 recording — including samples that fill only part of the cap window — is drawn
-at that length on both the temperature and control grids. After Charge the live chart drops
-BBP (no negative lookback) and starts at 00:00; History keeps the combined overlay.
+at that length on both the temperature and control grids. After Charge the live chart
+keeps that batch's measured BBP at negative times and continues the roast at 00:00.
+The two grids share the same range. The recorded BBP belongs to the incoming roast,
+not to the previous completed batch (#1048).
 
 The existing Target selector chooses a roast profile. Its `source_session_id`
 links the actual BBP through the source-session join. Profiles without saved BBP
@@ -34,15 +36,27 @@ Loading, absent/empty data and download errors have different messages; errors
 stay local to the curve UI. Upload recovery invalidates the owner's profile
 joins so a newly confirmed BBP path can be read without reloading the app.
 
-Entering/leaving live BBP, and Charge, clear chart zoom and cursor state. Live
-display does not keep finalized BBP samples after Charge (#433). History still
-joins saved BBP at negative time. The existing BBP finalize, local TSV,
-upload/recovery and machine-control flows remain responsible for recording and
-persistence. Replay and PID still consume the ordinary roast reference only.
+Charge changes display coordinates without clearing the selected real time interval
+or zoom. Manual zoom/pan stays fixed while collection continues; reset returns to the
+automatic view. Automatic view reserves at least 60 seconds or 10% of the initial
+span (whichever is larger) after the latest observation and grows in 60-second steps,
+without shrinking within the same timeline. New waits and review sessions have their
+own viewport identity. A late reference does not reset the viewport. Reference BBP
+and roast are aligned at Charge without stretching their samples; the reference may
+shift when the actual wait length differs.
+
+A batch-owned capture keeps the wait origin, actual Charge boundary, original BBP
+samples/events and the higher-frequency auto-Charge lookback. Partition before
+rounding: BBP samples/events are strictly before Charge, equality belongs to roast.
+The optional `# bbp_charge_offset_sec` TSV metadata retains the actual boundary when
+there is an observation gap; old files fall back to their own duration as before.
+Recorded duration remains the observed sample span. Replay and PID still consume
+the ordinary roast reference and Charge clock only; display transformations never
+enter machine control.
 
 Live BBP events survive sample FIFO eviction and reload, including future notes.
 At Charge, finalization keeps events in the archived 15-minute BBP interval and
-excludes times after Charge. Sample polling never decides which accepted notes survive.
+assigns Charge and later times to the roast. Sample polling never decides which accepted notes survive.
 
 ## Regression coverage
 
@@ -51,7 +65,7 @@ excludes times after Charge. Sample polling never decides which accepted notes s
 - `HistorySessionChart.test.tsx`: one combined chart, exact session/path,
   Charge-relative alignment, Fahrenheit, controls, and roast availability while
   BBP is absent/loading/failed (and BBP availability if roast loading fails).
-- `live-chart-view.test.ts`: live chart is 00:00 roast-only after Charge; before Charge it shows target BBP plus current temperature.
+- `live-chart-view.test.ts`, `useChartPipeline.test.tsx`, `live-chart-range.test.ts`: measured BBP survives Charge, references align without stretching, manual zoom survives origin changes, and automatic ranges grow with headroom.
 - `roast-curve.test.ts` and chart-option tests: each source's own duration,
   unchanged stored timestamps, Charge sample ownership and gray bands on both
   grids, including zoom clipping.

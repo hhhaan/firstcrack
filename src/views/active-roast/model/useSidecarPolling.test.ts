@@ -1372,3 +1372,59 @@ it('does not treat unauthorized temperature polls as an unstable link', async ()
         expect(useRoastingStore.getState().phase).toBe('roasting');
     });
 });
+
+it('moves the complete already observed auto-Charge tail and its events into the same roast', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-27T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    vi.mocked(writeBbpTsv).mockResolvedValue(undefined);
+    mocks.getTemperatures.mockReturnValue(new Promise(() => {}));
+    useRoastingStore.getState().reset();
+    useRoastingStore.setState({ phase: 'standby' });
+    const now = Date.now();
+    const wait = useBbpStore.getState();
+    wait.begin(
+        now - 10_000,
+        [0, 4, 5, 8].map((t) => ({ t, bt: 210 - t, btRaw: 211 - t, et: 200, heater: 0, fan: 40, drum: 50 })),
+    );
+    wait.setEvents(
+        [4, 5, 8].map((timeSec) => ({ id: `e-${timeSec}`, time: '', timeSec, event: 'Note', temp: '', note: 'keep' })),
+    );
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        const phase = useRoastingStore((s) => s.phase);
+        const sessionId = useRoastingStore((s) => s.sessionId);
+        useSidecarPolling({
+            isActive: true,
+            phase,
+            sessionId,
+            chargeBt: 205,
+            pollIntervalMs: 1000,
+            enterPreheating: vi.fn(),
+            setConnected: vi.fn(),
+        });
+        return null;
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        act(() => {
+            useRoastingStore.getState().startCharge(now - 5000, 'owner', { bt: 205, unit: 'C' });
+        });
+        expect(useRoastingStore.getState().livePoints.map((p) => [p.time, p.btRaw])).toEqual([
+            [0, 206],
+            [3, 203],
+        ]);
+        expect(useRoastingStore.getState().logState.entries.map((e) => [e.event, e.timeSec])).toEqual([
+            ['Charge', 0],
+            ['Note', 0],
+            ['Note', 3],
+        ]);
+        expect(useRoastingStore.getState().bbpCapture?.points).toHaveLength(4);
+        expect(useBbpStore.getState().finalized?.events).toMatchObject([{ id: 'e-4', time_sec: -1 }]);
+        expect(mocks.enqueueTsvRow.mock.calls.filter(([, row]) => row.startsWith('0.00\t'))).toHaveLength(1);
+    } finally {
+        act(() => root.unmount());
+        useBbpStore.getState().abort();
+    }
+});

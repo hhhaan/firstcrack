@@ -197,6 +197,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
     bbpNowSec: number;
     bbpRange: { start: number; end: number } | undefined;
     bbpRecording: boolean;
+    bbpRecorded?: boolean;
     awaitingNextCharge: boolean;
     showTargetCurve: boolean;
     targetProfileId: string | null;
@@ -248,7 +249,10 @@ export const buildChartFrame = <TTurningPoint>(input: {
         bbpRange: input.bbpRange
             ? {
                   ...input.bbpRange,
-                  label: input.bbpRecording || input.awaitingNextCharge ? ('BBP' as const) : ('PREHEAT' as const),
+                  label:
+                      input.bbpRecording || input.bbpRecorded || input.awaitingNextCharge
+                          ? ('BBP' as const)
+                          : ('PREHEAT' as const),
               }
             : undefined,
         showTargetCurve: input.showTargetCurve && !!input.targetProfileId && input.targetPointCount > 0,

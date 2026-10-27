@@ -373,7 +373,7 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
         }
     });
 
-    it('the next Charge still seeds 00:00 and finalizes BBP over a long wait curve', async () => {
+    it('the next Charge keeps its observed 00:00 sample and finalizes BBP over a long wait curve', async () => {
         const harness = renderRoast();
         try {
             const droppedId = await chargeAndPlant(harness);
@@ -392,7 +392,9 @@ describe('Drop cancel keeps the roast curve (#638)', () => {
                 useRoastingStore.getState().startCharge();
             });
 
-            expect(harness.points.map((sample) => [sample.time, sample.bt])).toEqual([[0, 210]]);
+            // The existing observation at the boundary owns 00:00; do not replace it with a synthetic Charge BT.
+            expect(harness.points.map((sample) => [sample.time, sample.bt])).toEqual([[0, 200]]);
+            expect(harness.logs.find((entry) => entry.event === 'Charge')?.tempC).toBe(210);
             expect(useRoastingStore.getState().sessionId).not.toBe(droppedId);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
             expect(useBbpStore.getState().finalized?.sessionId).toBe(useRoastingStore.getState().sessionId);

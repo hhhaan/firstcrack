@@ -722,7 +722,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const boxes = layoutCurveLabelBoxes(layoutInputs, labelRight, fontScale, chart.getHeight());
             const candidates = layoutInputs.flatMap((input, index) => {
                 const marker = input.marker;
-                if (marker.reference) return [];
+                if (marker.reference || marker.readOnly) return [];
                 if (
                     !marker?.logId ||
                     marker.event === 'Charge' ||
@@ -1049,7 +1049,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const maxX = Math.max(axisLeft, axisRight);
             if (point.x < minX - 1 || point.x > maxX + 1) return;
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
-            if (converted == null) return;
+            if (converted == null || (charged && converted < 0)) return;
             event.preventDefault();
             setNoteValues(emptyNote);
             setEditForm(null);
@@ -1059,7 +1059,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 timeSec: clampMarkerTime('Note', converted, currentTimeSec, xMax),
             });
         },
-        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin],
+        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin, charged],
     );
 
     const submitNote = useCallback(() => {

@@ -11,8 +11,9 @@ import { useChartZoom } from '@features/active-roast/model/useChartZoom';
 import { feedbackValue } from '@shared/lib/feedback';
 import type { TsvPoint } from '@shared/lib/tsv';
 import type { ReadUnits } from '@shared/types/sidecar';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useReducer } from 'react';
 import { buildLiveChartData, CHART_TOTAL_SECS, type LiveChartRow } from '../lib/chart-pipeline-data';
+import { growLiveChartExtent } from '../lib/live-chart-range';
 import type { LiveRoastPoint } from './useSidecarPolling';
 
 export interface UseChartPipelineParams {
@@ -23,6 +24,8 @@ export interface UseChartPipelineParams {
     showRoR: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
+    timelineKey?: string;
+    coordinateOrigin?: number;
 }
 
 export interface UseChartPipelineReturn {
@@ -72,17 +75,35 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         showRoR,
         showControlChart,
         unit,
+        timelineKey = '',
+        coordinateOrigin = 0,
     } = params;
 
-    const { chartData, targetSeries } = useMemo(() => {
-        const profileDuration = targetCurvePoints.length > 0 ? targetCurvePoints[targetCurvePoints.length - 1].t : 0;
-        return {
-            chartData: buildLiveChartData(livePoints, xMin, profileDuration, xMaxFloor),
+    const latest = livePoints.reduce((end, point) => Math.max(end, point.time), xMin);
+    const rangeInput = useMemo(
+        () => ({
+            key: timelineKey,
+            origin: coordinateOrigin,
+            minimumRight: xMaxFloor,
+            latest,
+            span: Math.max(60, xMaxFloor - xMin),
+        }),
+        [timelineKey, coordinateOrigin, xMaxFloor, latest, xMin],
+    );
+    const [previousExtent, rememberExtent] = useReducer(growLiveChartExtent, null);
+    const extent = growLiveChartExtent(previousExtent, rangeInput);
+    useEffect(() => {
+        rememberExtent(rangeInput);
+    }, [rangeInput]);
+    const maxTime = extent.right - coordinateOrigin;
+    const { chartData, targetSeries } = useMemo(
+        () => ({
+            chartData: buildLiveChartData(livePoints, xMin, 0, maxTime),
             targetSeries: referenceCurveFromPoints(targetCurvePoints),
-        };
-    }, [livePoints, targetCurvePoints, xMin, xMaxFloor]);
+        }),
+        [livePoints, targetCurvePoints, xMin, maxTime],
+    );
 
-    const maxTime = chartData.length > 0 ? chartData[chartData.length - 1].time : xMaxFloor;
     const minTime = xMin;
     const chartRightGridPad = showRoR || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
 
@@ -97,7 +118,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         handleChartPointerDown,
         handleChartPointerMove,
         endChartDrag,
-    } = useChartZoom(maxTime, minTime, chartRightGridPad);
+    } = useChartZoom(maxTime, minTime, chartRightGridPad, true, coordinateOrigin, timelineKey);
 
     const visibleChartData = useMemo(
         () =>

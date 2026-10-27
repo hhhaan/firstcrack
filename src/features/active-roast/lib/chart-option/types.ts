@@ -11,6 +11,8 @@ export type ResolvedChartColors = ReturnType<typeof getResolvedChartColors>;
 export interface RoastEventMarker extends RoastNoteControls {
     /** Read-only event from the selected reference, drawn behind current events. */
     reference?: boolean;
+    /** Archived BBP markers remain visible without entering roast-only editors. */
+    readOnly?: boolean;
     logId?: string;
     timeSec: number;
     event: string;
