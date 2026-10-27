@@ -4,9 +4,11 @@ import {
     useProfileReferenceBatches,
     useSetProfileReference,
 } from '@entities/roast-profile';
+import { useRoastSettings } from '@features/active-roast';
 import { formatDateShort } from '@shared/lib/format';
 import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
+import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const sourceSessionOf = (batch: ProfileReferenceBatch) => ({
@@ -26,13 +28,33 @@ export const ProfileReferenceBatches = ({
 }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId } = useActiveWorkspace();
+    const totalBatchPrefix = useRoastSettings().totalBatchPrefix;
     const { data: batches = [] } = useProfileReferenceBatches(profileId);
     const { mutateAsync, isPending } = useSetProfileReference(workspaceOwnerId);
+    const resolvedId = batches.some((batch) => batch.id === sourceSessionId)
+        ? sourceSessionId
+        : (batches[0]?.id ?? null);
+    const attempted = useRef<string | null>(null);
+
+    useEffect(() => {
+        const batch = batches.find((item) => item.id === resolvedId);
+        if (!batch || !workspaceOwnerId || batch.id === sourceSessionId) return;
+        const key = `${profileId}:${batch.id}`;
+        if (attempted.current === key) return;
+        attempted.current = key;
+        void mutateAsync({
+            id: profileId,
+            sourceSessionId: batch.id,
+            sourceSession: sourceSessionOf(batch),
+        }).catch(() => {
+            useToastStore.getState().show(t('profiles.detail.referenceFailed'));
+        });
+    }, [batches, mutateAsync, profileId, resolvedId, sourceSessionId, t, workspaceOwnerId]);
 
     if (batches.length === 0) return null;
 
     const select = (batch: ProfileReferenceBatch) => {
-        if (isPending || batch.id === sourceSessionId) return;
+        if (isPending || batch.id === resolvedId) return;
         void mutateAsync({
             id: profileId,
             sourceSessionId: batch.id,
@@ -59,7 +81,7 @@ export const ProfileReferenceBatches = ({
                     </thead>
                     <tbody>
                         {batches.map((batch) => {
-                            const current = batch.id === sourceSessionId;
+                            const current = batch.id === resolvedId;
                             const title = sessionRoastTitle(batch) ?? '—';
                             return (
                                 <tr
@@ -81,7 +103,7 @@ export const ProfileReferenceBatches = ({
                                         {formatDateShort(batch.roasted_at)}
                                     </td>
                                     <td className="py-2 pr-4 text-secondary tabular-nums">
-                                        {sessionBatchNumberLabel(batch) ?? '—'}
+                                        {sessionBatchNumberLabel(batch, totalBatchPrefix) ?? '—'}
                                     </td>
                                     <td className="py-2 pr-4 font-medium text-primary">{title}</td>
                                     <td className="py-2 text-right">

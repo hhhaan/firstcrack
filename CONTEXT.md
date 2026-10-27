@@ -130,6 +130,10 @@ _Avoid_: Feedforward.
 재현할 대상 프로파일.
 _Avoid_: The live batch. The account profile.
 
+**Profile source roast**:
+기준 로스트. 로스팅 프로파일이 반드시 하나 가리키는 완료된 로스트. 프로파일 곡선은 이 로스트를 따른다. 저장된 기준이 그 프로파일의 완료 로스트에 없으면 가장 최근 완료 로스트가 기준이 된다. 완료 로스트가 없으면 새로 지정하지 않는다.
+_Avoid_: Reference roast. 또 다른 프로파일.
+
 **Recorded heat set**:
 기록된 화력 명령. A Heat set retained from a reference roast, together with the elapsed time from Charge and BT at which it was recorded. Those observations describe the past command; they do not by themselves define its replay condition.
 _Avoid_: Heat feedback. A future replay instruction.

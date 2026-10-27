@@ -96,6 +96,24 @@ describe('ProfileReferenceBatches', () => {
         expect(mutateAsync).not.toHaveBeenCalled();
     });
 
+    it('stores the first batch as the reference when none is selected', () => {
+        list.current = batches;
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        root = createRoot(host);
+        act(() => {
+            root.render(createElement(ProfileReferenceBatches, { profileId: 'p1', sourceSessionId: 'missing' }));
+        });
+        const rows = [...host.querySelectorAll<HTMLTableRowElement>('[data-testid="profile-reference-row"]')];
+        expect(rows.map((row) => row.dataset.current)).toEqual(['true', 'false']);
+        expect(rows[0]?.textContent).toContain('newProfileModal.basedOn');
+        expect(mutateAsync).toHaveBeenCalledWith({
+            id: 'p1',
+            sourceSessionId: 's4',
+            sourceSession: { tsv_path: 'curves/s4.tsv', bbp_tsv_path: null, bbp_seconds: null, events: null },
+        });
+    });
+
     it('renders nothing when the profile has no saved batches', () => {
         render();
         expect(host.textContent).toBe('');
