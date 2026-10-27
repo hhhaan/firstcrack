@@ -105,6 +105,7 @@ describe('saveRoastCore', () => {
             ...baseParams,
             targetProfileId: 'profile-a',
             batchTitleNumbering: 'none',
+            totalBatchPrefix: 'LOT',
             formData: { ...baseParams.formData, batchName: '  Batch C  ' },
         });
         expect(deps.saveOp).toHaveBeenCalledWith(
@@ -115,6 +116,7 @@ describe('saveRoastCore', () => {
                     bean_label: null,
                     profile_id: 'profile-a',
                     batch_title_numbering: 'none',
+                    batch_title_prefix: 'LOT',
                 }),
             }),
         );

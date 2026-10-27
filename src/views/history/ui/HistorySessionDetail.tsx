@@ -28,7 +28,8 @@ type HistorySessionDetailProps = {
 export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: HistorySessionDetailProps): ReactNode => {
     const { t } = useTranslation();
     const [exportContainer, setExportContainer] = useState<HTMLDivElement | null>(null);
-    const { temperatureUnit } = useRoastSettings();
+    const { temperatureUnit, totalBatchPrefix } = useRoastSettings();
+    const batchNumbers = sessionBatchNumberLabel(session, totalBatchPrefix);
     const metrics = sessionRoastMetrics(session);
     const results = [
         { label: 'history.table.duration', value: formatDuration(metrics.roastDurationSec) },
@@ -56,13 +57,13 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                             <span className="text-[12px] text-secondary">{session.beans.origin}</span>
                         )}
                         {session.roast_level && <Badge tone="neutral">{session.roast_level}</Badge>}
-                        {sessionBatchNumberLabel(session) && (
+                        {batchNumbers && (
                             <span
                                 data-testid="history-batch-numbers"
                                 className="font-mono"
                                 title={t('history.batchNumbers.label')}
                             >
-                                {sessionBatchNumberLabel(session)}
+                                {batchNumbers}
                             </span>
                         )}
                     </div>

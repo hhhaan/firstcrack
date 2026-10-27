@@ -22,7 +22,7 @@ export type CompareSessionItem = {
 
 export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) => {
     const { t } = useTranslation();
-    const unit = useRoastSettings().temperatureUnit;
+    const { temperatureUnit: unit, totalBatchPrefix } = useRoastSettings();
 
     return (
         <section aria-labelledby="compare-metrics-title">
@@ -89,7 +89,7 @@ export const CompareSessionTable = ({ items }: { items: CompareSessionItem[] }) 
                                                 </div>
                                                 <div className="truncate text-[11px] text-secondary">
                                                     {[
-                                                        sessionBatchNumberLabel(session),
+                                                        sessionBatchNumberLabel(session, totalBatchPrefix),
                                                         formatDateShort(session.roasted_at),
                                                         session.roast_profiles?.name,
                                                     ]

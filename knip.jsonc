@@ -19,9 +19,7 @@
         "src/widgets/blend-detail/index.ts",
         "src/widgets/blend-list/index.ts",
         // App.tsx에서 첫 실행 테마 선택은 주석으로 꺼 둔 상태.
-        "src/widgets/theme-select-modal/**",
-        // RoastSettingsTab에서 배치 제목 번호 UI는 주석으로 꺼 둔 상태.
-        "src/widgets/settings/ui/BatchTitleSettings.tsx"
+        "src/widgets/theme-select-modal/**"
     ],
     // types:gen의 supabase CLI. npm 패키지가 아니다.
     "ignoreBinaries": ["supabase"],

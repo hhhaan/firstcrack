@@ -85,20 +85,23 @@ export const RoastSummaryModal = ({
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
     const snapshot = useRoastingStore((state) => state.completed?.snapshot);
-    const { batchTitleNumbering } = useRoastSettings();
+    const { batchTitleNumbering, totalBatchPrefix } = useRoastSettings();
     const { batchCounters } = useRoastProfiles(open ? (snapshot?.sessionOwnerId ?? '') : '');
     const profileId = snapshot?.selection.profileId;
     const batchNumbers = batchCounters
-        ? sessionBatchNumberLabel({
-              profile_batch_number:
-                  profileId && (batchTitleNumbering === 'profile' || batchTitleNumbering === 'both')
-                      ? (batchCounters[profileId] ?? 0) + 1
-                      : null,
-              total_batch_number:
-                  batchTitleNumbering === 'total' || batchTitleNumbering === 'both'
-                      ? (batchCounters.total ?? 0) + 1
-                      : null,
-          })
+        ? sessionBatchNumberLabel(
+              {
+                  profile_batch_number:
+                      profileId && (batchTitleNumbering === 'profile' || batchTitleNumbering === 'both')
+                          ? (batchCounters[profileId] ?? 0) + 1
+                          : null,
+                  total_batch_number:
+                      batchTitleNumbering === 'total' || batchTitleNumbering === 'both'
+                          ? (batchCounters.total ?? 0) + 1
+                          : null,
+              },
+              totalBatchPrefix,
+          )
         : null;
     const bbpLive = useBbpStore((s) => s.active && s.recording && s.startMs > 0);
     const hasHandoff = Boolean(planBatchHandoff);

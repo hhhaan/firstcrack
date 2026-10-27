@@ -1,4 +1,5 @@
 import { logger } from '@shared/lib/logger';
+import { DEFAULT_TOTAL_BATCH_PREFIX, normalizeTotalBatchPrefix } from '@shared/lib/sessionRoastTitle';
 import { settingsGet, settingsSet } from '@shared/lib/settings-store';
 import type { ArtisanSettingsSnapshot } from '@shared/types/artisan';
 import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
@@ -89,6 +90,7 @@ const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || 
 const DEFAULT_SETTINGS: RoastSettings = {
     batchTitleSource: 'bean',
     batchTitleNumbering: 'profile',
+    totalBatchPrefix: DEFAULT_TOTAL_BATCH_PREFIX,
     pollIntervalMs: 1000,
     rorSpanSec: 30,
     btSmoothing: 0,
@@ -380,11 +382,10 @@ export const normalizeRoastSettings = (
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
         batchTitleSource: merged.batchTitleSource === 'profile' ? 'profile' : 'bean',
         batchTitleNumbering:
-            merged.batchTitleNumbering === 'total' ||
-            merged.batchTitleNumbering === 'both' ||
-            merged.batchTitleNumbering === 'none'
+            merged.batchTitleNumbering === 'total' || merged.batchTitleNumbering === 'none'
                 ? merged.batchTitleNumbering
                 : 'profile',
+        totalBatchPrefix: normalizeTotalBatchPrefix(merged.totalBatchPrefix),
         // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),

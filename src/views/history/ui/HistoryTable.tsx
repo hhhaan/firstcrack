@@ -54,7 +54,7 @@ type Column = {
     render: (s: RoastSessionWithRelations) => ReactNode;
 };
 
-const columnsFor = (unit: TemperatureUnit): Column[] => [
+const columnsFor = (unit: TemperatureUnit, totalBatchPrefix: string): Column[] => [
     { key: 'date', label: 'Date', width: '112px', sortable: true, render: (s) => formatDateShort(s.roasted_at) },
     {
         key: null,
@@ -74,7 +74,7 @@ const columnsFor = (unit: TemperatureUnit): Column[] => [
         label: 'batchNumbers',
         width: '140px',
         sortable: false,
-        render: (s) => sessionBatchNumberLabel(s) ?? '—',
+        render: (s) => sessionBatchNumberLabel(s, totalBatchPrefix) ?? '—',
     },
     {
         key: 'profile',
@@ -233,8 +233,8 @@ export const HistoryTable = ({
     onPageChange,
 }: HistoryTableProps): ReactNode => {
     const { t } = useTranslation();
-    const unit = useRoastSettings().temperatureUnit;
-    const columns = columnsFor(unit);
+    const { temperatureUnit: unit, totalBatchPrefix } = useRoastSettings();
+    const columns = columnsFor(unit, totalBatchPrefix);
     // Bean has no width so it absorbs leftover. Other columns stay at their px width.
     const beanMinPx = 180;
     const tableMinPx =

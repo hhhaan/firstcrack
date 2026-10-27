@@ -458,14 +458,16 @@ export class MockDb {
         const totalNumber = nextNumber(null);
         const profileNumber = profileId ? nextNumber(profileId) : null;
         const mode = params.session.batch_title_numbering;
+        const rawPrefix = typeof params.session.batch_title_prefix === 'string' ? params.session.batch_title_prefix : '';
+        const totalPrefix = rawPrefix.replace(/[#·]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12) || 'PR';
         const suffix = [
             (mode === 'profile' || mode === 'both') && profileNumber != null ? `#${profileNumber}` : null,
-            mode === 'total' || mode === 'both' ? `Σ#${totalNumber}` : null,
+            mode === 'total' || mode === 'both' ? `${totalPrefix} #${totalNumber}` : null,
         ]
             .filter(Boolean)
             .join(' · ');
-        const baseTitle = typeof params.session.batch_name === 'string' ? params.session.batch_name : null;
-        const batchName = suffix ? `${(baseTitle ?? 'Roast').slice(0, 120 - suffix.length - 1)} ${suffix}` : baseTitle;
+        const baseTitle = typeof params.session.batch_name === 'string' ? params.session.batch_name.trim() : '';
+        const batchName = suffix ? (baseTitle ? `${baseTitle.slice(0, 120 - suffix.length - 1)} ${suffix}` : suffix) : baseTitle || null;
         const row: RoastSession = {
             id: sessionId,
             user_id: userId,

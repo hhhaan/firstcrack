@@ -20,7 +20,7 @@ vi.mock('./RoastingSettingsImport', () => ({ RoastingSettingsImport: () => null 
 
 it('selects profile or bean names independently of the title numbering', async () => {
     const previous = getRoastSettings();
-    updateRoastSettings({ batchTitleSource: 'bean', batchTitleNumbering: 'both' });
+    updateRoastSettings({ batchTitleSource: 'bean', batchTitleNumbering: 'none', totalBatchPrefix: 'PR' });
     const host = document.createElement('div');
     const root = createRoot(host);
     try {
@@ -29,21 +29,28 @@ it('selects profile or bean names independently of the title numbering', async (
         expect(sources).toHaveLength(2);
         expect(sources[1].checked).toBe(true);
         act(() => sources[0].click());
-        expect(getRoastSettings()).toMatchObject({ batchTitleSource: 'profile', batchTitleNumbering: 'both' });
+        expect(getRoastSettings()).toMatchObject({ batchTitleSource: 'profile', batchTitleNumbering: 'none' });
         expect(sources[0].checked).toBe(true);
         expect(settingsSet).toHaveBeenCalledWith(
             'roast.settings',
-            expect.objectContaining({ batchTitleSource: 'profile', batchTitleNumbering: 'both' }),
+            expect.objectContaining({ batchTitleSource: 'profile', batchTitleNumbering: 'none' }),
             { debounce: true },
         );
         act(() => sources[1].click());
-        expect(getRoastSettings()).toMatchObject({ batchTitleSource: 'bean', batchTitleNumbering: 'both' });
-        expect(host.querySelectorAll('input[name="batchTitleNumbering"]')).toHaveLength(0);
+        expect(getRoastSettings()).toMatchObject({ batchTitleSource: 'bean', batchTitleNumbering: 'none' });
+        const numbering = host.querySelectorAll<HTMLInputElement>('input[name="batchTitleNumbering"]');
+        expect(numbering).toHaveLength(3);
+        expect(numbering[2].checked).toBe(true);
+        act(() => numbering[1].click());
+        expect(getRoastSettings()).toMatchObject({ batchTitleSource: 'bean', batchTitleNumbering: 'total' });
+        expect(host.querySelector('input[name="totalBatchPrefix"]')).toBeNull();
+        expect(getRoastSettings().totalBatchPrefix).toBe('PR');
     } finally {
         act(() => root.unmount());
         updateRoastSettings({
             batchTitleSource: previous.batchTitleSource,
             batchTitleNumbering: previous.batchTitleNumbering,
+            totalBatchPrefix: previous.totalBatchPrefix,
         });
     }
 });

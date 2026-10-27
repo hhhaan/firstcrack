@@ -972,8 +972,8 @@
             "description": "Numbers are assigned when a roast is saved and shared across devices in the workspace. Canceled or discarded roasts do not use a number.",
             "profile": "Profile total",
             "total": "Overall total",
-            "both": "Profile + overall",
-            "none": "No number"
+            "none": "No number",
+            "prefix": "Overall number prefix"
         },
         "noteEntry": {
             "events": "Events",

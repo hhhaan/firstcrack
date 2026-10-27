@@ -109,6 +109,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 selectedBeanId: snapshot ? snapshot.selection.beanId : selection.beanId,
                 targetProfileId: profileId,
                 batchTitleNumbering: getRoastSettings().batchTitleNumbering,
+                totalBatchPrefix: getRoastSettings().totalBatchPrefix,
                 planBatchHandoff: snapshot ? snapshot.selection.planBatchHandoff : selection.planBatchHandoff,
                 sessionId: savedSessionId,
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
@@ -186,6 +187,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                     formData: { ...baseParams.formData, ...formPatch },
                     logEntries: frozen?.logEntries ?? baseParams.logEntries,
                     batchTitleNumbering: baseParams.batchTitleNumbering ?? getRoastSettings().batchTitleNumbering,
+                    totalBatchPrefix: baseParams.totalBatchPrefix ?? getRoastSettings().totalBatchPrefix,
                     ...(forcedProfileId !== undefined && { targetProfileId: forcedProfileId }),
                 };
                 const pending = existing

@@ -140,21 +140,21 @@ test.describe('2c roast save with stock deduct', () => {
         });
         await expect(page.getByTestId('roast-summary-save')).toBeHidden();
         await goNav(page, 'history');
-        await expect(page.getByTestId('history-open-row')).toContainText('#1 · Σ#1');
+        await expect(page.getByTestId('history-open-row')).toContainText('#1 · PR #1');
         await page.getByTestId('history-open-row').first().click();
         await expect(page.getByTestId('history-profile')).toBeVisible();
         expect(db.sessions[0].profile_id).toBe('b');
         await expect(page.locator('select[data-testid="history-profile"]')).toHaveCount(0);
-        await expect(page.getByTestId('history-batch-numbers')).toHaveText('#1 · Σ#1');
+        await expect(page.getByTestId('history-batch-numbers')).toHaveText('#1 · PR #1');
         await page.getByTestId('history-record-title').click();
         await page.getByTestId('history-record-title').fill('Renamed roast');
         await page.getByTestId('history-record-title').press('Enter');
         await expect(page.getByTestId('history-record-title')).toHaveText('Renamed roast');
-        await expect(page.getByTestId('history-batch-numbers')).toHaveText('#1 · Σ#1');
+        await expect(page.getByTestId('history-batch-numbers')).toHaveText('#1 · PR #1');
         await page.screenshot({ path: testInfo.outputPath('saved-batch-numbers.png') });
         await page.reload();
         await goNav(page, 'history');
-        await expect(page.getByTestId('history-open-row')).toContainText('#1 · Σ#1');
+        await expect(page.getByTestId('history-open-row')).toContainText('#1 · PR #1');
     });
 
     test('save with deduct → history session + green stock down', async ({ authedPage: page, db }) => {

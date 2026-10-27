@@ -23,6 +23,7 @@ import {
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { normalizeTotalBatchPrefix } from '@shared/lib/sessionRoastTitle';
 import { flushTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
@@ -173,6 +174,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         batch_name: formData.batchName?.trim() || resolvedBeanName,
         profile_id: payloadParams.targetProfileId,
         batch_title_numbering: payloadParams.batchTitleNumbering ?? 'none',
+        batch_title_prefix: normalizeTotalBatchPrefix(payloadParams.totalBatchPrefix),
         tsv_path: null,
         bbp_tsv_path: null,
         bbp_seconds: bbpSummary?.seconds ?? null,

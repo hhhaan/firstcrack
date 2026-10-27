@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { sessionBatchNumberLabel, sessionDistinctTitle, sessionRoastTitle } from './sessionRoastTitle';
+import {
+    normalizeTotalBatchPrefix,
+    sessionBatchNumberLabel,
+    sessionDistinctTitle,
+    sessionRoastTitle,
+} from './sessionRoastTitle';
 
 it('renders independent batch metadata and leaves unknown legacy numbers empty', () => {
     expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: 13 })).toBe('#9 · PR #13');
+    expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: 13 }, 'LOT')).toBe('LOT #13');
+    expect(normalizeTotalBatchPrefix('  LOT#  ')).toBe('LOT');
+    expect(normalizeTotalBatchPrefix('')).toBe('PR');
+    expect(normalizeTotalBatchPrefix('x'.repeat(20))).toHaveLength(12);
     expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: 13 })).toBe('PR #13');
     expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: null })).toBe('#9');
     expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: null })).toBeNull();

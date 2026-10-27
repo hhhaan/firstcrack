@@ -19,7 +19,10 @@ vi.mock('react-i18next', () => ({
                 ) ?? key,
     }),
 }));
-vi.mock('@features/active-roast', () => ({ formatTemp: (value: unknown) => String(value) }));
+vi.mock('@features/active-roast', () => ({
+    formatTemp: (value: unknown) => String(value),
+    useRoastSettings: () => ({ totalBatchPrefix: 'PR' }),
+}));
 vi.mock('@features/export-history-pdf', async () => ({
     historyPdfFilename: (await import('@features/export-history-pdf/lib/filename')).historyPdfFilename,
     historyPdfChartBox: () => ({ width: 100, height: 100 }),

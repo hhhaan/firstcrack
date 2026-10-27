@@ -23,6 +23,8 @@ export type PidDropBehavior = 'hold' | 'zero';
 export type RoastSettings = {
     batchTitleSource: 'profile' | 'bean';
     batchTitleNumbering: BatchTitleNumbering;
+    /** Word before the workspace-wide `#number`. Blank values normalize to `PR`. */
+    totalBatchPrefix: string;
     pollIntervalMs: PollIntervalMs;
     rorSpanSec: RorSpanSec;
     /** Display smoothing strength, 0–100. 0 shows the sensor sample. */

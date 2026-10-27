@@ -1,5 +1,5 @@
 import { sessionBeanName } from '@entities/roast';
-import { formatTemp, type TemperatureUnit } from '@features/active-roast';
+import { formatTemp, type TemperatureUnit, useRoastSettings } from '@features/active-roast';
 import type { RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import { historyPdfChartBox, historyPdfFilename, useExportHistoryPdf } from '@features/export-history-pdf';
 import { formatDateTimeShort, formatDuration } from '@shared/lib/format';
@@ -30,6 +30,7 @@ export const useHistoryPdfExport = ({
     roasting = false,
 }: Args) => {
     const { t } = useTranslation();
+    const totalBatchPrefix = useRoastSettings().totalBatchPrefix;
     const exportPdf = useExportHistoryPdf();
     const [exporting, setExporting] = useState(false);
 
@@ -45,7 +46,7 @@ export const useHistoryPdfExport = ({
         try {
             const beanName = sessionBeanName(session)?.trim() || '—';
             const distinctTitle = sessionDistinctTitle(session);
-            const batchNumbers = sessionBatchNumberLabel(session);
+            const batchNumbers = sessionBatchNumberLabel(session, totalBatchPrefix);
             await exportPdf({
                 title: t('history.title'),
                 filename: historyPdfFilename(sessionRoastTitle(session), session.roasted_at),
@@ -73,7 +74,7 @@ export const useHistoryPdfExport = ({
         } finally {
             setExporting(false);
         }
-    }, [chartRef, exportPdf, hasControls, hasTarget, roasting, session, t, unit]);
+    }, [chartRef, exportPdf, hasControls, hasTarget, roasting, session, t, totalBatchPrefix, unit]);
 
     return { exporting, canExport: canCapture && !exporting && !roasting, onExportPdf };
 };

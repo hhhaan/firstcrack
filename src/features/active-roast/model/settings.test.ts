@@ -23,6 +23,16 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
+it('drops the combined batch numbering choice', () => {
+    expect(normalizeRoastSettings({ batchTitleNumbering: 'both' }).batchTitleNumbering).toBe('profile');
+});
+
+it('uses PR as the total-number prefix and drops separators', () => {
+    expect(normalizeRoastSettings({}).totalBatchPrefix).toBe('PR');
+    expect(normalizeRoastSettings({ totalBatchPrefix: '  LOT# ' }).totalBatchPrefix).toBe('LOT');
+    expect(normalizeRoastSettings({ totalBatchPrefix: '' }).totalBatchPrefix).toBe('PR');
+});
+
 it('keeps bean names as the default title source and accepts only the profile option', () => {
     expect(normalizeRoastSettings({}).batchTitleSource).toBe('bean');
     expect(normalizeRoastSettings({ batchTitleSource: 'profile' }).batchTitleSource).toBe('profile');

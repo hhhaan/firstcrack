@@ -131,7 +131,7 @@ test('history compare: five batches, user colors, overlay channels and responsiv
 
     const metrics = report.getByRole('table').last();
     const row = metrics.getByRole('row').filter({ hasText: 'Ethiopia Guji' });
-    for (const text of ['10:00', '207.0°C', '20.0%', '16.7%', '#1 · Σ#251', '64.2', '65.1'])
+    for (const text of ['10:00', '207.0°C', '20.0%', '16.7%', '#1 · PR #251', '64.2', '65.1'])
         await expect(row).toContainText(text);
     const readout = report.getByTestId('compare-batch-readout').filter({ hasText: 'Filter 1' });
     await expect(readout).toContainText('#1');

@@ -79,7 +79,7 @@ export const RoastHeader = ({
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const { batchTitleNumbering, batchTitleSource } = useRoastSettings();
+    const { batchTitleNumbering, batchTitleSource, totalBatchPrefix } = useRoastSettings();
     const { data: dbProfiles = [], batchCounters } = useRoastProfiles(workspaceOwnerId);
     const selectedProfileName = dbProfiles.find((profile) => profile.id === targetProfileId)?.name;
     useEffect(() => {
@@ -103,25 +103,12 @@ export const RoastHeader = ({
         review,
     ]);
     const nextNumbers =
-        batchCounters && runningSessionId && sessionOwnerId === workspaceOwnerId
+        batchCounters && runningSessionId && (!sessionOwnerId || sessionOwnerId === workspaceOwnerId)
             ? {
                   profile_batch_number: targetProfileId ? (batchCounters[targetProfileId] ?? 0) + 1 : null,
                   total_batch_number: (batchCounters.total ?? 0) + 1,
               }
             : undefined;
-    const batchTitle =
-        review?.selection.identity?.title ??
-        (runningIdentity
-            ? automaticBatchTitle(
-                  {
-                      name: runningIdentity.edited
-                          ? (runningIdentity.title ?? runningIdentity.name)
-                          : runningIdentity.name,
-                  },
-                  batchTitleNumbering,
-                  nextNumbers,
-              )
-            : undefined);
     const phase = useRoastingStore((state) => state.phase);
     const scheduled = useRoastingStore((state) => Boolean(state.activeSelection?.planBatchHandoff));
     const sessionId = useRoastingStore((state) => state.sessionId);
@@ -178,15 +165,30 @@ export const RoastHeader = ({
           ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
           : (fallbackBeanName ?? 'No Bean Selected');
     const sourceDisplayName = selectedBlend || selectedBean ? beanTitle : (fallbackBeanName ?? null);
+    const liveTitleName = batchTitleSource === 'profile' ? selectedProfileName || sourceDisplayName : sourceDisplayName;
+    const batchTitle =
+        review?.selection.identity?.title ??
+        (runningIdentity
+            ? automaticBatchTitle(
+                  {
+                      name: runningIdentity.edited
+                          ? (runningIdentity.title ?? runningIdentity.name)
+                          : runningIdentity.name || liveTitleName,
+                  },
+                  batchTitleNumbering,
+                  nextNumbers,
+                  totalBatchPrefix,
+              )
+            : undefined);
     useEffect(() => {
-        if (!review && preparedOwnerId === workspaceOwnerId)
+        if (!review && workspaceOwnerId)
             useRoastingStore
                 .getState()
                 .setSourceDisplayName(
                     { beanId: selectedBeanId, blendId: selectedBlendId, beanName: sourceDisplayName },
                     workspaceOwnerId,
                 );
-    }, [selectedBeanId, selectedBlendId, sourceDisplayName, workspaceOwnerId, preparedOwnerId, review]);
+    }, [selectedBeanId, selectedBlendId, sourceDisplayName, workspaceOwnerId, review]);
     const beanSecondary = selectedBean
         ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
           (selectedBean.name !== beanTitle ? selectedBean.name : '')

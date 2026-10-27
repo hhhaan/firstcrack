@@ -22,6 +22,8 @@ export type RoastSessionInsert = Omit<
     id?: string;
     batch_name?: string | null;
     batch_title_numbering?: BatchTitleNumbering;
+    /** Device prefix for the workspace-wide mark. Omitted values use PR in save_roast_op. */
+    batch_title_prefix?: string;
     created_by?: string | null;
 };
 type RoastSessionUpdate = { id: string } & Partial<

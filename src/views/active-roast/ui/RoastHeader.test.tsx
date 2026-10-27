@@ -165,6 +165,34 @@ it.each([
     act(() => root.unmount());
 });
 
+it('shows only the profile number when the bean name is empty', () => {
+    previewNumbers.enabled = true;
+    updateRoastSettings({ batchTitleSource: 'bean', batchTitleNumbering: 'profile' });
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    state.commitProfile('prof-1', null, 'user-1');
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-1' })));
+    act(() => state.startCharge(undefined, 'user-1'));
+    expect(host.querySelector('button[title="activeRoast.header.batchTitle"]')?.textContent).toBe('#3');
+    act(() => root.unmount());
+});
+
+it('uses the selected bean name when charge stored no name', () => {
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    state.prepareBean('bean-1');
+    state.startCharge(undefined, 'user-1');
+    expect(useRoastingStore.getState().activeSelection?.identity?.name).toBeNull();
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    act(() => root.render(createElement(RoastHeader, { ...props, selectedBeanId: 'bean-1' })));
+    expect(host.querySelector('button[title="activeRoast.header.batchTitle"]')?.textContent).toBe('Colombia Santander');
+    expect(useRoastingStore.getState().activeSelection?.identity?.name).toBe('Colombia Santander');
+    act(() => root.unmount());
+});
+
 it.each([
     { selectedBeanId: 'bean-2', selectedBlendId: null, name: '마라닉' },
     { selectedBeanId: null, selectedBlendId: 'blend-1', name: 'Modern' },
@@ -371,7 +399,11 @@ describe('inline running title edits', () => {
                 );
             });
             expect(titleButton()?.textContent).toBe(
-                mode === 'none' ? 'Morning roast' : mode === 'total' ? 'Morning roast Σ#12' : 'Morning roast #3 · Σ#12',
+                mode === 'none'
+                    ? 'Morning roast'
+                    : mode === 'total'
+                      ? 'Morning roast PR #12'
+                      : 'Morning roast #3 · PR #12',
             );
             act(() =>
                 root.render(
@@ -379,7 +411,11 @@ describe('inline running title edits', () => {
                 ),
             );
             expect(titleButton()?.textContent).toBe(
-                mode === 'none' ? 'Morning roast' : mode === 'total' ? 'Morning roast Σ#12' : 'Morning roast #8 · Σ#12',
+                mode === 'none'
+                    ? 'Morning roast'
+                    : mode === 'total'
+                      ? 'Morning roast PR #12'
+                      : 'Morning roast #8 · PR #12',
             );
         } finally {
             act(() => updateRoastSettings({ batchTitleNumbering: previous }));

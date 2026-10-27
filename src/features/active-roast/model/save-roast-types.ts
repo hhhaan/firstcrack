@@ -50,6 +50,8 @@ export interface SaveRoastParams {
     selectedBlendId?: string | null;
     targetProfileId: string | null;
     batchTitleNumbering?: BatchTitleNumbering;
+    /** Word before the workspace-wide number. Captured with the pending save. */
+    totalBatchPrefix?: string;
     planBatchHandoff: PlanBatchHandoff | null;
     logEntries: LogEntry[];
     machineSnapshot?: MachineSnapshot | null;
