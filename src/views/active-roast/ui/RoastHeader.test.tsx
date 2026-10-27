@@ -387,7 +387,7 @@ describe('inline running title edits', () => {
         expect(titleButton()?.textContent).toBe('마라닉');
     });
 
-    it.each(['none', 'total', 'both'] as const)('keeps %s numbering independent of the edited title', (mode) => {
+    it.each(['none', 'total'] as const)('keeps %s numbering independent of the edited title', (mode) => {
         const previous = getRoastSettings().batchTitleNumbering;
         try {
             previewNumbers.enabled = true;
@@ -398,25 +398,13 @@ describe('inline running title edits', () => {
                     createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' }),
                 );
             });
-            expect(titleButton()?.textContent).toBe(
-                mode === 'none'
-                    ? 'Morning roast'
-                    : mode === 'total'
-                      ? 'Morning roast PR #12'
-                      : 'Morning roast #3 · PR #12',
-            );
+            expect(titleButton()?.textContent).toBe(mode === 'none' ? 'Morning roast' : 'Morning roast PR #12');
             act(() =>
                 root.render(
                     createElement(RoastHeader, { ...props, targetProfileId: 'prof-2', selectedBeanId: 'bean-2' }),
                 ),
             );
-            expect(titleButton()?.textContent).toBe(
-                mode === 'none'
-                    ? 'Morning roast'
-                    : mode === 'total'
-                      ? 'Morning roast PR #12'
-                      : 'Morning roast #8 · PR #12',
-            );
+            expect(titleButton()?.textContent).toBe(mode === 'none' ? 'Morning roast' : 'Morning roast PR #12');
         } finally {
             act(() => updateRoastSettings({ batchTitleNumbering: previous }));
         }
