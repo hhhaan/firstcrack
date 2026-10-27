@@ -16,6 +16,7 @@ export interface RoastSelection {
     beanId: string | null;
     beanName: string | null;
     profileId: string | null;
+    profileName?: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
 }
 export interface PreparedRoast extends RoastSelection {
@@ -136,6 +137,7 @@ const copySelection = (selection: RoastSelection): RoastSelection =>
         beanId: selection.beanId,
         beanName: selection.beanName,
         profileId: selection.profileId,
+        ...(selection.profileName !== undefined && { profileName: selection.profileName }),
         planBatchHandoff: selection.planBatchHandoff,
         ...(selection.identity && { identity: selection.identity }),
     });
@@ -204,6 +206,7 @@ export const createBatchActions = (
             prepared: {
                 ...state.prepared,
                 profileId,
+                profileName: null,
                 profileInitialized: true,
             },
         });
@@ -257,7 +260,9 @@ export const createBatchActions = (
             return false;
         const current = state.activeSelection;
         const changed = current.beanId !== source.beanId || (current.blendId ?? null) !== (source.blendId ?? null);
-        const identity = current.identity ? { ...current.identity, name: source.beanName } : undefined;
+        const identity = current.identity
+            ? { ...current.identity, name: current.profileName ?? source.beanName }
+            : undefined;
         if (identity && !identity.edited) identity.title = automaticBatchTitle(identity);
         set({
             activeSelection: {
@@ -299,10 +304,19 @@ export const createBatchActions = (
         if (state.sessionId !== expectedSessionId || state.prepared.workspaceOwnerId !== expectedWorkspaceOwnerId)
             return false;
         const activeSelection = state.activeSelection ? { ...state.activeSelection, profileId } : null;
+        if (activeSelection && state.activeSelection?.profileId !== profileId) {
+            activeSelection.profileName = null;
+            if (activeSelection.identity) {
+                activeSelection.identity = { ...activeSelection.identity, name: activeSelection.beanName };
+                if (!activeSelection.identity.edited)
+                    activeSelection.identity.title = automaticBatchTitle(activeSelection.identity);
+            }
+        }
         set({
             prepared: {
                 ...state.prepared,
                 profileId,
+                ...(state.prepared.profileId !== profileId && { profileName: null }),
                 profileInitialized: true,
                 profileUserSelected: true,
                 ...(!isChargedPhase(state.phase) &&
@@ -349,6 +363,29 @@ export const createBatchActions = (
             pendingProfileSource: null,
         }),
     recordAdhocSave: (lastAdhocSave: LastAdhocSave) => set({ lastAdhocSave }),
+    setProfileDisplayName: (profileId: string, profileName: string, ownerId: string) => {
+        const state = get();
+        const name = profileName.trim() || null;
+        const patch: Partial<BatchState> = {};
+        if (
+            state.prepared.workspaceOwnerId === ownerId &&
+            state.prepared.profileId === profileId &&
+            state.prepared.profileName !== name
+        )
+            patch.prepared = { ...state.prepared, profileName: name };
+        const selection = state.activeSelection;
+        if (
+            state.sessionOwnerId === ownerId &&
+            selection?.profileId === profileId &&
+            selection.identity &&
+            selection.profileName !== name
+        ) {
+            const identity = { ...selection.identity, name: name ?? selection.beanName };
+            if (!identity.edited) identity.title = automaticBatchTitle(identity);
+            patch.activeSelection = { ...selection, profileName: name, identity };
+        }
+        if (Object.keys(patch).length) set(patch);
+    },
     setSourceDisplayName: (source: Pick<RoastSelection, 'beanId' | 'blendId' | 'beanName'>, ownerId: string) => {
         if (!source.beanName) return;
         const state = get();
@@ -366,9 +403,10 @@ export const createBatchActions = (
             state.sessionOwnerId === ownerId &&
             selection?.identity &&
             matchesSource(selection) &&
-            selection.identity.name !== source.beanName
+            (selection.beanName !== source.beanName ||
+                selection.identity.name !== (selection.profileName ?? source.beanName))
         ) {
-            const identity = { ...selection.identity, name: source.beanName };
+            const identity = { ...selection.identity, name: selection.profileName ?? source.beanName };
             if (!identity.edited) identity.title = automaticBatchTitle(identity);
             patch.activeSelection = { ...selection, beanName: source.beanName, identity };
         }
@@ -400,8 +438,8 @@ export const createBatchActions = (
             activeSelection: {
                 ...copySelection(state.prepared),
                 identity: {
-                    name: state.prepared.beanName,
-                    title: automaticBatchTitle({ name: state.prepared.beanName }),
+                    name: state.prepared.profileName ?? state.prepared.beanName,
+                    title: automaticBatchTitle({ name: state.prepared.profileName ?? state.prepared.beanName }),
                 },
             },
             livePoints: [],

@@ -34,6 +34,47 @@ describe('central batch ownership and transitions', () => {
     });
     afterEach(() => vi.useRealTimers());
 
+    it('uses the profile name through source corrections, Drop and cancel without renaming the bean', () => {
+        const state = useRoastingStore.getState();
+        state.prepareWorkspace('owner');
+        state.prepareBean('bean-a', 'Lot A');
+        state.commitProfile('profile-a', null, 'owner');
+        state.setProfileDisplayName('profile-a', 'Filter roast', 'owner');
+        state.startCharge(undefined, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Filter roast');
+        state.editRunningSource(
+            { beanId: 'bean-b', beanName: 'Lot B' },
+            useRoastingStore.getState().sessionId,
+            'owner',
+        );
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Filter roast');
+        expect(useRoastingStore.getState().activeSelection?.beanName).toBe('Lot B');
+        drop();
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Filter roast');
+        state.cancelDrop();
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Filter roast');
+    });
+
+    it('clears the previous profile name and ignores late names from another profile or workspace', () => {
+        charge();
+        const state = useRoastingStore.getState();
+        const id = state.sessionId;
+        state.setProfileDisplayName('profile-a', 'Filter roast', 'owner');
+        state.commitProfile('profile-b', id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
+        state.setProfileDisplayName('profile-a', 'Old profile', 'owner');
+        state.setProfileDisplayName('profile-b', 'Other workspace', 'other');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
+        state.setProfileDisplayName('profile-b', 'Espresso roast', 'owner');
+        state.setRunningBatchTitle(id ?? '', 'Custom title');
+        state.setProfileDisplayName('profile-b', 'Renamed profile', 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Custom title');
+        state.setRunningBatchTitle(id ?? '', '');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Renamed profile');
+        state.commitProfile(null, id, 'owner');
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Lot A');
+    });
+
     it('keeps automatic and edited titles in completed and restored snapshots', () => {
         charge();
         const state = useRoastingStore.getState();

@@ -90,12 +90,26 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
     };
 };
 
-it('keeps the live BBP readout parked off the summary', () => {
+it('keeps live BBP time visible and ticking inside the summary while saving', () => {
+    vi.useFakeTimers();
     useBbpStore.setState({ active: true, recording: true, startMs: Date.now() - 15_000, points: [] });
-    const { unmount } = renderModal({ bbpEnabled: true, ambientTemp: 13, ambientHumidity: 60 });
-    const dialog = document.querySelector('[role="dialog"]');
+    const { unmount } = renderModal({ bbpEnabled: true, isSaving: true, ambientTemp: 13, ambientHumidity: 60 });
+    try {
+        const dialog = document.querySelector('[role="dialog"]');
+        expect(dialog?.querySelector('[data-testid="roast-summary-bbp"]')?.textContent).toContain('0:15');
+        act(() => vi.advanceTimersByTime(2_000));
+        expect(dialog?.querySelector('[data-testid="roast-summary-bbp"]')?.textContent).toContain('0:17');
+        expect(dialog?.textContent).toContain('activeRoast.summary.temperature 13°C');
+    } finally {
+        unmount();
+        vi.useRealTimers();
+    }
+});
+
+it('hides the live BBP readout when BBP is disabled', () => {
+    useBbpStore.setState({ active: true, recording: true, startMs: Date.now() - 15_000, points: [] });
+    const { unmount } = renderModal({ bbpEnabled: false });
     expect(document.querySelector('[data-testid="roast-summary-bbp"]')).toBeNull();
-    expect(dialog?.textContent).toContain('activeRoast.summary.temperature 13°C');
     unmount();
 });
 
@@ -187,7 +201,7 @@ it('shows the next batch number without adding it to the submitted title', async
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { unmount } = renderModal({ onSave, summaryData: { ...summaryData, batchName: 'Morning roast' } });
     try {
-        expect(document.querySelector('[data-testid="roast-summary-batch-numbers"]')?.textContent).toBe('Σ#13');
+        expect(document.querySelector('[data-testid="roast-summary-batch-numbers"]')?.textContent).toBe('PR #13');
         const save = document.querySelector<HTMLButtonElement>('[data-testid="roast-summary-save"]');
         await act(async () => save?.click());
         expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ batchName: 'Morning roast' }));

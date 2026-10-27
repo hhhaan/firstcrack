@@ -25,6 +25,7 @@ vi.mock('@entities/organization', () => ({
 
 const profileMutate = vi.hoisted(() => vi.fn());
 const previewNumbers = vi.hoisted(() => ({ enabled: false }));
+const profileNames = vi.hoisted(() => ({ first: 'One' }));
 
 vi.mock('@entities/profile', () => ({
     useProfile: () => ({ data: { default_roast_profile_id: 'prof-1' } }),
@@ -35,7 +36,7 @@ vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({
         batchCounters: previewNumbers.enabled ? { 'prof-1': 2, 'prof-2': 7, total: 11 } : undefined,
         data: [
-            { id: 'prof-1', name: 'One' },
+            { id: 'prof-1', name: profileNames.first },
             { id: 'prof-2', name: 'Two' },
         ],
     }),
@@ -53,6 +54,7 @@ vi.mock('react-i18next', () => ({
 
 afterEach(() => {
     previewNumbers.enabled = false;
+    profileNames.first = 'One';
     localStorage.removeItem(DEFAULT_BEAN_KEY);
     useRoastingStore.getState().reset();
     document.body.replaceChildren();
@@ -76,6 +78,56 @@ const props = {
     onTargetProfileChange: () => {},
     onBeanChange: () => {},
 };
+
+it('uses the selected profile name for the automatic title while keeping the bean selection', () => {
+    previewNumbers.enabled = true;
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    state.prepareBean('bean-1', 'Colombia Santander');
+    state.commitProfile('prof-1', null, 'user-1');
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+        act(() =>
+            root.render(createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-1' })),
+        );
+        act(() => state.startCharge(undefined, 'user-1'));
+        expect(host.querySelector('button[title="activeRoast.header.batchTitle"]')?.textContent).toBe('One #3');
+        expect(useRoastingStore.getState().activeSelection).toMatchObject({
+            beanId: 'bean-1',
+            beanName: 'Colombia Santander',
+            identity: { title: 'One' },
+        });
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('refreshes the profile title after canceling Drop when the name changed during the summary', () => {
+    const state = useRoastingStore.getState();
+    state.prepareWorkspace('user-1');
+    state.prepareBean('bean-1', 'Colombia Santander');
+    state.commitProfile('prof-1', null, 'user-1');
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    const headerProps = { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-1' };
+    try {
+        act(() => root.render(createElement(RoastHeader, headerProps)));
+        act(() => state.startCharge(undefined, 'user-1'));
+        act(() => state.drop({ rawBT: 200, unit: 'C', replayActive: false }));
+        const snapshot = useRoastingStore.getState().completed?.snapshot;
+        profileNames.first = 'Updated profile';
+        act(() => root.render(createElement(RoastHeader, headerProps)));
+        expect(snapshot?.selection.identity?.title).toBe('One');
+        act(() => state.cancelDrop());
+        expect(useRoastingStore.getState().activeSelection?.identity?.title).toBe('Updated profile');
+        act(() => state.drop({ rawBT: 200, unit: 'C', replayActive: false }));
+        expect(useRoastingStore.getState().completed?.summary?.batchName).toBe('Updated profile');
+        expect(snapshot?.selection.identity?.title).toBe('One');
+    } finally {
+        act(() => root.unmount());
+    }
+});
 
 it.each([
     { targetProfileId: null, historyReferenceName: null },

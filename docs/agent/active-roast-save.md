@@ -29,7 +29,7 @@ Live roast logging (sidecar temps → log entries → local TSV) and durable sav
 
 `useRoastingStore` owns prepared selection/handoff, the running session and selection, and one latest completed batch. Charge copies preparation into the running batch. Defaults and future handoffs only update preparation; an approved reference change updates the running reference and next preparation together. The existing form-prefill values also live in this model.
 
-An explicit source correction updates the active batch without replacing its session, number, curve or next preparation. Automatic titles follow the selected source; edited titles stay unchanged. Changing the source detaches the active schedule handoff so saving cannot restore the plan's original bean or blend. Completed snapshots remain unchanged.
+An explicit source correction updates the active batch without replacing its session, number, curve or next preparation. Automatic titles use the selected profile name when available, otherwise the selected source; edited titles stay unchanged. Profile names belong to the prepared/running selection and are frozen with completed snapshots. Changing the source detaches the active schedule handoff so saving cannot restore the plan's original bean or blend. Completed snapshots remain unchanged.
 
 While reviewing a saved snapshot, the header title is plain text and its bean/blend selector is hidden. Snapshot title/source edits are unavailable; these controls never change the saved title/source, next preparation or device-local default bean. Running-batch title editing and the separate History metadata editor retain their existing behavior.
 

@@ -71,7 +71,7 @@ it('shows the roast title, linked green bean and profile in distinct cells witho
         const rows = host.querySelectorAll('tbody tr');
         const cells = [...rows[0].querySelectorAll('td')].map((cell) => cell.textContent);
         expect(cells[0]).toBe('26-10-19');
-        expect(cells.slice(1, 5)).toEqual(['Batch C', 'Green B', '#9 · Σ#13', 'Profile A']);
+        expect(cells.slice(1, 5)).toEqual(['Batch C', 'Green B', '#9 · PR #13', 'Profile A']);
         const legacy = [...rows[1].querySelectorAll('td')].map((cell) => cell.textContent);
         expect(legacy[0]).toBe('26-10-19');
         expect(legacy.slice(1, 5)).toEqual(['Legacy name', '—', '—', 'Profile A']);

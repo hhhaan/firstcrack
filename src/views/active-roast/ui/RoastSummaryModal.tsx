@@ -4,9 +4,9 @@ import { useRoastProfiles } from '@entities/roast-profile';
 import { eventMarkerCssColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import { MAX_BATCH_WEIGHT_KG, type RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { isDeductDisplayEligible } from '@features/active-roast/lib/summaryPrefill';
+import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
-// import { useBbpStore } from '@features/active-roast/model/bbp';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { sessionBatchNumberLabel } from '@shared/lib/sessionRoastTitle';
 import { useAuthStore } from '@shared/store/auth';
@@ -21,12 +21,11 @@ import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { Check, Coffee, X } from 'lucide-react';
 import { useMemo } from 'react';
-// import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
 
-// import { RoastSummaryLiveStatus } from './RoastSummaryLiveStatus';
+import { RoastSummaryLiveStatus } from './RoastSummaryLiveStatus';
 
 export type { RoastSummaryData };
 
@@ -76,7 +75,7 @@ export const RoastSummaryModal = ({
     canCancelDrop,
     onSave,
     isSaving = false,
-    bbpEnabled: _bbpEnabled = true,
+    bbpEnabled = true,
     ambientTemp,
     ambientHumidity,
     selectedBeanId = null,
@@ -101,7 +100,7 @@ export const RoastSummaryModal = ({
                       : null,
           })
         : null;
-    // const bbpLive = useBbpStore((s) => s.active && s.recording && s.startMs > 0);
+    const bbpLive = useBbpStore((s) => s.active && s.recording && s.startMs > 0);
     const hasHandoff = Boolean(planBatchHandoff);
     const {
         form: {
@@ -189,8 +188,7 @@ export const RoastSummaryModal = ({
     ]
         .filter(Boolean)
         .join(' · ');
-    // const showBbpAside = bbpEnabled && bbpLive;
-    const showBbpAside = false;
+    const showBbpLive = bbpEnabled && bbpLive;
 
     return (
         <>
@@ -223,7 +221,13 @@ export const RoastSummaryModal = ({
                         {t('activeRoast.summary.title')}
                     </h2>
 
-                    <div className={`grid grid-cols-3 gap-1.5 ${!showBbpAside && ambientLine ? 'mb-1' : 'mb-3.5'}`}>
+                    {showBbpLive && (
+                        <div className="mb-3.5">
+                            <RoastSummaryLiveStatus ambientLine={ambientLine || null} />
+                        </div>
+                    )}
+
+                    <div className={`grid grid-cols-3 gap-1.5 ${!showBbpLive && ambientLine ? 'mb-1' : 'mb-3.5'}`}>
                         {[
                             { label: t('activeRoast.summary.totalTime'), value: summaryData.totalTime },
                             { label: t('activeRoast.summary.development'), value: summaryData.development },
@@ -236,7 +240,7 @@ export const RoastSummaryModal = ({
                         ))}
                     </div>
 
-                    {!showBbpAside && ambientLine ? (
+                    {!showBbpLive && ambientLine ? (
                         <p className="text-[11px] text-muted font-(--font-mono) tracking-[0.14px] mb-3.5">
                             {ambientLine}
                         </p>
@@ -609,19 +613,6 @@ export const RoastSummaryModal = ({
                     </button>
                 </div>
             </ModalShell>
-            {/*
-            {showBbpAside &&
-                createPortal(
-                    <div className="pointer-events-none fixed inset-0 z-[10001] flex items-center justify-center">
-                        <div className="relative w-full max-w-[420px]">
-                            <div className="pointer-events-auto absolute top-1/2 left-[calc(100%+20px)] w-[clamp(220px,calc((100vw-480px)/2),320px)] -translate-y-1/2">
-                                <RoastSummaryLiveStatus ambientLine={ambientLine || null} />
-                            </div>
-                        </div>
-                    </div>,
-                    document.body,
-                )}
-            */}
         </>
     );
 };
