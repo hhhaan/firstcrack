@@ -79,8 +79,29 @@ export const RoastHeader = ({
     const reconnecting = useRoastingStore((s) => s.reconnecting);
     const user = useAuthStore((s) => s.user);
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
-    const { batchTitleNumbering } = useRoastSettings();
+    const { batchTitleNumbering, batchTitleSource } = useRoastSettings();
     const { data: dbProfiles = [], batchCounters } = useRoastProfiles(workspaceOwnerId);
+    const selectedProfileName = dbProfiles.find((profile) => profile.id === targetProfileId)?.name;
+    useEffect(() => {
+        if (
+            !review &&
+            targetProfileId &&
+            (selectedProfileName !== undefined || batchTitleSource === 'bean') &&
+            preparedOwnerId === workspaceOwnerId
+        ) {
+            const state = useRoastingStore.getState();
+            if (state.phase !== 'roasting' || state.sessionId === runningSessionId)
+                state.setProfileDisplayName(targetProfileId, selectedProfileName ?? '', workspaceOwnerId);
+        }
+    }, [
+        targetProfileId,
+        selectedProfileName,
+        batchTitleSource,
+        workspaceOwnerId,
+        preparedOwnerId,
+        runningSessionId,
+        review,
+    ]);
     const nextNumbers =
         batchCounters && runningSessionId && sessionOwnerId === workspaceOwnerId
             ? {

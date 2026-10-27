@@ -87,6 +87,7 @@ const AUTO_DROP_START_MIN_MIN = 1;
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
 
 const DEFAULT_SETTINGS: RoastSettings = {
+    batchTitleSource: 'bean',
     batchTitleNumbering: 'profile',
     pollIntervalMs: 1000,
     rorSpanSec: 30,
@@ -377,6 +378,7 @@ export const normalizeRoastSettings = (
         eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
         eventButtons: normalizeEventButtons(merged.eventButtons),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
+        batchTitleSource: merged.batchTitleSource === 'profile' ? 'profile' : 'bean',
         batchTitleNumbering:
             merged.batchTitleNumbering === 'total' ||
             merged.batchTitleNumbering === 'both' ||
