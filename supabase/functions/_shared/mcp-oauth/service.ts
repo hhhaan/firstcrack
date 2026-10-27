@@ -45,21 +45,29 @@ export class IssuerService {
             throw new OAuthFailure(result.error, typeof result.status === 'number' ? result.status : 400);
         return result;
     }
-    private only(params: URLSearchParams, keys: string[]) {
-        if ([...params.keys()].some((key) => !keys.includes(key) || params.getAll(key).length !== 1))
+    private only(params: URLSearchParams, keys: string[], allowUnknown = false) {
+        const names = [...new Set([...params.keys()])];
+        if (
+            names.some((key) => params.getAll(key).length !== 1) ||
+            (!allowUnknown && names.some((key) => !keys.includes(key)))
+        )
             throw new OAuthFailure('invalid_request');
     }
     async authorize(params: URLSearchParams) {
-        this.only(params, [
-            'client_id',
-            'redirect_uri',
-            'response_type',
-            'scope',
-            'state',
-            'code_challenge',
-            'code_challenge_method',
-            'resource',
-        ]);
+        this.only(
+            params,
+            [
+                'client_id',
+                'redirect_uri',
+                'response_type',
+                'scope',
+                'state',
+                'code_challenge',
+                'code_challenge_method',
+                'resource',
+            ],
+            true,
+        );
         const redirect = params.get('redirect_uri') ?? '';
         let target: URL;
         try {
