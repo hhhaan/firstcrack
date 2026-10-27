@@ -187,7 +187,7 @@ it('shows the next batch number without adding it to the submitted title', async
     const onSave = vi.fn().mockResolvedValue(undefined);
     const { unmount } = renderModal({ onSave, summaryData: { ...summaryData, batchName: 'Morning roast' } });
     try {
-        expect(document.querySelector('[data-testid="roast-summary-batch-numbers"]')?.textContent).toBe('Σ#13');
+        expect(document.querySelector('[data-testid="roast-summary-batch-numbers"]')?.textContent).toBe('PR #13');
         const save = document.querySelector<HTMLButtonElement>('[data-testid="roast-summary-save"]');
         await act(async () => save?.click());
         expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ batchName: 'Morning roast' }));

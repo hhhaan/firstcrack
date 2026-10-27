@@ -7,7 +7,7 @@ export const sessionBatchNumberLabel = (
 ): string | null =>
     [
         session.profile_batch_number != null ? `#${session.profile_batch_number}` : null,
-        session.total_batch_number != null ? `Σ#${session.total_batch_number}` : null,
+        session.total_batch_number != null ? `PR #${session.total_batch_number}` : null,
     ]
         .filter(Boolean)
         .join(' · ') || null;
