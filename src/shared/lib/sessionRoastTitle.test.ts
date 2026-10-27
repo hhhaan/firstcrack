@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { sessionBatchNumberLabel, sessionDistinctTitle, sessionRoastTitle } from './sessionRoastTitle';
 
 it('renders independent batch metadata and leaves unknown legacy numbers empty', () => {
-    expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: 13 })).toBe('#9 · Σ#13');
-    expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: 13 })).toBe('Σ#13');
+    expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: 13 })).toBe('#9 · PR #13');
+    expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: 13 })).toBe('PR #13');
     expect(sessionBatchNumberLabel({ profile_batch_number: 9, total_batch_number: null })).toBe('#9');
     expect(sessionBatchNumberLabel({ profile_batch_number: null, total_batch_number: null })).toBeNull();
 });
