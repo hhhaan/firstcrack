@@ -151,7 +151,7 @@ export const parseHeaterEvents = (raw: unknown): ReplayEvent[] | null => {
     return events;
 };
 
-/** 프로파일의 저장된 지시를 우선해 차트용 화력 목표 계단선을 만든다. */
+/** null = no profile plan; undefined = a directly selected record's own TSV commands. */
 export const profileHeatTarget = (
     points: ReplayPoint[],
     dropTime: number | null,
@@ -159,7 +159,7 @@ export const profileHeatTarget = (
     referenceTpTime?: number | null,
 ) => {
     const events =
-        profileEvents == null
+        profileEvents === undefined
             ? extractReplayEvents(points, dropTime, referenceTpTime)?.events
             : parseHeaterEvents(profileEvents);
     const end = dropTime ?? points[points.length - 1]?.t;
@@ -383,9 +383,9 @@ export const normalizeHeaterPlan = (
 };
 
 /**
- * 배치 > 프로파일 > TSV(Heat set).
- * 배치/프로파일 값이 있는데 파싱·검증 실패면 TSV로 조용히 대체하지 않는다.
- * profileEvents === null/undefined 만 TSV로 내려간다 (원본 복원).
+ * 배치 편집 > 선택한 기준의 자체 화력 계획.
+ * null은 프로파일 계획 없음, undefined만 직접 선택한 기록의 TSV(Heat set)를 사용한다.
+ * 파싱·검증 실패면 TSV로 조용히 대체하지 않는다.
  * step은 기기 값이 있을 때만. % UI 간격으로 만들지 않는다.
  */
 export const resolveReplayPlan = ({
@@ -418,7 +418,8 @@ export const resolveReplayPlan = ({
         if (batchPlan) return { plan: batchPlan, source: 'batch', overrideInvalid: false };
         return { plan: null, source: 'batch', overrideInvalid: true };
     }
-    if (profileEvents !== undefined && profileEvents !== null) {
+    if (profileEvents === null) return { plan: null, source: null, overrideInvalid: false };
+    if (profileEvents !== undefined) {
         const parsedProfile = parseHeaterEvents(profileEvents);
         const profilePlan = parsedProfile ? normalizeHeaterPlan(parsedProfile, tpTime, bounds) : null;
         if (profilePlan) return { plan: profilePlan, source: 'profile', overrideInvalid: false };

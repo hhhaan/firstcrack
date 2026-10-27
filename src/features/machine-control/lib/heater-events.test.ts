@@ -38,7 +38,8 @@ const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
 describe('profileHeatTarget', () => {
     it('uses profile commands over TSV, cuts off at Drop, and holds the last value', () => {
         const points = curve({ 0: 80, 120: 60, 300: 40 });
-        expect(profileHeatTarget(points, 240, null)).toEqual({ xs: [0, 120, 240], values: [80, 60, 60] });
+        expect(profileHeatTarget(points, 240, undefined)).toEqual({ xs: [0, 120, 240], values: [80, 60, 60] });
+        expect(profileHeatTarget(points, 240, null)).toBeUndefined();
         expect(
             profileHeatTarget(points, 240, [
                 { t: 120, bt: 110, heater: 55 },
@@ -406,11 +407,10 @@ describe('resolveReplayPlan invalid override', () => {
         expect(onlyZero.source).toBe('batch');
     });
 
-    it('원본 복원(null)만 TSV로 돌아간다', () => {
+    it('keeps a profile without its own plan empty even when the reference TSV has commands', () => {
         const resolved = resolveReplayPlan({ points, profileEvents: null });
         expect(resolved.overrideInvalid).toBe(false);
-        expect(resolved.source).toBe('tsv');
-        expect(resolved.plan?.events.map((e) => e.heater)).toEqual([80, 60]);
+        expect(resolved.plan).toBeNull();
     });
 });
 

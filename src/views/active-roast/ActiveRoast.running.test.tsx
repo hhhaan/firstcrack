@@ -387,7 +387,7 @@ describe('ActiveRoast running clock (#627)', () => {
                     }),
                 );
                 expect(composition).toHaveBeenLastCalledWith(
-                    expect.objectContaining({ replayHeaterEvents: heaterEvents }),
+                    expect.objectContaining({ replayHeaterEvents: heaterEvents ?? undefined }),
                 );
                 const result = composition.mock.results[composition.mock.results.length - 1];
                 if (result.type !== 'return') throw new Error('Machine control composition did not render');
@@ -400,6 +400,41 @@ describe('ActiveRoast running clock (#627)', () => {
                 unmount();
                 picker.mockRestore();
                 header.mockRestore();
+                composition.mockRestore();
+            }
+        },
+    );
+
+    it.each([null, [{ t: 0, bt: 180, heater: 60 }]])(
+        'does not replay source record heat for a profile with no plan (%j)',
+        async (sourceHeat) => {
+            const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+            seed({ activeSelection: { ...useRoastingStore.getState().prepared, profileId: 'profile-b' } });
+            const unmount = mount();
+            try {
+                await act(async () => {
+                    queryClient.setQueryData(roastCurveKeys.byPath('source.tsv'), [
+                        { t: 0, bt: 180, heaterSet: 80 },
+                        { t: 60, bt: 100, heaterSet: 80 },
+                        { t: 120, bt: 160, heaterSet: 80 },
+                    ]);
+                    queryClient.setQueryData(roastProfileKeys.all(''), [
+                        {
+                            id: 'profile-b',
+                            user_id: '',
+                            name: 'Profile B',
+                            heater_events: null,
+                            source_session: { tsv_path: 'source.tsv', heater_events: sourceHeat },
+                        },
+                    ]);
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
+                const result = composition.mock.results[composition.mock.results.length - 1];
+                if (result?.type !== 'return') throw new Error('Machine control composition did not render');
+                expect(result.value.replay.plan).toBeNull();
+                expect(result.value.replay.overrideInvalid).toBe(false);
+            } finally {
+                unmount();
                 composition.mockRestore();
             }
         },

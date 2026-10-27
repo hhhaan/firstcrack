@@ -79,6 +79,32 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     };
 };
 
+describe('Replay plan ownership', () => {
+    it('does not reuse recorded commands when the same curve changes to a profile with no plan', async () => {
+        const h = await renderReplay({ profileHeaterEvents: null });
+        try {
+            expect(h.get().plan).toBeNull();
+            expect(h.get().available).toBe(false);
+            expect(h.get().missingHeatSet).toBe(true);
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).not.toHaveBeenCalled();
+
+            await h.rerender({ profileHeaterEvents: undefined });
+            expect(h.get().available).toBe(true);
+            await act(async () => h.get().toggle());
+            expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+
+            await h.rerender({ profileHeaterEvents: null });
+            expect(h.get().plan).toBeNull();
+            expect(h.get().active).toBe(false);
+            expect(h.get().overrideInvalid).toBe(false);
+            expect(h.writeHeater).toHaveBeenCalledTimes(1);
+        } finally {
+            await h.unmount();
+        }
+    });
+});
+
 describe('Replay diagnostics preserve control behavior', () => {
     beforeEach(() => {
         vi.spyOn(logger, 'capture').mockImplementation(() => {

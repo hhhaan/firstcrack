@@ -14,12 +14,7 @@ import {
     parseHeaterEvents,
     type ReplayPlanSource,
 } from '@features/machine-control/lib/heater-events';
-import {
-    extractReplayEvents,
-    type ReplayEvent,
-    type ReplayPoint,
-    resolveReferenceTpTime,
-} from '@features/machine-control/lib/replay';
+import { type ReplayEvent, type ReplayPoint, resolveReferenceTpTime } from '@features/machine-control/lib/replay';
 import { ProfileHeaterEventsEditor } from '@features/machine-control/ui/ProfileHeaterEventsEditor';
 import type { RoastProfile } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -134,15 +129,12 @@ const resolveProfileHeatEditor = (
     const sourceEvents = parseStoredRoastEvents(resolveSourceSession(editingProfile.source_session)?.events);
     const dropTime = sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? editingProfile.duration_sec ?? null;
     const tpTime = resolveReferenceTpTime(points, dropTime, sourceEvents.find((e) => e.type === 'TP')?.time_sec);
-    const extracted = extractReplayEvents(points, dropTime, tpTime);
     const stored = profileHeaterEvents(editingProfile);
     const profileEvents = stored == null ? null : parseHeaterEvents(stored);
-    const storedInvalid = stored != null && profileEvents == null;
-    const storedSource = editingProfile.heater_events == null ? 'session' : 'profile';
     return {
-        events: storedInvalid ? [] : (profileEvents ?? extracted?.events ?? []),
+        events: profileEvents ?? [],
         tpTime,
-        source: profileEvents || storedInvalid ? storedSource : extracted ? 'tsv' : null,
+        source: stored == null ? null : 'profile',
         curveReady: points.length > 0 || stored != null,
     };
 };

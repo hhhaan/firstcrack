@@ -1221,7 +1221,7 @@
             "syncOnStart": "开启或恢复时，将应用参考曲线当前阶段对应的火力。",
             "next": "下一个：{{condition}} → {{heater}}",
             "done": "所有事件已回放",
-            "missingHeatSet": "没有火力操作记录，无法使用 Replay。",
+            "missingHeatSet": "没有可供 Replay 使用的火力计划。",
             "invalidPlan": "火力操作记录不完整，或不符合当前设备的回放条件。",
             "profileChange": {
                 "title": "Replay 进行中",
