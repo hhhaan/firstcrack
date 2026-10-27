@@ -136,34 +136,30 @@ describe('NewProfileModal closed prefetch', () => {
         vi.restoreAllMocks();
     });
 
-    it.each([null, [{ t: 0, bt: 180, heater: 60 }]])(
-        'opens an empty profile plan without borrowing source heat (%j)',
-        async (sourceHeat) => {
-            vi.spyOn(sidecar, 'getStatus').mockResolvedValue({
-                connected: false,
-                control: { writable: false, limits: {} },
-            } as never);
-            qc.setQueryData(roastCurveKeys.byPath('curves/s1.tsv'), [
-                { t: 0, bt: 180, heaterSet: 80 },
-                { t: 60, bt: 100, heaterSet: 80 },
-            ]);
-            await renderModal({ open: true, editing: true, sourceHeat });
-            await act(async () =>
-                [...document.querySelectorAll('button')]
-                    .find((button) => button.textContent === 'heaterEventsEditor.editHeat')
-                    ?.click(),
-            );
-            await flush();
-            const editor = document.querySelector('[data-testid="heater-events-editor"]');
-            expect(editor).not.toBeNull();
-            expect(editor?.querySelectorAll('tbody tr')).toHaveLength(0);
-            expect(editor?.textContent).toContain('heaterEventsEditor.sourceProfile');
-            expect(editor?.textContent).not.toContain('heaterEventsEditor.sourceTsv');
-            expect(editor?.textContent).not.toContain('heaterEventsEditor.revert');
-        },
-    );
+    it('opens the roast record TSV heat when that record has no saved plan', async () => {
+        vi.spyOn(sidecar, 'getStatus').mockResolvedValue({
+            connected: false,
+            control: { writable: false, limits: {} },
+        } as never);
+        qc.setQueryData(roastCurveKeys.byPath('curves/s1.tsv'), [
+            { t: 0, bt: 180, heaterSet: 80 },
+            { t: 60, bt: 100, heaterSet: 80 },
+        ]);
+        await renderModal({ open: true, editing: true, profileHeat: [{ t: 0, bt: 180, heater: 70 }] });
+        await act(async () =>
+            [...document.querySelectorAll('button')]
+                .find((button) => button.textContent === 'heaterEventsEditor.editHeat')
+                ?.click(),
+        );
+        await flush();
+        const editor = document.querySelector('[data-testid="heater-events-editor"]');
+        const heat = editor?.querySelector<HTMLInputElement>('tbody input[aria-label="heaterEventsEditor.heat"]');
+        expect(heat?.value).toBe('80');
+        expect(editor?.textContent).toContain('heaterEventsEditor.sourceTsv');
+        expect(editor?.textContent).not.toContain('heaterEventsEditor.revert');
+    });
 
-    it('edits the profile plan without offering to restore source record heat', async () => {
+    it('opens the roast record heat plan', async () => {
         vi.spyOn(sidecar, 'getStatus').mockResolvedValue({
             connected: false,
             control: { writable: false, limits: {} },
@@ -186,8 +182,9 @@ describe('NewProfileModal closed prefetch', () => {
         await flush();
         const editor = document.querySelector('[data-testid="heater-events-editor"]');
         const heat = editor?.querySelector<HTMLInputElement>('tbody input[aria-label="heaterEventsEditor.heat"]');
-        expect(heat?.value).toBe('70');
-        expect(editor?.textContent).not.toContain('heaterEventsEditor.revert');
+        expect(heat?.value).toBe('60');
+        expect(editor?.textContent).toContain('heaterEventsEditor.sourceSession');
+        expect(editor?.textContent).toContain('heaterEventsEditor.revert');
     });
 
     it('does not list sessions, beans, blends, or curves while closed', async () => {

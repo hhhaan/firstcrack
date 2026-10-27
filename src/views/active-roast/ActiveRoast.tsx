@@ -3,7 +3,6 @@ import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
 import { useBbpCurve } from '@entities/roast';
 import {
-    profileHeaterEvents,
     resolveSourceSession,
     useResolvedProfileCurve,
     useRoastProfileCurve,
@@ -318,7 +317,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     );
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
-    // 히스토리 기록은 그 자체로 프로파일 역할이다. 곡선, 화력, Drop/TP는 그 기록에서 온다.
+    // 곡선과 화력은 그 로스트 기록의 것이다. 프로파일은 화력을 따로 갖지 않는다.
     const sourceEvents = useMemo(
         () =>
             parseStoredRoastEvents(
@@ -334,7 +333,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [sourceEvents, reference, targetProfile?.duration_sec],
     );
     const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
-    const heatEvents = reference ? (reference.heaterEvents ?? undefined) : profileHeaterEvents(targetProfile);
+    const storedHeat = reference ? reference.heaterEvents : sourceSession?.heater_events;
+    const heatEvents = storedHeat ?? undefined;
     const referenceLog = useMemo(() => {
         const name = reference?.name ?? targetProfile?.name;
         if (!name) return undefined;

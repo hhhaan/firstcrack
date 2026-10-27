@@ -1,11 +1,12 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { roastSessionApi } from '@entities/roast';
 import {
     profileHeaterEvents,
     type RoastProfileUpdate,
     type RoastProfileWithSource,
     resolveSourceSession,
+    roastProfileKeys,
     useResolvedProfileCurve,
-    useUpdateRoastProfile,
 } from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
@@ -14,11 +15,17 @@ import {
     parseHeaterEvents,
     type ReplayPlanSource,
 } from '@features/machine-control/lib/heater-events';
-import { type ReplayEvent, type ReplayPoint, resolveReferenceTpTime } from '@features/machine-control/lib/replay';
+import {
+    extractReplayEvents,
+    type ReplayEvent,
+    type ReplayPoint,
+    resolveReferenceTpTime,
+} from '@features/machine-control/lib/replay';
 import { ProfileHeaterEventsEditor } from '@features/machine-control/ui/ProfileHeaterEventsEditor';
 import type { RoastProfile } from '@shared/types/database.types';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNewProfileForm } from '../model/useNewProfileForm';
 import { ProfileFormBody } from './ProfileFormBody';
@@ -52,7 +59,7 @@ const NewProfileModalOpen = ({
 }: Omit<NewProfileModalProps, 'open'>) => {
     const form = useNewProfileForm({ onClose, onCreated, editingProfile, onUpdated, initialSessionId });
     const { workspaceOwnerId } = useActiveWorkspace();
-    const { mutateAsync: updateRoastProfile } = useUpdateRoastProfile(workspaceOwnerId);
+    const queryClient = useQueryClient();
     const unit = useRoastSettings().temperatureUnit;
     const [heatOpen, setHeatOpen] = useState(false);
     const { points } = useResolvedProfileCurve(editingProfile ?? null);
@@ -94,6 +101,7 @@ const NewProfileModalOpen = ({
             </ModalShell>
             {heatOpen && editingProfile && (
                 <ProfileHeaterEventsEditor
+                    mode="history"
                     profile={editingProfile}
                     events={heatEditor.events}
                     tpTime={heatEditor.tpTime}
@@ -102,10 +110,10 @@ const NewProfileModalOpen = ({
                     unit={unit}
                     onClose={() => setHeatOpen(false)}
                     onApply={async (events) => {
-                        await updateRoastProfile({
-                            id: editingProfile.id,
-                            heater_events: events ? heaterEventsToJson(events) : null,
-                        });
+                        const sessionId = editingProfile.source_session_id;
+                        if (!sessionId) return;
+                        await roastSessionApi.setHeaterEvents(sessionId, events ? heaterEventsToJson(events) : null);
+                        await queryClient.invalidateQueries({ queryKey: roastProfileKeys.all(workspaceOwnerId) });
                         setHeatOpen(false);
                     }}
                 />
@@ -126,15 +134,17 @@ const resolveProfileHeatEditor = (
     if (!editingProfile) {
         return { events: [], tpTime: Number.POSITIVE_INFINITY, source: null, curveReady: false };
     }
-    const sourceEvents = parseStoredRoastEvents(resolveSourceSession(editingProfile.source_session)?.events);
+    const source = resolveSourceSession(editingProfile.source_session);
+    const sourceEvents = parseStoredRoastEvents(source?.events);
     const dropTime = sourceEvents.find((e) => e.type === 'Drop')?.time_sec ?? editingProfile.duration_sec ?? null;
     const tpTime = resolveReferenceTpTime(points, dropTime, sourceEvents.find((e) => e.type === 'TP')?.time_sec);
     const stored = profileHeaterEvents(editingProfile);
-    const profileEvents = stored == null ? null : parseHeaterEvents(stored);
+    const saved = stored == null ? null : parseHeaterEvents(stored);
+    const recorded = points.length > 0 ? extractReplayEvents(points, dropTime, tpTime)?.events : null;
     return {
-        events: profileEvents ?? [],
+        events: saved ?? recorded ?? [],
         tpTime,
-        source: stored == null ? null : 'profile',
-        curveReady: points.length > 0 || stored != null,
+        source: saved ? 'session' : recorded ? 'tsv' : null,
+        curveReady: points.length > 0 || saved != null,
     };
 };

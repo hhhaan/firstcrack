@@ -16,6 +16,7 @@ export {
     type BeanHistoryItem,
     type ConsistencySessionRow,
     type ProfileCurveSource,
+    roastProfileKeys,
     useCreateRoastProfile,
     useDeleteRoastProfile,
     useProfileBeanHistory,

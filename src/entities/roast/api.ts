@@ -233,6 +233,15 @@ export const roastSessionApi = {
         if (error) throw error;
     },
 
+    /** Heat set of one roast record. Does not change its curve or the profile row. */
+    setHeaterEvents: async (sessionId: string, heaterEvents: Json | null): Promise<void> => {
+        const { error } = await supabase
+            .from('roast_sessions')
+            .update({ heater_events: heaterEvents })
+            .eq('id', sessionId);
+        if (error) throw error;
+    },
+
     /**
      * History edit of a saved record (#623). Compare-and-swap on events/heater_events:
      * a concurrent edit fails with PT409 instead of being overwritten. No stock side effects.

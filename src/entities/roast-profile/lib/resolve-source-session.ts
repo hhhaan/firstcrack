@@ -16,7 +16,7 @@ export const resolveSourceSession = (sourceSession: SourceSessionJoin): SourceSe
     return sourceSession;
 };
 
-/** Profiles own their Replay plan; source records only supply reference measurements. */
+/** Heat set of the source roast record. The profile does not keep a second plan. */
 export const profileHeaterEvents = (
     profile: { heater_events?: unknown; source_session?: SourceSessionJoin } | null | undefined,
-): unknown => profile?.heater_events ?? null;
+): unknown => resolveSourceSession(profile?.source_session)?.heater_events ?? null;

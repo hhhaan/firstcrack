@@ -28,8 +28,12 @@ describe('reference log', () => {
         };
         const before = JSON.stringify(profile);
         expect(buildProfileReferenceLog(profile, points, 'C').map((entry) => entry.timeSec)).toEqual([90, 300]);
-        // Replay must still honor the operator's BT rules without changing their coordinates.
-        expect(resolveReplayPlan({ points, profileEvents: profileHeaterEvents(profile) }).plan?.events).toEqual(rules);
+        expect(
+            resolveReplayPlan({ points, profileEvents: profileHeaterEvents(profile) ?? undefined }).plan?.events,
+        ).toEqual([
+            { t: 90, bt: 120, heater: 70 },
+            { t: 300, bt: 170, heater: 40 },
+        ]);
         expect(JSON.stringify(profile)).toBe(before);
     });
 

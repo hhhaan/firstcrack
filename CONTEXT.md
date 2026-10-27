@@ -131,8 +131,8 @@ _Avoid_: Feedforward.
 _Avoid_: The live batch. The account profile.
 
 **Profile source roast**:
-기준 로스트. 로스팅 프로파일이 반드시 하나 가리키는 완료된 로스트. 프로파일 곡선은 이 로스트를 따른다. 저장된 기준이 그 프로파일의 완료 로스트에 없으면 가장 최근 완료 로스트가 기준이 된다. 완료 로스트가 없으면 새로 지정하지 않는다.
-_Avoid_: Reference roast. 또 다른 프로파일.
+기준 로스트. 프로파일이 가리키는 완료된 로스트 기록이다. 곡선과 화력은 그 기록의 것이고, 프로파일은 화력을 따로 갖지 않는다. 기준을 바꾸면 보이는 화력은 그 기록의 화력이다. 저장된 기준이 그 프로파일의 완료 로스트에 없으면 가장 최근 완료 로스트가 기준이 된다. 완료 로스트가 없으면 새로 지정하지 않는다.
+_Avoid_: Reference roast. 또 다른 프로파일. A second heat plan stored on the profile.
 
 **Recorded heat set**:
 기록된 화력 명령. A Heat set retained from a reference roast, together with the elapsed time from Charge and BT at which it was recorded. Those observations describe the past command; they do not by themselves define its replay condition.
@@ -155,8 +155,8 @@ _Avoid_: A manual gas change.
 _Avoid_: A temperature-curve target as a synonym for a command's replay condition.
 
 **Gas replay**:
-기준 로스팅에 기록된 Heat set 명령의 재생. 기계가 보고한 Heat feedback 곡선과는 구별된다.
-_Avoid_: Replaying bean temperature as if it were the gas command.
+곡선을 낸 로스트 기록의 Heat set 명령의 재생. 기계가 보고한 Heat feedback 곡선과는 구별된다.
+_Avoid_: Replaying bean temperature as if it were the gas command. Heat recorded on a different roast.
 
 ## Production
 

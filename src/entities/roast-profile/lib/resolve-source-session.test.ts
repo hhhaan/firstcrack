@@ -6,13 +6,13 @@ describe('profileHeaterEvents', () => {
     const profileEdit = [{ t: 0, bt: 200, heater: 80 }];
     const source = { tsv_path: 'a.tsv', heater_events: sessionEdit };
 
-    it('profile override wins over the edited source record', () => {
-        expect(profileHeaterEvents({ heater_events: profileEdit, source_session: source })).toBe(profileEdit);
+    it('uses the source roast record, not a plan stored on the profile', () => {
+        expect(profileHeaterEvents({ heater_events: profileEdit, source_session: source })).toBe(sessionEdit);
+        expect(profileHeaterEvents({ heater_events: profileEdit, source_session: [source] })).toBe(sessionEdit);
     });
 
-    it('does not borrow a missing plan from the source record', () => {
-        expect(profileHeaterEvents({ heater_events: null, source_session: [source] })).toBeNull();
-        expect(profileHeaterEvents({ heater_events: null, source_session: { tsv_path: 'a.tsv' } })).toBeNull();
+    it('has no saved heat when the roast record has none', () => {
+        expect(profileHeaterEvents({ heater_events: profileEdit, source_session: { tsv_path: 'a.tsv' } })).toBeNull();
         expect(profileHeaterEvents(null)).toBeNull();
     });
 });
