@@ -1602,7 +1602,7 @@
             "syncOnStart": "켜거나 다시 켜면 현재 기준의 레퍼런스 화력이 적용됩니다.",
             "next": "다음: {{condition}} → {{heater}}",
             "done": "모든 이벤트 재생 완료",
-            "missingHeatSet": "화력 조작 기록이 없어 Replay를 사용할 수 없습니다.",
+            "missingHeatSet": "재생할 화력 계획이 없습니다.",
             "invalidPlan": "화력 기록이 불완전하거나 현재 기기의 재생 조건에 맞지 않습니다.",
             "profileChange": {
                 "title": "Replay 실행 중",

@@ -1227,7 +1227,7 @@
             "syncOnStart": "Starting or resuming applies the reference heat for the current point.",
             "next": "Next: {{condition}} → {{heater}}",
             "done": "All events replayed",
-            "missingHeatSet": "Replay needs a recorded heat-set history.",
+            "missingHeatSet": "No heat plan is available for Replay.",
             "invalidPlan": "The heat command record is incomplete or incompatible with replay on this machine.",
             "profileChange": {
                 "title": "Replay is running",

@@ -334,7 +334,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [sourceEvents, reference, targetProfile?.duration_sec],
     );
     const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
-    const heatEvents = reference ? reference.heaterEvents : profileHeaterEvents(targetProfile);
+    const heatEvents = reference ? (reference.heaterEvents ?? undefined) : profileHeaterEvents(targetProfile);
     const referenceLog = useMemo(() => {
         const name = reference?.name ?? targetProfile?.name;
         if (!name) return undefined;

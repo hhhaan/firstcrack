@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
-import {
-    eventTrigger,
-    extractReplayEvents,
-    hasHeatSetRecord,
-    judgeReplay,
-    type ReplayEvent,
-    type ReplayPoint,
-} from '../lib/replay';
+import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 import { deliverReplayStep } from '../lib/replayDelivery';
 import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 
@@ -30,7 +23,7 @@ export interface ReplayControlInputs {
     referenceDropTime: number | null;
     /** 저장된 기준 TP. 이번 배치의 실제 TP 게이트와 별개다. */
     referenceTpTime?: number | null;
-    /** 프로파일 heater_events jsonb — null이면 TSV 추출 (#435) */
+    /** 자체 화력 계획. null = 프로파일 계획 없음; undefined = 직접 선택한 기록의 TSV. */
     profileHeaterEvents?: unknown;
     /** Raw BT, gated by collection-boundary `observationQuality`; never display EMA. */
     liveBt: number | null;
@@ -145,7 +138,7 @@ const replayReferenceKey = (points: ReplayPoint[] | null): string => {
     return key;
 };
 
-const replayProfileEventsKey = (events: unknown): string => (events == null ? '' : (JSON.stringify(events) ?? ''));
+const replayProfileEventsKey = (events: unknown): string => JSON.stringify(events) ?? 'recorded';
 
 /**
  * Replay Assist 수명 관리 (#300). 판정은 lib/replay의 순수 함수가 하고,
@@ -183,10 +176,6 @@ export const useReplayControl = ({
     heaterMin,
     heaterStep,
 }: ReplayControlInputs) => {
-    const hasHeatSet = useMemo(
-        () => hasHeatSetRecord(referencePoints, referenceDropTime),
-        [referencePoints, referenceDropTime],
-    );
     const minHeater = heaterMin ?? 0;
     const maxHeater = heaterMax ?? 100;
     const pointsKey = replayReferenceKey(referencePoints);
@@ -589,13 +578,8 @@ export const useReplayControl = ({
         available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
         /** 타겟 곡선 로딩 중 — 이전 계획/기록 없음 문구를 쓰지 않는다 */
         referenceLoading: referencePoints == null,
-        /** 로드된 레퍼런스에 Heat set 조작 기록이 없다. 실측만 있는 구 TSV 포함 */
-        missingHeatSet:
-            referencePoints != null &&
-            !hasHeatSet &&
-            planSource !== 'profile' &&
-            planSource !== 'batch' &&
-            !overrideInvalid,
+        /** 선택한 기준에 재생할 자체 화력 계획이 없다. */
+        missingHeatSet: referencePoints != null && resolvedPlan == null && !overrideInvalid,
         /** 다른 기종 기록 — UI 힌트 분리용 */
         machineMismatch: referenceMachineMismatch,
         /** 지금 켤 수 없는 상태(PID 점유 등) — 토글이 침묵 무시되므로 UI는 disabled로 보여야 한다 */

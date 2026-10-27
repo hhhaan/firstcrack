@@ -229,15 +229,14 @@ export const HeaterEventsEditor = ({
     };
 
     const sourceLabel =
-        source === 'batch'
-            ? t('heaterEventsEditor.sourceBatch')
-            : source === 'profile'
-              ? t('heaterEventsEditor.sourceProfile')
+        mode === 'profile' || source === 'profile'
+            ? t('heaterEventsEditor.sourceProfile')
+            : source === 'batch'
+              ? t('heaterEventsEditor.sourceBatch')
               : source === 'session'
                 ? t('heaterEventsEditor.sourceSession')
                 : t('heaterEventsEditor.sourceTsv');
-    // Profile mode inherits a record edit; reverting there would be a no-op on the profile.
-    const canRevert = source != null && source !== 'tsv' && !(mode === 'profile' && source === 'session');
+    const canRevert = mode !== 'profile' && source != null && source !== 'tsv';
 
     return (
         <ModalShell

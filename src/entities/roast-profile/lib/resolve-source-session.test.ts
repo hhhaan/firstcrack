@@ -10,8 +10,8 @@ describe('profileHeaterEvents', () => {
         expect(profileHeaterEvents({ heater_events: profileEdit, source_session: source })).toBe(profileEdit);
     });
 
-    it('falls back to the edited source record, then null (recorded TSV)', () => {
-        expect(profileHeaterEvents({ heater_events: null, source_session: [source] })).toBe(sessionEdit);
+    it('does not borrow a missing plan from the source record', () => {
+        expect(profileHeaterEvents({ heater_events: null, source_session: [source] })).toBeNull();
         expect(profileHeaterEvents({ heater_events: null, source_session: { tsv_path: 'a.tsv' } })).toBeNull();
         expect(profileHeaterEvents(null)).toBeNull();
     });
