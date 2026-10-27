@@ -90,12 +90,26 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
     };
 };
 
-it('keeps the live BBP readout parked off the summary', () => {
+it('keeps live BBP time visible and ticking inside the summary while saving', () => {
+    vi.useFakeTimers();
     useBbpStore.setState({ active: true, recording: true, startMs: Date.now() - 15_000, points: [] });
-    const { unmount } = renderModal({ bbpEnabled: true, ambientTemp: 13, ambientHumidity: 60 });
-    const dialog = document.querySelector('[role="dialog"]');
+    const { unmount } = renderModal({ bbpEnabled: true, isSaving: true, ambientTemp: 13, ambientHumidity: 60 });
+    try {
+        const dialog = document.querySelector('[role="dialog"]');
+        expect(dialog?.querySelector('[data-testid="roast-summary-bbp"]')?.textContent).toContain('0:15');
+        act(() => vi.advanceTimersByTime(2_000));
+        expect(dialog?.querySelector('[data-testid="roast-summary-bbp"]')?.textContent).toContain('0:17');
+        expect(dialog?.textContent).toContain('activeRoast.summary.temperature 13°C');
+    } finally {
+        unmount();
+        vi.useRealTimers();
+    }
+});
+
+it('hides the live BBP readout when BBP is disabled', () => {
+    useBbpStore.setState({ active: true, recording: true, startMs: Date.now() - 15_000, points: [] });
+    const { unmount } = renderModal({ bbpEnabled: false });
     expect(document.querySelector('[data-testid="roast-summary-bbp"]')).toBeNull();
-    expect(dialog?.textContent).toContain('activeRoast.summary.temperature 13°C');
     unmount();
 });
 
