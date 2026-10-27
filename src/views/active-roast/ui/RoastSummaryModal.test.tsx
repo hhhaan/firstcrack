@@ -99,7 +99,9 @@ it('keeps live BBP time visible and ticking inside the summary while saving', ()
         const bbp = dialog?.querySelector('[data-testid="roast-summary-bbp"]');
         const save = dialog?.querySelector('[data-testid="roast-summary-save"]');
         expect(bbp?.parentElement).toBe(save?.parentElement);
-        expect(dialog?.querySelector('.overflow-y-auto')?.querySelector('[data-testid="roast-summary-bbp"]')).toBeNull();
+        expect(
+            dialog?.querySelector('.overflow-y-auto')?.querySelector('[data-testid="roast-summary-bbp"]'),
+        ).toBeNull();
         expect(bbp?.textContent).toContain('0:15');
         expect(bbp?.textContent).not.toContain('activeRoast.summary.temperature');
         act(() => vi.advanceTimersByTime(2_000));
