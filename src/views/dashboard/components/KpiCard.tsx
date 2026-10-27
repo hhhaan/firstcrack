@@ -33,7 +33,7 @@ export const KpiCard = ({
     return (
         <section className={cn('flex min-w-0 flex-col p-6 lg:p-8', className)}>
             <div className="mb-4 flex min-h-6 items-center justify-between gap-3">
-                <h2 className="text-lg font-[450] leading-7 tracking-[0.24px] text-primary">{label}</h2>
+                <h2 className="text-base font-[450] leading-6 tracking-[0.24px] text-primary">{label}</h2>
                 {onRefresh && (
                     <button
                         type="button"

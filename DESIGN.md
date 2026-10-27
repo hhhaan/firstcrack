@@ -225,7 +225,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 | 요소 | Size | Weight | Tracking | 기타 |
 |---|---|---|---|---|
 | Page Title (h1) | `24px` | Medium (`500`) | `0.24px` | `line-height: 32px` |
-| 패널 타이틀 | `18px` | `450` | `0.24px` | `line-height: 28px` |
+| 패널 타이틀 | `16px` | `450` | `0.24px` | `line-height: 24px` |
 | Dashboard KPI Value | `30px`, xl `48px` | `450`, xl `350` | `0.24px` | `36px`, xl `48px` line-height |
 | 본문 | `14–16px` | Regular/Medium | `+0.14px` | |
 | 작은 텍스트 | `13px` | Medium | `+0.14px` | 버튼, 테이블 셀 |
@@ -245,7 +245,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 
 The ten primary views share an inset content panel in `src/App.tsx`: 0px top and 8px right/bottom margin, 16px corners, `bg-main-bg`, and a 1px border and `shadow-xs`. The sidebar shares the shell background (`shell-bg`); its current item uses `main-bg` with a border and `shadow-xs`. Its logo header uses 12px top and 8px bottom padding. Settings applies the same panel geometry in `SettingsLayout`, using `shell-bg` for its light navigation/frame and `main-bg` for content; its dark navigation uses the same `shell-bg` frame. Its navigation starts with 12px top padding. Active roast uses 24px top/side padding, 12px bottom padding and no extra header gap; its windowed chart frame has no extra horizontal padding and uses 20px vertical padding to clear the legends. The chart retains fixed height with independently scrolling control/sensor panels. Dashboard overview and supporting panels use `main-bg` with 16px corners and thin `border` dividers. Windows 11 keeps native window decorations and uses `shell-bg` (`#F3F4F6`) for the titlebar with `primary` (`#101828`) text, applied in `src-tauri/src/window_chrome.rs`; Windows 10 falls back to a native light titlebar. These native colors follow the current light-only app theme.
 
-Settings content is centered at a maximum of 680px, or 760px for roasting controls. Sections use 18px/28px medium headings, 32px spacing, and 16px rounded cards with thin row dividers. Row labels are 14px with 12px muted descriptions. Independent preferences use right-aligned switches; multi-selection uses left-aligned checkboxes and exclusive choices use radios. Profile forms place labels above inputs and pair business fields on wider screens.
+Settings content is centered at a maximum of 680px, or 760px for roasting controls. Sections use 16px/24px medium headings, 32px spacing, and 16px rounded cards with thin row dividers. Row labels are 14px with 12px muted descriptions. Independent preferences use right-aligned switches; multi-selection uses left-aligned checkboxes and exclusive choices use radios. Profile forms place labels above inputs and pair business fields on wider screens.
 
 ---
 
@@ -310,7 +310,7 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 
 - 위치: `src/views/dashboard/components/KpiSection.tsx`, `KpiCard.tsx`
 - 하나의 `bg-main-bg rounded-2xl border border-border` 패널. 큰 화면에서 로스팅량 2열 + 배치 수 1열, 다음 행에 평균 시간·선물가·월별 배치 3칸
-- 각 셀 `p-6 lg:p-8`, 얇은 구분선. 값 `30px / 450 / 36px`, xl `48px / 350 / 48px`, 라벨 `18px / 450 / 28px`, 날짜 `12px`
+- 각 셀 `p-6 lg:p-8`, 얇은 구분선. 값 `30px / 450 / 36px`, xl `48px / 350 / 48px`, 라벨 `16px / 450 / 24px`, 날짜 `12px`
 - 전월/전일 종가 비교는 중성 텍스트. 증감을 성공·실패 색으로 단정하지 않음
 - `MetricTrendChart`: 실제 기록 기반 일별/월별 선 차트. 로스팅 없는 날은 수량 0, 누락된 시간은 null; 단일 유효 관측값은 점으로 표시
 - 날짜 범위는 이번 달 1일~오늘. 월별 배치는 최근 6개월 합계와 추이. 대시보드 제목은 24px / 500 / 32px
@@ -349,7 +349,7 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 **Active Roast** — 센서 차트(uPlot) + 이벤트 + 머신 컨트롤  
 **Bean / Profiles / Machines** — 마스터-디테일 (`MasterDetailLayout`): 1024px 미만 한 열, 이후 300px 목록 + 유동 상세, 1280px 이상 목록 350px. 상세는 큰 화면에서만 sticky
 **Schedule** — 공통 페이지 제목 + 일·주·월 토글, 테두리 패널 안 날짜 탐색·캘린더. 배치 목록은 패널 안에서 독립 스크롤
-**Pricing** — 18px 패널 제목·30px/48px 결과 수치. 1280px 이상 원가/판매가 2열, 작은 화면 한 열
+**Pricing** — 16px 패널 제목·30px/48px 결과 수치. 1280px 이상 원가/판매가 2열, 작은 화면 한 열
 
 ---
 

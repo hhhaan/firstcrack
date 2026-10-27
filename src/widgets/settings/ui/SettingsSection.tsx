@@ -27,7 +27,7 @@ function SettingsSectionHeader({
 }) {
     return (
         <header className="min-w-0">
-            <h2 className="m-0 flex items-center gap-2 text-lg font-medium leading-7 tracking-tight text-primary">
+            <h2 className="m-0 flex items-center gap-2 text-base font-medium leading-6 tracking-tight text-primary">
                 {icon && (
                     <span className="text-muted" aria-hidden>
                         {icon}

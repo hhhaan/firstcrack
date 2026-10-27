@@ -14,7 +14,7 @@ export const PricingSection = ({ step, title, children }: PricingSectionProps) =
                     {step}
                 </span>
             )}
-            <h2 className="text-lg font-[450] leading-7 text-primary tracking-[0.24px]">{title}</h2>
+            <h2 className="text-base font-[450] leading-6 text-primary tracking-[0.24px]">{title}</h2>
         </div>
         {children}
     </section>

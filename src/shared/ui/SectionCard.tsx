@@ -33,7 +33,7 @@ function SectionCardHeader({ title, description, icon }: SectionCardHeaderProps)
                 <span className="mt-0.5 text-muted shrink-0 [&>svg]:block">{icon}</span>
             )}
             <div className="min-w-0 flex-1">
-                <h4 className="text-lg font-[450] leading-7 text-primary m-0 leading-snug">{title}</h4>
+                <h4 className="m-0 text-base font-[450] leading-6 text-primary">{title}</h4>
                 {description !== undefined && description !== null && (
                     <p className="text-[13px] text-muted m-0 mt-1 leading-relaxed">{description}</p>
                 )}
