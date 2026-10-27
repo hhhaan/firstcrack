@@ -103,7 +103,7 @@ export const eventLabelText = (event: string, timeSec: number, temp: string, not
     if (event === 'Note') {
         name = note?.trim() || event;
     } else if (event === 'Heater' && note) {
-        name = `${event}→${note}`;
+        name = note;
     } else {
         name = roastEventLabel(event);
     }

@@ -35,7 +35,7 @@ describe('roast event locale labels', () => {
         expect(roastReadyLabel()).toBe('Roast Ready');
         expect(eventLabelText('Note', 90, '160°C', 'check aroma')).toBe('check aroma|01:30|160°C');
         expect(eventLabelText('Note', -180, '195°C', 'soak')).toBe('soak|-03:00|195°C');
-        expect(eventLabelText('Heater', 30, '—', '60%')).toBe('Heater→60%|00:30');
+        expect(eventLabelText('Heater', 30, '—', '60%')).toBe('60%|00:30');
         expect(eventLabelText('Note', 483, '', '가스 메모')).toBe('가스 메모|08:03');
     });
 

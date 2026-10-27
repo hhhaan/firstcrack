@@ -323,7 +323,7 @@ describe('RoastTempChart interactions', () => {
             );
             const reference = rendered.children.find(
                 (child: { type: string; style?: { text?: string } }) =>
-                    child.type === 'text' && child.style?.text?.startsWith('Heater'),
+                    child.type === 'text' && child.style?.text?.startsWith('50%'),
             );
             const scale = fontScalePct / 100;
             expect(label.style.text).toBe('Yellow|00:05|185.0°C');

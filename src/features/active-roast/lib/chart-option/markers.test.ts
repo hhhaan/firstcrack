@@ -85,7 +85,7 @@ it.each(['0%', '60%', '2.5 kPa'])('draws original reference heat events for %s w
             y: 204,
             color: colors.eventControl,
             opacity: REFERENCE_CURVE_OPACITY,
-            text: `Heater→${note}|10:30|204.0°C`,
+            text: `${note}|10:30|204.0°C`,
         }),
     );
 });
@@ -107,7 +107,7 @@ it.each([false, true])('renders event text and points with source opacity (refer
         expect.objectContaining({ type: 'circle', style: expect.objectContaining(style) }),
         expect.objectContaining({
             type: 'text',
-            style: expect.objectContaining({ ...style, text: 'Heater→60%|09:00|204.0°C' }),
+            style: expect.objectContaining({ ...style, text: '60%|09:00|204.0°C' }),
         }),
     ]);
 });
@@ -285,7 +285,7 @@ describe('event marker visual grammar', () => {
             showDot: false,
         });
         expect(result.curveLabels[1]).toMatchObject({
-            text: 'Heater→50%|09:00|200.0°C',
+            text: '50%|09:00|200.0°C',
             color: '#c00',
             y: 202,
             showDot: false,
@@ -375,7 +375,7 @@ describe('layoutCurveLabelBoxes', () => {
         );
         const labels = rendered?.children.filter((child) => child.type === 'text').sort((a, b) => a.y - b.y);
         expect(labels?.map((label) => label.style.text)).toEqual([
-            'Heater→70%|00:02|180.0°C',
+            '70%|00:02|180.0°C',
             'Yellow|00:03|175.0°C',
             '00:04 | 170.0°C\nCheck\naroma',
             'Fan 50|00:05',
@@ -569,7 +569,7 @@ describe('layoutCurveLabelBoxes', () => {
     it('stacks same-spot labels so their boxes do not overlap', () => {
         const [first, second] = layoutCurveLabelBoxes([
             item({ timeSec: 490, text: 'FC Start | 08:10 | 185.8°C' }),
-            item({ timeSec: 490, text: 'Heater→35%|08:10|185.8°C' }),
+            item({ timeSec: 490, text: '35%|08:10|185.8°C' }),
         ]);
         expect(first.bottom + MARKER_LABEL_GAP_PX).toBeLessThanOrEqual(second.top);
         expect(second.textY).toBe(first.textY + (MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX));
@@ -578,7 +578,7 @@ describe('layoutCurveLabelBoxes', () => {
     it('keeps a later Drop below the earlier FC cluster instead of overlapping', () => {
         const boxes = layoutCurveLabelBoxes([
             item({ timeSec: 490, xPx: 800, yPx: 120, text: 'FC Start | 08:10 | 185.8°C' }),
-            item({ timeSec: 490, xPx: 800, yPx: 120, text: 'Heater→35%|08:10|185.8°C' }),
+            item({ timeSec: 490, xPx: 800, yPx: 120, text: '35%|08:10|185.8°C' }),
             item({ timeSec: 520, xPx: 820, yPx: 110, text: 'FC Rolling | 08:40 | 191.5°C', below: true }),
             item({ timeSec: 630, xPx: 900, yPx: 90, text: 'Drop | 10:30 | 207.0°C' }),
         ]);
