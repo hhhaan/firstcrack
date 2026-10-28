@@ -4,6 +4,7 @@ description = "Allow native desktop commands from the main application window."
 commands.allow = [
     "relaunch_for_update",
     "sidecar_token",
+    "update_menu_bar_metrics",
     "read_firescope_settings",
     "read_artisan_settings",
     "read_cropster_settings",

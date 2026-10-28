@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.7", features = [] }
 
 [dependencies]
-tauri = { version = "2.12", features = ["tray-icon", "image-png"] }
+tauri = { version = "2.12", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-opener = "2.7"
 # 2.8.2 depends on tauri-plugin-fs ^2.7, a minor ahead of @tauri-apps/plugin-fs.
@@ -53,11 +53,29 @@ windows = { version = "0.62", features = ["Win32_UI_Input_KeyboardAndMouse"] }
 
 # App Nap 억제 (#308). beginActivity 토큰을 프로세스 수명 동안 보유.
 [target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+    "std",
+    "NSStatusBar",
+    "NSStatusItem",
+    "NSStatusBarButton",
+    "NSButton",
+    "NSControl",
+    "NSView",
+    "NSTextField",
+    "NSFont",
+    "NSFontDescriptor",
+    "NSColor",
+    "NSCell",
+    "NSLayoutConstraint",
+    "objc2-core-foundation",
+] }
 objc2 = { version = "0.6", default-features = false, features = ["std"] }
 objc2-foundation = { version = "0.3", default-features = false, features = [
     "std",
     "NSProcessInfo",
     "NSString",
+    "NSGeometry",
+    "objc2-core-foundation",
 ] }
 
 [profile.release]

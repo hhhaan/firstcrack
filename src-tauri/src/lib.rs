@@ -1,4 +1,6 @@
 mod app_nap;
+#[cfg(desktop)]
+mod menu_bar_metrics;
 mod browser_defaults;
 #[cfg(desktop)]
 mod poll_clock;
@@ -502,6 +504,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             relaunch_for_update,
             sidecar_token,
+            menu_bar_metrics::update_menu_bar_metrics,
             roasting_import::read_firescope_settings,
             roasting_import::read_artisan_settings,
             roasting_import::read_cropster_settings,
