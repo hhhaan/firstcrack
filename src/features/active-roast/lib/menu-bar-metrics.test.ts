@@ -36,10 +36,26 @@ describe('layoutMenuBarMetrics', () => {
         expect(layout.height).toBe(MENU_BAR_HEIGHT);
     });
 
-    it('starts the next column after the wider of the name and the number', () => {
+    it('leaves a gap after each reserved column', () => {
         const et = glyphsAt(reading, 'ET')[0];
         const bt = glyphsAt(reading, 'BT')[0];
-        expect(bt && et ? bt.x - et.x : 0).toBe('210.2°C'.length + 12);
+        expect(bt && et ? bt.x - et.x : 0).toBe('-999.9°F'.length + 12);
+    });
+
+    it.each([
+        { et: '—', bt: '—', ror: '0.0', time: '0:00' },
+        { et: '99.9°C', bt: '-9.9°C', ror: '-9.9', time: '9:59' },
+        { et: '100.0°C', bt: '111.1°C', ror: '10.0', time: '10:00' },
+        { et: '-999.9°F', bt: '999.9°F', ror: '-999.9', time: '999:59' },
+        { et: '-1234.5°F', bt: '1234.5°F', ror: '-1234.5', time: '1000:00' },
+    ])('keeps column positions and total width fixed for %j', (next) => {
+        const before = layoutOf(reading);
+        const after = layoutOf(next);
+
+        expect(after.width).toBe(before.width);
+        expect(after.glyphs.map(({ x, width }) => ({ x, width }))).toEqual(
+            before.glyphs.map(({ x, width }) => ({ x, width })),
+        );
     });
 
     it('keeps column edges on whole points when font measurements are fractional', () => {

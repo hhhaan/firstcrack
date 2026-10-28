@@ -19,6 +19,7 @@ export type MenuBarGlyph = {
     text: string;
     x: number;
     y: number;
+    width: number;
     kind: 'label' | 'value';
 };
 
@@ -30,14 +31,14 @@ export type MenuBarLayout = {
 
 type Measure = (text: string) => number;
 
-const columnsOf = (reading: MenuBarReading): { label: string; value: string }[] => [
-    { label: 'ET', value: reading.et },
-    { label: 'BT', value: reading.bt },
-    { label: 'RoR', value: reading.ror },
-    { label: 'Time', value: reading.time },
+const columnsOf = (reading: MenuBarReading): { label: string; value: string; widthSample: string }[] => [
+    { label: 'ET', value: reading.et, widthSample: '-999.9°F' },
+    { label: 'BT', value: reading.bt, widthSample: '-999.9°F' },
+    { label: 'RoR', value: reading.ror, widthSample: '-999.9' },
+    { label: 'Time', value: reading.time, widthSample: '999:59' },
 ];
 
-/** Small name over a larger number. Each column shares one left edge. */
+/** Fixed slots keep the status item and neighboring menu-bar items still as readings change. */
 export const layoutMenuBarMetrics = (
     measureLabel: Measure,
     measureValue: Measure,
@@ -45,7 +46,7 @@ export const layoutMenuBarMetrics = (
 ): MenuBarLayout => {
     const columns = columnsOf(reading).map((cell) => ({
         ...cell,
-        width: Math.ceil(Math.max(measureLabel(cell.label), measureValue(cell.value))),
+        width: Math.ceil(Math.max(measureLabel(cell.label), measureValue(cell.widthSample))),
     }));
     const width =
         PAD_X * 2 + columns.reduce((sum, column) => sum + column.width, 0) + COLUMN_GAP * (columns.length - 1);
@@ -53,8 +54,8 @@ export const layoutMenuBarMetrics = (
     const glyphs: MenuBarGlyph[] = [];
     let x = PAD_X;
     for (const column of columns) {
-        glyphs.push({ text: column.label, x, y: LABEL_BASELINE, kind: 'label' });
-        glyphs.push({ text: column.value, x, y: VALUE_BASELINE, kind: 'value' });
+        glyphs.push({ text: column.label, x, y: LABEL_BASELINE, width: column.width, kind: 'label' });
+        glyphs.push({ text: column.value, x, y: VALUE_BASELINE, width: column.width, kind: 'value' });
         x += column.width + COLUMN_GAP;
     }
 
@@ -76,7 +77,7 @@ export const drawMenuBarMetrics = (
     if (!ctx) return null;
 
     const labelFont = font(500, LABEL_PX);
-    const valueFont = font(500, VALUE_PX);
+    const valueFont = `500 ${VALUE_PX}px ui-monospace, "SFMono-Regular", Menlo, monospace`;
     const measureLabel = (text: string) => {
         ctx.font = labelFont;
         return ctx.measureText(text).width;
@@ -93,7 +94,8 @@ export const drawMenuBarMetrics = (
     ctx.fillStyle = '#000000';
     for (const glyph of layout.glyphs) {
         ctx.font = glyph.kind === 'label' ? labelFont : valueFont;
-        ctx.fillText(glyph.text, glyph.x, glyph.y);
+        ctx.textAlign = glyph.kind === 'label' ? 'left' : 'right';
+        ctx.fillText(glyph.text, glyph.kind === 'label' ? glyph.x : glyph.x + glyph.width, glyph.y, glyph.width);
     }
 
     const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
