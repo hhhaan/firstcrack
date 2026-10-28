@@ -3,8 +3,12 @@ import { parseShortcut } from '@shared/lib/shortcut-key';
 import { register, unregister } from '@tauri-apps/plugin-global-shortcut';
 
 /**
- * OS registrations survive blur, minimize and hide. Release each combo as soon as its
- * roast action is unavailable so other applications can use it again.
+ * OS-level shortcuts (#936).
+ *
+ * A webview `keydown` only exists while the app owns focus — during a roast the operator is
+ * usually in another window (scale, notes, spreadsheet). Holding the key at the OS level lets
+ * Drop fire anyway. Cost: the combo belongs to First Crack for as long as it is held, so
+ * `syncGlobalShortcut(null, …)` must run as soon as the roast stops marking events.
  */
 
 const MODIFIER_ACCELERATORS = {
@@ -14,7 +18,7 @@ const MODIFIER_ACCELERATORS = {
     shift: 'Shift',
 } as const;
 
-const NAMED_KEY_ACCELERATORS: Record<string, string | undefined> = {
+const NAMED_KEY_ACCELERATORS: Record<string, string> = {
     enter: 'Enter',
     escape: 'Escape',
     space: 'Space',
@@ -31,30 +35,6 @@ const NAMED_KEY_ACCELERATORS: Record<string, string | undefined> = {
     right: 'ArrowRight',
 };
 
-const SHIFTED_KEY_ACCELERATORS: Record<string, string | undefined> = {
-    '!': 'Digit1',
-    '@': 'Digit2',
-    '#': 'Digit3',
-    $: 'Digit4',
-    '%': 'Digit5',
-    '^': 'Digit6',
-    '&': 'Digit7',
-    '*': 'Digit8',
-    '(': 'Digit9',
-    ')': 'Digit0',
-    _: 'Minus',
-    '+': 'Equal',
-    '{': 'BracketLeft',
-    '}': 'BracketRight',
-    '|': 'Backslash',
-    ':': 'Semicolon',
-    '"': 'Quote',
-    '<': 'Comma',
-    '>': 'Period',
-    '?': 'Slash',
-    '~': 'Backquote',
-};
-
 /**
  * Binding (`mod+shift+d`) → accelerator the plugin understands (`CommandOrControl+Shift+D`).
  * `null` means "not registrable": unknown key, or no modifier — an unmodified key registered
@@ -63,11 +43,12 @@ const SHIFTED_KEY_ACCELERATORS: Record<string, string | undefined> = {
 export function shortcutToAccelerator(shortcut: string): string | null {
     const parsed = parseShortcut(shortcut);
     if (!parsed) return null;
-    if (!parsed.modifiers.some((modifier) => modifier !== 'shift')) return null;
-    const shiftedKey = SHIFTED_KEY_ACCELERATORS[parsed.key];
-    const key = shiftedKey ?? NAMED_KEY_ACCELERATORS[parsed.key] ?? parsed.key.toUpperCase();
-    const modifierKeys = shiftedKey ? [...new Set([...parsed.modifiers, 'shift'])] : parsed.modifiers;
-    const modifiers = modifierKeys.map(
+    if (!parsed.modifiers.length) return null;
+    const key = /^(?:[a-z0-9]|f(?:[1-9]|1[0-2]))$/.test(parsed.key)
+        ? parsed.key.toUpperCase()
+        : NAMED_KEY_ACCELERATORS[parsed.key];
+    if (!key) return null;
+    const modifiers = parsed.modifiers.map(
         (modifier) => MODIFIER_ACCELERATORS[modifier as keyof typeof MODIFIER_ACCELERATORS],
     );
     return [...modifiers, key].join('+');
@@ -75,10 +56,10 @@ export function shortcutToAccelerator(shortcut: string): string | null {
 
 const isDesktop = (): boolean => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-const heldAccelerators = new Set<string>();
-let pressHandlers = new Map<string, () => void>();
+/** The one accelerator this app holds, and the handler the plugin calls while it is held. */
+let heldAccelerator: string | null = null;
+let pressHandler: (() => void) | null = null;
 let reportedRegistrationFailure = false;
-let reportedUnregistrationFailure = false;
 /** Registrations are async and OS state is global — run them one at a time, in order. */
 let queue: Promise<unknown> = Promise.resolve();
 
@@ -88,39 +69,38 @@ const serialize = <T>(task: () => Promise<T>): Promise<T> => {
     return run;
 };
 
-const apply = async (accelerators: ReadonlySet<string>): Promise<void> => {
-    for (const previous of heldAccelerators) {
-        if (accelerators.has(previous)) continue;
-        try {
-            await unregister(previous);
-            heldAccelerators.delete(previous);
-        } catch (error) {
-            if (!reportedUnregistrationFailure) {
-                reportedUnregistrationFailure = true;
-                logger.capture(error, { feature: 'active-roast', action: 'globalShortcut.unregister' });
-            }
-        }
+const apply = async (accelerator: string | null): Promise<boolean> => {
+    if (heldAccelerator === accelerator) return accelerator !== null;
+    if (heldAccelerator) {
+        const previous = heldAccelerator;
+        heldAccelerator = null;
+        await unregister(previous).catch(() => undefined);
     }
-    for (const accelerator of accelerators) {
-        if (heldAccelerators.has(accelerator)) continue;
-        try {
-            await register(accelerator, (event) => {
-                if (event.state === 'Pressed') pressHandlers.get(accelerator)?.();
-            });
-            heldAccelerators.add(accelerator);
-        } catch (error) {
-            // A refused combo keeps its local hotkey; the other global keys still register.
-            if (!reportedRegistrationFailure) {
-                reportedRegistrationFailure = true;
-                logger.capture(error, { feature: 'active-roast', action: 'globalShortcut.register' });
-            }
+    if (!accelerator) return false;
+    try {
+        // The plugin reports Pressed *and* Released; only the press marks Drop.
+        await register(accelerator, (event) => {
+            if (event.state === 'Pressed') pressHandler?.();
+        });
+    } catch (error) {
+        // Registration can be refused by the OS (combo taken by another app). The webview
+        // hotkey still works while focused, so this is degraded, not broken — report it once.
+        if (!reportedRegistrationFailure) {
+            reportedRegistrationFailure = true;
+            logger.capture(error, { feature: 'active-roast', action: 'globalShortcut.register' });
         }
+        return false;
     }
+    heldAccelerator = accelerator;
+    return true;
 };
 
-/** Replace the desired bindings. Callbacks change immediately; OS changes run in order. */
-export function syncGlobalShortcuts(bindings: ReadonlyMap<string, () => void>): Promise<void> {
-    pressHandlers = new Map(bindings);
-    if (!isDesktop()) return Promise.resolve();
-    return serialize(() => apply(new Set(pressHandlers.keys())));
+/**
+ * Hold `accelerator` (or nothing when `null`) at OS level. Returns whether it is held now.
+ * `onPress` is read at press time, so a re-render does not need a re-registration.
+ */
+export function syncGlobalShortcut(accelerator: string | null, onPress: () => void): Promise<boolean> {
+    pressHandler = onPress;
+    if (!isDesktop()) return Promise.resolve(false);
+    return serialize(() => apply(accelerator));
 }

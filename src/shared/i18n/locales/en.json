@@ -10,7 +10,7 @@
         "recordingHint": "Press a new key combination. Escape cancels.",
         "change": "Change shortcut: {{action}}",
         "fixed": "Fixed shortcut",
-        "globalHint": "Event shortcuts with a modifier work even when minimized or hidden. They are held system-wide while the event can be recorded.",
+        "globalHint": "Drop works even when the app is minimized or hidden. Its shortcut is held system-wide only while roasting.",
         "noResults": "No matching shortcuts",
         "groups": {
             "app": "App",
