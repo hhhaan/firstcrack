@@ -43,6 +43,8 @@ export type StoredRoastEvent = RoastNoteControls & {
 
 /** A collected roast sample. Survives view recovery with the active session. */
 export interface LiveRoastPoint {
+    /** App receipt time used to recover an auto-Charge lookback before its clock origin is known. */
+    observedAtMs?: number;
     time: number;
     label: string;
     bt: number;

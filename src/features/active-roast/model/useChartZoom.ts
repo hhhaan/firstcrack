@@ -36,8 +36,34 @@ export const useChartZoom = (
     rightGridPad: number = CHART_GRID_RIGHT,
     /** false면 휠 줌 비활성 */
     wheelEnabled: boolean = true,
+    coordinateOrigin: number = 0,
+    timelineKey: string = '',
 ): ChartZoom => {
-    const [zoomRange, setZoomRange] = useState<{ start: number; end: number } | null>(null);
+    type Range = { start: number; end: number } | null;
+    const [absoluteZoom, setAbsoluteZoom] = useState<{ key: string; range: Range }>({ key: timelineKey, range: null });
+    const zoomRange = useMemo(
+        () =>
+            absoluteZoom.key === timelineKey && absoluteZoom.range
+                ? { start: absoluteZoom.range.start - coordinateOrigin, end: absoluteZoom.range.end - coordinateOrigin }
+                : null,
+        [absoluteZoom, timelineKey, coordinateOrigin],
+    );
+    const setZoomRange = useCallback<React.Dispatch<React.SetStateAction<Range>>>(
+        (action) => {
+            setAbsoluteZoom((previous) => {
+                const relative =
+                    previous.key === timelineKey && previous.range
+                        ? { start: previous.range.start - coordinateOrigin, end: previous.range.end - coordinateOrigin }
+                        : null;
+                const next = typeof action === 'function' ? action(relative) : action;
+                return {
+                    key: timelineKey,
+                    range: next ? { start: next.start + coordinateOrigin, end: next.end + coordinateOrigin } : null,
+                };
+            });
+        },
+        [coordinateOrigin, timelineKey],
+    );
     const hoveredChartIndexRef = useRef<number | null>(null);
     const setHoveredChartIndex = useCallback((index: number | null) => {
         hoveredChartIndexRef.current = index;
@@ -50,6 +76,7 @@ export const useChartZoom = (
         pointerId: number;
         startX: number;
         startRange: { start: number; end: number };
+        origin: number;
     } | null>(null);
 
     // Latest values for native wheel listener (avoid re-bind every render)
@@ -59,10 +86,11 @@ export const useChartZoom = (
         rightGridPad,
         zoomRange,
         wheelEnabled,
+        setZoomRange,
     });
     useEffect(() => {
-        zoomRef.current = { MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled };
-    }, [MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled]);
+        zoomRef.current = { MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled, setZoomRange };
+    }, [MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled, setZoomRange]);
 
     const effectiveZoomRange = useMemo(
         () =>
@@ -79,6 +107,7 @@ export const useChartZoom = (
             rightGridPad: pad,
             zoomRange: zr,
             wheelEnabled: enabled,
+            setZoomRange,
         } = zoomRef.current;
         if (!enabled || maxT <= minT) return;
 
@@ -151,13 +180,14 @@ export const useChartZoom = (
                 pointerId: event.pointerId,
                 startX: event.clientX,
                 startRange: effectiveZoomRange,
+                origin: coordinateOrigin,
             };
             event.currentTarget.setPointerCapture(event.pointerId);
             event.currentTarget.focus();
             setIsChartDragging(true);
             event.preventDefault();
         },
-        [effectiveZoomRange],
+        [effectiveZoomRange, coordinateOrigin],
     );
 
     const handleChartPointerMove = useCallback(
@@ -170,11 +200,14 @@ export const useChartZoom = (
             const dataWidth = getChartDataWidth(rect, rightGridPad);
             const deltaPx = event.clientX - drag.startX;
             const deltaTime = -(deltaPx / dataWidth) * duration;
-            const nextStart = Math.max(minTime, Math.min(MAX_TIME - duration, drag.startRange.start + deltaTime));
+            const nextStart = Math.max(
+                minTime,
+                Math.min(MAX_TIME - duration, drag.startRange.start + drag.origin - coordinateOrigin + deltaTime),
+            );
             setZoomRange({ start: nextStart, end: nextStart + duration });
             event.preventDefault();
         },
-        [MAX_TIME, minTime, rightGridPad],
+        [MAX_TIME, minTime, rightGridPad, coordinateOrigin, setZoomRange],
     );
 
     const endChartDrag = useCallback((event: React.PointerEvent<HTMLDivElement>) => {

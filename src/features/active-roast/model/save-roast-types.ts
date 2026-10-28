@@ -1,6 +1,7 @@
 import type { MachineSnapshot } from '@entities/machine';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import type { BatchTitleNumbering, LogEntry } from '@shared/types/roast';
+import type { BbpCapture } from '../lib/batch-timeline';
 import type { FinalizedBbp } from './bbp';
 
 /** Injected from upload feature (composed in views) — avoids feature→feature import. */
@@ -56,6 +57,7 @@ export interface SaveRoastParams {
     logEntries: LogEntry[];
     machineSnapshot?: MachineSnapshot | null;
     bbpSummary?: FinalizedBbp | null;
+    bbpCapture?: BbpCapture | null;
 }
 
 export interface SaveRoastResult {

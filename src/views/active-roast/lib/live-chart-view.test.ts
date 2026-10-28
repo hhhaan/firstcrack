@@ -126,3 +126,29 @@ describe('resolveLiveChartView', () => {
         expect(view.xMaxFloor).toBe(900);
     });
 });
+
+it('keeps pre-Charge observations and aligns references by Charge without stretching either curve', () => {
+    const original = [bbpPt(0), bbpPt(60), bbpPt(119), bbpPt(120), bbpPt(123)];
+    const view = resolveLiveChartView({
+        ...base,
+        bbpActive: false,
+        charged: true,
+        livePoints: [livePt(0), livePt(3)],
+        bbpCapture: {
+            sessionId: 'a',
+            generation: 'wait-a',
+            startMs: 1000,
+            chargeMs: 121000,
+            recording: true,
+            points: original,
+            events: [],
+        },
+        bbpTarget: [roastPt(0), roastPt(180)],
+    });
+    expect(view.livePoints.map((point) => point.time)).toEqual([-120, -60, -1, 0, 3]);
+    expect(view.livePoints.filter((point) => point.time < 0).every((point) => point.ror === null)).toBe(true);
+    expect(view.targetPoints.map((point) => point.t)).toEqual([-180, 0, 60]);
+    expect(view.bbpRange).toEqual({ start: -120, end: 0 });
+    expect(view.eventTimeOrigin).toBe(120);
+    expect(original.map((point) => point.t)).toEqual([0, 60, 119, 120, 123]);
+});

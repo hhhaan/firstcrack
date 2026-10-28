@@ -668,7 +668,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const candidates = items.flatMap((item, index) => {
                 const marker = item.marker;
                 if (!marker) return [];
-                if (marker.reference) return [];
+                if (marker.reference || marker.readOnly) return [];
                 if (
                     !marker?.logId ||
                     marker.event === 'Charge' ||
@@ -997,7 +997,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const maxX = Math.max(axisLeft, axisRight);
             if (point.x < minX - 1 || point.x > maxX + 1) return;
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
-            if (converted == null) return;
+            if (converted == null || (charged && converted < 0)) return;
             event.preventDefault();
             setNoteValues(emptyNote);
             setEditForm(null);
@@ -1007,7 +1007,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 timeSec: clampMarkerTime('Note', converted, currentTimeSec, xMax),
             });
         },
-        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin],
+        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin, charged],
     );
 
     const submitNote = useCallback(() => {

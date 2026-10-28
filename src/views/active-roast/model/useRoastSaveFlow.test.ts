@@ -624,3 +624,38 @@ describe('explicit discard is scoped to the visible summary', () => {
         expect(listPendingRoastSaves().some((pending) => pending.params.sessionId === 's-b')).toBe(true);
     });
 });
+
+it('reconstructs A BBP from its completed snapshot after a lost checkpoint and Charge B', async () => {
+    const h = renderFlow({ sessionId: 's-a', selectedBeanId: 'bean-a' });
+    const capture = {
+        sessionId: 's-a',
+        generation: 'wait-a',
+        startMs: 1000,
+        chargeMs: 26000,
+        recording: true,
+        points: [10, 20, 25, 30].map((t) => ({ t, bt: 200, et: null, heater: 0, fan: 0, drum: 0 })),
+        events: [{ id: 'a-note', event: 'Note', time: '0:24', timeSec: 24, temp: '', note: 'A only' }],
+    };
+    act(() => {
+        useRoastingStore.setState({ bbpCapture: capture });
+        h.api.confirmEndRoast({ ...summary, sessionId: 's-a' });
+    });
+    clearPendingRoastSave('workspace-a', 's-a');
+    act(() =>
+        useRoastingStore.setState({
+            phase: 'roasting',
+            sessionId: 's-b',
+            bbpCapture: { ...capture, sessionId: 's-b', events: [] },
+        }),
+    );
+    await act(async () => h.api.handleSave(form));
+    const saved = mocks.resumeSave.mock.calls[0][0] as PendingRoastSave;
+    expect(saved.params.bbpCapture?.sessionId).toBe('s-a');
+    expect(saved.params.bbpSummary).toMatchObject({
+        sessionId: 's-a',
+        seconds: 10,
+        events: [{ id: 'a-note', time_sec: -1 }],
+    });
+    expect(useRoastingStore.getState()).toMatchObject({ sessionId: 's-b', bbpCapture: { sessionId: 's-b' } });
+    expect(h.onResetActiveRoast).not.toHaveBeenCalled();
+});
