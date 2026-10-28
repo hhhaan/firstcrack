@@ -127,7 +127,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
                 logEntries,
                 machineSnapshot: snapshot ? snapshot.machineSnapshot : useRoastingStore.getState().machineSnapshot,
-                bbpCapture: capture?.recording ? capture : null,
+                bbpCapture: capture ?? null,
                 bbpSummary: savedSessionId && bbp?.sessionId === savedSessionId ? bbp : null,
             };
         },

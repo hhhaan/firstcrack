@@ -95,9 +95,11 @@ describe('batch timeline boundary', () => {
         });
     });
 
-    it('keeps first-batch preheat for display without creating a saved BBP', () => {
+    it('saves first-batch preheat at the same negative times shown live', () => {
         const original = { ...capture(), recording: false };
-        expect(splitBatchBbp(original).bbp).toBeNull();
+        const bbp = splitBatchBbp(original).bbp;
+        expect(bbp?.seconds).toBe(10);
+        expect(combineBbpCurve([], parseTsv(bbp?.tsv ?? '')).points.map((point) => point.t)).toEqual([-15, -5]);
         expect(batchBbpPoints(original)).toHaveLength(2);
     });
 });

@@ -60,8 +60,9 @@ phase calculations and the roast TSV remain roast-only. On save/checkpoint the B
 summary comes from the completed capture; the global finalized summary is only a
 compatibility fallback for snapshots without a capture. Optional `bbpCapture` in v2
 pending records preserves raw BBP data for retry without changing the pending version.
-Chart-only first-batch preheat stays in memory and is excluded from pending captures
-and BBP uploads.
+First-batch preheat stays in memory while waiting (reload starts it afresh). Once
+Charge captures it, its curve and events are included in pending saves and BBP uploads
+just like the between-batch wait; `recording` controls only live-wait persistence.
 
 Local collection continues before network save. The original in-progress BBP file
 is removed only after the owning archive and transferred roast tail have been written,

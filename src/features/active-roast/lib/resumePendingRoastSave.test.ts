@@ -2,6 +2,7 @@
 import type { PlanBatchHandoff, PlanBatchWithProgress, RoastSession } from '@shared/types/database.types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPendingRoastSave, type PendingRoastParams, readPendingRoastSave } from '../model/pendingRoastSave';
+import { splitBatchBbp } from './batch-timeline';
 import { type ResumePendingRoastSaveDeps, resumePendingRoastSave } from './resumePendingRoastSave';
 
 const ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -60,6 +61,38 @@ beforeEach(() => {
     vi.restoreAllMocks();
 });
 describe('shared durable save coordinator', () => {
+    it.each([false, true])('uploads captured preheat with its roast (live persistence: %s)', async (recording) => {
+        const bbpCapture = {
+            sessionId: ID,
+            generation: recording ? 'wait' : '',
+            startMs: 1000,
+            chargeMs: 4000,
+            recording,
+            points: [0, 1, 2].map((t) => ({ t, bt: 200, et: null, heater: 0, fan: 0, drum: 0 })),
+            events: [],
+        };
+        const bbp = splitBatchBbp(bbpCapture).bbp;
+        const d = deps({
+            pending: createPendingRoastSave(
+                {
+                    ...params,
+                    bbpCapture,
+                    bbpSummary: bbp ? { ...bbp, sessionId: ID } : null,
+                },
+                true,
+            ),
+        });
+        await resumePendingRoastSave(d);
+        expect(d.saveRoast).toHaveBeenCalledWith(expect.objectContaining({ bbpCapture }));
+        expect(d.syncRoastCurve).toHaveBeenCalledWith({
+            sessionId: ID,
+            roastSessionId: ID,
+            ownerId: 'owner',
+            profileRequired: true,
+            bbpRequired: true,
+        });
+    });
+
     it('passes form-selected bean through saveRoast on resume', async () => {
         const d = deps({
             pending: createPendingRoastSave(

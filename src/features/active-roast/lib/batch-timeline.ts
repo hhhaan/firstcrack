@@ -65,7 +65,7 @@ export const splitBatchBbp = (capture: BbpCapture, windowSeconds = 900) => {
     const beforeEvents = events.filter((event) => (event.timeSec ?? 0) < cutoff);
     const seconds = points.length > 1 ? Math.round(points[points.length - 1].t - points[0].t) : 0;
     const bbp: BbpResult | null =
-        capture.recording && (points.length > 0 || beforeEvents.length > 0)
+        points.length > 0 || beforeEvents.length > 0
             ? {
                   seconds,
                   chargeTemp: points[points.length - 1]?.bt ?? null,

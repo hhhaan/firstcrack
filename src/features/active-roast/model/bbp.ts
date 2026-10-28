@@ -29,7 +29,7 @@ export const rebaseBbpWindow = (points: BbpPoint[], endT: number, windowSeconds 
 
 interface BbpState {
     active: boolean;
-    /** First-batch preheat is chart-only; End→Charge is recorded and saved. */
+    /** Whether the live wait survives reload; every captured preheat is saved with its roast. */
     recording: boolean;
     /** 이전 드롭 wall-clock (ms). 0 = 미기록 */
     startMs: number;

@@ -334,7 +334,7 @@ describe('bbp store', () => {
         }
     });
 
-    it('chart-only preheat does not claim the tab token', () => {
+    it('first-batch preheat stays memory-only until Charge captures it for saving', () => {
         const { local, session } = installStorage();
         try {
             useBbpStore.getState().begin(2_000, [], false);
@@ -343,8 +343,15 @@ describe('bbp store', () => {
             expect(useBbpStore.getState().points).toHaveLength(2);
             expect(local.fc_bbp_live).toBeUndefined();
             expect(session.fc_bbp_live_gen).toBeUndefined();
-            expect(useBbpStore.getState().finalize(5_000, 'first-batch')).toBeNull();
-            expect(useBbpStore.getState()).toMatchObject({ active: false, recording: false, finalized: null });
+            expect(useBbpStore.getState().finalize(5_000, 'first-batch')).toMatchObject({
+                seconds: 1,
+                chargeTemp: 201,
+            });
+            expect(useBbpStore.getState()).toMatchObject({
+                active: false,
+                recording: false,
+                finalized: { sessionId: 'first-batch', seconds: 1 },
+            });
         } finally {
             vi.unstubAllGlobals();
         }

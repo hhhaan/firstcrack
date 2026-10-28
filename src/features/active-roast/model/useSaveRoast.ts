@@ -134,7 +134,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
     const roastedAt = payloadParams.roastStartTime > 0 ? new Date(payloadParams.roastStartTime).toISOString() : null;
 
-    // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/무료 플랜).
+    // Charge 시 확정된 투입 전 커브 요약 (수집된 데이터가 없으면 null).
     // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
     const capturedBbp = params.bbpCapture?.sessionId === sessionId ? splitBatchBbp(params.bbpCapture).bbp : null;
     const pendingBbp = params.bbpCapture ? (capturedBbp ? { ...capturedBbp, sessionId } : null) : params.bbpSummary;
