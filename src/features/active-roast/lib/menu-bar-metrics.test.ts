@@ -40,6 +40,10 @@ describe('layoutMenuBarMetrics', () => {
         const et = glyphsAt(reading, 'ET')[0];
         const bt = glyphsAt(reading, 'BT')[0];
         expect(bt && et ? bt.x - et.x : 0).toBe('-999.9°F'.length + 12);
+        const ror = glyphsAt(reading, 'RoR')[0];
+        const time = glyphsAt(reading, 'Time')[0];
+        expect(time.x - ror.x).toBe('99.9'.length + 12);
+        expect(time.width).toBe('99:59'.length);
     });
 
     it.each([

@@ -34,8 +34,8 @@ type Measure = (text: string) => number;
 const columnsOf = (reading: MenuBarReading): { label: string; value: string; widthSample: string }[] => [
     { label: 'ET', value: reading.et, widthSample: '-999.9°F' },
     { label: 'BT', value: reading.bt, widthSample: '-999.9°F' },
-    { label: 'RoR', value: reading.ror, widthSample: '-999.9' },
-    { label: 'Time', value: reading.time, widthSample: '999:59' },
+    { label: 'RoR', value: reading.ror, widthSample: '99.9' },
+    { label: 'Time', value: reading.time, widthSample: '99:59' },
 ];
 
 /** Fixed slots keep the status item and neighboring menu-bar items still as readings change. */
