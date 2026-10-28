@@ -89,6 +89,34 @@ describe('calcTargetDelta', () => {
 describe('buildEventMarkers', () => {
     afterEach(() => vi.unstubAllGlobals());
 
+    it('keeps BBP markers before Charge and roast markers at their original times', () => {
+        vi.stubGlobal('document', { documentElement: {} });
+        vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));
+        const markers = buildEventMarkers([
+            { id: 'heat-bbp', time: '-0:30', timeSec: -30.5, event: 'Heater', temp: '210°C', note: '90%' },
+            { id: 'note-bbp', time: '-0:15', event: 'Note', temp: '', note: 'ready' },
+            {
+                id: 'control-bbp',
+                time: '-0:05',
+                timeSec: -5,
+                event: 'Control',
+                temp: '',
+                note: '',
+                appliedControl: { fan: 50, drum: 40 },
+            },
+            { id: 'charge', time: '0:00', timeSec: 0, event: 'Charge', temp: '210°C', note: '' },
+            { id: 'heat-roast', time: '0:12', timeSec: 12.5, event: 'Heater', temp: '186°C', note: '80%' },
+        ]);
+        expect(markers.map(({ logId, timeSec, timeStr }) => [logId, timeSec, timeStr])).toEqual([
+            ['heat-bbp', -30.5, '-0:30'],
+            ['note-bbp', -15, '-0:15'],
+            ['charge', 0, '0:00'],
+            ['heat-roast', 12.5, '0:12'],
+            ['control-bbp:fan', -5, '-0:05'],
+            ['control-bbp:drum', -5, '-0:05'],
+        ]);
+    });
+
     it('carries Note/Heater and a custom name, and excludes TP/Now/Control', () => {
         vi.stubGlobal('document', { documentElement: {} });
         vi.stubGlobal('getComputedStyle', () => ({ getPropertyValue: () => '#abc' }));

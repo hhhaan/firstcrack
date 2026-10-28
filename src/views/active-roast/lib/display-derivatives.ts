@@ -129,9 +129,8 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
         logEntries
             .filter((e) => isChartEventMarker(e.event))
             .flatMap((e) => {
-                const entryTimeSec = logEntryTimeSec(e);
-                if (entryTimeSec == null) return [];
-                const timeSec = Math.max(0, entryTimeSec);
+                const timeSec = logEntryTimeSec(e);
+                if (timeSec == null) return [];
                 return [
                     {
                         logId: e.id,

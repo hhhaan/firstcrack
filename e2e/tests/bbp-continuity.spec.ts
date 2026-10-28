@@ -25,6 +25,11 @@ const readChart = async (page: import('@playwright/test').Page) => {
             bbp: option.series.some((series: { markArea?: { data?: unknown[] } }) =>
                 Boolean(series.markArea?.data?.length),
             ),
+            markerTimes: option.series
+                .find((series: { name: string }) => series.name === 'BT Actual')
+                ?.markLine?.data.flatMap((mark: { xAxis?: number }) =>
+                    typeof mark.xAxis === 'number' ? [mark.xAxis] : [],
+                ),
         };
     }, modulePath);
 };
@@ -33,7 +38,7 @@ test('BBP continues through Charge, expands time with headroom, and preserves ma
     authedPage: page,
 }) => {
     await goNav(page, 'roast');
-    await expect(page.getByTestId('bbp-target-status')).toBeVisible();
+    await expect(page.getByRole('region', { name: /^Temperature curve chart/ })).toBeVisible();
     await page.evaluate(async () => {
         const base = '/src/features/active-roast/model/';
         const { useBbpStore } = await import(`${base}bbp.ts`);
@@ -51,9 +56,13 @@ test('BBP continues through Charge, expands time with headroom, and preserves ma
             Date.now() - 850_000,
             [0, 120, 300, 600, 850].map((t) => ({ t, bt: 190 + t / 100, et: 210, heater: 50, fan: 40, drum: 55 })),
         );
+        useBbpStore
+            .getState()
+            .setEvents([{ id: 'bbp-heat', time: '10:00', timeSec: 600, event: 'Heater', temp: '196°C', note: '90%' }]);
     });
 
     await expect.poll(async () => (await readChart(page))?.axes[0].max).toBeGreaterThanOrEqual(940);
+    await expect.poll(async () => (await readChart(page))?.markerTimes).toContain(600);
     const surface = page.getByLabel(
         'Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom.',
     );
@@ -72,6 +81,7 @@ test('BBP continues through Charge, expands time with headroom, and preserves ma
         return (capture.chargeMs - capture.startMs) / 1000;
     });
     await expect.poll(async () => (await readChart(page))?.axes[0].min).toBeLessThan(0);
+    await expect.poll(async () => (await readChart(page))?.markerTimes).toContain(600 - origin);
     const after = await readChart(page);
     expect((after?.axes[0].min ?? 0) + origin).toBeCloseTo(before?.axes[0].min ?? 0, 2);
     expect((after?.axes[0].max ?? 0) + origin).toBeCloseTo(before?.axes[0].max ?? 0, 2);
