@@ -120,6 +120,7 @@ pub fn focus_main(app: &AppHandle) {
     dispatch(app.clone(), Action::Main { focus: true });
 }
 
+#[cfg(target_os = "macos")]
 pub fn request_main_close(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
