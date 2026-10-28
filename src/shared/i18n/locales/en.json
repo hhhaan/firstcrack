@@ -420,6 +420,8 @@
                 "eventButtonShortcutUnset": "Set",
                 "eventMarkerPoint": "Point on curve",
                 "eventMarkerPointDescription": "Dot on the BT curve with a label box (event, time, temp)",
+                "eventMarkerCallout": "Curve callout",
+                "eventMarkerCalloutDescription": "Short leader from the bean-temperature point with the event, time, and temperature",
                 "eventMarkerTempLine": "Temperature line",
                 "eventMarkerTempLineDescription": "Vertical line on the temperature chart only",
                 "eventMarkerLine": "Vertical line",

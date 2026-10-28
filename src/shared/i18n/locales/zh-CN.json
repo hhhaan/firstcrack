@@ -420,6 +420,8 @@
                 "eventButtonShortcutUnset": "设置",
                 "eventMarkerPoint": "曲线上的点",
                 "eventMarkerPointDescription": "BT 曲线上的点与标签框（事件、时间、温度）",
+                "eventMarkerCallout": "曲线标注",
+                "eventMarkerCalloutDescription": "从豆温点引出短连线，显示事件、时间和温度",
                 "eventMarkerTempLine": "温度垂直线",
                 "eventMarkerTempLineDescription": "仅上方温度图有垂直线，控制图没有",
                 "eventMarkerLine": "垂直线",

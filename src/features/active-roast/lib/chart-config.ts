@@ -32,7 +32,7 @@ export const PHASE_BAR_FONT_WEIGHT = 600;
 export const AXIS_LABEL_FONT = { fontSize: 12, fontWeight: 500, fontFamily: 'monospace' as const } as const;
 export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
 
-// ── Event labels stack from the plot top in time order; compound notes keep their line breaks.
+// ── Event annotations follow BT; notes and control labels stack from the plot top.
 export const MARKER_LABEL_FONT_SIZE = 10;
 export const MARKER_LABEL_FONT_WEIGHT = 600;
 export const MARKER_LABEL_FONT_FAMILY = 'monospace';
@@ -58,6 +58,9 @@ export const MARKER_LABEL_MIN_WIDTH_PX = 8;
 export const MARKER_LABEL_MAX_WIDTH_PX = 240;
 export const MARKER_LABEL_GAP_PX = 2;
 export const MARKER_LABEL_DISTANCE_PX = 0;
+/** Preferred short leader from a roast milestone to its label, in CSS pixels. */
+export const MARKER_LABEL_LEADER_X_PX = 16;
+export const MARKER_LABEL_LEADER_Y_PX = 22;
 /** Event line → label, and the canvas edge inset. */
 export const MARKER_LABEL_X_OFFSET_PX = 4;
 export const MARKER_LABEL_CANVAS_GUTTER_PX = MARKER_LABEL_X_OFFSET_PX * 2;

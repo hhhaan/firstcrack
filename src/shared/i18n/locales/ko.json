@@ -420,6 +420,8 @@
                 "eventButtonShortcutUnset": "지정",
                 "eventMarkerPoint": "곡선 위 포인트",
                 "eventMarkerPointDescription": "원두 온도 곡선 위 점과 이벤트·시간·온도 라벨",
+                "eventMarkerCallout": "곡선 콜아웃",
+                "eventMarkerCalloutDescription": "원두 온도 지점에서 짧은 연결선으로 이벤트·시간·온도",
                 "eventMarkerTempLine": "온도 세로선",
                 "eventMarkerTempLineDescription": "온도 차트에만 표시하는 이벤트 세로선",
                 "eventMarkerLine": "세로선",
