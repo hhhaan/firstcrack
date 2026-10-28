@@ -48,6 +48,7 @@ import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
+import { useMenuBarMetrics } from '@features/active-roast/model/useMenuBarMetrics';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
@@ -789,6 +790,9 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [roastSettings.showPhaseBar, curveEntries, roastDurationSec, curveElapsed, charged, reviewing, resolvedTheme],
     );
     const displayRoR = formatDisplayRoR(liveData?.ror, unit);
+    useMenuBarMetrics(
+        isActive ? { et: formatTemp(rawET, unit), bt: formatTemp(rawBT, unit), ror: displayRoR, time: timeStr } : null,
+    );
 
     // ── 키보드 단축키 ─────────────────────────────────────────────
     useRoastKeyboardShortcuts({
