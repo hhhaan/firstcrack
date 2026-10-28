@@ -51,7 +51,7 @@ import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
 import { useAuthStore } from '@shared/store/auth';
 import { useThemeStore } from '@shared/store/theme';
-import type { AppliedRoastControl } from '@shared/types/roast';
+import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type HistoryReference, HistoryReferencePicker } from '@widgets/history-reference/ui/HistoryReferencePicker';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -147,6 +147,8 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
 
     useEffect(() => {
         if (!roastSettings.bbpEnabled) {
+            const bbp = useBbpStore.getState();
+            useRoastingStore.getState().retainDropWaitEvents(bbp.events, bbp.startMs);
             useBbpStore.getState().abort();
         } else if (bbpEnabled && awaitingNextCharge && (!bbpActive || !bbpRecording)) {
             useBbpStore.getState().begin(Date.now());
@@ -413,14 +415,24 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         ],
     );
     const bbpEventOrigin = chartView.eventTimeOrigin;
+    const dropWaitRestore = useRoastingStore((state) => state.completed?.restore);
+    const waitObservation = livePoints.find((point) => point.observedAtMs != null);
+    const dropWaitOffset =
+        !charged && dropWaitRestore
+            ? waitObservation?.observedAtMs != null
+                ? (waitObservation.observedAtMs - waitObservation.time * 1000 - dropWaitRestore.roastStartMs) / 1000
+                : dropWaitRestore.elapsed
+            : null;
     const bbpChartEntries = useMemo(() => {
         if (bbpActive && !reviewing) return bbpEventsForDisplay(bbpEvents, bbpEventOrigin);
+        if (dropWaitOffset != null) return bbpEventsForDisplay(curveEntries, dropWaitOffset);
         const capture = reviewSnapshot?.bbpCapture ?? runningBbpCapture;
         const before = capture && bbpEnabled ? (splitBatchBbp(capture).bbp?.events ?? []) : [];
         return [...storedEventsToLogEntries(before, unit, true), ...curveEntries];
     }, [
         bbpActive,
         bbpEventOrigin,
+        dropWaitOffset,
         bbpEvents,
         curveEntries,
         reviewing,
@@ -897,12 +909,46 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         lifecycle.confirmEndRoast(saveFlow.confirmEndRoast);
     }, [lifecycle, saveFlow]);
 
+    const recordDropWaitEvent = useCallback(
+        (
+            event: string,
+            note: string,
+            controls?: RoastNoteControls & { appliedControl?: AppliedRoastControl },
+            historical?: { timeSec: number; tempC: number | null },
+        ) => {
+            const state = useRoastingStore.getState();
+            const restore = state.completed?.restore;
+            if (!restore || !selectDropCancelable(state)) return false;
+            const origin = historical ? state.livePoints.find((point) => point.observedAtMs != null) : null;
+            const originMs =
+                origin?.observedAtMs != null
+                    ? origin.observedAtMs - origin.time * 1000
+                    : historical
+                      ? restore.roastStartMs + restore.elapsed * 1000
+                      : Date.now();
+            if (event === 'Control' && Object.keys(controls?.appliedControl ?? {}).length === 0) return true;
+            const entry = makeBbpLogEntry(
+                event,
+                note,
+                historical?.timeSec ?? 0,
+                historical ? historical.tempC : rawBT,
+                unit,
+                controls,
+            );
+            if (entry) state.retainDropWaitEvents([entry], originMs);
+            return true;
+        },
+        [rawBT, unit],
+    );
+
     const editing = useRoastCurveEditing({
         unit,
+        dropWaitOffset,
         log: roastLog,
         review: reviewEditor,
         turningPoint: { confirmedTP, turningPoints, moveTurningPoint },
         bbp: { active: bbpActive, nowSec: bbpNowSec, origin: chartView.eventTimeOrigin, points: chartView.livePoints },
+        recordDropWaitEvent,
     });
 
     const handleHeaterCommitted = useCallback(
@@ -917,7 +963,11 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                 if (entry) useBbpStore.getState().setEvents((prev) => [...prev, entry]);
                 return;
             }
-            if (!charged) return;
+            if (!charged) {
+                if (!isRepeatHeaterCommit(useRoastingStore.getState().logState.entries, value))
+                    recordDropWaitEvent('Heater', `${value}${heaterUnit}`);
+                return;
+            }
             const entries = useRoastingStore.getState().logState.entries;
             if (isRepeatHeaterCommit(entries, value)) return;
             markEvent('Heater', `${value}${heaterUnit}`);
@@ -926,6 +976,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
             bbpActive,
             bbpNowSec,
             charged,
+            recordDropWaitEvent,
             chartView.eventTimeOrigin,
             chartView.livePoints,
             markEvent,
@@ -952,6 +1003,8 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                 return;
             }
             const state = useRoastingStore.getState();
+            const waitValues = controlValuesWithoutRepeatHeater(state.logState.entries, commanded);
+            if (recordDropWaitEvent('Control', '', { appliedControl: waitValues })) return;
             if (state.sessionId !== sessionId || state.phase !== 'roasting') return;
             const timeSec =
                 state.roastStartMs > 0 ? Math.max(0, (Date.now() - state.roastStartMs) / 1000) : state.elapsed;
@@ -973,7 +1026,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                 ];
             });
         },
-        [bbpActive, bbpNowSec, sessionId, setLogEntries, unit],
+        [bbpActive, bbpNowSec, sessionId, setLogEntries, unit, recordDropWaitEvent],
     );
 
     const machineControl = useMachineControlComposition({

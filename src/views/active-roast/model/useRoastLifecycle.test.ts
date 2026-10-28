@@ -3,7 +3,7 @@ import { useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { formatRoastTsvRow, formatTsvRows, replaceSessionTsv } from '@shared/lib/tsv-writer';
+import { deleteBbpTsv, formatRoastTsvRow, formatTsvRows, replaceSessionTsv } from '@shared/lib/tsv-writer';
 import type { LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -357,7 +357,7 @@ describe('completeDrop → BBP (#484)', () => {
 
     it('Drop cancel restores Charge clock and clears heat hold', () => {
         vi.useFakeTimers();
-        vi.setSystemTime(new Date('2026-09-21T00:10:00Z'));
+        vi.setSystemTime(1_600_000);
         const h = renderLifecycle([log('Charge', 0), log('FC Start', 480)]);
         try {
             void act(() => {
@@ -380,25 +380,64 @@ describe('completeDrop → BBP (#484)', () => {
                 h.result.resetActiveRoast({ chargeWait: true, keepHeatHold: true });
             });
             expect(useRoastingStore.getState().phase).toBe('standby');
-            vi.setSystemTime(new Date('2026-09-21T00:12:00Z'));
+            vi.setSystemTime(1_720_000);
             void act(() => {
                 expect(h.result.cancelDrop()).toBe(true);
             });
             expect(useRoastingStore.getState().phase).toBe('roasting');
             expect(useRoastingStore.getState().sessionId).toBe('s-a');
-            expect(useRoastingStore.getState().elapsed).toBe(600);
-            expect(useRoastingStore.getState().roastStartMs).toBe(Date.now() - 600_000);
+            expect(useRoastingStore.getState().elapsed).toBe(720);
+            expect(useRoastingStore.getState().roastStartMs).toBe(1_000_000);
             expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(false);
             expect(useBbpStore.getState().active).toBe(false);
-            vi.setSystemTime(new Date('2026-09-21T00:12:03Z'));
+            vi.setSystemTime(1_723_000);
             useRoastingStore.getState().tick();
-            expect(useRoastingStore.getState().elapsed).toBe(603);
+            expect(useRoastingStore.getState().elapsed).toBe(723);
             expect(useRoastingStore.getState().phase).toBe('roasting');
         } finally {
             vi.useRealTimers();
             h.unmount();
         }
     });
+
+    it.each(['success', 'failure', 'new-wait'])(
+        'cleans the BBP backup only after its own successful restore: %s',
+        async (outcome) => {
+            const h = renderLifecycle([log('Charge', 0)]);
+            const deletion = vi.mocked(deleteBbpTsv);
+            const replace = vi.mocked(replaceSessionTsv);
+            try {
+                act(() => {
+                    h.result.completeDrop({ livePoints: [], onset: { timeSec: 600, bt: 205 } });
+                });
+                await Promise.resolve();
+                deletion.mockClear();
+                let settle: () => void = () => {};
+                replace.mockImplementationOnce(
+                    () =>
+                        new Promise<void>((resolve, reject) => {
+                            settle = outcome === 'failure' ? () => reject(new Error('disk full')) : resolve;
+                        }),
+                );
+                act(() => {
+                    expect(h.result.cancelDrop()).toBe(true);
+                });
+                expect(deletion).not.toHaveBeenCalled();
+                if (outcome === 'new-wait') {
+                    useBbpStore.getState().begin(Date.now());
+                    useBbpStore.getState().abort();
+                }
+                await act(async () => {
+                    settle();
+                    await Promise.resolve();
+                    await Promise.resolve();
+                });
+                expect(deletion).toHaveBeenCalledTimes(outcome === 'success' ? 1 : 0);
+            } finally {
+                h.unmount();
+            }
+        },
+    );
 
     it('rewrites session TSV at Drop so lookback is not uploaded with A', () => {
         const processing = {

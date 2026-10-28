@@ -1,6 +1,7 @@
 import type { LiveRoastPoint } from '@shared/types/roast';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from './batch';
+import { useBbpStore } from './bbp';
 import { getRoastSettings, updateRoastSettings } from './settings';
 import { useRoastingStore } from './status';
 
@@ -344,7 +345,7 @@ describe('central batch ownership and transitions', () => {
         expect(useRoastingStore.getState().prepared.planBatchHandoff?.planBatchId).toBe('scheduled');
     });
 
-    it('restores the pre-Drop clock, selection, curve and Replay request without including waiting time', () => {
+    it('restores the pre-Drop clock, selection, curve and Replay request including waiting time', () => {
         charge();
         const sessionId = useRoastingStore.getState().sessionId;
         drop();
@@ -356,20 +357,56 @@ describe('central batch ownership and transitions', () => {
             sessionId,
             sessionOwnerId: 'owner',
             phase: 'roasting',
-            elapsed: 600,
-            roastStartMs: Date.now() - 600_000,
+            elapsed: 720,
+            roastStartMs: Date.now() - 720_000,
             heatHoldAfterDrop: false,
             awaitingNextCharge: false,
             completed: null,
         });
         expect(state.activeSelection?.profileId).toBe('profile-a');
         expect(state.logState.entries.some((entry) => entry.event === 'Drop')).toBe(false);
-        expect(state.livePoints.map((p) => p.time)).toEqual([0, 600]);
+        expect(state.livePoints.map((p) => p.time)).toEqual([0, 600, 610]);
         vi.advanceTimersByTime(3_000);
         state.tick();
-        expect(useRoastingStore.getState().elapsed).toBe(603);
+        expect(useRoastingStore.getState().elapsed).toBe(723);
         expect(drop()).not.toBeNull();
     });
+
+    it.each([20, 1000])(
+        'restores all observed samples after a %s-second wait and retains events across BBP OFF',
+        (wait) => {
+            const origin = Date.now() - 30_000;
+            const state = useRoastingStore.getState();
+            state.enterPreheating();
+            state.startCharge(origin, 'owner');
+            state.setLivePoints([point(0), point(30), { ...point(32), heaterSet: 65 }]);
+            state.drop({ rawBT: 200, unit: 'C', replayActive: false, onset: { timeSec: 30, bt: 200 } });
+            const bbp = useBbpStore.getState();
+            bbp.begin(origin + 30_000);
+            bbp.setEvents([{ id: 'note', event: 'Note', time: '0:10', timeSec: 10, temp: '', note: 'keep' }]);
+            state.retainDropWaitEvents(useBbpStore.getState().events, origin + 30_000);
+            bbp.abort();
+            vi.advanceTimersByTime(wait * 1000);
+            state.setLivePoints([
+                { ...point(0), observedAtMs: origin + 33_000, heaterSet: 70, btRaw: 199.5 },
+                { ...point(wait - 3), observedAtMs: Date.now(), heaterSet: 75 },
+            ]);
+            state.cancelDrop();
+            const restored = useRoastingStore.getState();
+            expect(restored.elapsed).toBe(30 + wait);
+            expect(restored.roastStartMs).toBe(origin);
+            expect(restored.livePoints.map((sample) => sample.time)).toEqual([0, 30, 32, 33, 30 + wait]);
+            expect(restored.livePoints[2]?.heaterSet).toBe(65);
+            expect(restored.livePoints[3]).toMatchObject({ heaterSet: 70, btRaw: 199.5, ror: 1 });
+            expect(restored.logState.entries.find((entry) => entry.id === 'note')).toMatchObject({
+                timeSec: 40,
+                time: '0:40',
+            });
+            vi.advanceTimersByTime(1000);
+            restored.tick();
+            expect(useRoastingStore.getState().elapsed).toBe(31 + wait);
+        },
+    );
 
     it('next Charge locks A cancellation while retaining its completed summary', () => {
         charge();

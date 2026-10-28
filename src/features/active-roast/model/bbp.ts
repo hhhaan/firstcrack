@@ -28,6 +28,7 @@ export const rebaseBbpWindow = (points: BbpPoint[], endT: number, windowSeconds 
 };
 
 interface BbpState {
+    revision: number;
     active: boolean;
     /** Whether the live wait survives reload; every captured preheat is saved with its roast. */
     recording: boolean;
@@ -200,6 +201,7 @@ export const readLiveBbp = (): {
 };
 
 export const useBbpStore = create<BbpState>((set, get) => ({
+    revision: 0,
     active: false,
     recording: false,
     liveGeneration: '',
@@ -212,6 +214,7 @@ export const useBbpStore = create<BbpState>((set, get) => ({
 
     // finalized는 건드리지 않는다 — 직전 세션이 아직 저장 전일 수 있다
     begin: (startMs, seed = [], recording = true) => {
+        set({ revision: get().revision + 1 });
         const points = seed.length > 0 ? clipBbpWindow(seed, seed[seed.length - 1]?.t ?? 0) : [];
         // Chart-only preheat must not claim this tab's token or touch another tab's blob.
         if (!recording) {
@@ -248,11 +251,13 @@ export const useBbpStore = create<BbpState>((set, get) => ({
     },
 
     abort: () => {
+        set({ revision: get().revision + 1 });
         persistLive(false, get().liveGeneration, 0, [], []);
         set({ active: false, recording: false, liveGeneration: '', startMs: 0, points: [], events: [] });
     },
 
     finalize: (chargeMs, sessionId) => {
+        set({ revision: get().revision + 1 });
         const { active, recording, liveGeneration, startMs, points, events } = get();
         const capture = captureBatchBbp(
             { active, liveGeneration, startMs, recording, points, events },

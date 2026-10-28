@@ -222,8 +222,16 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     const cancelDrop = useCallback((expectedSessionId?: string | null): boolean => {
         const restore = useRoastingStore.getState().cancelDrop(expectedSessionId);
         if (!restore) return false;
+        const restoredPoints = useRoastingStore.getState().livePoints;
         useBbpStore.getState().abort();
-        void deleteBbpTsv(BBP_INPROGRESS_ID);
+        const bbpRevision = useBbpStore.getState().revision;
+        void replaceSessionTsv(restore.sessionId, formatTsvRows(restoredPoints, formatRoastTsvRow))
+            .then(() => {
+                if (useBbpStore.getState().revision === bbpRevision) return deleteBbpTsv(BBP_INPROGRESS_ID);
+            })
+            .catch((err) => {
+                logger.capture(err, { context: 'cancelDrop.restoreTsv', sessionId: restore.sessionId });
+            });
         try {
             clearPendingRoastSave(restore.sessionOwnerId ?? '', restore.sessionId);
         } catch (err) {

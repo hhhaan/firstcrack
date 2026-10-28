@@ -526,7 +526,11 @@ export const createBatchActions = (
                 (point) => Number.isFinite(point.time) && point.time <= planned.dropTimeSec,
             ),
         );
-        const restore: CompletedRoastRestore = { ...snapshot, replayActive: input.replayActive };
+        const restore: CompletedRoastRestore = {
+            ...snapshot,
+            livePoints: structuredClone(input.livePoints ?? state.livePoints),
+            replayActive: input.replayActive,
+        };
         const summary = summaryForSnapshot(planned.summary, snapshot);
         resetCurrent({
             phase: state.sidecarConnected ? 'standby' : 'idle',
@@ -574,6 +578,25 @@ export const createBatchActions = (
                 (state.phase === 'idle' || state.phase === 'preheating') && { phase: 'standby' as const }),
         });
     },
+    retainDropWaitEvents: (events: LogEntry[], originMs: number) => {
+        const state = get();
+        const restore = state.completed?.restore;
+        if (!restore || !selectDropCancelable(state)) return;
+        const offset = (originMs - restore.roastStartMs) / 1000;
+        set({
+            logState: {
+                ...state.logState,
+                entries: [
+                    ...state.logState.entries,
+                    ...events.flatMap((entry) => {
+                        if (entry.timeSec == null || !Number.isFinite(entry.timeSec)) return [];
+                        const timeSec = entry.timeSec + offset;
+                        return [{ ...entry, timeSec, time: formatElapsed(timeSec) }];
+                    }),
+                ],
+            },
+        });
+    },
     cancelDrop: (expectedSessionId?: string | null) => {
         const state = get();
         if (
@@ -583,17 +606,41 @@ export const createBatchActions = (
             return null;
         const restore = state.completed?.restore;
         if (!restore) return null;
-        const elapsed = Math.max(0, restore.elapsed);
+        const elapsed = Math.max(0, Math.floor((Date.now() - restore.roastStartMs) / 1000));
+        const points = new Map(restore.livePoints.map((point) => [Math.round(point.time * 1e6), point]));
+        for (const point of state.livePoints) {
+            if (point.observedAtMs == null) continue;
+            const time = (point.observedAtMs - restore.roastStartMs) / 1000;
+            if (!Number.isFinite(time) || time < 0) continue;
+            const key = Math.round(time * 1e6);
+            if (!points.has(key)) points.set(key, { ...point, time, label: formatElapsed(time) });
+        }
+        const bbp = useBbpStore.getState();
+        const offset = (bbp.startMs - restore.roastStartMs) / 1000;
+        const events = new Map<string | LogEntry, LogEntry>();
+        for (const entry of [
+            ...restore.logEntries,
+            ...state.logState.entries,
+            ...bbp.events.map((entry) => {
+                const timeSec = (entry.timeSec ?? 0) + offset;
+                return { ...entry, timeSec, time: formatElapsed(timeSec) };
+            }),
+        ]) {
+            if (entry.event !== 'Drop') events.set(entry.id ?? entry, entry);
+        }
         set({
             phase: 'roasting',
             sessionId: restore.sessionId,
             sessionOwnerId: restore.sessionOwnerId,
-            roastStartMs: Date.now() - elapsed * 1000,
+            roastStartMs: restore.roastStartMs,
             elapsed,
             awaitingNextCharge: false,
             heatHoldAfterDrop: false,
-            logState: { entries: restore.logEntries.filter((entry) => entry.event !== 'Drop'), unwind: false },
-            livePoints: restore.livePoints,
+            logState: {
+                entries: [...events.values()].sort((a, b) => (a.timeSec ?? 0) - (b.timeSec ?? 0)),
+                unwind: false,
+            },
+            livePoints: [...points.values()].sort((a, b) => a.time - b.time),
             bbpCapture: restore.bbpCapture ?? null,
             activeSelection: copySelection(restore.selection),
             machineSnapshot: restore.machineSnapshot,

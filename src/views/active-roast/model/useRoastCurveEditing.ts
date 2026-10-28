@@ -26,6 +26,7 @@ import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import type { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import type { useRoastLog } from '@features/active-roast/model/useRoastLog';
+import { formatElapsed } from '@shared/lib/format';
 import type { RoastNoteControls } from '@shared/types/roast';
 import { useCallback } from 'react';
 import { appendReviewEntry, type useReviewCurveEdit } from './useReviewCurveEdit';
@@ -34,10 +35,17 @@ type EditTarget = { kind: 'review'; snapshot: CompletedRoastSnapshot } | { kind:
 
 type Params = {
     unit: TemperatureUnit;
+    dropWaitOffset?: number | null;
     log: Pick<ReturnType<typeof useRoastLog>, 'markEvent' | 'setLogEntries' | 'removeLogEntry'>;
     review: Pick<ReturnType<typeof useReviewCurveEdit>, 'applyReviewLog' | 'getReviewLog'>;
     turningPoint: Pick<ReturnType<typeof useAutoDetection>, 'confirmedTP' | 'turningPoints' | 'moveTurningPoint'>;
     bbp: { active: boolean; nowSec: number; origin: number; points: MarkerDragLivePoint[] };
+    recordDropWaitEvent: (
+        event: string,
+        note: string,
+        controls?: RoastNoteControls,
+        historical?: { timeSec: number; tempC: number | null },
+    ) => boolean;
 };
 
 const temperatureAt = (points: readonly MarkerDragLivePoint[], timeSec: number): number | null => {
@@ -45,7 +53,15 @@ const temperatureAt = (points: readonly MarkerDragLivePoint[], timeSec: number):
     return nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
 };
 
-export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: Params) => {
+export const useRoastCurveEditing = ({
+    unit,
+    log,
+    review,
+    turningPoint,
+    bbp,
+    recordDropWaitEvent,
+    dropWaitOffset = null,
+}: Params) => {
     const livePoints = useRoastingStore((state) => state.livePoints);
     const elapsed = useRoastingStore((state) => state.elapsed);
     const phase = useRoastingStore((state) => state.phase);
@@ -115,6 +131,23 @@ export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: P
                     ]);
                 return;
             }
+            if (dropWaitOffset != null) {
+                setLogEntries((prev) => [
+                    ...prev.filter((entry) => entry.timeSec == null || entry.timeSec < dropWaitOffset),
+                    ...applyEventMarkerEdit(
+                        bbpEventsForDisplay(prev, dropWaitOffset),
+                        logId,
+                        patch,
+                        livePoints,
+                        unit,
+                        livePoints[livePoints.length - 1]?.time ?? 0,
+                    ).map((entry) => {
+                        const timeSec = (entry.timeSec ?? 0) + dropWaitOffset;
+                        return { ...entry, timeSec, time: formatElapsed(timeSec) };
+                    }),
+                ]);
+                return;
+            }
             setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
         },
         [
@@ -131,6 +164,7 @@ export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: P
             bbpNowSec,
             setLogEntries,
             elapsed,
+            dropWaitOffset,
         ],
     );
     const dragMarker = useCallback((logId: string, timeSec: number) => editMarker(logId, { timeSec }), [editMarker]);
@@ -165,9 +199,11 @@ export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: P
                 return;
             }
             const historical = { timeSec, tempC: temperatureAt(livePoints, timeSec) };
-            markEvent('Note', body, undefined, historical, controls);
+            if (!recordDropWaitEvent('Note', body, controls, historical)) {
+                markEvent('Note', body, undefined, historical, controls);
+            }
         },
-        [readTarget, applyReviewLog, getReviewLog, unit, origin, bbpPoints, livePoints, markEvent],
+        [readTarget, applyReviewLog, getReviewLog, unit, origin, bbpPoints, livePoints, recordDropWaitEvent, markEvent],
     );
 
     const addNoteNow = useCallback(
@@ -193,9 +229,20 @@ export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: P
                 if (entry) useBbpStore.getState().setEvents((prev) => [...prev, entry]);
                 return;
             }
-            markEvent('Note', body);
+            if (!recordDropWaitEvent('Note', body)) markEvent('Note', body);
         },
-        [readTarget, applyReviewLog, getReviewLog, unit, bbpPoints, bbpNowSec, origin, rawBT, markEvent],
+        [
+            readTarget,
+            applyReviewLog,
+            getReviewLog,
+            unit,
+            bbpPoints,
+            bbpNowSec,
+            origin,
+            rawBT,
+            recordDropWaitEvent,
+            markEvent,
+        ],
     );
 
     const addEvent = useCallback(
@@ -269,7 +316,8 @@ export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: P
         [readTarget, getReviewLog, applyReviewLog, setLogEntries, removeLogEntry],
     );
 
-    const canEdit = snapshot != null || (phase !== 'ended' && (bbpActive || isChargedPhase(phase)));
+    const canEdit =
+        snapshot != null || (phase !== 'ended' && (bbpActive || dropWaitOffset != null || isChargedPhase(phase)));
     return {
         chartHandlers: {
             onEventMarkerDrag: canEdit ? dragMarker : undefined,
@@ -283,7 +331,13 @@ export const useRoastCurveEditing = ({ unit, log, review, turningPoint, bbp }: P
             ? {
                   unit,
                   livePoints: snapshot?.livePoints ?? (bbpActive ? bbpPoints : livePoints),
-                  maxTimeSec: snapshot?.elapsed ?? (bbpActive ? Math.max(0, bbpNowSec - origin) : elapsed),
+                  maxTimeSec:
+                      snapshot?.elapsed ??
+                      (bbpActive
+                          ? Math.max(0, bbpNowSec - origin)
+                          : dropWaitOffset != null
+                            ? (livePoints[livePoints.length - 1]?.time ?? 0)
+                            : elapsed),
                   onEditEntry: editMarker,
               }
             : undefined,

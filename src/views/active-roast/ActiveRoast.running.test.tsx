@@ -4,6 +4,7 @@ import type { roastSessionApi } from '@entities/roast/api';
 import { roastProfileKeys } from '@entities/roast-profile/queries';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
+import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
@@ -17,6 +18,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActiveRoast } from './ActiveRoast';
 import { ActiveRoastRuntime } from './ActiveRoastRuntime';
+import * as curveEditing from './model/useRoastCurveEditing';
 import * as roastHeader from './ui/RoastHeader';
 
 vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
@@ -292,6 +294,84 @@ describe('ActiveRoast running clock (#627)', () => {
             expect(useRoastingStore.getState().awaitingNextCharge).toBe(true);
         } finally {
             unmount();
+        }
+    });
+
+    it('retains BBP OFF wait commands once on the original Charge clock', async () => {
+        const editing = vi.spyOn(curveEditing, 'useRoastCurveEditing');
+        const bbpEnabled = getRoastSettings().bbpEnabled;
+        updateRoastSettings({ bbpEnabled: false });
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        seed({ roastStartMs: Date.now() - 30_000, elapsed: 30 });
+        useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+        const unmount = mount();
+        try {
+            await advance(20_000);
+            act(() =>
+                useRoastingStore.getState().setLivePoints(
+                    [0, 19].map((time) => ({
+                        time,
+                        observedAtMs: Date.now() - (19 - time) * 1000,
+                        label: String(time),
+                        bt: 200,
+                        et: 210,
+                        ror: 1,
+                        ror_et: 1,
+                        heater: 45,
+                        fan: 30,
+                        drum: 0,
+                    })),
+                ),
+            );
+            act(() =>
+                useRoastingStore
+                    .getState()
+                    .retainDropWaitEvents(
+                        [{ id: 'early', event: 'Note', time: '0:00', timeSec: 0.1, temp: '', note: 'early' }],
+                        Date.now() - 20_000,
+                    ),
+            );
+            const editingResult = editing.mock.results[editing.mock.results.length - 1];
+            if (editingResult?.type !== 'return') throw new Error('Missing curve editing handlers');
+            const handlers = editingResult.value.chartHandlers;
+            act(() => {
+                handlers.onAddNote?.('wait note', 10);
+            });
+            const note = useRoastingStore.getState().logState.entries.find((entry) => entry.note === 'wait note');
+            if (!note?.id) throw new Error('Missing wait note');
+            expect(note.timeSec).toBe(41);
+            act(() => {
+                handlers.onEventMarkerDrag?.(note.id ?? '', 12);
+            });
+            expect(useRoastingStore.getState().logState.entries.find((entry) => entry.id === note.id)?.timeSec).toBe(
+                43,
+            );
+            expect(useRoastingStore.getState().logState.entries.some((entry) => entry.id === 'early')).toBe(true);
+            const inputs = composition.mock.calls[composition.mock.calls.length - 1]?.[0];
+            if (!inputs) throw new Error('Missing machine control inputs');
+            act(() => {
+                inputs.onHeaterCommitted?.(45, '%');
+                inputs.onApplied?.({ heater: 45, fan: 30 });
+            });
+            const logs = useRoastingStore.getState().logState.entries;
+            expect(logs.filter((entry) => entry.event === 'Heater')).toHaveLength(1);
+            expect(logs.find((entry) => entry.event === 'Control')?.appliedControl).toEqual({ heater: 45, fan: 30 });
+            expect(logs.filter((entry) => entry.event !== 'Note').every((entry) => entry.timeSec === 50)).toBe(true);
+            act(() => {
+                inputs.onHeaterCommitted?.(45, '%');
+                inputs.onApplied?.({ heater: 45 });
+            });
+            expect(useRoastingStore.getState().logState.entries).toHaveLength(logs.length);
+            act(() => {
+                useRoastingStore.getState().cancelDrop();
+            });
+            expect(useRoastingStore.getState().elapsed).toBe(50);
+            expect(useRoastingStore.getState().logState.entries).toEqual(logs);
+        } finally {
+            unmount();
+            composition.mockRestore();
+            editing.mockRestore();
+            updateRoastSettings({ bbpEnabled });
         }
     });
 

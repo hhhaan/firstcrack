@@ -42,9 +42,11 @@ describe('roast curve editing', () => {
     let api: ReturnType<typeof useRoastCurveEditing> | undefined;
     let savedEntries: LogEntry[];
     let bbp: Parameters<typeof useRoastCurveEditing>[0]['bbp'];
+    let dropWaitOffset: number | null;
     const applyReviewLog = vi.fn((entries: LogEntry[]) => {
         savedEntries = entries;
     });
+    const recordDropWaitEvent = vi.fn<Parameters<typeof useRoastCurveEditing>[0]['recordDropWaitEvent']>();
     const moveTurningPoint = vi.fn();
     const Probe = () => {
         const state = useRoastingStore();
@@ -55,6 +57,8 @@ describe('roast curve editing', () => {
             review: { applyReviewLog, getReviewLog: () => savedEntries },
             turningPoint: { confirmedTP: null, turningPoints: [], moveTurningPoint },
             bbp,
+            dropWaitOffset,
+            recordDropWaitEvent,
         });
         return null;
     };
@@ -88,8 +92,10 @@ describe('roast curve editing', () => {
         api = undefined;
         savedEntries = [];
         bbp = { active: false, nowSec: 150, origin: 100, points: [point(10, 170), point(20, 180)] };
+        dropWaitOffset = null;
         applyReviewLog.mockClear();
         moveTurningPoint.mockClear();
+        recordDropWaitEvent.mockReset().mockReturnValue(false);
         useRoastingStore.getState().reset();
         useRoastingStore.setState({
             phase: 'roasting',
@@ -219,5 +225,18 @@ describe('roast curve editing', () => {
         expect(editing().chartHandlers.onAddEvent).toBeUndefined();
         expect(editing().chartHandlers.onMoveEvent).toBeUndefined();
         expect(editing().logEditOptions).toMatchObject({ livePoints: bbp.points, maxTimeSec: 50 });
+    });
+
+    it('preserves retained earlier rows while editing a visible Drop-wait marker', async () => {
+        dropWaitOffset = 100;
+        useRoastingStore.setState({
+            logState: { entries: [entry('earlier', 'Note', 90), entry('wait', 'Note', 110)], unwind: false },
+        });
+        await render();
+        await act(() => editing().chartHandlers.onEventMarkerEdit?.('wait', { timeSec: 20 }));
+        expect(useRoastingStore.getState().logState.entries).toEqual([
+            expect.objectContaining({ id: 'earlier', timeSec: 90 }),
+            expect.objectContaining({ id: 'wait', timeSec: 120 }),
+        ]);
     });
 });
