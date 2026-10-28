@@ -43,45 +43,23 @@ const chartInput = {
     referenceFan: [] as (number | null)[],
     elapsed: 90,
     charged: true,
-    roastEnded: false,
     eventMarkers: [{ timeSec: 1, event: 'Note', color: '#fff', timeStr: '0:01', temp: '100' }],
     turningPoints: [{ timeSec: 1, temp: 2 }],
     phaseSegments: [],
     showFcBand: true,
-    onEventMarkerDrag: () => {},
-    onEventMarkerEdit: () => {},
-    onEventMarkerDelete: () => {},
-    onAddNote: () => {},
-    onAddEvent: () => {},
-    onMoveEvent: () => {},
 };
 
 describe('buildChartFrame', () => {
-    it('keeps roast editing and the heat target while BBP is off', () => {
+    it('keeps the roast display and heat target while BBP is off', () => {
         const frame = buildChartFrame(chartInput);
         expect(frame.elapsed).toBe(90);
         expect(frame.charged).toBe(true);
         expect(frame.showFcBand).toBe(true);
         expect(frame.controlData?.heatTarget).toEqual({ xs: [0], values: [80] });
-        expect(frame.onAddNote).toBe(chartInput.onAddNote);
-        expect(frame.onAddEvent).toBe(chartInput.onAddEvent);
         expect(frame.bbpRange?.label).toBe('PREHEAT');
     });
 
-    it('keeps marker edits available on a saved-curve review', () => {
-        const frame = buildChartFrame({
-            ...chartInput,
-            charged: false,
-            roastEnded: true,
-            reviewing: true,
-        });
-        expect(frame.onEventMarkerEdit).toBe(chartInput.onEventMarkerEdit);
-        expect(frame.onAddNote).toBe(chartInput.onAddNote);
-        expect(frame.onEventMarkerDelete).toBe(chartInput.onEventMarkerDelete);
-        expect(frame.onMoveEvent).toBe(chartInput.onMoveEvent);
-    });
-
-    it('hides roast-phase marks during BBP and keeps note editing', () => {
+    it('hides roast-phase marks during BBP', () => {
         const frame = buildChartFrame({
             ...chartInput,
             bbpActive: true,
@@ -98,9 +76,6 @@ describe('buildChartFrame', () => {
         expect(frame.showFcBand).toBe(false);
         expect(frame.controlData?.heatTarget).toBeUndefined();
         expect(frame.controlData?.changes).toEqual(chartInput.controlChanges);
-        expect(frame.onEventMarkerDrag).toBe(chartInput.onEventMarkerDrag);
-        expect(frame.onAddNote).toBe(chartInput.onAddNote);
-        expect(frame.onAddEvent).toBeUndefined();
         expect(frame.bbpRange?.label).toBe('BBP');
     });
 

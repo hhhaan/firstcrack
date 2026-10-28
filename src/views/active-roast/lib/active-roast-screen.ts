@@ -1,10 +1,8 @@
 import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
-import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import type { RoastPhase } from '@features/active-roast/model/status';
-import type { RoastNoteControls } from '@shared/types/roast';
 
 type TempSample = { bt: number | null; et: number | null };
 
@@ -127,9 +125,6 @@ export const autoDropUnavailable = (phase: RoastPhase, enabled: boolean, hasRawT
 
 const listUnlessBbp = <T>(bbpActive: boolean, items: T[]): T[] => (bbpActive ? [] : items);
 
-const canEditChartMarkers = (charged: boolean, roastEnded: boolean, bbpActive: boolean) =>
-    !roastEnded && (bbpActive || charged);
-
 const anySeriesOn = (drum: boolean, heat: boolean, fan: boolean) => drum || heat || fan;
 
 type ControlFrameInput = {
@@ -223,21 +218,12 @@ export const buildChartFrame = <TTurningPoint>(input: {
     referenceFan: (number | null)[];
     elapsed: number;
     charged: boolean;
-    roastEnded: boolean;
     eventMarkers: RoastEventMarker[];
     turningPoints: TTurningPoint[];
     phaseSegments: PhaseSegment[];
     showFcBand: boolean;
-    onEventMarkerDrag: (logId: string, newTimeSec: number) => void;
-    onEventMarkerEdit: (logId: string, patch: EventMarkerPatch) => void;
-    onEventMarkerDelete: (logId: string) => void;
-    onAddNote: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
-    onAddEvent: (event: string, timeSec: number) => void;
-    onMoveEvent: (event: string, timeSec: number) => void;
-    reviewing?: boolean;
     eventTimeOrigin?: number;
 }) => {
-    const canEdit = Boolean(input.reviewing) || canEditChartMarkers(input.charged, input.roastEnded, input.bbpActive);
     const origin = input.eventTimeOrigin ?? 0;
     return {
         className: `bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
@@ -268,11 +254,5 @@ export const buildChartFrame = <TTurningPoint>(input: {
         turningPoints: listUnlessBbp(input.bbpActive, input.turningPoints),
         phaseSegments: listUnlessBbp(input.bbpActive, input.phaseSegments),
         showFcBand: input.showFcBand && !input.bbpActive,
-        onEventMarkerDrag: canEdit ? input.onEventMarkerDrag : undefined,
-        onEventMarkerEdit: canEdit ? input.onEventMarkerEdit : undefined,
-        onEventMarkerDelete: canEdit ? input.onEventMarkerDelete : undefined,
-        onAddNote: canEdit ? input.onAddNote : undefined,
-        onAddEvent: canEdit && !input.bbpActive ? input.onAddEvent : undefined,
-        onMoveEvent: input.reviewing && canEdit ? input.onMoveEvent : undefined,
     };
 };
