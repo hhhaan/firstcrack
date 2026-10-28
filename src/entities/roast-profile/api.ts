@@ -31,6 +31,9 @@ type SourceSessionRow = {
     bbp_seconds?: number | null;
     events: Json | null;
     heater_events?: Json | null;
+    duration_seconds?: number | null;
+    machine_id?: string | null;
+    machine_roaster_key?: string | null;
 };
 
 export type RoastProfileWithSource = RoastProfile & {
@@ -65,11 +68,11 @@ const REFERENCE_BATCHS_WITHOUT_HEATER =
     'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, beans(name), blends(name)';
 
 const SELECT_WITH_SESSION_HEATER =
-    '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+    '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events,duration_seconds,machine_id,machine_roaster_key), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 /** Same list shape when `roast_sessions.heater_events` is not on this database. */
 const SELECT_WITHOUT_SESSION_HEATER =
-    '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
+    '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,duration_seconds,machine_id,machine_roaster_key), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
 
 type ProfileListSelect = typeof SELECT_WITH_SESSION_HEATER | typeof SELECT_WITHOUT_SESSION_HEATER;
 

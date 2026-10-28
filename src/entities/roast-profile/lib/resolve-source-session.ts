@@ -6,6 +6,10 @@ export type SourceSessionSnapshot = {
     events?: unknown;
     /** History-edited Heat set plan; NULL = recorded TSV. */
     heater_events?: unknown;
+    /** Saved-record duration. Replay uses it only when the Drop mark is missing. */
+    duration_seconds?: number | null;
+    machine_id?: string | null;
+    machine_roaster_key?: string | null;
 };
 
 type SourceSessionJoin = SourceSessionSnapshot | SourceSessionSnapshot[] | null | undefined;

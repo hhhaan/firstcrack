@@ -455,6 +455,49 @@ describe('ActiveRoast running clock (#627)', () => {
         }
     });
 
+    it('reads the source roast machine and missing-Drop cutoff, not the profile copy', async () => {
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        seed({
+            activeSelection: { ...useRoastingStore.getState().prepared, profileId: 'profile-b' },
+            machineSnapshot: {
+                machine_id: 'session-machine',
+                machine_name: 'Roaster',
+                machine_roaster_key: 'session-key',
+                machine_brand: null,
+                machine_protocol: null,
+            },
+        });
+        const unmount = mount();
+        try {
+            await act(async () => {
+                queryClient.setQueryData(roastProfileKeys.all(''), [
+                    {
+                        id: 'profile-b',
+                        user_id: '',
+                        name: 'Profile B',
+                        duration_sec: 999,
+                        machine_id: 'profile-machine',
+                        machine_roaster_key: 'profile-key',
+                        source_session: {
+                            tsv_path: 'source.tsv',
+                            events: [{ type: 'End', time_sec: 500 }],
+                            duration_seconds: 400,
+                            machine_id: 'session-machine',
+                            machine_roaster_key: 'session-key',
+                        },
+                    },
+                ]);
+                await new Promise((resolve) => setTimeout(resolve, 0));
+            });
+            expect(composition).toHaveBeenLastCalledWith(
+                expect.objectContaining({ replayDropTime: 400, replayMachineMismatch: false }),
+            );
+        } finally {
+            unmount();
+            composition.mockRestore();
+        }
+    });
+
     it('replays a heater edit without a reference profile and keeps it across roast ticks', async () => {
         const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
         const status = await sidecar.getStatus();

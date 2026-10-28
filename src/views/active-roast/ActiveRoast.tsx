@@ -326,9 +326,8 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         reference ? reference.bbpPath : sourceSession?.bbp_tsv_path,
         bbpEnabled,
     );
-    // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
-    // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
-    // 곡선과 화력은 그 로스트 기록의 것이다. 프로파일은 화력을 따로 갖지 않는다.
+    // Replay 컷오프는 기준 로스트의 Drop 마크다. 마크가 없으면 그 기록의 duration_seconds.
+    // 프로파일 행의 duration_sec, 머신 키는 목록용 복사본이라 재생에 쓰지 않는다.
     const sourceEvents = useMemo(
         () =>
             parseStoredRoastEvents(
@@ -339,9 +338,9 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
     const replayDropTime = useMemo(
         () =>
             sourceEvents.find((e) => e.type === 'Drop')?.time_sec ??
-            (reference ? reference.durationSec : targetProfile?.duration_sec) ??
+            (reference ? reference.durationSec : sourceSession?.duration_seconds) ??
             null,
-        [sourceEvents, reference, targetProfile?.duration_sec],
+        [sourceEvents, reference, sourceSession?.duration_seconds],
     );
     const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
     const storedHeat = reference ? reference.heaterEvents : sourceSession?.heater_events;
@@ -378,12 +377,12 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
     );
 
     // 기존 Standard 기록은 같은 머신 ID의 W60 키 마이그레이션 뒤에도 재생한다.
-    const referenceKey = (reference ? reference.machineKey : targetProfile?.machine_roaster_key) ?? null;
+    const referenceKey = (reference ? reference.machineKey : sourceSession?.machine_roaster_key) ?? null;
     const currentKey = machineSnapshot?.machine_roaster_key ?? null;
     const replayMachineMismatch = isReplayMachineMismatch(
         referenceKey,
         currentKey,
-        reference ? reference.machineId : targetProfile?.machine_id,
+        reference ? reference.machineId : sourceSession?.machine_id,
         machineSnapshot?.machine_id,
     );
     // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm

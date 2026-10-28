@@ -63,6 +63,7 @@ describe('roastProfileApi.list source heater column', () => {
 
         expect(selects).toHaveLength(1);
         expect(selects[0]).toContain('heater_events');
+        expect(selects[0]).toContain('duration_seconds,machine_id,machine_roaster_key');
     });
 
     it('falls back once when heater_events is missing and does not probe again', async () => {
@@ -81,6 +82,7 @@ describe('roastProfileApi.list source heater column', () => {
         await expect(roastProfileApi.list('owner-1')).resolves.toEqual([{ id: 'p1', name: 'Washed' }]);
         expect(selects[0]).toContain('heater_events');
         expect(selects[1]).not.toContain('heater_events');
+        expect(selects[1]).toContain('duration_seconds,machine_id,machine_roaster_key');
 
         selects.length = 0;
         await roastProfileApi.list('owner-1');
