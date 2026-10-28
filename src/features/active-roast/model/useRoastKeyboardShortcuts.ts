@@ -1,6 +1,6 @@
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
-import { useGlobalDropShortcut } from '@features/active-roast/model/useGlobalDropShortcut';
+import { useGlobalRoastShortcuts } from '@features/active-roast/model/useGlobalRoastShortcuts';
 import { i18n } from '@shared/i18n';
 import {
     eventToShortcut,
@@ -12,11 +12,8 @@ import {
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { message } from '@tauri-apps/plugin-dialog';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
-
-/** One physical press can reach both the OS hotkey and the webview. Collapse that pair. */
-const DROP_SHORTCUT_DEDUPE_MS = 100;
 
 interface UseRoastKeyboardShortcutsParams {
     isActive: boolean;
@@ -116,17 +113,6 @@ export const useRoastKeyboardShortcuts = ({
     const dropKeys = useShortcutKeys('drop');
     const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const dropEnabledOnFormTags = dropKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
-    const onMarkDropRef = useRef(onMarkDrop);
-    const lastDropShortcutAt = useRef(0);
-    useEffect(() => {
-        onMarkDropRef.current = onMarkDrop;
-    });
-    const markDropFromShortcut = useCallback(() => {
-        const now = Date.now();
-        if (now - lastDropShortcutAt.current < DROP_SHORTCUT_DEDUPE_MS) return;
-        lastDropShortcutAt.current = now;
-        onMarkDropRef.current();
-    }, []);
     const shortcutsEnabled = !recording && !dialogOpen;
     const enabled =
         shortcutsEnabled &&
@@ -154,9 +140,57 @@ export const useRoastKeyboardShortcuts = ({
         });
     const canMark = shortcutBase && isRoastEventMarkEnabled(phase);
     const canMarkEvents = canMark || (markWhileReviewing && shortcutBase);
-    // OS-level Drop still covers an unfocused window. The webview hotkey stays on so a focused
-    // window records Drop when the OS callback does not.
-    useGlobalDropShortcut({ enabled: canMark, keys: dropKeys, onFire: markDropFromShortcut });
+    const customEvents = useRoastSettings().eventButtons.custom;
+    const bindingList = useShortcutStore((state) => state.bindings);
+    const customHotkeyPlan = useMemo(() => {
+        const taken = SHORTCUTS.flatMap(({ id }) => bindingList[id]);
+        const keys = effectiveCustomShortcuts(customEvents, taken);
+        return { keys, hotkeys: shortcutHotkeys(keys.filter((key): key is string => Boolean(key))) };
+    }, [customEvents, bindingList]);
+    const fireShortcut = useGlobalRoastShortcuts([
+        {
+            id: 'charge',
+            keys: chargeKeys,
+            enabled: canCharge,
+            enableOnFormTags: chargeEnabledOnFormTags,
+            onFire: () => {
+                if (phase === 'preheating') onEnterStandby();
+                else if (phase === 'standby') onManualCharge();
+            },
+        },
+        {
+            id: 'yellow',
+            keys: yellowKeys,
+            enabled: canMarkEvents,
+            global: canMark,
+            onFire: () => onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow'),
+        },
+        {
+            id: 'fcStart',
+            keys: fcStartKeys,
+            enabled: canMarkEvents,
+            global: canMark,
+            onFire: () => {
+                if (onCycleFc) onCycleFc();
+                else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+            },
+        },
+        {
+            id: 'fcEnd',
+            keys: fcEndKeys,
+            enabled: canMarkEvents,
+            global: canMark,
+            onFire: () => onMarkEvent('FC End', 'First crack ended', 'Mark FC End'),
+        },
+        { id: 'drop', keys: dropKeys, enabled: canMark, enableOnFormTags: dropEnabledOnFormTags, onFire: onMarkDrop },
+        ...customEvents.map((item, index) => ({
+            id: `custom:${item.id}`,
+            keys: customHotkeyPlan.keys[index] ? [customHotkeyPlan.keys[index]] : [],
+            enabled: canMarkEvents,
+            global: canMark,
+            onFire: () => onMarkEvent(item.name, '', item.id),
+        })),
+    ]);
 
     useEffect(() => {
         // `pnpm dev` in a browser keeps F5. Only the desktop webview drops the roast on reload.
@@ -208,15 +242,14 @@ export const useRoastKeyboardShortcuts = ({
         shortcutHotkeys(chargeKeys),
         (e) => {
             e.preventDefault();
-            if (phase === 'preheating') onEnterStandby();
-            else if (phase === 'standby') onManualCharge();
+            if (!e.repeat) fireShortcut('charge');
         },
         {
             enabled: canCharge && chargeKeys.length > 0,
             enableOnFormTags: chargeEnabledOnFormTags,
             ...SHORTCUT_HOTKEY_OPTIONS,
         },
-        [canCharge, phase, onEnterStandby, onManualCharge],
+        [canCharge, fireShortcut],
     );
 
     // Ctrl/Meta + 1 → Mark Yellow
@@ -224,10 +257,10 @@ export const useRoastKeyboardShortcuts = ({
         shortcutHotkeys(yellowKeys),
         (e) => {
             e.preventDefault();
-            onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
+            if (!e.repeat) fireShortcut('yellow');
         },
         { enabled: canMarkEvents && yellowKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMarkEvents, onMarkEvent],
+        [canMarkEvents, fireShortcut],
     );
 
     // Ctrl/Meta + 2 → Mark FC Start (or dual-mark cycle when onCycleFc provided)
@@ -235,11 +268,10 @@ export const useRoastKeyboardShortcuts = ({
         shortcutHotkeys(fcStartKeys),
         (e) => {
             e.preventDefault();
-            if (onCycleFc) onCycleFc();
-            else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+            if (!e.repeat) fireShortcut('fcStart');
         },
         { enabled: canMarkEvents && fcStartKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMarkEvents, onMarkEvent, onCycleFc],
+        [canMarkEvents, fireShortcut],
     );
 
     // Ctrl/Meta + 3 → Mark FC End
@@ -247,10 +279,10 @@ export const useRoastKeyboardShortcuts = ({
         shortcutHotkeys(fcEndKeys),
         (e) => {
             e.preventDefault();
-            onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
+            if (!e.repeat) fireShortcut('fcEnd');
         },
         { enabled: canMarkEvents && fcEndKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMarkEvents, onMarkEvent],
+        [canMarkEvents, fireShortcut],
     );
 
     // Ctrl/Meta + Shift + D → Mark Drop. Stays on while the OS hotkey is held; the shared
@@ -260,34 +292,28 @@ export const useRoastKeyboardShortcuts = ({
         (e) => {
             e.preventDefault();
             if (e.repeat) return;
-            markDropFromShortcut();
+            fireShortcut('drop');
         },
         {
             enabled: canMark && dropKeys.length > 0,
             enableOnFormTags: dropEnabledOnFormTags,
             ...SHORTCUT_HOTKEY_OPTIONS,
         },
-        [canMark, markDropFromShortcut],
+        [canMark, fireShortcut],
     );
 
-    const customEvents = useRoastSettings().eventButtons.custom;
-    const bindingList = useShortcutStore((state) => state.bindings);
-    const customHotkeyPlan = useMemo(() => {
-        const taken = SHORTCUTS.flatMap(({ id }) => bindingList[id]);
-        const keys = effectiveCustomShortcuts(customEvents, taken);
-        return { keys, hotkeys: shortcutHotkeys(keys.filter((key): key is string => Boolean(key))) };
-    }, [customEvents, bindingList]);
     useHotkeys(
         customHotkeyPlan.hotkeys,
         (event) => {
             event.preventDefault();
+            if (event.repeat) return;
             const pressed = eventToShortcut(event);
             const index = customHotkeyPlan.keys.findIndex((key) => key != null && sameShortcut(key, pressed));
             const item = index >= 0 ? customEvents[index] : undefined;
             if (!item) return;
-            onMarkEvent(item.name, '', item.id);
+            fireShortcut(`custom:${item.id}`);
         },
         { enabled: canMarkEvents && customHotkeyPlan.hotkeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
-        [canMarkEvents, customEvents, customHotkeyPlan, onMarkEvent],
+        [canMarkEvents, customEvents, customHotkeyPlan, fireShortcut],
     );
 };

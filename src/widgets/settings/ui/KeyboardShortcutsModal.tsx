@@ -178,7 +178,7 @@ export function KeyboardShortcutsModal() {
                                             <label htmlFor={`shortcut-enabled-${id}`} className="cursor-pointer">
                                                 {t(`shortcuts.actions.${id}`)}
                                             </label>
-                                            {id === 'drop' && (
+                                            {['charge', 'yellow', 'fcStart', 'fcEnd', 'drop'].includes(id) && (
                                                 <p className="m-0 mt-1 text-xs text-muted">
                                                     {t('shortcuts.globalHint')}
                                                 </p>
