@@ -69,6 +69,7 @@ export interface RoastingState extends BatchState, BatchActions {
 
 const initialState = {
     livePoints: [] as LiveRoastPoint[],
+    bbpCapture: null,
     logState: { entries: [] as LogEntry[], unwind: false },
     phase: 'idle' as RoastPhase,
     elapsed: 0,

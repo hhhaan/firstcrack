@@ -1,3 +1,4 @@
+import { type BbpCapture, batchBbpPoints, splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
 import { BBP_MAX_SECONDS, type BbpPoint, rebaseBbpWindow } from '@features/active-roast/model/bbp';
 import type { TsvPoint } from '@shared/lib/tsv';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
@@ -23,7 +24,7 @@ const sampleExtent = (points: { t: number }[]) => {
     return { min, max, span: Math.max(0, max - min) };
 };
 
-/** BBP and roast use separate timelines, each starting at 0. */
+/** Preserve the measured wait, then continue in Charge-relative coordinates. */
 export const resolveLiveChartView = (input: {
     bbpActive: boolean;
     charged: boolean;
@@ -32,14 +33,35 @@ export const resolveLiveChartView = (input: {
     roastTarget: TsvPoint[];
     bbpTarget: TsvPoint[];
     bbpTargetError: boolean;
+    bbpCapture?: BbpCapture | null;
 }): LiveChartView => {
     if (input.charged || !input.bbpActive) {
+        const capture = input.bbpCapture;
+        const before = capture ? batchBbpPoints(capture) : [];
+        const targetSource = input.bbpTargetError ? [] : input.bbpTarget;
+        const targetEnd = targetSource[0]?.bbpChargeOffsetSec ?? sampleExtent(targetSource).max;
+        const beforeTarget = targetSource.flatMap((point) =>
+            point.t >= targetEnd - BBP_MAX_SECONDS && point.t < targetEnd
+                ? [{ ...point, t: point.t - targetEnd, ror: null }]
+                : [],
+        );
+        const start = before[0]?.time ?? 0;
         return {
-            livePoints: input.livePoints,
-            targetPoints: input.roastTarget,
-            xMin: 0,
+            livePoints: before.length
+                ? [
+                      ...before,
+                      ...(input.livePoints.length
+                          ? input.livePoints
+                          : capture
+                            ? splitBatchBbp(capture).roastPoints
+                            : []),
+                  ]
+                : input.livePoints,
+            targetPoints: before.length ? [...beforeTarget, ...input.roastTarget] : input.roastTarget,
+            xMin: Math.min(0, start),
             xMaxFloor: undefined,
-            eventTimeOrigin: 0,
+            bbpRange: start < 0 ? { start, end: 0 } : undefined,
+            eventTimeOrigin: capture ? (capture.chargeMs - capture.startMs) / 1000 : 0,
         };
     }
 

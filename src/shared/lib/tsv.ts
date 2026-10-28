@@ -33,6 +33,8 @@ const extraReadingsSchema: z.ZodType<ExtraSensorReading[]> = z.array(
 
 export interface TsvPoint {
     t: number;
+    /** Optional BBP archive boundary; absent on legacy files. */
+    bbpChargeOffsetSec?: number;
     bt: number;
     et: number | null;
     ror: number | null;
@@ -82,10 +84,17 @@ export const parseTsv = (text: string): TsvPoint[] => {
     const lines = text.split('\n');
     const points: TsvPoint[] = [];
     let processing: TemperatureProcessing | undefined;
+    let bbpChargeOffsetSec: number | undefined;
     let droppedExtraReadings = 0;
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].replace(/\r$/, '');
         if (!line) continue;
+        if (line.startsWith('# bbp_charge_offset_sec\t')) {
+            const value = Number(line.slice('# bbp_charge_offset_sec\t'.length));
+            if (line.slice('# bbp_charge_offset_sec\t'.length).trim() && Number.isFinite(value) && value >= 0)
+                bbpChargeOffsetSec = value;
+            continue;
+        }
         if (line.startsWith('# processing\t')) {
             processing = undefined;
             try {
@@ -107,6 +116,7 @@ export const parseTsv = (text: string): TsvPoint[] => {
         points.push({
             t,
             bt,
+            ...(bbpChargeOffsetSec !== undefined ? { bbpChargeOffsetSec } : {}),
             et: optionalCol(cols[2]),
             ror: optionalCol(cols[3]),
             heater: optionalCol(cols[4]),

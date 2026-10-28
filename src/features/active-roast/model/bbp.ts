@@ -1,46 +1,16 @@
-import { isBbpAllowedEvent, rebaseBbpEvents, toChargeRelativeBbpEvents } from '@features/active-roast/lib/bbp-events';
-import { feedbackValue } from '@shared/lib/feedback';
-import { formatTsvRows, TSV_HEADER } from '@shared/lib/tsv-writer';
-import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
-import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
+import type { BbpPoint, BbpResult, BbpSample, FinalizedBbp } from '../lib/bbp-types';
+
+export { bbpPointsToTsv } from '../lib/bbp-archive';
+
+import { isBbpAllowedEvent } from '@features/active-roast/lib/bbp-events';
+import type { LogEntry } from '@shared/types/roast';
 import { create } from 'zustand';
+import { type BbpCapture, captureBatchBbp, splitBatchBbp } from '../lib/batch-timeline';
 
 /** Rolling FIFO window (seconds) kept immediately before Charge. */
 export const BBP_MAX_SECONDS = 900;
 
-export interface BbpSample {
-    bt: number;
-    btRaw?: number | null;
-    etRaw?: number | null;
-    ror_et?: number | null;
-    sensorTimestamp?: number | null;
-    sensorClock?: string | null;
-    processing?: TemperatureProcessing;
-    et: number | null;
-    heater: number | null;
-    fan: number;
-    drum: number;
-    extraReadings?: ExtraSensorReading[];
-}
-
-export interface BbpPoint extends BbpSample {
-    /** BBP 시작(End 확정) 기준 상대 초 */
-    t: number;
-}
-
-export interface BbpSummary {
-    seconds: number;
-    chargeTemp: number;
-}
-
-export interface FinalizedBbp extends BbpSummary {
-    /** 이 요약이 귀속되는 로스트 세션 — 저장 시 대조해 다른 세션 오염을 막는다 */
-    sessionId: string;
-    /** Charge-relative (negative) notes/heat written during this wait. */
-    events?: StoredRoastEvent[];
-}
-
-export type BbpResult = BbpSummary & { tsv: string; events: StoredRoastEvent[] };
+export type { BbpPoint, BbpResult, BbpSample, BbpSummary, FinalizedBbp } from '../lib/bbp-types';
 
 const windowOrigin = (endT: number, windowSeconds = BBP_MAX_SECONDS) => Math.max(0, endT - windowSeconds);
 
@@ -74,6 +44,7 @@ interface BbpState {
     finalized: FinalizedBbp | null;
     /** Session-scoped display samples; never persisted as live session state. */
     finalizedPoints: BbpPoint[];
+    finalizedCapture: BbpCapture | null;
 
     /** Id of this tab's in-progress wait. Empty when nothing is being recorded. */
     liveGeneration: string;
@@ -228,22 +199,6 @@ export const readLiveBbp = (): {
     }
 };
 
-/** Saved length is the kept samples' own span, not the wall-clock cutoff or the window cap. */
-const recordedSpanSeconds = (points: BbpPoint[]): number => {
-    if (points.length < 2) return 0;
-    return Math.round(points[points.length - 1].t - points[0].t);
-};
-
-export const bbpPointsToTsv = (points: BbpPoint[]): string =>
-    TSV_HEADER +
-    formatTsvRows(
-        points,
-        (p) =>
-            `${p.t.toFixed(1)}\t${p.bt}\t${p.et ?? ''}\t\t${feedbackValue(p.heater, 'heater', p.processing?.read_units) ?? ''}\t${feedbackValue(p.fan, 'fan', p.processing?.read_units) ?? ''}\t${feedbackValue(p.drum, 'drum', p.processing?.read_units) ?? ''}\t\t${p.etRaw ?? ''}\t${p.btRaw ?? ''}\t${p.ror_et ?? ''}\t${p.sensorTimestamp ?? ''}\t${p.sensorClock ?? ''}\t${p.extraReadings === undefined ? '' : JSON.stringify(p.extraReadings)}\n`,
-    );
-
-const toTsv = bbpPointsToTsv;
-
 export const useBbpStore = create<BbpState>((set, get) => ({
     active: false,
     recording: false,
@@ -253,6 +208,7 @@ export const useBbpStore = create<BbpState>((set, get) => ({
     events: [],
     finalized: null,
     finalizedPoints: [],
+    finalizedCapture: null,
 
     // finalized는 건드리지 않는다 — 직전 세션이 아직 저장 전일 수 있다
     begin: (startMs, seed = [], recording = true) => {
@@ -297,34 +253,13 @@ export const useBbpStore = create<BbpState>((set, get) => ({
     },
 
     finalize: (chargeMs, sessionId) => {
-        const { active, recording, liveGeneration, startMs, points: all, events: liveEvents } = get();
-        if (!recording) {
-            get().abort();
-            return null;
-        }
-        const cutoff = (chargeMs - startMs) / 1000;
-        // auto-charge는 lookback으로 잡은 onset을 charge 시각으로 쓰므로 그 이후 폴링된
-        // 투입 직후(BT 급락) 샘플이 섞인다 — 잘라내야 chargeTemp가 실제 투입 온도가 된다.
-        const points = rebaseBbpWindow(all, cutoff);
-        const seconds = recordedSpanSeconds(points);
-        const valid = active && points.length >= 2 && seconds > 0;
-        if (!valid) {
-            persistLive(false, liveGeneration, 0, [], []);
-            set({
-                active: false,
-                recording: false,
-                liveGeneration: '',
-                startMs: 0,
-                points: [],
-                events: [],
-                finalized: null,
-                finalizedPoints: [],
-            });
-            return null;
-        }
-        const chargeTemp = points[points.length - 1].bt;
-        const events = toChargeRelativeBbpEvents(rebaseBbpEvents(liveEvents, cutoff), points, seconds);
-        const result: BbpResult = { seconds, chargeTemp, tsv: toTsv(points), events };
+        const { active, recording, liveGeneration, startMs, points, events } = get();
+        const capture = captureBatchBbp(
+            { active, liveGeneration, startMs, recording, points, events },
+            sessionId,
+            chargeMs,
+        );
+        const result = capture ? splitBatchBbp(capture, BBP_MAX_SECONDS) : null;
         persistLive(false, liveGeneration, 0, [], []);
         set({
             active: false,
@@ -333,10 +268,18 @@ export const useBbpStore = create<BbpState>((set, get) => ({
             startMs: 0,
             points: [],
             events: [],
-            finalized: { sessionId, seconds, chargeTemp, events },
-            finalizedPoints: points,
+            finalized: result?.bbp
+                ? {
+                      sessionId,
+                      seconds: result.bbp.seconds,
+                      chargeTemp: result.bbp.chargeTemp,
+                      events: result.bbp.events,
+                  }
+                : null,
+            finalizedPoints: result?.before ?? [],
+            finalizedCapture: capture,
         });
-        return result;
+        return result?.bbp ?? null;
     },
 }));
 

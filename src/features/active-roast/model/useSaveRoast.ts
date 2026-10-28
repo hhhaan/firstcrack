@@ -24,12 +24,13 @@ import {
 import { logger } from '@shared/lib/logger';
 import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { normalizeTotalBatchPrefix } from '@shared/lib/sessionRoastTitle';
-import { flushTsv } from '@shared/lib/tsv-writer';
+import { flushTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
 import type { Bean, PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
+import { splitBatchBbp } from '../lib/batch-timeline';
 import { resumePendingRoastSave } from '../lib/resumePendingRoastSave';
 import type { PendingRoastSave } from './pendingRoastSave';
 import type { SaveRoastFormData, SaveRoastParams, SaveRoastResult, SyncRoastCurve } from './save-roast-types';
@@ -135,7 +136,8 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
     // charge 시 확정된 BBP 요약 (없으면 null — 첫 배치/무료 플랜).
     // 이 세션 것이 맞을 때만 사용 — 다른 배치 요약이 붙는 것을 막는다.
-    const pendingBbp = params.bbpSummary;
+    const capturedBbp = params.bbpCapture?.sessionId === sessionId ? splitBatchBbp(params.bbpCapture).bbp : null;
+    const pendingBbp = params.bbpCapture ? (capturedBbp ? { ...capturedBbp, sessionId } : null) : params.bbpSummary;
     const bbpSummary = pendingBbp?.sessionId === sessionId ? pendingBbp : null;
 
     // Green bean (or free-text label) name — the roast title snapshot written at save.
@@ -178,7 +180,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         tsv_path: null,
         bbp_tsv_path: null,
         bbp_seconds: bbpSummary?.seconds ?? null,
-        charge_temp_celsius: bbpSummary != null ? Math.round(bbpSummary.chargeTemp) : null,
+        charge_temp_celsius: bbpSummary?.chargeTemp != null ? Math.round(bbpSummary.chargeTemp) : null,
         plan_batch_id: effectiveBatch?.planBatchId ?? null,
         events: [...(bbpSummary?.events ?? []), ...serializeRoastEvents(payloadParams.logEntries)].sort(
             (a, b) => a.time_sec - b.time_sec,
@@ -211,6 +213,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     const wantDeduct = Boolean(formData.deductStock && provisionalPlan?.canDeduct);
     const deductionGrams = wantDeduct ? (provisionalPlan?.deductionGrams ?? 0) : 0;
 
+    if (capturedBbp) await writeBbpTsv(sessionId, capturedBbp.tsv);
     if (sessionId) await flushCurve(sessionId);
 
     const savedSession = await saveOp({

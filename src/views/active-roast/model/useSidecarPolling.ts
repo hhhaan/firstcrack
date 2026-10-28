@@ -1,5 +1,6 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
+import { splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
 import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
 import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -13,7 +14,14 @@ import { createBtFilter } from '@shared/lib/btFilter';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
-import { deleteBbpTsv, enqueueTsvRow, formatRoastTsvRow, initSessionTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
+import {
+    deleteBbpTsv,
+    enqueueTsvRow,
+    flushTsv,
+    formatRoastTsvRow,
+    initSessionTsv,
+    writeBbpTsv,
+} from '@shared/lib/tsv-writer';
 import type { LiveRoastPoint } from '@shared/types/roast';
 import { listen } from '@tauri-apps/api/event';
 import { useEffect, useRef, useState } from 'react';
@@ -162,7 +170,7 @@ export const useSidecarPolling = ({
     }, [sessionId]);
 
     // phase → 'roasting' 전환 감지:
-    // BBP finalize + 차트 00:00 (#433). 음수 lookback 없음.
+    // Bind the complete wait and its confirmed Charge boundary to this batch.
     // Drop 취소는 같은 세션으로 돌아오므로 Charge 시드·BBP finalize를 하지 않는다 (#638).
     useEffect(() => {
         if (prevPhaseRef.current !== 'roasting' && phase === 'roasting') {
@@ -174,9 +182,30 @@ export const useSidecarPolling = ({
                 const bbpResult = bbpSessionId
                     ? useBbpStore.getState().finalize(chargeTime || Date.now(), bbpSessionId)
                     : null;
+                const capture =
+                    store.bbpCapture?.sessionId === bbpSessionId
+                        ? store.bbpCapture
+                        : useBbpStore.getState().finalizedCapture;
+                const split = capture?.sessionId === bbpSessionId ? splitBatchBbp(capture) : null;
+                if (capture?.sessionId === bbpSessionId) {
+                    useRoastingStore.setState({ bbpCapture: capture });
+                    if (!store.bbpCapture && split?.roastEvents.length) {
+                        store.setLogState((prev) => ({
+                            ...prev,
+                            entries: [...prev.entries, ...split.roastEvents].sort(
+                                (a, b) => (a.timeSec ?? 0) - (b.timeSec ?? 0),
+                            ),
+                        }));
+                    }
+                }
                 if (bbpResult && bbpSessionId) {
                     void writeBbpTsv(bbpSessionId, bbpResult.tsv)
-                        .then(() => deleteBbpTsv(BBP_INPROGRESS_ID))
+                        .then(async () => {
+                            await flushTsv(bbpSessionId);
+                            const current = useBbpStore.getState();
+                            if (!current.active && current.finalizedCapture?.sessionId === bbpSessionId)
+                                await deleteBbpTsv(BBP_INPROGRESS_ID);
+                        })
                         .catch((err) => {
                             logger.capture(err instanceof Error ? err : new Error(String(err)), {
                                 context: 'bbp tsv write',
@@ -215,9 +244,12 @@ export const useSidecarPolling = ({
                               processing: sample?.processing,
                           }
                         : null;
-                setLivePoints(seed ? [seed] : []);
-                if (seed && bbpSessionId) {
-                    enqueueTsvRow(bbpSessionId, formatRoastTsvRow(seed), seed.processing);
+                const tail = split?.roastPoints ?? [];
+                const initial = tail.some((point) => point.time === 0) || !seed ? tail : [seed, ...tail];
+                setLivePoints(initial);
+                if (bbpSessionId) {
+                    for (const point of initial)
+                        enqueueTsvRow(bbpSessionId, formatRoastTsvRow(point), point.processing);
                 }
                 preChargeStartRef.current = 0;
                 lastPreChargeAbsRef.current = 0;
@@ -421,7 +453,7 @@ export const useSidecarPolling = ({
                             drum: data.drum ?? 0,
                             extraReadings: data.extra_readings,
                         },
-                        Date.now(),
+                        receivedAtMs,
                     );
                     const liveBbp = useBbpStore.getState();
                     if (liveBbp.active && liveBbp.recording && liveBbp.points.length > 0) {
@@ -470,7 +502,7 @@ export const useSidecarPolling = ({
                     setLivePoints((prev) => [...prev, point]);
                 } else if (currentPhase === 'standby') {
                     // 첫 배치 예열 표시. Charge 때 00:00 시작점으로 교체한다 (#452). BBP 대기는 스토어 차트.
-                    const absTime = Date.now();
+                    const absTime = receivedAtMs;
                     if (lastPreChargeAbsRef.current > 0 && absTime - lastPreChargeAbsRef.current < 400) return;
                     lastPreChargeAbsRef.current = absTime;
 
@@ -485,6 +517,7 @@ export const useSidecarPolling = ({
                         ...prev,
                         {
                             time: sessionTime,
+                            observedAtMs: absTime,
                             label: `${m}:${String(s).padStart(2, '0')}`,
                             bt,
                             et: data.et ?? null,

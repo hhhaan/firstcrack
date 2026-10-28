@@ -30,6 +30,38 @@ const processing = {
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: loggerCapture } }));
 
 describe('tsv-writer', () => {
+    it('orders slow BBP writes, deletion and the next wait while allowing another archive to proceed', async () => {
+        let release = () => {};
+        const gate = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        const operations: string[] = [];
+        _resetTsvWriterForTests({
+            write: async (_path, content) => {
+                if (content === 'old wait') await gate;
+                operations.push(content);
+            },
+            remove: async () => {
+                operations.push('delete old wait');
+            },
+        });
+        const first = writeBbpTsv('inprogress', 'old wait');
+        const deletion = deleteBbpTsv('inprogress');
+        const next = writeBbpTsv('inprogress', 'new wait');
+        await writeBbpTsv('session-a', 'archive A');
+        expect(operations).toEqual(['archive A']);
+        release();
+        await Promise.all([first, deletion, next]);
+        expect(operations).toEqual(['archive A', 'old wait', 'delete old wait', 'new wait']);
+    });
+
+    it('allows a BBP file write to retry after the previous write fails', async () => {
+        const write = vi.fn().mockRejectedValueOnce(new Error('disk full')).mockResolvedValueOnce(undefined);
+        _resetTsvWriterForTests({ write });
+        await expect(writeBbpTsv('a', 'first')).rejects.toThrow('disk full');
+        await writeBbpTsv('a', 'retry');
+        expect(write).toHaveBeenLastCalledWith('bbp_a.tsv', 'retry', { append: false });
+    });
     const writes: { path: string; contents: string; append: boolean }[] = [];
     const removed: string[] = [];
     let writeDelayMs = 0;

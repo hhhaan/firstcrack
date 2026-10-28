@@ -2,9 +2,11 @@ import type { MachineSnapshot } from '@entities/machine';
 import { formatElapsed } from '@shared/lib/format';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
+import { type BbpCapture, captureBatchBbp, splitBatchBbp } from '../lib/batch-timeline';
 import { automaticBatchTitle, type RoastBatchIdentity } from '../lib/batch-title';
 import { buildDropSummary, type DropOnset, planDropTransition } from '../lib/drop-transition';
 import { formatTemp } from '../lib/temperature';
+import { useBbpStore } from './bbp';
 import { getRoastSettings, type TemperatureUnit } from './settings';
 
 export type RoastPhase = 'idle' | 'preheating' | 'standby' | 'roasting' | 'ended';
@@ -45,6 +47,7 @@ export interface RoastSummaryData {
     handoffBeanName?: string | null;
 }
 export interface CompletedRoastRestore {
+    bbpCapture?: BbpCapture | null;
     sessionId: string;
     sessionOwnerId: string | null;
     roastStartMs: number;
@@ -56,6 +59,7 @@ export interface CompletedRoastRestore {
     machineSnapshot: MachineSnapshot | null;
 }
 export interface CompletedRoastSnapshot {
+    bbpCapture?: BbpCapture | null;
     sessionId: string;
     curveRecorded: boolean;
     sessionOwnerId: string | null;
@@ -74,6 +78,7 @@ export interface CompletedRoast {
     submitted: boolean;
 }
 export interface BatchState {
+    bbpCapture?: BbpCapture | null;
     phase: RoastPhase;
     sessionId: string | null;
     sessionOwnerId: string | null;
@@ -161,6 +166,7 @@ const snapshotBatch = (state: BatchState, summary: RoastSummaryData, rawBT: numb
     }),
     logEntries: structuredClone(summary.logEntries),
     livePoints: structuredClone(state.livePoints),
+    bbpCapture: structuredClone(state.bbpCapture ?? null),
     machineSnapshot: structuredClone(state.machineSnapshot),
 });
 const summaryForSnapshot = (summary: RoastSummaryData, snapshot: CompletedRoastSnapshot): RoastSummaryData => ({
@@ -431,8 +437,11 @@ export const createBatchActions = (
         const now = Date.now();
         const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
         const sessionId = crypto.randomUUID();
+        const bbpCapture = captureBatchBbp(useBbpStore.getState(), sessionId, origin, state.livePoints);
+        const transferred = bbpCapture ? splitBatchBbp(bbpCapture) : null;
         set({
             phase: 'roasting',
+            bbpCapture,
             reviewSessionId: null,
             sessionId,
             sessionOwnerId: ownerId || null,
@@ -447,7 +456,7 @@ export const createBatchActions = (
                     title: automaticBatchTitle({ name: automaticTitleName(state.prepared) }),
                 },
             },
-            livePoints: [],
+            livePoints: transferred?.roastPoints ?? [],
             ...(charge && {
                 logState: {
                     entries: [
@@ -460,10 +469,21 @@ export const createBatchActions = (
                             tempC: charge.bt,
                             note: 'Bean drop detected',
                         },
+                        ...(transferred?.roastEvents ?? []),
                     ],
                     unwind: false,
                 },
             }),
+            ...(!charge && transferred?.roastEvents.length
+                ? {
+                      logState: {
+                          ...state.logState,
+                          entries: [...state.logState.entries, ...transferred.roastEvents].sort(
+                              (a, b) => (a.timeSec ?? 0) - (b.timeSec ?? 0),
+                          ),
+                      },
+                  }
+                : {}),
             completed: state.completed ? { ...state.completed, restore: null } : null,
         });
         return sessionId;
@@ -574,6 +594,7 @@ export const createBatchActions = (
             heatHoldAfterDrop: false,
             logState: { entries: restore.logEntries.filter((entry) => entry.event !== 'Drop'), unwind: false },
             livePoints: restore.livePoints,
+            bbpCapture: restore.bbpCapture ?? null,
             activeSelection: copySelection(restore.selection),
             machineSnapshot: restore.machineSnapshot,
             completed: null,
