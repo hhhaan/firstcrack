@@ -16,8 +16,8 @@ import {
     isCurveMarkerVisible,
     isEventMarkerVisible,
     layoutCurveLabelBoxes,
+    markerCurveY,
     nearestBtAt,
-    noteAnchoredAtTop,
     noteLabelTopInsetPx,
 } from '@features/active-roast/lib/chart-option/markers';
 import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
@@ -662,13 +662,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     if (!visible) return [];
                     const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
                     const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
-                    const atTop = noteAnchoredAtTop(marker.event);
-                    const displayY = atTop
-                        ? axisTop
-                        : (nearest ??
-                          (marker.tempC != null && Number.isFinite(marker.tempC)
-                              ? toDisplayTemp(marker.tempC, temperatureUnit)
-                              : axisTop));
+                    const onCurve = markerCurveY(nearest, marker.tempC, temperatureUnit);
+                    const displayY = onCurve ?? axisTop;
                     const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
                     const temp =
                         marker.tempC != null && Number.isFinite(marker.tempC)
@@ -692,7 +687,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
                             topInsetPx: noteLabelTopInsetPx(true, fontScale),
                             color: '',
-                            showDot: eventMarkerStyle === 'point',
+                            showDot: eventMarkerStyle === 'point' && onCurve != null,
                         },
                     ];
                 }),
@@ -753,7 +748,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 );
                 const plotHit = chart.containPixel({ gridIndex: [0, 1, 2] }, [point.x, point.y]);
                 const pointHit =
-                    eventMarkerStyle === 'point' &&
+                    input.showDot &&
                     plotHit &&
                     Number.isFinite(anchorY) &&
                     Math.hypot(point.x - x, point.y - anchorY) <= PIXEL_THRESHOLD;

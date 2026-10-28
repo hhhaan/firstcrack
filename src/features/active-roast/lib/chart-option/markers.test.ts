@@ -279,7 +279,7 @@ describe('event marker visual grammar', () => {
         expect(result.curveLabels[0]).toMatchObject({
             text: 'Open damper|09:00|200.0°C',
             color: '#eee',
-            y: baseParams.tempYMax,
+            y: 202,
             below: true,
             topInsetPx: NOTE_LABEL_TOP_INSET_PX,
             showDot: false,
@@ -327,6 +327,7 @@ describe('event marker visual grammar', () => {
             eventMarkers: [{ timeSec: 540, event: 'Note', color: '#old', timeStr: '', temp: '', note: '{b}' }],
         });
         expect(result.curveLabels[0]?.text).toBe('{b}|09:00|202.0°C');
+        expect(result.curveLabels[0]?.y).toBe(202);
         expect(result.curveLabels[0]?.showDot).toBe(true);
     });
 
@@ -713,8 +714,20 @@ describe('zoom window (#599)', () => {
                 text: 'ㅎ|05:00',
                 below: true,
                 topInsetPx: NOTE_LABEL_TOP_INSET_PX,
+                showDot: false,
             }),
         ]);
+        const pointed = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            xMin: 0,
+            xMax: 780,
+            currentTimeSec: 14,
+            xs: [0, 14, 780],
+            btActual: [200, 187.2, null],
+            eventMarkers: [{ timeSec: 300, event: 'Note', color: '#old', timeStr: '5:00', temp: '', note: 'ㅎ' }],
+        });
+        expect(pointed.curveLabels[0]).toMatchObject({ y: baseParams.tempYMax, showDot: false });
         expect(result.allMarkLines).toEqual(expect.arrayContaining([expect.objectContaining({ xAxis: 300 })]));
         expect(result.controlGuideMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 300)).toBe(false);
     });

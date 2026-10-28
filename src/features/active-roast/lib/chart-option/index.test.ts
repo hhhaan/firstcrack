@@ -485,7 +485,7 @@ describe('buildRoastChartOption', () => {
                         { dataIndex: 0, coordSys: { x: 0, y: 0, width: 300, height: 300 } },
                         { coord, getWidth: () => 300 },
                     );
-                    expect(coord).toHaveBeenCalledWith([30, axis.max]);
+                    expect(coord).toHaveBeenCalledWith([30, 110]);
                     const defaults = buildRoastChartOption({
                         ...params,
                         axisSettings: { tempLabelInterval: 50, timeTickIntervalSec: 60 },

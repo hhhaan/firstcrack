@@ -57,8 +57,19 @@ export const isCurveMarkerVisible = (
     return !xs.some((x, i) => Number.isFinite(x) && Number.isFinite(btActual[i]));
 };
 
-/** Notes and fan/drum writes hang from the top of the temperature axis. They do not follow BT. */
-export const noteAnchoredAtTop = (event: string) => event === 'Note' || event === 'Fan' || event === 'Drum';
+/**
+ * Dot anchor. Nearby BT wins so the point sits on the curve; stored temp is the fallback.
+ * The axis max is not a temperature reading.
+ */
+export const markerCurveY = (
+    nearest: number | null,
+    tempC: number | null | undefined,
+    temperatureUnit: TemperatureUnit,
+): number | null => {
+    if (nearest != null) return nearest;
+    if (typeof tempC === 'number' && Number.isFinite(tempC)) return toDisplayTemp(tempC, temperatureUnit);
+    return null;
+};
 
 /** Pixels a note label sits below the top of the temperature axis. */
 export const NOTE_LABEL_TOP_INSET_PX = 8;
@@ -490,16 +501,10 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     const curveLabels: CurveLabelItem[] = [
         ...labeledEvents.map((m) => {
             const nearest = m.reference ? null : nearestBtAt(xs, btActual, m.timeSec);
-            const atTop = noteAnchoredAtTop(m.event);
-            const y = atTop
-                ? tempYMax
-                : (nearest ??
-                  (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
-                      ? toDisplayTemp(m.tempC, temperatureUnit)
-                      : tempYMax));
+            const onCurve = markerCurveY(nearest, m.tempC, temperatureUnit);
             return {
                 timeSec: m.timeSec,
-                y,
+                y: onCurve ?? tempYMax,
                 text: eventLabelText(
                     m.event,
                     m.timeSec,
@@ -509,7 +514,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
                 color: markerLabelColor(m.event),
                 opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
                 below: true,
-                showDot: m.event === 'Charge' ? false : showDot,
+                showDot: m.event === 'Charge' ? false : showDot && onCurve != null,
                 labelAtTop: true,
                 topInsetPx: noteLabelTopInsetPx(true, fontScale),
             };
