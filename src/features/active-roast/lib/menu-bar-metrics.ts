@@ -1,7 +1,7 @@
 /** macOS status item images are shown at 18pt; baselines fit both rows without shrinking the type. */
 export const MENU_BAR_HEIGHT = 18;
 const LABEL_PX = 7;
-const VALUE_PX = 13;
+const VALUE_PX = 12;
 const PAD_X = 2;
 const LABEL_BASELINE = 6;
 const VALUE_BASELINE = 18;
@@ -76,8 +76,8 @@ export const drawMenuBarMetrics = (
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    const labelFont = font(500, LABEL_PX);
-    const valueFont = font(500, VALUE_PX);
+    const labelFont = font(300, LABEL_PX);
+    const valueFont = font(400, VALUE_PX);
     const measureLabel = (text: string) => {
         ctx.font = labelFont;
         return ctx.measureText(text).width;
