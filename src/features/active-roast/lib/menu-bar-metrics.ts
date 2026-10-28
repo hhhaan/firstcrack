@@ -75,8 +75,8 @@ export const drawMenuBarMetrics = (
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    const labelFont = font(600, LABEL_PX);
-    const valueFont = font(700, VALUE_PX);
+    const labelFont = font(500, LABEL_PX);
+    const valueFont = font(500, VALUE_PX);
     const measureLabel = (text: string) => {
         ctx.font = labelFont;
         return ctx.measureText(text).width;
