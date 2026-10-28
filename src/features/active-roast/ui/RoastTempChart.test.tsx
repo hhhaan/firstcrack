@@ -715,7 +715,7 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-note-form]')).toBeNull();
     });
 
-    it('edits a note mark with time only', () => {
+    it('edits a note mark time and the values that were entered', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
         act(() =>
@@ -748,17 +748,23 @@ describe('RoastTempChart interactions', () => {
         });
         const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
         expect(form.textContent).toContain('Gas 0');
-        expect(form.querySelector('#chart-marker-gas')).toBeNull();
-        expect(form.querySelector('#chart-marker-airflow')).toBeNull();
-        expect(form.querySelector('#chart-marker-drum')).toBeNull();
-        expect(form.querySelector('#chart-marker-note')).toBeNull();
-        expect(form.querySelectorAll('input')).toHaveLength(1);
+        expect((form.querySelector('#chart-marker-gas') as HTMLInputElement).value).toBe('0');
+        expect((form.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
+        expect((form.querySelector('#chart-marker-drum') as HTMLInputElement).value).toBe('55');
+        expect((form.querySelector('#chart-marker-note') as HTMLTextAreaElement).value).toBe('color');
         const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
         act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));
         expect(onEventMarkerEdit).not.toHaveBeenCalled();
         act(() => replaceMarkerTime(time, '0:08'));
+        act(() => replaceMarkerTime(form.querySelector('#chart-marker-gas') as HTMLInputElement, '1.2 kPa'));
         act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', { timeSec: 8 });
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', {
+            timeSec: 8,
+            note: 'color',
+            gas: '1.2 kPa',
+            airflow: '50%',
+            drum: '55',
+        });
     });
 
     it('opens a marker editor on click and saves Heater time and heat value', () => {

@@ -388,6 +388,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         title: string;
         heat: string | null;
         heatSuffix: string;
+        controls: RoastNoteValues | null;
     } | null>(null);
     const editFormRef = useRef<HTMLFormElement>(null);
 
@@ -866,17 +867,28 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                   ? noteTitle
                   : roastEventLabel(selected.event);
             const heat = labelHeat(selected.event, selected.note);
+            const controls =
+                selected.event === 'Note'
+                    ? {
+                          gas: selected.gas ?? '',
+                          airflow: selected.airflow ?? '',
+                          drum: selected.drum ?? '',
+                          note: selected.note ?? '',
+                      }
+                    : null;
+            const editWidth = controls ? 260 : 220;
             setNoteForm(null);
             setNoteValues(emptyNote);
             setEditForm({
                 logId: selected.logId,
                 event: selected.event,
-                x: Math.max(0, Math.min(point.x, container.clientWidth - 220)),
-                y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
+                x: Math.max(0, Math.min(point.x, container.clientWidth - editWidth)),
+                y: Math.max(0, Math.min(point.y, container.clientHeight - (controls ? 220 : 120))),
                 time: formatElapsed(selected.timeSec),
                 title,
                 heat: heat?.heat ?? null,
                 heatSuffix: heat?.suffix ?? '',
+                controls,
             });
             return true;
         },
@@ -1003,9 +1015,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
         const note = editForm.heat == null ? null : heatNote(editForm.heat, editForm.heatSuffix);
         if (editForm.heat != null && note == null) return;
+        const controls = editForm.controls;
         onEventMarkerEdit(editForm.logId, {
             timeSec: clampMarkerTime(editForm.event, timeSec, currentTimeSec, axisMax),
             ...(note != null ? { note } : {}),
+            ...(controls
+                ? { note: controls.note, gas: controls.gas, airflow: controls.airflow, drum: controls.drum }
+                : {}),
         });
         setEditForm(null);
         chartRef.current?.focus();
@@ -1149,7 +1165,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     ref={editFormRef}
                     data-chart-marker-edit
                     onKeyDown={(event) => handleFormKeyDown(event, submitEdit)}
-                    className="absolute z-20 flex w-[220px] max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md"
+                    className={`absolute z-20 flex ${editForm.controls ? 'w-[260px]' : 'w-[220px]'} max-w-full max-h-full flex-col gap-1 overflow-auto rounded border border-(--color-border) bg-(--color-surface) p-1.5 shadow-md`}
                     style={{ left: editForm.x, top: editForm.y }}
                     onSubmit={(event) => {
                         event.preventDefault();
@@ -1235,6 +1251,14 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 </span>
                             )}
                         </label>
+                    )}
+                    {editForm.controls && (
+                        <RoastNoteFields
+                            values={editForm.controls}
+                            onChange={(controls) => setEditForm({ ...editForm, controls })}
+                            prefix="chart-marker"
+                            commentId="chart-marker-note"
+                        />
                     )}
                     <div className="flex items-center justify-end gap-1">
                         {onEventMarkerDelete &&

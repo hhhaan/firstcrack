@@ -22,6 +22,7 @@ import {
 } from '@features/active-roast/lib/reference-curve';
 import {
     parseStoredRoastEvents,
+    patchStoredNoteEvent,
     storedEventsToControlChanges,
     storedEventsToLogEntries,
     storedEventsToMarkers,
@@ -249,7 +250,8 @@ export function HistorySessionChart({
             const control = patchStoredControl(session.events, logId, patch);
             const plan = control ? null : patchHeaterPlanMarker(session.heater_events, logId, patch);
             const events = control || plan ? null : patchStoredHeaterEvent(session.events, logId, patch);
-            const next = control ?? events;
+            const noted = control || plan || events ? null : patchStoredNoteEvent(session.events, logId, patch);
+            const next = control ?? events ?? noted;
             if (plan) {
                 void record.saveHeater(plan).then(
                     () => setMarkerError(null),

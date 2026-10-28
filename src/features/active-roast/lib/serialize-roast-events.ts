@@ -5,6 +5,7 @@ import { tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/tempera
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { formatSignedElapsed } from '@shared/lib/format';
 import { parseEditTime } from '@shared/lib/time-edit';
+import type { Json } from '@shared/types/database.types';
 import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
@@ -148,3 +149,37 @@ export const storedEventsToMarkers = (
     ),
     ...fanDrumMarkersFromStored(events),
 ];
+
+const NOTE_CONTROL_KEYS = ['gas', 'airflow', 'drum'] as const;
+
+/** Saved note row behind a chart label. Time, comment, and the manual values can change. */
+export const patchStoredNoteEvent = (
+    raw: unknown,
+    logId: string,
+    patch: { timeSec?: number; note?: string; gas?: string; airflow?: string; drum?: string },
+): Json | null => {
+    if (!Array.isArray(raw)) return null;
+    let found = false;
+    const next = raw.map((item) => {
+        if (item == null || typeof item !== 'object' || Array.isArray(item)) return item;
+        if ((item as { id?: unknown; type?: unknown }).id !== logId) return item;
+        if ((item as { type?: unknown }).type !== 'Note') return item;
+        found = true;
+        const row = { ...(item as Record<string, unknown>) };
+        if (patch.timeSec != null && Number.isFinite(patch.timeSec)) row.time_sec = Math.round(patch.timeSec);
+        if (patch.note != null) {
+            const note = patch.note.trim();
+            if (note) row.note = note;
+            else delete row.note;
+        }
+        for (const key of NOTE_CONTROL_KEYS) {
+            const value = patch[key];
+            if (value === undefined) continue;
+            const trimmed = value.trim();
+            if (trimmed) row[key] = trimmed;
+            else delete row[key];
+        }
+        return row;
+    });
+    return found ? (next as Json) : null;
+};

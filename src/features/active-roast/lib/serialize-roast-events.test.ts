@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     logEntryTimeSec,
     parseStoredRoastEvents,
+    patchStoredNoteEvent,
     serializeRoastEvents,
     storedEventsToControlChanges,
     storedEventsToLogEntries,
@@ -38,6 +39,18 @@ describe('serializeRoastEvents', () => {
             airflow: '1.2 kPa',
             drum: '55.5',
         });
+        expect(
+            patchStoredNoteEvent(stored, 'manual', { timeSec: 40, note: 'check', gas: '2', airflow: '', drum: '40' }),
+        ).toEqual([
+            expect.objectContaining({
+                id: 'manual',
+                type: 'Note',
+                time_sec: 40,
+                note: 'check',
+                gas: '2',
+                drum: '40',
+            }),
+        ]);
         const legacy = parseStoredRoastEvents([
             { id: 'old', type: 'Note', time_sec: 1, note: 'gas 80 fan 50%', gas: 80, airflow: {}, drum: 55 },
         ])[0];
