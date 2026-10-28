@@ -3,6 +3,7 @@
     // husky pre-commit이 `node scripts/...`로 직접 호출한다. husky 플러그인은 known binary만 본다.
     // CI invokes billing types through tsc; the MCP runner invokes its integration fixture through Deno.
     "entry": [
+        "src/roast-monitor.tsx",
         "scripts/check-version-sync.mjs",
         "supabase/tests/polar-database-types.ts",
         "supabase/tests/mcp-opaque.integration.ts"

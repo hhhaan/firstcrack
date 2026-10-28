@@ -980,6 +980,18 @@
         }
     },
     "activeRoast": {
+        "monitor": {
+            "title": "烘焙监视器",
+            "waiting": "连接中",
+            "disconnected": "传感器未连接",
+            "elapsed": "经过时间",
+            "development": "发展",
+            "markDrop": "记录排豆",
+            "recording": "正在记录…",
+            "dropRecorded": "已记录排豆",
+            "showMain": "主窗口",
+            "failed": "请求失败，请重试。"
+        },
         "batchTitleSettings": {
             "nameSource": {
                 "title": "批次标题名称",

@@ -341,6 +341,7 @@ const AppShell = () => {
                                 <ActiveRoast
                                     key={roastMount}
                                     isActive={view === 'roast'}
+                                    onShowMain={() => showView('roast')}
                                     onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}
                                 />

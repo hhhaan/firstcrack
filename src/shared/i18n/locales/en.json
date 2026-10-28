@@ -980,6 +980,18 @@
         }
     },
     "activeRoast": {
+        "monitor": {
+            "title": "Roast monitor",
+            "waiting": "Connecting",
+            "disconnected": "Disconnected",
+            "elapsed": "Elapsed",
+            "development": "Development",
+            "markDrop": "Mark Drop",
+            "recording": "Recording…",
+            "dropRecorded": "Drop recorded",
+            "showMain": "Main view",
+            "failed": "Request failed. Try again."
+        },
         "batchTitleSettings": {
             "nameSource": {
                 "title": "Batch title name",

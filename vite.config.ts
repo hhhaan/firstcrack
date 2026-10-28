@@ -34,6 +34,12 @@ export default defineConfig(async ({ command, mode }) => {
             __APP_VERSION__: JSON.stringify(appVersion),
         },
         build: {
+            rollupOptions: {
+                input: {
+                    main: fileURLToPath(new URL('./index.html', import.meta.url)),
+                    monitor: fileURLToPath(new URL('./roast-monitor.html', import.meta.url)),
+                },
+            },
             // 업로드용 소스맵은 필요하지만 배포물에 노출하지 않는다 — sentryVitePlugin이 업로드 후 삭제.
             sourcemap: sentryAuthToken ? 'hidden' : false,
         },

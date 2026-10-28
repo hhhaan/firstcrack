@@ -980,6 +980,18 @@
         }
     },
     "activeRoast": {
+        "monitor": {
+            "title": "焙煎モニター",
+            "waiting": "接続中",
+            "disconnected": "センサー未接続",
+            "elapsed": "経過時間",
+            "development": "発達",
+            "markDrop": "排出を記録",
+            "recording": "記録中…",
+            "dropRecorded": "排出記録済み",
+            "showMain": "メインへ",
+            "failed": "リクエストに失敗しました。再試行してください。"
+        },
         "batchTitleSettings": {
             "nameSource": {
                 "title": "バッチタイトルの名前",

@@ -14,6 +14,7 @@ import {
     computePhaseSegments,
     formatTemp,
     isRoastShortcutBaseEnabled,
+    rorUnitLabel,
     useBbpStore,
     useBbpTimer,
     useEffectivePollIntervalMs,
@@ -56,6 +57,7 @@ import { useAutoDetection } from '@features/active-roast/model/useAutoDetection'
 import { useMenuBarMetrics } from '@features/active-roast/model/useMenuBarMetrics';
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
+import { useRoastMonitorBridge } from '@features/active-roast/model/useRoastMonitorBridge';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
 import { editedHeatSet, profileHeatTarget } from '@features/machine-control/lib/heater-events';
@@ -135,6 +137,7 @@ const markerRowId = (logId: string) => parseControlMarkerLogId(logId)?.id ?? log
 
 interface ActiveRoastProps {
     isActive: boolean;
+    onShowMain?: () => void;
     onOpenRoastSettings?: () => void;
     onPlanBatchComplete?: () => void;
 }
@@ -142,8 +145,8 @@ interface ActiveRoastProps {
 /** Chart-only preheat older than this module evaluation is not a saved Charge wait. */
 const chartOnlyPreheatBootMs = Date.now();
 
-export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
-    const { t } = useTranslation();
+export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
+    const { t, i18n } = useTranslation();
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
     const roastSettings = useRoastSettings();
@@ -821,6 +824,39 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         [roastSettings.showPhaseBar, curveEntries, roastDurationSec, curveElapsed, charged, reviewing, resolvedTheme],
     );
     const displayRoR = formatDisplayRoR(liveData?.ror, unit);
+    const lastDrop = useRoastingStore((state) =>
+        state.completed?.snapshot.logEntries.find((entry) => entry.event === 'Drop'),
+    );
+    const monitorBbpTime = phase === 'roasting' ? null : bbpTimer;
+    useRoastMonitorBridge({
+        snapshot: {
+            sessionId,
+            bt: formatTemp(rawBT, unit),
+            et: formatTemp(rawET, unit),
+            ror: displayRoR,
+            rorUnit: rorUnitLabel(unit),
+            time: monitorBbpTime ?? (charged ? timeStr : (lastDrop?.time ?? '—')),
+            phase: roastPhaseName,
+            phaseColor: roastPhaseColor,
+            development: charged ? devTimeOnly : '—',
+            dtr: charged && dtrPct != null ? `${dtrPct.toFixed(1)}%` : '',
+            bbpTime: monitorBbpTime,
+            connected: sidecarConnected && !reconnecting,
+            stale: liveData == null || liveData.stale === true,
+            canDrop:
+                phase === 'roasting' &&
+                sessionId != null &&
+                sidecarConnected &&
+                !reconnecting &&
+                !saveFlow.flow.endRoastModal &&
+                !saveFlow.flow.summaryModal &&
+                !saveFlow.flow.continueModal,
+            dropTime: !charged && monitorBbpTime == null ? (lastDrop?.time ?? null) : null,
+            language: i18n.language,
+        },
+        onDrop: markDrop,
+        onShowMain: () => onShowMain?.(),
+    });
     useMenuBarMetrics(
         isActive ? { et: formatTemp(rawET, unit), bt: formatTemp(rawBT, unit), ror: displayRoR, time: timeStr } : null,
     );

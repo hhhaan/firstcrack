@@ -3,6 +3,8 @@ mod app_nap;
 mod menu_bar_metrics;
 mod browser_defaults;
 #[cfg(desktop)]
+mod roast_monitor;
+#[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
 #[cfg(any(target_os = "windows", test))]
@@ -487,9 +489,7 @@ pub fn run() {
     #[cfg(desktop)]
     let builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if let Some(w) = app.get_webview_window("main") {
-                let _ = w.set_focus();
-            }
+            roast_monitor::focus_main(app);
             // deep-link 플러그인이 못 받은 경우 argv에서 직접 전달 (백업)
             for arg in args {
                 if arg.contains("firstcrack://") && arg.contains("auth/callback") {
@@ -501,9 +501,13 @@ pub fn run() {
         // CommandChild has no Drop impl — storing via manage() keeps it alive for the app lifetime.
         .manage(SidecarChild(Mutex::new(None)))
         .manage(SidecarToken(generate_sidecar_token()))
+        .manage(roast_monitor::RoastMonitorState::default())
+        .on_window_event(roast_monitor::on_window_event)
         .invoke_handler(tauri::generate_handler![
             relaunch_for_update,
             sidecar_token,
+            roast_monitor::sync_roast_monitor,
+            roast_monitor::show_roast_main,
             menu_bar_metrics::update_menu_bar_metrics,
             roasting_import::read_firescope_settings,
             roasting_import::read_artisan_settings,
@@ -548,13 +552,15 @@ pub fn run() {
 
     app.run(|_app, event| {
         #[cfg(target_os = "macos")]
+        if let RunEvent::Reopen { .. } = &event {
+            roast_monitor::focus_main(_app);
+        }
+        #[cfg(target_os = "macos")]
         if let RunEvent::ExitRequested { code: None, api, .. } = &event {
-            if let Some(window) = _app.get_webview_window("main") {
+            if _app.get_webview_window("main").is_some() {
                 api.prevent_exit();
                 // Cmd+Q follows the same close confirmation and flush as the titlebar.
-                if let Err(error) = window.close() {
-                    eprintln!("[close] Could not request main window close: {error}");
-                }
+                roast_monitor::request_main_close(_app);
             }
         }
 

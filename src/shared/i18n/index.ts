@@ -55,7 +55,7 @@ export const setLanguage = async (language: SupportedLanguage) => {
     await persistLanguage(language);
 };
 
-export const initI18n = async () => {
+export const initI18n = async ({ persist = true }: { persist?: boolean } = {}) => {
     const savedLanguage = await getStoredLanguage();
     const language = normalizeLanguage(savedLanguage ?? (await getSystemLanguage()));
 
@@ -74,7 +74,7 @@ export const initI18n = async () => {
 
     document.documentElement.lang = language;
 
-    if (!savedLanguage) {
+    if (!savedLanguage && persist) {
         await persistLanguage(language);
     }
 };

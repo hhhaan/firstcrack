@@ -2,7 +2,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use tauri::Url;
+use tauri::{Manager, Url};
 use tauri_plugin_opener::OpenerExt;
 
 fn same_origin(url: &Url, app_origin: &Url) -> bool {
@@ -28,26 +28,35 @@ fn open_external<R: tauri::Runtime>(app: &tauri::AppHandle<R>, url: &Url, app_or
 }
 
 pub fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
-    let config = &app.config().app.windows[0];
+    create_window(app.handle(), &app.config().app.windows[0])
+}
+
+pub(crate) fn create_window(
+    app: &tauri::AppHandle,
+    config: &tauri::utils::config::WindowConfig,
+) -> tauri::Result<()> {
     let bundled_origin = if cfg!(target_os = "windows") {
         "http://tauri.localhost/"
     } else {
         "tauri://localhost/"
     };
-    let app_origin = if cfg!(dev) {
+    let mut app_origin = if cfg!(dev) {
         app.config().build.dev_url.clone()
     } else {
         None
     }
     .unwrap_or_else(|| Url::parse(bundled_origin).expect("valid bundled app origin"));
+    if config.label == "roast-monitor" {
+        app_origin.set_path("/roast-monitor.html");
+    }
     let navigation_origin = app_origin.clone();
     let page_origin = app_origin.clone();
-    let navigation_app = app.handle().clone();
-    let new_window_app = app.handle().clone();
+    let navigation_app = app.clone();
+    let new_window_app = app.clone();
     let loaded = Arc::new(AtomicBool::new(false));
     let navigation_loaded = loaded.clone();
 
-    tauri::WebviewWindowBuilder::from_config(app, config)?
+    let window = tauri::WebviewWindowBuilder::from_config(app, config)?
         .devtools(cfg!(debug_assertions))
         .on_download(|_, _| true)
         .on_navigation(move |url| {
@@ -74,15 +83,22 @@ pub fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
             tauri::webview::NewWindowResponse::Deny
         })
         .build()?;
+    if config.label == "main" {
+        let app = app.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                if let Some(monitor) = app.get_webview_window("roast-monitor") {
+                    let _ = monitor.destroy();
+                }
+            }
+        });
+    }
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
 pub fn configure_quit_menu(app: &tauri::App) -> tauri::Result<()> {
-    use tauri::{
-        menu::{Menu, MenuItem},
-        Manager,
-    };
+    use tauri::menu::{Menu, MenuItem};
 
     let menu = Menu::default(app.handle())?;
     let menus = menu.items()?;
@@ -110,13 +126,7 @@ pub fn configure_quit_menu(app: &tauri::App) -> tauri::Result<()> {
         if event.id() != "guarded-quit" {
             return;
         }
-        if let Some(window) = app.get_webview_window("main") {
-            if let Err(error) = window.close() {
-                eprintln!("[close] Could not request main window close: {error}");
-            }
-        } else {
-            app.exit(0);
-        }
+        crate::roast_monitor::request_main_close(app);
     });
     Ok(())
 }
@@ -241,6 +251,23 @@ mod tests {
             }
             assert!(!allows_startup_navigation(
                 &origin.join("other.html").unwrap(),
+                &origin,
+                false
+            ));
+        }
+    }
+
+    #[test]
+    fn monitor_document_keeps_the_same_navigation_boundary() {
+        let origin = Url::parse("tauri://localhost/roast-monitor.html").unwrap();
+        assert!(allows_startup_navigation(&origin, &origin, false));
+        assert!(!allows_startup_navigation(&origin, &origin, true));
+        for url in [
+            "https://example.com/roast-monitor.html",
+            "tauri://localhost/other.html",
+        ] {
+            assert!(!allows_startup_navigation(
+                &Url::parse(url).unwrap(),
                 &origin,
                 false
             ));

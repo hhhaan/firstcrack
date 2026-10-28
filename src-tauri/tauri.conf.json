@@ -24,6 +24,23 @@
                 "devtools": false,
                 "backgroundThrottling": "disabled",
                 "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows"
+            },
+            {
+                "label": "roast-monitor",
+                "visible": false,
+                "focus": false,
+                "title": "First Crack",
+                "url": "roast-monitor.html",
+                "width": 248,
+                "height": 248,
+                "minWidth": 224,
+                "minHeight": 224,
+                "resizable": true,
+                "maximizable": false,
+                "alwaysOnTop": true,
+                "create": false,
+                "devtools": false,
+                "backgroundThrottling": "disabled"
             }
         ],
         "security": {
