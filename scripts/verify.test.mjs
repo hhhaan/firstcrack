@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
 import { test } from 'node:test';
@@ -92,6 +92,96 @@ test('sidecar and workflow changes select only their extra checks', (t) => {
     const workflow = planPush(r.input(r.commit(), sidecarHead), r.cwd);
     assert.equal(workflow.sidecar, false);
     assert.equal(workflow.actions, true);
+});
+
+test('only allowlisted documentation changes skip push verification', (t) => {
+    const r = repo(t);
+    for (const path of ['README.md', 'AGENTS.md', 'CONTEXT.md', 'docs/agent/example.md', 'docs/with space.md']) {
+        r.write(path, 'documentation\n');
+    }
+    const docs = r.commit();
+    assert.deepEqual(verificationCommands(planPush(r.input(docs), r.cwd)), []);
+    r.write('untracked.txt', 'dirty\n');
+    assert.equal(planPush(r.input(docs), r.cwd).skip, false);
+    r.git('add', 'untracked.txt');
+    assert.equal(planPush(r.input(docs), r.cwd).skip, false);
+});
+
+test('documentation mixed with code, test inputs, configs or renamed code retains checks', (t) => {
+    const r = repo(t);
+    for (const path of ['DESIGN.md', 'src/features/example/a.ts', 'docs/example.json', 'apps/docs/example.md']) {
+        const base = r.git('rev-parse', 'HEAD');
+        r.write('README.md', `changed with ${path}\n`);
+        r.write(path);
+        const head = r.commit();
+        assert.equal(planPush(r.input(head, base), r.cwd).skip, false, path);
+    }
+    const beforeRename = r.git('rev-parse', 'HEAD');
+    r.git('mv', 'src/features/example/a.ts', 'docs/moved.md');
+    const renamed = r.commit();
+    assert.equal(planPush(r.input(renamed, beforeRename), r.cwd).skip, false);
+    r.git('rm', 'docs/moved.md');
+    assert.deepEqual(verificationCommands(planPush(r.input(r.commit(), renamed), r.cwd)), []);
+});
+
+test('pre-commit checks staged release versions and guard changes, skipping unrelated commits', (t) => {
+    const r = repo(t);
+    const hook = readFileSync(new URL('../.husky/pre-commit', import.meta.url), 'utf8');
+    const guard = readFileSync(new URL('./check-version-sync.mjs', import.meta.url), 'utf8');
+    const manifests = {
+        'package.json': '{"version": "1.0.0"}\n',
+        'src-tauri/tauri.conf.json': '{"version": "1.0.0"}\n',
+        'src-tauri/Cargo.toml': 'version = "1.0.0"\n',
+        'src-tauri/Cargo.lock': 'name = "roastery-agent"\nversion = "1.0.0"\n',
+    };
+    for (const [path, contents] of Object.entries(manifests)) r.write(path, contents);
+    r.write('.husky/pre-commit', hook);
+    r.write('scripts/check-version-sync.mjs', guard);
+    r.write('bin/pnpm', '#!/bin/sh\nexit 0\n');
+    r.git('add', '.');
+    r.git('update-index', '--chmod=+x', 'bin/pnpm');
+    r.git('checkout-index', '-f', 'bin/pnpm');
+    r.commit();
+    const run = () =>
+        spawnSync('sh', ['-e', '.husky/pre-commit'], {
+            cwd: r.cwd,
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                SKIP_TYPES_GEN: '',
+                PATH: `${join(r.cwd, 'bin')}${delimiter}${process.env.PATH ?? ''}`,
+            },
+        });
+
+    r.write('scripts/check-version-sync.mjs', 'process.exit(42);\n');
+    r.write('README.md', 'unrelated\n');
+    r.git('add', 'README.md');
+    assert.equal(run().status, 0, 'unrelated changes must not invoke the version guard');
+    r.write('.husky/pre-commit', `${hook}\n`);
+    r.git('add', '.husky/pre-commit');
+    assert.equal(run().status, 42, 'hook changes must invoke the version guard');
+    r.write('.husky/pre-commit', hook);
+    r.git('add', '.husky/pre-commit');
+    r.git('add', 'scripts/check-version-sync.mjs');
+    assert.equal(run().status, 42, 'guard changes must invoke the version guard');
+    r.write('scripts/check-version-sync.mjs', guard);
+    r.git('add', 'scripts/check-version-sync.mjs');
+
+    for (const [path, contents] of Object.entries(manifests)) {
+        r.write(path, contents.replace('1.0.0', '2.0.0'));
+        assert.equal(run().status, 0, 'unstaged manifest changes do not affect the index');
+        r.git('add', path);
+        const mismatch = run();
+        assert.equal(mismatch.status, 1, path);
+        assert.match(mismatch.stderr, /version mismatch/);
+        r.write(path, contents);
+        r.git('add', path);
+    }
+    r.write('supabase/migrations/example.sql', 'SELECT 1;\n');
+    r.git('add', 'supabase/migrations/example.sql');
+    const migration = run();
+    assert.equal(migration.status, 1);
+    assert.match(migration.stderr, /database.types.ts not regenerated/);
 });
 
 test('shared code, renames and deletions use full tests', (t) => {

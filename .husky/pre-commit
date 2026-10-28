@@ -1,5 +1,7 @@
-# block commits where release files would desync versions (reads git index)
-node scripts/check-version-sync.mjs
+# Only release manifests and guard changes need the index-based version check.
+if ! git diff --cached --quiet -- package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock scripts/check-version-sync.mjs .husky/pre-commit; then
+    node scripts/check-version-sync.mjs
+fi
 
 # migration staged without regenerated types → block (bypass: SKIP_TYPES_GEN=1 git commit)
 # ponytail: staged-file heuristic, not a real diff check — RLS-only migrations false-positive, use bypass

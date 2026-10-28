@@ -46,6 +46,13 @@ export function planPush(input, cwd = process.cwd()) {
         const diff = git(['diff', '--name-status', '--find-renames', '-z', base, head]);
         const paths = pathsFromNameStatusZ(diff);
         if (!paths) return { ...FULL_PLAN };
+        // DESIGN.md is a test input; only these documentation paths are safe to skip.
+        if (
+            paths.length > 0 &&
+            paths.every((path) => /^(?:README|AGENTS|CONTEXT)\.md$/.test(path) || /^docs\/.+\.md$/.test(path))
+        ) {
+            return { ...FULL_PLAN, skip: true };
+        }
         if (
             paths.some(
                 (path) =>
@@ -107,7 +114,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     } else {
         const plan = mode === '--push' ? planPush(readFileSync(0, 'utf8')) : FULL_PLAN;
         const commands = verificationCommands(plan, mode === '--core');
-        console.log(`verify: ${commands.join(', ') || 'ref deletions only; no checks'}`);
+        console.log(`verify: ${commands.join(', ') || 'documentation or ref deletions only; no checks'}`);
         if (commands.length) {
             try {
                 await runVerification(commands);
