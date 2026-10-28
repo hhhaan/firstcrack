@@ -799,7 +799,6 @@
         "gasOffUnconfirmed": "Zero heat feedback has not been confirmed after the gas-off command. Check the actual heat and use the machine controls if needed.",
         "doorProbe": {
             "title": "Door command check",
-            "chargeNotLinked": "Charge and Drop do not send these commands.",
             "read": "Read",
             "fillOpen": "Open intake",
             "fillClose": "Close intake",

@@ -799,7 +799,6 @@
         "gasOffUnconfirmed": "火力0の指令後、機器のフィードバックが0であることを確認できていません。実際の火力を確認し、必要に応じて機器で直接操作してください。",
         "doorProbe": {
             "title": "ドア指令の確認",
-            "chargeNotLinked": "ChargeとDropはこの指令を送りません。",
             "read": "読む",
             "fillOpen": "投入を開く",
             "fillClose": "投入を閉じる",

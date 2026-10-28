@@ -799,7 +799,6 @@
         "gasOffUnconfirmed": "发送火力0指令后，尚未确认设备反馈为0。请检查实际火力，必要时直接操作设备。",
         "doorProbe": {
             "title": "门命令确认",
-            "chargeNotLinked": "Charge 和 Drop 不会发送这些命令。",
             "read": "读取",
             "fillOpen": "打开投入",
             "fillClose": "关闭投入",

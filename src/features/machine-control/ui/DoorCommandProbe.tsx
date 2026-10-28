@@ -42,7 +42,6 @@ export const DoorCommandProbe = ({ roaster, disabled }: { roaster: string | null
     return (
         <section className="flex flex-col gap-1.5" aria-label={t('machines.doorProbe.title')}>
             <span className="text-[11px] font-semibold text-secondary">{t('machines.doorProbe.title')}</span>
-            <p className="m-0 text-[11px] leading-snug text-muted">{t('machines.doorProbe.chargeNotLinked')}</p>
             <div className="grid grid-cols-2 gap-1">
                 {ACTIONS.map(([action, label]) => (
                     <button

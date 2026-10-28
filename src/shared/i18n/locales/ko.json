@@ -799,7 +799,6 @@
         "gasOffUnconfirmed": "화력 0 명령 후 기기 피드백이 0인지 확인되지 않았습니다. 실제 화력을 확인하고 필요하면 기기에서 직접 조작해 주세요.",
         "doorProbe": {
             "title": "문 명령 확인",
-            "chargeNotLinked": "Charge·Drop은 이 명령을 보내지 않습니다.",
             "read": "읽기",
             "fillOpen": "투입 열기",
             "fillClose": "투입 닫기",

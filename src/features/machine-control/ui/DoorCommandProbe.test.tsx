@@ -78,7 +78,6 @@ describe('DoorCommandProbe', () => {
             'machines.doorProbe.dischargeOpen',
             'machines.doorProbe.dischargeClose',
         ]);
-        expect(host.textContent).toContain('machines.doorProbe.chargeNotLinked');
     });
 
     it('shows the command cell and status bit without calling that door motion', async () => {
