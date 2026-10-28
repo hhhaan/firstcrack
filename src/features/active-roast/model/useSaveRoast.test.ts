@@ -17,6 +17,7 @@ const hookMocks = vi.hoisted(() => ({
     useEffectivePlan: vi.fn(() => 'pro'),
     saveOp: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
     flushTsv: vi.fn().mockResolvedValue(undefined),
+    writeBbpTsv: vi.fn().mockResolvedValue(undefined),
     useActiveWorkspace: vi.fn(() => ({ workspaceOwnerId: 'B', isWorkspaceReady: true })),
 }));
 
@@ -44,9 +45,10 @@ vi.mock('@entities/roast', async (importOriginal) => {
     };
 });
 
-vi.mock('@shared/lib/tsv-writer', () => ({
-    TSV_HEADER: 'time\tbt\n',
+vi.mock('@shared/lib/tsv-writer', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@shared/lib/tsv-writer')>()),
     flushTsv: (...args: unknown[]) => hookMocks.flushTsv(...args),
+    writeBbpTsv: (...args: unknown[]) => hookMocks.writeBbpTsv(...args),
 }));
 
 const baseParams: Parameters<typeof saveRoastCore>[1] = {
@@ -99,6 +101,35 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
 }
 
 describe('saveRoastCore', () => {
+    it('materializes the captured BBP before the database save and retries the same batch after a file failure', async () => {
+        const deps = makeDeps();
+        const params = {
+            ...baseParams,
+            bbpCapture: {
+                sessionId: baseParams.sessionId as string,
+                generation: 'a',
+                startMs: 1000,
+                chargeMs: 26000,
+                recording: true,
+                points: [10, 20, 25, 30].map((t) => ({ t, bt: 200, et: null, heater: 0, fan: 0, drum: 0 })),
+                events: [{ id: 'a-note', event: 'Note', time: '', timeSec: 24, temp: '', note: 'A' }],
+            },
+        };
+        hookMocks.writeBbpTsv.mockRejectedValueOnce(new Error('disk full'));
+        await expect(saveRoastCore(deps, params)).rejects.toThrow('disk full');
+        expect(deps.saveOp).not.toHaveBeenCalled();
+        await saveRoastCore(deps, params);
+        expect(hookMocks.writeBbpTsv).toHaveBeenLastCalledWith(
+            baseParams.sessionId,
+            expect.stringContaining('# bbp_charge_offset_sec\t25\n'),
+        );
+        const payload = (deps.saveOp as ReturnType<typeof vi.fn>).mock.calls[0][0].session;
+        expect(payload).toMatchObject({
+            bbp_seconds: 10,
+            events: expect.arrayContaining([expect.objectContaining({ id: 'a-note', time_sec: -1 })]),
+        });
+    });
+
     it('persists an independent batch title without changing the inventory/profile links', async () => {
         const deps = makeDeps();
         await saveRoastCore(deps, {

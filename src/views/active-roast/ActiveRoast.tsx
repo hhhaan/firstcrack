@@ -21,6 +21,7 @@ import {
     useRoastKeyboardShortcuts,
     useRoastSettings,
 } from '@features/active-roast';
+import { splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
 import {
     bbpEventsForDisplay,
     bbpEventsFromDisplay,
@@ -43,7 +44,11 @@ import {
     isReviewEditableEvent,
     reviewMarkToAdd,
 } from '@features/active-roast/lib/review-record-events';
-import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import {
+    logEntryTimeSec,
+    parseStoredRoastEvents,
+    storedEventsToLogEntries,
+} from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
@@ -150,6 +155,8 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     const bbpActive = useBbpStore((s) => s.active);
     const bbpRecording = useBbpStore((s) => s.recording);
     const bbpPoints = useBbpStore((s) => s.points);
+    const bbpStartMs = useBbpStore((s) => s.startMs);
+    const runningBbpCapture = useRoastingStore((s) => s.bbpCapture);
     const bbpEvents = useBbpStore((s) => s.events ?? []);
     const awaitingNextCharge = useRoastingStore((s) => s.awaitingNextCharge);
     const heatHoldAfterDrop = useRoastingStore((s) => s.heatHoldAfterDrop);
@@ -314,7 +321,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         workspaceOwnerId,
         reference?.id ?? targetProfile?.source_session_id ?? null,
         reference ? reference.bbpPath : sourceSession?.bbp_tsv_path,
-        waitingForCharge,
+        bbpEnabled,
     );
     // Replay 컷오프는 레퍼런스의 Drop 마크다. duration_sec는 End 확정 시각(store elapsed)이라
     // Drop→End 사이 쿨다운 조작(다음 배치 예열용 가스 올림)이 재생 계획에 섞인다.
@@ -412,6 +419,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
                 roastTarget: backgroundCurvePoints,
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
+                bbpCapture: bbpEnabled ? (reviewSnapshot?.bbpCapture ?? runningBbpCapture) : null,
             }),
         [
             bbpActive,
@@ -423,13 +431,27 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
             curvePoints,
             reviewing,
             backgroundCurvePoints,
+            reviewSnapshot,
+            runningBbpCapture,
         ],
     );
     const bbpEventOrigin = chartView.eventTimeOrigin;
-    const bbpChartEntries = useMemo(
-        () => (bbpActive && !reviewing ? bbpEventsForDisplay(bbpEvents, bbpEventOrigin) : curveEntries),
-        [bbpActive, bbpEventOrigin, bbpEvents, curveEntries, reviewing],
-    );
+    const bbpChartEntries = useMemo(() => {
+        if (bbpActive && !reviewing) return bbpEventsForDisplay(bbpEvents, bbpEventOrigin);
+        const capture = reviewSnapshot?.bbpCapture ?? runningBbpCapture;
+        const before = capture && bbpEnabled ? (splitBatchBbp(capture).bbp?.events ?? []) : [];
+        return [...storedEventsToLogEntries(before, unit, true), ...curveEntries];
+    }, [
+        bbpActive,
+        bbpEventOrigin,
+        bbpEvents,
+        curveEntries,
+        reviewing,
+        reviewSnapshot,
+        runningBbpCapture,
+        bbpEnabled,
+        unit,
+    ]);
     const bbpNowSec = latestSampleTime(bbpPoints);
     const { tempMinC: bbpTempMinC, tempMaxC: bbpTempMaxC } = chargeWaitTempBand({
         waiting: waitingForCharge,
@@ -441,10 +463,21 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         tempMaxC: roastSettings.tempMaxC,
     });
 
+    const displayedCapture = bbpEnabled ? (reviewSnapshot?.bbpCapture ?? runningBbpCapture) : null;
+    const timelineIdentity = reviewing
+        ? `review:${reviewSnapshot.sessionId}`
+        : displayedCapture
+          ? `wait:${displayedCapture.startMs}`
+          : bbpActive
+            ? `wait:${bbpStartMs}`
+            : `roast:${sessionId ?? 'pre'}`;
+    const timelineKey = `${timelineIdentity}:${chartSpanSec(roastSettings)}`;
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
     const chart = useChartPipeline({
         livePoints: chartView.livePoints,
         targetCurvePoints: chartView.targetPoints,
+        timelineKey,
+        coordinateOrigin: chartView.eventTimeOrigin,
         xMin: chartView.xMin,
         xMaxFloor: chartView.xMaxFloor ?? chartSpanSec(roastSettings),
         showRoR: roastSettings.showRoRChart,
@@ -452,15 +485,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         unit,
     });
 
-    const { setZoomRange, setHoveredChartIndex } = chart;
+    const { setHoveredChartIndex } = chart;
     useEffect(() => {
-        // End and Charge start different timelines; a BBP pan must not hide roast 00:00.
-        void bbpActive;
-        void charged;
-        void reviewing;
-        setZoomRange(null);
-        setHoveredChartIndex(null);
-    }, [bbpActive, charged, reviewing, setZoomRange, setHoveredChartIndex]);
+        if (timelineKey) setHoveredChartIndex(null);
+    }, [timelineKey, setHoveredChartIndex]);
 
     const fcDualMarkEnabled = roastSettings.fcDualMarkEnabled;
     // Drop clears the live clock to 0. 0 is a real duration, so the ended screen must keep its own log.
@@ -751,7 +779,10 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
     // biome-ignore lint/correctness/useExhaustiveDependencies: intentional dependency array
     const eventMarkers = useMemo(
         () => [
-            ...buildEventMarkers(bbpChartEntries),
+            ...buildEventMarkers(bbpChartEntries).map((marker) => ({
+                ...marker,
+                readOnly: !bbpActive && marker.timeSec < 0,
+            })),
             ...((!bbpActive || reviewing) && roastSettings.showTargetCurve && roastSettings.showProfileHeat
                 ? (referenceLog?.entries ?? []).flatMap((entry) =>
                       entry.event === 'Heater' && entry.timeSec != null
@@ -1297,6 +1328,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         bbpRange: chartView.bbpRange,
         eventTimeOrigin: chartView.eventTimeOrigin,
         bbpRecording,
+        bbpRecorded: displayedCapture?.recording,
         awaitingNextCharge,
         showTargetCurve: roastSettings.showTargetCurve,
         targetProfileId: reference?.id ?? targetProfileId,

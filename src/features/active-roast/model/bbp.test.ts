@@ -70,7 +70,7 @@ describe('bbp store', () => {
         for (const t of [0, 60, 300, 360]) bbp.append(sample(200 + t / 60), 1_000 + t * 1_000);
 
         expect(useBbpStore.getState().points.map((p) => p.t)).toEqual([0, 60, 300, 360]);
-        expect(bbp.finalize(361_000, 'session-1')?.seconds).toBe(360);
+        expect(bbp.finalize(361_001, 'session-1')?.seconds).toBe(360);
     });
 
     it('begin은 기록을 시작한다', () => {
@@ -125,8 +125,9 @@ describe('bbp store', () => {
         expect(result?.chargeTemp).toBe(195.4); // 마지막 pre-charge 포인트 BT
         expect(result?.tsv).toBe(
             'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings\n' +
-                '1.0\t210\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
-                '2.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n',
+                '# bbp_charge_offset_sec\t180\n' +
+                '1\t210\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
+                '2\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n',
         );
         const s = useBbpStore.getState();
         expect(s.finalized).toEqual({ sessionId: 's1', seconds: 1, chargeTemp: 195.4, events: [] });
@@ -173,14 +174,14 @@ describe('bbp store', () => {
         expect(useBbpStore.getState().finalizedPoints.map((p) => p.bt)).toEqual([210, 205]);
     });
 
-    it('finalize는 포인트 부족이면 null을 반환하고 finalized를 클리어한다', () => {
+    it('finalize preserves a single observation and its exact Charge offset', () => {
         const st = useBbpStore.getState();
         st.begin(0);
         st.append(sample(210), 1_000);
-        // 포인트 1개 → 무효
-        expect(useBbpStore.getState().finalize(60_000, 's1')).toBeNull();
-        expect(useBbpStore.getState().finalized).toBeNull();
-        expect(useBbpStore.getState().finalizedPoints).toEqual([]);
+        const result = st.finalize(60_000, 's1');
+        expect(result).toMatchObject({ seconds: 0, chargeTemp: 210 });
+        expect(parseTsv(result?.tsv ?? '')).toMatchObject([{ t: 1, bbpChargeOffsetSec: 60 }]);
+        expect(useBbpStore.getState().finalizedPoints).toHaveLength(1);
     });
 
     it.each([
@@ -195,18 +196,17 @@ describe('bbp store', () => {
         st.append(sample(208), 2_000);
         st.append(sample(200), origin * 1000);
         st.append(sample(199), (origin + 1) * 1000);
-        st.append(sample(195.4), waitSec * 1000);
+        st.append(sample(195.4), (waitSec - 0.1) * 1000);
 
         const result = useBbpStore.getState().finalize(waitSec * 1000, 's2');
         expect(result).not.toBeNull();
         expect(result?.seconds).toBe(900);
         expect(result?.chargeTemp).toBe(195.4);
-        expect(result?.tsv).toBe(
-            'time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tror_et\tsensor_timestamp\tsensor_clock\textra_readings\n' +
-                '0.0\t200\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
-                '1.0\t199\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n' +
-                '900.0\t195.4\t200\t\t50\t40\t60\t\t\t\t\t\t\t\n',
-        );
+        expect(parseTsv(result?.tsv ?? '').map((p) => [Math.round(p.t * 10) / 10, p.bt])).toEqual([
+            [0, 200],
+            [1, 199],
+            [899.9, 195.4],
+        ]);
         expect(result?.tsv).not.toContain(String(waitSec));
         expect(useBbpStore.getState().finalized).toEqual({
             sessionId: 's2',
@@ -214,7 +214,9 @@ describe('bbp store', () => {
             chargeTemp: 195.4,
             events: [],
         });
-        expect(useBbpStore.getState().finalizedPoints.map((p) => p.t)).toEqual([0, 1, 900]);
+        expect(useBbpStore.getState().finalizedPoints.map((p) => Math.round((p.t - origin) * 10) / 10)).toEqual([
+            0, 1, 899.9,
+        ]);
     });
 
     it('begin은 auto Drop lookback seed를 시작점에 붙인다', () => {
@@ -249,7 +251,7 @@ describe('bbp store', () => {
         st.begin(0);
         st.append(sample(180), 47 * 60 * 1000);
         st.append(sample(190), 48 * 60 * 1000);
-        const result = st.finalize(48 * 60 * 1000, 's-gap');
+        const result = st.finalize(48 * 60 * 1000 + 1, 's-gap');
         const kept = useBbpStore.getState().finalizedPoints;
         expect(result?.seconds).toBe(60);
         expect(kept[kept.length - 1].t - kept[0].t).toBe(60);
@@ -414,7 +416,7 @@ describe('bbp store', () => {
             expect(hydrateLiveBbp()).toBe(true);
             expect(useBbpStore.getState().events.map((event) => event.timeSec)).toEqual([30, 960, 1200]);
             store.append(sample(195), 1_201_000);
-            const finalized = store.finalize(1_201_000, 'with-future-note');
+            const finalized = store.finalize(1_201_001, 'with-future-note');
             expect(finalized?.events.map((event) => event.id)).toEqual(['note-960', 'note-1200']);
         } finally {
             vi.unstubAllGlobals();

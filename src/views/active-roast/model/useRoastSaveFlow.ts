@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { dayBatchesQuery, invalidateScheduledBatchQueries, planKeys, useDayBatches } from '@entities/plan';
+import { splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
 import { formatRoastSaveError } from '@features/active-roast/lib/saveErrorClassification';
@@ -89,7 +90,18 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             const state = useRoastingStore.getState();
             const selection = selectRoastSelection(state);
             const savedSessionId = snapshot?.sessionId ?? state.sessionId;
-            const bbp = useBbpStore.getState().finalized;
+            const capture = snapshot ? snapshot.bbpCapture : state.bbpCapture;
+            const result = capture && capture.sessionId === savedSessionId ? splitBatchBbp(capture).bbp : null;
+            const bbp = capture
+                ? result
+                    ? {
+                          sessionId: capture.sessionId,
+                          seconds: result.seconds,
+                          chargeTemp: result.chargeTemp,
+                          events: result.events,
+                      }
+                    : null
+                : useBbpStore.getState().finalized;
             const forcedProfileId = savedProfileIdRef.current?.();
             const profileId =
                 forcedProfileId !== undefined ? forcedProfileId : (snapshot?.selection ?? selection).profileId;
@@ -115,6 +127,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
                 handoffBeanName: snapshot ? snapshot.selection.beanName : selection.beanName,
                 logEntries,
                 machineSnapshot: snapshot ? snapshot.machineSnapshot : useRoastingStore.getState().machineSnapshot,
+                bbpCapture: capture?.recording ? capture : null,
                 bbpSummary: savedSessionId && bbp?.sessionId === savedSessionId ? bbp : null,
             };
         },

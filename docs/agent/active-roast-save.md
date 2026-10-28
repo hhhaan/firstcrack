@@ -47,6 +47,33 @@ Drop/End atomically capture summary, owner, selection, charge origin, curve/logs
 
 Model actions perform memory updates only. View hooks write the existing v2 pending checkpoint from the completed snapshot before issuing the sidecar reset, and retain summary data if checkpointing fails. Async save and discard apply only to the matching owner/session; screen remounts cannot reinitialize the running selection. Live collection and controller safety remain separate. This is an ownership/error-recovery refactor; subscription performance and a multi-completed-batch queue are separate work.
 
+## Continuous BBP and roast (#1048)
+
+Charge freezes the wait origin, actual Charge time, original samples/events and
+already collected auto-Charge lookback onto the running batch. Drop/End copy this
+capture into the completed snapshot, together with the existing frozen roast curve,
+clock and logs. Next BBP collection or Charge cannot replace that snapshot's capture.
+Drop cancel restores the same capture as well as the roast; it does not finalize a new BBP.
+
+The graph projects the captured BBP at negative Charge-relative times. Replay, PID,
+phase calculations and the roast TSV remain roast-only. On save/checkpoint the BBP
+summary comes from the completed capture; the global finalized summary is only a
+compatibility fallback for snapshots without a capture. Optional `bbpCapture` in v2
+pending records preserves raw BBP data for retry without changing the pending version.
+Chart-only first-batch preheat stays in memory and is excluded from pending captures
+and BBP uploads.
+
+Local collection continues before network save. The original in-progress BBP file
+is removed only after the owning archive and transferred roast tail have been written,
+and never deletes a newly started wait. Save rematerializes the owning capture's BBP
+archive before the existing save operation. Split at actual Charge before rounding:
+strictly earlier goes to BBP; equality and later observations/events go to the roast.
+Single observations and accepted events without samples are retained. The optional
+`# bbp_charge_offset_sec` BBP TSV line carries the actual boundary independently of
+`bbp_seconds` (observed sample span), preserving gaps without stretching timestamps.
+Legacy files and pending records remain readable. DB schema, stock, upload confirmation
+and deletion guards stay unchanged.
+
 ## Runtime loop (read)
 
 1. Sidecar poll (`useSidecarPolling`) → temperatures

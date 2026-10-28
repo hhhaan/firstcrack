@@ -56,6 +56,7 @@ interface SessionQueue {
 }
 
 const sessions = new Map<string, SessionQueue>();
+const bbpWrites = new Map<string, Promise<void>>();
 let writeImpl: TsvWriteFn = defaultWrite;
 let removeImpl: TsvRemoveFn = defaultRemove;
 
@@ -108,6 +109,7 @@ const enqueue = (sessionId: string, task: () => Promise<void>): void => {
 /** Test-only: inject FS deps and clear queues. */
 export const _resetTsvWriterForTests = (opts?: { write?: TsvWriteFn; remove?: TsvRemoveFn }) => {
     sessions.clear();
+    bbpWrites.clear();
     writeImpl = opts?.write ?? defaultWrite;
     removeImpl = opts?.remove ?? defaultRemove;
 };
@@ -235,16 +237,24 @@ export const flushTsv = async (sessionId?: string): Promise<void> => {
     await Promise.all([...sessions.keys()].map((id) => flushTsv(id)));
 };
 
-// ── BBP (between-batch) TSV — 세션 큐 불필요한 단발 기록 ──────────────
+// BBP writes and deletion share a per-file queue: a slow old poll cannot overwrite a new wait.
 
 export const bbpTsvPath = (sessionId: string): string => `bbp_${sessionId}.tsv`;
 
-export const writeBbpTsv = async (sessionId: string, content: string): Promise<void> => {
-    await writeImpl(bbpTsvPath(sessionId), content, { append: false });
+const queueBbpWrite = (sessionId: string, task: () => Promise<void>): Promise<void> => {
+    const previous = bbpWrites.get(sessionId) ?? Promise.resolve();
+    const next = previous.catch(() => {}).then(task);
+    bbpWrites.set(sessionId, next);
+    return next.finally(() => {
+        if (bbpWrites.get(sessionId) === next) bbpWrites.delete(sessionId);
+    });
 };
 
+export const writeBbpTsv = (sessionId: string, content: string): Promise<void> =>
+    queueBbpWrite(sessionId, () => writeImpl(bbpTsvPath(sessionId), content, { append: false }));
+
 export const deleteBbpTsv = (sessionId: string): Promise<void> =>
-    removeQuietly(bbpTsvPath(sessionId), 'bbp-tsv delete', sessionId);
+    queueBbpWrite(sessionId, () => removeQuietly(bbpTsvPath(sessionId), 'bbp-tsv delete', sessionId));
 
 /** Delete local TSV only after successful sync (caller responsibility). */
 export const deleteSessionTsv = async (sessionId: string): Promise<void> => {
