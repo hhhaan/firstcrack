@@ -10,68 +10,8 @@ enum Action {
     Main { focus: bool },
 }
 
-struct MainVisibility {
-    focused: bool,
-    visible: bool,
-    minimized: bool,
-    app_active: bool,
-}
-
-fn should_show_monitor(enabled: bool, main: &MainVisibility, monitor_visible: bool) -> bool {
-    enabled
-        && !main.focused
-        && (monitor_visible || !main.visible || main.minimized || !main.app_active)
-}
-
-#[cfg(target_os = "macos")]
-fn app_active(app: &AppHandle) -> Result<bool, String> {
-    let (send, receive) = std::sync::mpsc::sync_channel(1);
-    app.run_on_main_thread(move || {
-        // SAFETY: AppKit is initialized by Tauri; NSApplication is read on its main thread.
-        let active: bool = unsafe {
-            let application: *mut objc2::runtime::AnyObject =
-                objc2::msg_send![objc2::class!(NSApplication), sharedApplication];
-            objc2::msg_send![application, isActive]
-        };
-        let _ = send.send(active);
-    })
-    .map_err(|error| error.to_string())?;
-    receive
-        .recv_timeout(std::time::Duration::from_secs(2))
-        .map_err(|error| error.to_string())
-}
-
-#[cfg(target_os = "windows")]
-fn app_active(_app: &AppHandle) -> Result<bool, String> {
-    use std::ffi::c_void;
-    #[link(name = "user32")]
-    extern "system" {
-        fn GetForegroundWindow() -> *mut c_void;
-        fn GetWindowThreadProcessId(window: *mut c_void, process_id: *mut u32) -> u32;
-    }
-    let mut process_id = 0;
-    // SAFETY: Windows owns the foreground HWND; process_id is writable for this call.
-    unsafe {
-        GetWindowThreadProcessId(GetForegroundWindow(), &mut process_id);
-    }
-    Ok(process_id == std::process::id())
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "windows")))]
-fn app_active(app: &AppHandle) -> Result<bool, String> {
-    Ok(app
-        .webview_windows()
-        .values()
-        .any(|window| window.is_focused().unwrap_or(false)))
-}
-
-fn visibility(app: &AppHandle, main: &tauri::WebviewWindow) -> Result<MainVisibility, String> {
-    Ok(MainVisibility {
-        focused: main.is_focused().map_err(|error| error.to_string())?,
-        visible: main.is_visible().map_err(|error| error.to_string())?,
-        minimized: main.is_minimized().map_err(|error| error.to_string())?,
-        app_active: app_active(app)?,
-    })
+fn should_show_monitor(enabled: bool, main_minimized: bool) -> bool {
+    enabled && main_minimized
 }
 
 fn restore_main(main: &tauri::WebviewWindow, focus: bool) -> tauri::Result<()> {
@@ -102,8 +42,11 @@ async fn apply(app: AppHandle, action: Action) -> Result<(), String> {
             .map_err(|error| error.to_string())?
             .unwrap_or(false);
         let returning = matches!(action, Action::Main { .. });
-        let show_monitor =
-            !returning && should_show_monitor(*enabled, &visibility(&app, &main)?, monitor_visible);
+        let show_monitor = !returning
+            && should_show_monitor(
+                *enabled,
+                main.is_minimized().map_err(|error| error.to_string())?,
+            );
         if show_monitor {
             let monitor = if let Some(window) = monitor {
                 window
@@ -120,12 +63,12 @@ async fn apply(app: AppHandle, action: Action) -> Result<(), String> {
                 app.get_webview_window("roast-monitor")
                     .ok_or("Roast monitor was not created")?
             };
-            // Focus may have returned while the webview was being created.
-            if !should_show_monitor(*enabled, &visibility(&app, &main)?, monitor_visible) {
+            // The main window may have been restored while the webview was being created.
+            if !should_show_monitor(
+                *enabled,
+                main.is_minimized().map_err(|error| error.to_string())?,
+            ) {
                 return Ok(());
-            }
-            if main.is_visible().map_err(|error| error.to_string())? {
-                main.hide().map_err(|error| error.to_string())?;
             }
             if !monitor_visible {
                 if let Err(error) = monitor.show() {
@@ -141,7 +84,7 @@ async fn apply(app: AppHandle, action: Action) -> Result<(), String> {
             }
             let focus = matches!(action, Action::Main { focus: true });
             if let Err(error) = restore_main(&main, focus) {
-                if monitor_visible && main.hide().is_ok() {
+                if monitor_visible {
                     if let Some(monitor) = monitor {
                         let _ = monitor.show();
                     }
@@ -196,7 +139,9 @@ pub fn request_main_close(app: &AppHandle) {
 
 pub fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
     match (window.label(), event) {
-        ("main", WindowEvent::Focused(_)) => dispatch(window.app_handle().clone(), Action::Refresh),
+        ("main", WindowEvent::Focused(_) | WindowEvent::Resized(_)) => {
+            dispatch(window.app_handle().clone(), Action::Refresh)
+        }
         ("roast-monitor", WindowEvent::CloseRequested { api, .. }) => {
             api.prevent_close();
             focus_main(window.app_handle());
@@ -209,61 +154,15 @@ pub fn on_window_event(window: &tauri::Window, event: &WindowEvent) {
 mod tests {
     use super::*;
 
-    fn main() -> MainVisibility {
-        MainVisibility {
-            focused: true,
-            visible: true,
-            minimized: false,
-            app_active: true,
-        }
+    #[test]
+    fn shows_monitor_only_while_main_is_minimized() {
+        assert!(!should_show_monitor(true, false));
+        assert!(should_show_monitor(true, true));
     }
 
     #[test]
-    fn switches_to_monitor_on_background_minimize_or_hide_only_when_enabled() {
-        for hidden in [
-            MainVisibility {
-                focused: false,
-                app_active: false,
-                ..main()
-            },
-            MainVisibility {
-                focused: false,
-                minimized: true,
-                ..main()
-            },
-            MainVisibility {
-                focused: false,
-                visible: false,
-                ..main()
-            },
-        ] {
-            assert!(should_show_monitor(true, &hidden, false));
-            assert!(!should_show_monitor(false, &hidden, false));
-        }
-    }
-
-    #[test]
-    fn main_focus_takes_priority_and_monitor_focus_does_not_restore_main() {
-        assert!(!should_show_monitor(true, &main(), true));
-        assert!(should_show_monitor(
-            true,
-            &MainVisibility {
-                focused: false,
-                ..main()
-            },
-            true
-        ));
-    }
-
-    #[test]
-    fn native_dialog_does_not_hide_its_main_window() {
-        assert!(!should_show_monitor(
-            true,
-            &MainVisibility {
-                focused: false,
-                ..main()
-            },
-            false
-        ));
+    fn disabled_monitor_stays_hidden_even_when_main_is_minimized() {
+        assert!(!should_show_monitor(false, false));
+        assert!(!should_show_monitor(false, true));
     }
 }
