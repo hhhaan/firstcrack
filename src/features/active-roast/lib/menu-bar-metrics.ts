@@ -1,7 +1,7 @@
 /** macOS status item images are shown at 18pt; baselines fit both rows without shrinking the type. */
 export const MENU_BAR_HEIGHT = 18;
-const LABEL_PX = 8;
-const VALUE_PX = 13;
+const LABEL_PX = 7;
+const VALUE_PX = 12;
 const PAD_X = 2;
 const LABEL_BASELINE = 6;
 const VALUE_BASELINE = 18;
@@ -77,7 +77,7 @@ export const drawMenuBarMetrics = (
     if (!ctx) return null;
 
     const labelFont = font(500, LABEL_PX);
-    const valueFont = `500 ${VALUE_PX}px ui-monospace, "SFMono-Regular", Menlo, monospace`;
+    const valueFont = font(500, VALUE_PX);
     const measureLabel = (text: string) => {
         ctx.font = labelFont;
         return ctx.measureText(text).width;
@@ -91,11 +91,11 @@ export const drawMenuBarMetrics = (
     canvas.height = MENU_BAR_HEIGHT * SCALE;
     ctx.scale(SCALE, SCALE);
     ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
     ctx.fillStyle = '#000000';
     for (const glyph of layout.glyphs) {
         ctx.font = glyph.kind === 'label' ? labelFont : valueFont;
-        ctx.textAlign = glyph.kind === 'label' ? 'left' : 'right';
-        ctx.fillText(glyph.text, glyph.kind === 'label' ? glyph.x : glyph.x + glyph.width, glyph.y, glyph.width);
+        ctx.fillText(glyph.text, glyph.x, glyph.y, glyph.width);
     }
 
     const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
