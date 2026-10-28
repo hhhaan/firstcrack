@@ -14,6 +14,7 @@ import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
 import type { MachineControlComposition } from '../model/useMachineControlComposition';
 import { CollapsedControlStatus } from './CollapsedControlStatus';
+import { DoorCommandProbe } from './DoorCommandProbe';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 import { MachineControlChannels } from './MachineControlChannels';
 import { PidControlPanel } from './PidControlPanel';
@@ -106,6 +107,10 @@ export const MachineControlPanel = ({
 
             {/* 접혀도 트리 유지 — 표시 전환이 PID/Replay 패널을 언마운트하지 않는다 */}
             <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
+                <DoorCommandProbe
+                    roaster={machine.connectionStatus?.roaster ?? null}
+                    disabled={commandsLocked || !writable}
+                />
                 <MachineControlChannels
                     limits={limits}
                     desired={desired}

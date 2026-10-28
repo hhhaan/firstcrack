@@ -146,6 +146,9 @@ class VirtualMachineAdapter:
         self._clock = clock or time.monotonic
         self._model = FirstOrderThermalModel() if sim == "thermal" else None
         self._model_ts: float | None = None
+        # W60A door-probe stand-in. DB2.30 stays at the last 1/2/5/6. Bit follows 5/6 only.
+        self._door_command = 0
+        self._discharge_open = False
 
     async def connect(self) -> None:
         self._connect_time = time.monotonic()
@@ -253,6 +256,28 @@ class VirtualMachineAdapter:
         self._roast_start_time = time.monotonic()
         self._roasting = True
         _log.info("VirtualMachine: charge at BT=%.1f°C — roasting started", self._charge_bt)
+
+    async def door_probe(self, write: int | None) -> dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("가상 머신이 연결되어 있지 않습니다.")
+        if write is not None and write not in (1, 2, 5, 6):
+            raise ValueError("W60A door command must be 1, 2, 5, or 6")
+        command_before = self._door_command
+        discharge_open_before = self._discharge_open
+        if write is not None:
+            self._door_command = write
+            if write == 5:
+                self._discharge_open = True
+            elif write == 6:
+                self._discharge_open = False
+        return {
+            "wrote": write,
+            "command_before": command_before,
+            "command_after": self._door_command,
+            "command_held": None if write is None else True,
+            "discharge_open_before": discharge_open_before,
+            "discharge_open_after": self._discharge_open,
+        }
 
     async def control(
         self,

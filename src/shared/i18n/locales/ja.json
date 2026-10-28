@@ -797,6 +797,22 @@
         "sidecarStarting": "接続の準備中...",
         "linkUnstable": "マシンの接続が不安定です。ケーブルとネットワークの状態を確認してください。",
         "gasOffUnconfirmed": "火力0の指令後、機器のフィードバックが0であることを確認できていません。実際の火力を確認し、必要に応じて機器で直接操作してください。",
+        "doorProbe": {
+            "title": "ドア指令の確認",
+            "chargeNotLinked": "ChargeとDropはこの指令を送りません。",
+            "read": "読む",
+            "fillOpen": "投入を開く",
+            "fillClose": "投入を閉じる",
+            "dischargeOpen": "排出を開く",
+            "dischargeClose": "排出を閉じる",
+            "command": "指令セル DB2.30: {{before}} → {{after}}",
+            "readOnly": "書き込みなし",
+            "wroteHeld": "書き込み {{wrote}}。値が残った",
+            "wroteLost": "書き込み {{wrote}}。値が残らなかった",
+            "status": "排出状態ビット DB2.82.6: {{before}} → {{after}}",
+            "notPosition": "この値はドアが動いたかは示しません。",
+            "failed": "ドア指令の確認に失敗しました。"
+        },
         "startRoasting": "ローストを開始",
         "selectMachine": "マシンを選択してください",
         "limit": {

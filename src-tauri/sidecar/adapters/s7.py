@@ -430,6 +430,82 @@ class S7Adapter:
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, _read_one)
 
+    async def door_probe(self, write: int | None) -> dict[str, Any]:
+        """Read DB2.30 and the discharge status bit. Optionally write 1, 2, 5, or 6.
+
+        Artisan W60A sends one setDBint(2, 30, value) and does not write 0 afterwards.
+        writeInt reads two bytes, set_int on that buffer, then writes the same buffer.
+        The following readback and DB2.82 bit 6 are extra. A held value is not door motion.
+        """
+        if write is not None and write not in (1, 2, 5, 6):
+            raise ValueError("W60A door command must be 1, 2, 5, or 6")
+        plc = self._plc
+        session = self._session
+        if plc is None:
+            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+
+        def _probe() -> dict[str, Any]:
+            from snap7.util.getters import get_bool, get_int  # type: ignore[import]
+            from snap7.util.setters import set_int  # type: ignore[import]
+
+            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                raise TimeoutError("S7 I/O 락 대기 시간 초과")
+            try:
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed before door probe")
+
+                def _command() -> bytearray:
+                    self._throttle()
+                    command = plc.db_read(2, 30, 2)
+                    if len(command) != 2:
+                        raise IOError(f"db_read(2,30,2) returned {len(command)} bytes")
+                    return command
+
+                def _discharge_open() -> bool:
+                    self._throttle()
+                    status = plc.db_read(2, 82, 1)
+                    if len(status) != 1:
+                        raise IOError(f"db_read(2,82,1) returned {len(status)} bytes")
+                    return bool(get_bool(status, 0, 6))
+
+                command = _command()
+                command_before = int(get_int(command, 0))
+                discharge_open_before = _discharge_open()
+                if write is not None:
+                    set_int(command, 0, write)
+                    self._throttle()
+                    TRACE.record(
+                        "tx", "s7",
+                        f"db_write db=2 offset=30 role=door_command value={write}",
+                        bytes(command),
+                    )
+                    plc.db_write(2, 30, command)
+                command_after = int(get_int(_command(), 0))
+                discharge_open_after = _discharge_open()
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed during door probe")
+                held = None if write is None else command_after == write
+                TRACE.record(
+                    "rx",
+                    "s7",
+                    (
+                        f"door_probe wrote={write} command {command_before}->{command_after} "
+                        f"held={held} discharge {discharge_open_before}->{discharge_open_after}"
+                    ),
+                )
+                return {
+                    "wrote": write,
+                    "command_before": command_before,
+                    "command_after": command_after,
+                    "command_held": held,
+                    "discharge_open_before": discharge_open_before,
+                    "discharge_open_after": discharge_open_after,
+                }
+            finally:
+                self._io_lock.release()
+
+        return await asyncio.get_running_loop().run_in_executor(None, _probe)
+
     def _confirm_command_bytes(
         self,
         role: str,

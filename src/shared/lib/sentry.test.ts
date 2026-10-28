@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/react';
+import type { DoorProbeResult } from '@shared/types/sidecar';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BatchLimitError } from './features/plan-matrix';
@@ -6,6 +7,8 @@ import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from './optimist
 import {
     buildSentryOptions,
     captureActionable,
+    captureDoorProbe,
+    captureDoorProbeFailure,
     captureRoastingImportFailure,
     captureSidecarRequestFailure,
     isActionableError,
@@ -398,6 +401,49 @@ describe('captureSidecarRequestFailure', () => {
                 'http.status': '503',
                 method: 'POST',
             },
+        });
+    });
+});
+
+describe('captureDoorProbe', () => {
+    const result = (overrides: Partial<DoorProbeResult> = {}): DoorProbeResult => ({
+        action: 'discharge_open',
+        wrote: 5,
+        command_before: 0,
+        command_after: 0,
+        command_held: false,
+        discharge_open_before: false,
+        discharge_open_after: false,
+        ...overrides,
+    });
+
+    it('warns when the written value does not stay and keeps the readings', () => {
+        captureDoorProbe(result());
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('w60a door probe', {
+            level: 'warning',
+            fingerprint: ['door-probe', 'discharge_open', 'false'],
+            tags: {
+                feature: 'w60a-door-probe',
+                action: 'discharge_open',
+                command_held: 'false',
+                wrote: '5',
+            },
+            extra: {
+                command_before: 0,
+                command_after: 0,
+                discharge_open_before: false,
+                discharge_open_after: false,
+            },
+        });
+    });
+
+    it('records a failed button without a PLC result', () => {
+        captureDoorProbeFailure('fill_open', '문 명령 확인에 실패했습니다.');
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('w60a door probe failed', {
+            level: 'error',
+            fingerprint: ['door-probe', 'fill_open', 'failed'],
+            tags: { feature: 'w60a-door-probe', action: 'fill_open' },
+            extra: { message: '문 명령 확인에 실패했습니다.' },
         });
     });
 });

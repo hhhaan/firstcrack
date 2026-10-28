@@ -9,6 +9,7 @@
  * - 앱 내 ErrorBoundary는 캡처하지 않는다. React 19 root 핸들러(reactRootOptions)가 유일한 경로다.
  */
 import * as Sentry from '@sentry/react';
+import type { DoorProbeResult } from '@shared/types/sidecar';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf, isClientSqlStateWarning, isDeterministicClientError, isExpectedRefusal } from './httpStatus';
@@ -385,6 +386,41 @@ export const captureSidecarRequestFailure = (input: {
             'http.status': String(input.status),
             method: input.method,
         },
+    });
+};
+
+const doorProbeTags = (result: Pick<DoorProbeResult, 'action' | 'command_held' | 'wrote'>) => {
+    const held = result.command_held == null ? 'none' : String(result.command_held);
+    return {
+        feature: 'w60a-door-probe',
+        action: result.action,
+        command_held: held,
+        wrote: result.wrote == null ? 'none' : String(result.wrote),
+    };
+};
+
+/** 사이드카가 측정한 문 명령 확인. 문 이동은 넣지 않는다. */
+export const captureDoorProbe = (result: DoorProbeResult) => {
+    const tags = doorProbeTags(result);
+    Sentry.captureMessage('w60a door probe', {
+        level: result.command_held === false ? 'warning' : 'info',
+        fingerprint: ['door-probe', result.action, tags.command_held],
+        tags,
+        extra: {
+            command_before: result.command_before,
+            command_after: result.command_after,
+            discharge_open_before: result.discharge_open_before,
+            discharge_open_after: result.discharge_open_after,
+        },
+    });
+};
+
+export const captureDoorProbeFailure = (action: string, message: string) => {
+    Sentry.captureMessage('w60a door probe failed', {
+        level: 'error',
+        fingerprint: ['door-probe', action, 'failed'],
+        tags: { feature: 'w60a-door-probe', action },
+        extra: { message },
     });
 };
 

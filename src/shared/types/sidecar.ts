@@ -35,6 +35,19 @@ export type RoastersResponse = Record<string, RoasterDef>;
 
 export type ReadUnits = Partial<Record<'heater' | 'fan' | 'drum', '%' | 'Pa' | 'Hz' | 'RPM'>>;
 
+export type DoorProbeAction = 'read' | 'fill_open' | 'fill_close' | 'discharge_open' | 'discharge_close';
+
+/** POST /door-probe. command_held is null on a read. It is not door motion. */
+export interface DoorProbeResult {
+    action: DoorProbeAction;
+    wrote: 1 | 2 | 5 | 6 | null;
+    command_before: number;
+    command_after: number;
+    command_held: boolean | null;
+    discharge_open_before: boolean;
+    discharge_open_after: boolean;
+}
+
 // GET /status 응답
 /** 실제로 쓸 수 있는 채널의 클램프 범위. 사이드카 write_map에서 온다. */
 export interface ControlLimit {

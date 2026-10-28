@@ -797,6 +797,22 @@
         "sidecarStarting": "正在准备连接...",
         "linkUnstable": "设备连接不稳定。请检查线缆和网络状态。",
         "gasOffUnconfirmed": "发送火力0指令后，尚未确认设备反馈为0。请检查实际火力，必要时直接操作设备。",
+        "doorProbe": {
+            "title": "门命令确认",
+            "chargeNotLinked": "Charge 和 Drop 不会发送这些命令。",
+            "read": "读取",
+            "fillOpen": "打开投入",
+            "fillClose": "关闭投入",
+            "dischargeOpen": "打开排出",
+            "dischargeClose": "关闭排出",
+            "command": "命令单元 DB2.30: {{before}} → {{after}}",
+            "readOnly": "未写入",
+            "wroteHeld": "写入 {{wrote}}。值仍在",
+            "wroteLost": "写入 {{wrote}}。值未留下",
+            "status": "排出状态位 DB2.82.6: {{before}} → {{after}}",
+            "notPosition": "这些值不能说明门是否移动。",
+            "failed": "门命令确认失败。"
+        },
         "startRoasting": "开始烘焙",
         "selectMachine": "请选择设备",
         "limit": {

@@ -797,6 +797,22 @@
         "sidecarStarting": "Preparing to connect...",
         "linkUnstable": "Machine connection is unstable. Check the cable and network.",
         "gasOffUnconfirmed": "Zero heat feedback has not been confirmed after the gas-off command. Check the actual heat and use the machine controls if needed.",
+        "doorProbe": {
+            "title": "Door command check",
+            "chargeNotLinked": "Charge and Drop do not send these commands.",
+            "read": "Read",
+            "fillOpen": "Open intake",
+            "fillClose": "Close intake",
+            "dischargeOpen": "Open discharge",
+            "dischargeClose": "Close discharge",
+            "command": "Command cell DB2.30: {{before}} → {{after}}",
+            "readOnly": "No write",
+            "wroteHeld": "Wrote {{wrote}}. Value stayed",
+            "wroteLost": "Wrote {{wrote}}. Value did not stay",
+            "status": "Discharge status bit DB2.82.6: {{before}} → {{after}}",
+            "notPosition": "These values do not say whether a door moved.",
+            "failed": "Door command check failed."
+        },
         "startRoasting": "Start Roasting",
         "selectMachine": "Select a machine",
         "limit": {

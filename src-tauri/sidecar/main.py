@@ -275,6 +275,32 @@ async def handle_control(request: web.Request) -> web.Response:
     return web.json_response({"ok": True, "applied": applied})
 
 
+async def handle_door_probe(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+    except Exception:
+        return web.Response(status=400, text="invalid json")
+    if not isinstance(body, dict) or set(body) != {"action"} or not isinstance(body.get("action"), str):
+        return web.json_response({"error": "action is required"}, status=400)
+    manager: RoasterManager = request.app["manager"]
+    try:
+        result = await manager.door_probe(body["action"])
+    except control_guard.ControlRangeError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except control_guard.ControlUnavailable as exc:
+        return web.json_response({"error": str(exc)}, status=409)
+    except Exception as exc:
+        _log.warning(
+            "door probe 실패 action=%s (%s)",
+            body.get("action"),
+            type(exc).__name__,
+            exc_info=True,
+        )
+        manager._capture_hardware_error(exc, "door_probe", action=str(body.get("action")))
+        return web.json_response({"error": "문 명령 확인에 실패했습니다."}, status=502)
+    return web.json_response(result)
+
+
 def _pid_error_response(
     exc: Exception,
     manager: RoasterManager,
@@ -536,6 +562,7 @@ def create_app() -> web.Application:
     app.router.add_post("/reset", handle_reset)
     app.router.add_post("/settings", handle_settings)
     app.router.add_post("/control", handle_control)
+    app.router.add_post("/door-probe", handle_door_probe)
     app.router.add_post("/pid/on", handle_pid_on)
     app.router.add_post("/pid/off", handle_pid_off)
     app.router.add_post("/pid/sv", handle_pid_sv)

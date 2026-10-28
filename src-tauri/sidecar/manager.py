@@ -1272,6 +1272,77 @@ class RoasterManager:
             "error": self._error,
         }
 
+    async def door_probe(self, action: str) -> dict[str, Any]:
+        """W60A 문 명령 확인. 쓰기 성공을 문 이동으로 보고하지 않는다."""
+        commands = {
+            "read": None,
+            "fill_open": 1,
+            "fill_close": 2,
+            "discharge_open": 5,
+            "discharge_close": 6,
+        }
+        if action not in commands:
+            raise ControlRangeError(
+                "door probe action must be read, fill_open, fill_close, discharge_open, or discharge_close"
+            )
+        adapter = self._adapter
+        w60a = self._roaster_key == "giesen_w45a_w60a" and self._protocol == "s7"
+        simulator = self._roaster_key == "virtual" and self._protocol == "virtual"
+        if (
+            not (w60a or simulator)
+            or not self._connected
+            or adapter is None
+            or not hasattr(adapter, "door_probe")
+        ):
+            raise ControlUnavailable("W60A 또는 가상 머신 연결에서만 문 명령을 확인합니다.")
+        result = await adapter.door_probe(commands[action])
+        result["action"] = action
+        self._record_door_probe(action, result)
+        return result
+
+    def _record_door_probe(self, action: str, result: dict[str, Any]) -> None:
+        """버튼 결과. 문 이동 여부는 넣지 않는다."""
+        facts = {
+            "action": action,
+            "wrote": result.get("wrote"),
+            "command_before": result.get("command_before"),
+            "command_after": result.get("command_after"),
+            "command_held": result.get("command_held"),
+            "discharge_open_before": result.get("discharge_open_before"),
+            "discharge_open_after": result.get("discharge_open_after"),
+        }
+        held = facts["command_held"]
+        _log.info(
+            "w60a door probe action=%s wrote=%s command %s->%s held=%s discharge_bit %s->%s",
+            action,
+            facts["wrote"],
+            facts["command_before"],
+            facts["command_after"],
+            held,
+            facts["discharge_open_before"],
+            facts["discharge_open_after"],
+        )
+        try:
+            level = "warning" if held is False else "info"
+            held_tag = "none" if held is None else str(bool(held)).lower()
+            with sentry_sdk.new_scope() as scope:
+                scope.set_tag("roaster", self._roaster_key)
+                scope.set_tag("protocol", self._protocol)
+                scope.set_tag("event", "door_probe")
+                scope.set_tag("action", action)
+                scope.set_tag("command_held", held_tag)
+                scope.set_context("door_probe", facts)
+                scope.fingerprint = ["door-probe", action, held_tag]
+                scope.capture_message("w60a door probe", level=level)
+            sentry_sdk.add_breadcrumb(
+                category="hardware",
+                message="w60a door probe",
+                level=level,
+                data=facts,
+            )
+        except Exception:
+            _log.exception("door probe sentry record failed")
+
     async def probe(self) -> dict[str, Any]:
         """단발 진단 읽기 — EMA/stale 처리를 우회하고 어댑터 원시 값과 소요 시간을 반환.
 
