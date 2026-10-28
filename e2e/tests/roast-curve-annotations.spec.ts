@@ -37,7 +37,8 @@ test('curve callouts follow BT through resize and Fahrenheit conversion (#1012)'
     const chartElement = page.locator('[_echarts_instance_]').last();
     await expect(chartElement).toBeVisible();
     await page.evaluate(async () => {
-        const settings = await import('/src/features/active-roast/model/settings.ts');
+        const modulePath = '/src/features/active-roast/model/settings.ts';
+        const settings = await import(modulePath);
         settings.updateRoastSettings({ eventMarkerStyle: 'callout' });
     });
 
