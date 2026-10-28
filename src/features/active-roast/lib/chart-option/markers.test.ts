@@ -1,6 +1,8 @@
 import {
     EVENT_MARK_LINE_WIDTH,
     MARKER_LABEL_GAP_PX,
+    MARKER_LABEL_LEADER_X_PX,
+    MARKER_LABEL_LEADER_Y_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
     REFERENCE_CURVE_OPACITY,
@@ -127,10 +129,10 @@ it('paints an opaque background behind printed event text so curves cannot cross
     expect(label?.style.width).toBeLessThan(200);
 });
 
-it('stacks major event text at the plot top while keeping points on BT', () => {
+it('connects major event labels near their BT anchors', () => {
     const { curveLabels } = buildMarkers({
         ...baseParams,
-        eventMarkerStyle: 'point',
+        eventMarkerStyle: 'callout',
         xs: [60, 480],
         btActual: [100, 200],
         eventMarkers: [
@@ -143,16 +145,19 @@ it('stacks major event text at the plot top while keeping points on BT', () => {
         { coord: ([time, bt]: number[]) => [time, bt], getWidth: () => 800, getHeight: () => 400 },
     );
     expect(rendered?.children).toEqual([
-        expect.objectContaining({ type: 'circle', shape: expect.objectContaining({ cx: 480, cy: 200 }) }),
+        expect.objectContaining({
+            type: 'line',
+            shape: { x1: 480, y1: 200, x2: 480 + MARKER_LABEL_LEADER_X_PX, y2: 178 },
+        }),
         expect.objectContaining({
             type: 'text',
-            y: 10 + NOTE_LABEL_TOP_INSET_PX + MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX,
+            y: 200 - MARKER_LABEL_LEADER_Y_PX,
             style: expect.objectContaining({ text: 'FC Start|08:00|200.0°C' }),
         }),
-        expect.objectContaining({ type: 'circle', shape: expect.objectContaining({ cx: 60, cy: 100 }) }),
+        expect.objectContaining({ type: 'line', shape: { x1: 60, y1: 100, x2: 76, y2: 78 } }),
         expect.objectContaining({
             type: 'text',
-            y: 10 + NOTE_LABEL_TOP_INSET_PX,
+            y: 100 - MARKER_LABEL_LEADER_Y_PX,
             style: expect.objectContaining({ text: 'Yellow|01:00|100.0°C' }),
         }),
     ]);
@@ -207,16 +212,18 @@ describe('FC band vs dual-mark Rolling', () => {
 });
 
 describe('buildMarkers label position', () => {
+    const milestones = [
+        { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
+        { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
+    ];
+
     it.each(['point', 'tempLine', 'line'] as const)(
-        '%s: FC Start and FC Rolling text start at the top independently of BT',
+        '%s keeps milestone labels at the top of the plot',
         (eventMarkerStyle) => {
             const { curveLabels, markPointData } = buildMarkers({
                 ...baseParams,
                 eventMarkerStyle,
-                eventMarkers: [
-                    { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
-                    { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
-                ],
+                eventMarkers: milestones,
             });
             expect(markPointData).toEqual([]);
             expect(curveLabels).toEqual([
@@ -226,6 +233,7 @@ describe('buildMarkers label position', () => {
                     text: 'FC Start|08:00|196.0°C',
                     below: true,
                     labelAtTop: true,
+                    showLeader: false,
                     showDot: eventMarkerStyle === 'point',
                 }),
                 expect.objectContaining({
@@ -234,11 +242,42 @@ describe('buildMarkers label position', () => {
                     text: 'FC Rolling|08:40|200.0°C',
                     below: true,
                     labelAtTop: true,
+                    showLeader: false,
                     showDot: eventMarkerStyle === 'point',
                 }),
             ]);
         },
     );
+
+    it('callout follows BT with a short leader', () => {
+        const { curveLabels, markPointData, allMarkLines } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'callout',
+            eventMarkers: milestones,
+        });
+        expect(markPointData).toEqual([]);
+        expect(allMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 480)).toBe(false);
+        expect(curveLabels).toEqual([
+            expect.objectContaining({
+                timeSec: 480,
+                y: 196,
+                text: 'FC Start|08:00|196.0°C',
+                below: false,
+                labelAtTop: false,
+                showLeader: true,
+                showDot: false,
+            }),
+            expect.objectContaining({
+                timeSec: 520,
+                y: 200,
+                text: 'FC Rolling|08:40|200.0°C',
+                below: false,
+                labelAtTop: false,
+                showLeader: true,
+                showDot: false,
+            }),
+        ]);
+    });
 });
 
 describe('event marker visual grammar', () => {
@@ -352,10 +391,10 @@ describe('event marker visual grammar', () => {
 });
 
 describe('layoutCurveLabelBoxes', () => {
-    it.each([1, 1.5, 2])('stacks reference heat, events, notes, fan, and drum together at scale %s', (scale) => {
+    it.each([1, 1.5, 2])('keeps control and note labels at the top while milestones follow BT at scale %s', (scale) => {
         const { curveLabels } = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'line',
+            eventMarkerStyle: 'callout',
             fontScale: scale,
             xs: [2, 3, 4, 5, 6, 8],
             btActual: [180, 175, 170, 165, 160, 155],
@@ -374,14 +413,14 @@ describe('layoutCurveLabelBoxes', () => {
             { dataIndex: 0, coordSys: { x: 0, y: 10, width: 700, height: 300 } },
             { coord: ([time, bt]: number[]) => [time * 50, bt], getWidth: () => 800, getHeight: () => 400 },
         );
-        const labels = rendered?.children.filter((child) => child.type === 'text').sort((a, b) => a.y - b.y);
+        const labels = rendered?.children
+            .filter((child) => child.type === 'text' && !/^(Yellow|FC Start)/.test(child.style.text))
+            .sort((a, b) => a.y - b.y);
         expect(labels?.map((label) => label.style.text)).toEqual([
             '70%|00:02|180.0°C',
-            'Yellow|00:03|175.0°C',
             '00:04 | 170.0°C\nCheck\naroma',
             'Fan 50|00:05',
             'Drum 55|00:06',
-            'FC Start|00:08|155.0°C',
         ]);
         let top = 10 + NOTE_LABEL_TOP_INSET_PX * scale;
         for (const label of labels ?? []) {
@@ -576,7 +615,7 @@ describe('layoutCurveLabelBoxes', () => {
         expect(second.textY).toBe(first.textY + (MARKER_LABEL_STACK_PX + MARKER_LABEL_GAP_PX));
     });
 
-    it('keeps a later Drop below the earlier FC cluster instead of overlapping', () => {
+    it('keeps a separated Drop near its anchor without overlapping the FC cluster', () => {
         const boxes = layoutCurveLabelBoxes([
             item({ timeSec: 490, xPx: 800, yPx: 120, text: 'FC Start | 08:10 | 185.8°C' }),
             item({ timeSec: 490, xPx: 800, yPx: 120, text: '35%|08:10|185.8°C' }),
@@ -593,7 +632,8 @@ describe('layoutCurveLabelBoxes', () => {
                 drop.bottom > other.top;
             expect(overlap).toBe(false);
         }
-        for (const other of others) expect(other.bottom + MARKER_LABEL_GAP_PX).toBeLessThanOrEqual(drop.top);
+        expect(drop.anchorY).toBe(90);
+        expect(drop.bottom).toBe(90);
     });
 });
 

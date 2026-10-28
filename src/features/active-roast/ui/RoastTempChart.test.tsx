@@ -270,7 +270,7 @@ describe('RoastTempChart interactions', () => {
                         ref,
                         xs: [0, 5, 8],
                         btActual: [180, 185, 190],
-                        eventMarkerStyle: 'tempLine',
+                        eventMarkerStyle: 'callout',
                         eventMarkers: [
                             {
                                 logId: 'reference-heat',
@@ -300,12 +300,20 @@ describe('RoastTempChart interactions', () => {
             const option = setOption.mock.calls[setOption.mock.calls.length - 1]?.[0];
             vi.spyOn(chart, 'convertToPixel').mockImplementation((finder, value) => {
                 if (Array.isArray(value)) return Number.NaN;
-                return 'yAxisIndex' in finder && value === option.yAxis[0].max ? 0 : value * 10;
+                return 'yAxisIndex' in finder
+                    ? option.yAxis[0].max - value
+                    : value === option.xAxis[0].max
+                      ? 1000
+                      : value * 10;
             });
             const series = option.series.find((s: { id: string }) => s.id === 'event-curve-labels');
             const rendered = series.renderItem(
-                { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 3000 } },
-                { coord: ([x, y]: number[]) => [x * 10, y * 10], getWidth: () => 1000, getHeight: chart.getHeight },
+                { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 200 } },
+                {
+                    coord: ([x, y]: number[]) => [x * 10, option.yAxis[0].max - y],
+                    getWidth: () => 1000,
+                    getHeight: chart.getHeight,
+                },
             );
             const label = rendered.children.find(
                 (child: { type: string; style?: { text?: string } }) =>
@@ -318,15 +326,18 @@ describe('RoastTempChart interactions', () => {
             const scale = fontScalePct / 100;
             expect(label.style.text).toBe('Yellow|00:05|185.0°C');
             expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
-            expect(label.x).toBe(50 + 4 * scale);
+            expect(label.x).toBe(50 + 16 * scale);
             expect(reference.y).toBe(8 * scale);
-            expect(label.y).toBeCloseTo(24 * scale);
+            const leader = rendered.children.find((child: { type: string }) => child.type === 'line');
+            expect(leader.shape).toMatchObject({ x1: 50, y1: 65 });
+            expect(label.y).toBeGreaterThanOrEqual(reference.y + 14 * scale + 2 * scale);
+            expect(label.y).toBeLessThan(150);
             expect(ref.current?.hitTestMarker({ clientX: label.x + 100 * scale, clientY: reference.y + 1 })).toBe(
                 false,
             );
             const point = {
                 clientX: label.x + label.style.text.length * 6 * scale - 1,
-                clientY: label.y + 1,
+                clientY: label.y - 1,
             };
             expect(ref.current?.hitTestMarker(point)).toBe(true);
             expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
@@ -340,6 +351,43 @@ describe('RoastTempChart interactions', () => {
         } finally {
             act(() => updateRoastSettings({ fontScalePct: previous }));
         }
+    });
+
+    it('uses a short connector as a drag target in callout mode', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        const onEventMarkerDrag = vi.fn();
+        act(() => {
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    xs: [0, 50, 80],
+                    btActual: [180, 185, 190],
+                    currentTimeSec: 80,
+                    eventMarkerStyle: 'callout',
+                    onEventMarkerDrag,
+                    eventMarkers: [
+                        {
+                            logId: 'yellow',
+                            event: 'Yellow',
+                            timeSec: 50,
+                            timeStr: '0:50',
+                            temp: '185°C',
+                            color: '#888',
+                        },
+                    ],
+                }),
+            );
+        });
+        convertToPixel.mockImplementation((finder, value) =>
+            'yAxisIndex' in finder ? 250 - (value as number) : (value as number) * 10,
+        );
+        // This point is outside both the dot's radius and the text box's padding.
+        const point = { clientX: 509.6, clientY: 51.8 };
+        expect(ref.current?.hitTestMarker(point)).toBe(true);
+        expect(ref.current?.beginMarkerDrag({ ...point, button: 0, pointerId: 22 })).toBe(true);
+        expect(ref.current?.moveMarkerDrag({ ...point, clientX: 519.6, pointerId: 22 })).toBe(true);
+        expect(onEventMarkerDrag).toHaveBeenCalledWith('yellow', 51);
     });
 
     it('keeps the final event label clickable after moving it clear of the right axis', () => {
@@ -528,8 +576,10 @@ describe('RoastTempChart interactions', () => {
 
         act(() => zrHandlers.get('mousemove')?.({ offsetX: 50, offsetY: 20 }));
         expect(onCursorIdx).toHaveBeenLastCalledWith(1);
-        convertToPixel.mockReturnValueOnce(50).mockReturnValueOnce(250);
-        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 250, pointerId: 5 })).toBe(true);
+        convertToPixel.mockImplementation((finder, value) =>
+            'yAxisIndex' in finder ? 250 - (value as number) : (value as number) * 10,
+        );
+        expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 70, pointerId: 5 })).toBe(true);
         expect(ref.current?.hitTestMarker({ clientX: 50, clientY: 301 })).toBe(false);
         chart.containPixel.mockReturnValueOnce(false);
         expect(ref.current?.beginMarkerDrag({ button: 0, clientX: 50, clientY: 150, pointerId: 6 })).toBe(false);
