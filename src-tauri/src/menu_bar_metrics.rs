@@ -67,6 +67,12 @@ pub(crate) mod native {
             return Err("macOS status item has no button".into());
         };
         let offset = (button.frame().size.height - 22.0) / 2.0;
+        // Status bar buttons can use top-down coordinates, unlike a default NSView.
+        let (label_y, value_y) = if button.isFlipped() {
+            (offset, offset + 7.0)
+        } else {
+            (offset + 14.0, offset)
+        };
         let mut values = Vec::new();
         let mut x = PAD;
         for (title, width) in ["ET", "BT", "RoR", "Time"].into_iter().zip(WIDTHS) {
@@ -76,7 +82,7 @@ pub(crate) mod native {
             })));
             label.setTextColor(Some(&NSColor::labelColor()));
             label.setFrame(NSRect::new(
-                NSPoint::new(x, offset + 13.0),
+                NSPoint::new(x, label_y),
                 NSSize::new(width, 8.0),
             ));
             button.addSubview(&label);
@@ -87,7 +93,7 @@ pub(crate) mod native {
             })));
             value.setTextColor(Some(&NSColor::labelColor()));
             value.setFrame(NSRect::new(
-                NSPoint::new(x, offset),
+                NSPoint::new(x, value_y),
                 NSSize::new(width, 15.0),
             ));
             button.addSubview(&value);
