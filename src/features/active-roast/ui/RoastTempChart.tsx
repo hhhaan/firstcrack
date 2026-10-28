@@ -39,8 +39,7 @@ import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import { feedbackLabel, feedbackUnit } from '@shared/lib/feedback';
 import { formatElapsed } from '@shared/lib/format';
-import { logger } from '@shared/lib/logger';
-import { applyTimeEdit, commitEditTime, parseEditTime, type TimeEditKind } from '@shared/lib/time-edit';
+import { commitEditTime, isPartialTime, parseEditTime } from '@shared/lib/time-edit';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastNoteControls } from '@shared/types/roast';
 import * as echarts from 'echarts';
@@ -171,6 +170,20 @@ const scalar = (value: unknown): number | null => (typeof value === 'number' && 
 const clampMarkerTime = (event: string, timeSec: number, nowSec: number, axisMaxSec: number) => {
     const cap = event === 'Note' || event === 'Fan' || event === 'Drum' ? axisMaxSec : Math.floor(nowSec);
     return Math.max(0, Math.min(cap, Math.round(timeSec)));
+};
+
+/** Chart label value: heater `90%` / `65kPa`, or a fan/drum number. The unit stays put. */
+const labelHeat = (event: string, note?: string): { heat: string; suffix: string } | null => {
+    if (event !== 'Heater' && !isFanDrumMarker(event)) return null;
+    const match = /^(\d+(?:\.\d+)?)(.*)$/.exec(note?.trim() ?? '');
+    return match ? { heat: match[1], suffix: match[2] } : { heat: '', suffix: '' };
+};
+
+const HEAT_DRAFT = /^\d*(\.\d{0,2})?$/;
+
+const heatNote = (heat: string, suffix: string): string | null => {
+    const normalized = heat.trim().replace(/\.$/, '');
+    return /^\d+(\.\d+)?$/.test(normalized) ? `${normalized}${suffix}` : null;
 };
 
 /** Omitted profile flags stay on. Kept off the component so each default is not a branch there. */
@@ -373,14 +386,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         y: number;
         time: string;
         title: string;
+        heat: string | null;
+        heatSuffix: string;
     } | null>(null);
     const editFormRef = useRef<HTMLFormElement>(null);
-    const timeInputRef = useRef<HTMLInputElement>(null);
-    const timeSuppress = useRef(false);
-    const timeSecondsOpen = useRef(false);
-    const timeDigits = useRef('');
-    const timeCaret = useRef<number | null>(null);
-    const timeBypassLogged = useRef(false);
 
     useLayoutEffect(() => {
         const form = noteFormRef.current ?? editFormRef.current;
@@ -856,6 +865,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 : selected.event === 'Note' && noteTitle
                   ? noteTitle
                   : roastEventLabel(selected.event);
+            const heat = labelHeat(selected.event, selected.note);
             setNoteForm(null);
             setNoteValues(emptyNote);
             setEditForm({
@@ -865,6 +875,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 y: Math.max(0, Math.min(point.y, container.clientHeight - 120)),
                 time: formatElapsed(selected.timeSec),
                 title,
+                heat: heat?.heat ?? null,
+                heatSuffix: heat?.suffix ?? '',
             });
             return true;
         },
@@ -937,102 +949,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         return () => document.removeEventListener('pointerdown', close);
     }, [editForm, noteForm]);
 
-    useLayoutEffect(() => {
-        const input = timeInputRef.current;
-        const caret = timeCaret.current;
-        if (!input || caret == null) return;
-        timeCaret.current = null;
-        const place = () => {
-            if (input.isConnected && document.activeElement === input) input.setSelectionRange(caret, caret);
-        };
-        place();
-        requestAnimationFrame(place);
-    });
-
-    const markerLogId = editForm?.logId;
-    useEffect(() => {
-        if (!markerLogId) return;
-        const input = timeInputRef.current;
-        if (!input) return;
-        timeSuppress.current = false;
-        timeSecondsOpen.current = false;
-        timeDigits.current = '';
-        timeBypassLogged.current = false;
-        let pasteClaimed = false;
-        const editTime = (kind: TimeEditKind, text: string) => {
-            const start = input.selectionStart ?? 0;
-            const end = input.selectionEnd ?? start;
-            const res = applyTimeEdit(
-                input.value,
-                start,
-                end,
-                text,
-                kind,
-                timeSuppress.current,
-                timeSecondsOpen.current,
-                timeDigits.current,
-            );
-            timeSuppress.current = res.suppress;
-            timeSecondsOpen.current = res.secondsOpen;
-            timeDigits.current = res.digits;
-            timeCaret.current = res.caret;
-            input.setSelectionRange(res.caret, res.caret);
-            setEditForm((form) => (form ? { ...form, time: res.value } : form));
-        };
-        const claimPaste = (text: string) => {
-            if (pasteClaimed) return;
-            pasteClaimed = true;
-            queueMicrotask(() => {
-                pasteClaimed = false;
-            });
-            editTime('insert', text);
-        };
-        const onBefore = (event: Event) => {
-            if (!(event instanceof InputEvent)) return;
-            const type = event.inputType;
-            if (type === 'insertFromPaste') {
-                event.preventDefault();
-                claimPaste(event.data ?? '');
-                return;
-            }
-            if (type === 'insertText' || type === 'insertReplacementText') {
-                event.preventDefault();
-                editTime('insert', event.data ?? '');
-                return;
-            }
-            if (type === 'deleteContentBackward') {
-                event.preventDefault();
-                editTime('backspace', '');
-                return;
-            }
-            if (type === 'deleteContentForward' || type === 'deleteByCut') {
-                event.preventDefault();
-                editTime('delete', '');
-            }
-        };
-        const onPaste = (event: Event) => {
-            if (!(event instanceof ClipboardEvent)) return;
-            event.preventDefault();
-            claimPaste(event.clipboardData?.getData('text') ?? '');
-        };
-        const onBlur = () => {
-            const committed = commitEditTime(input.value);
-            if (committed === input.value) return;
-            timeSuppress.current = false;
-            timeSecondsOpen.current = false;
-            timeDigits.current = '';
-            setEditForm((form) => (form ? { ...form, time: committed } : form));
-        };
-        input.addEventListener('beforeinput', onBefore);
-        input.addEventListener('paste', onPaste);
-        input.addEventListener('focusout', onBlur);
-        return () => {
-            input.removeEventListener('beforeinput', onBefore);
-            input.removeEventListener('paste', onPaste);
-            input.removeEventListener('focusout', onBlur);
-        };
-    }, [markerLogId]);
-
     const handleContextMenu = useCallback(
         (event: React.MouseEvent<HTMLDivElement>) => {
             if (!onAddNote) return;
@@ -1082,11 +998,14 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
 
     const submitEdit = useCallback(() => {
         if (!editForm || !onEventMarkerEdit) return;
-        const timeSec = parseEditTime(editForm.time);
+        const timeSec = parseEditTime(commitEditTime(editForm.time));
         if (timeSec == null) return;
         const axisMax = xViewMax ?? xs[xs.length - 1] ?? currentTimeSec;
+        const note = editForm.heat == null ? null : heatNote(editForm.heat, editForm.heatSuffix);
+        if (editForm.heat != null && note == null) return;
         onEventMarkerEdit(editForm.logId, {
             timeSec: clampMarkerTime(editForm.event, timeSec, currentTimeSec, axisMax),
+            ...(note != null ? { note } : {}),
         });
         setEditForm(null);
         chartRef.current?.focus();
@@ -1243,22 +1162,27 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
                         {t('activeRoast.noteEntry.time')}
                         <input
-                            ref={timeInputRef}
                             id="chart-marker-time"
                             autoFocus
                             inputMode="numeric"
                             autoComplete="off"
                             spellCheck={false}
-                            pattern="\d{1,3}:([0-5]?\d|60)"
-                            maxLength={6}
                             value={editForm.time}
+                            onFocus={(event) => event.currentTarget.select()}
                             onChange={(event) => {
-                                if (event.target.value === editForm.time) return;
-                                if (!timeBypassLogged.current) {
-                                    timeBypassLogged.current = true;
-                                    logger.capture(new Error('Marker time input bypassed beforeinput'));
+                                const next = event.target.value;
+                                if (next !== '' && !isPartialTime(next)) {
+                                    event.target.value = editForm.time;
+                                    return;
                                 }
-                                setEditForm({ ...editForm, time: event.target.value });
+                                setEditForm({ ...editForm, time: next });
+                            }}
+                            onBlur={() => {
+                                setEditForm((form) => {
+                                    if (!form) return form;
+                                    const committed = commitEditTime(form.time);
+                                    return committed === form.time ? form : { ...form, time: committed };
+                                });
                             }}
                             onKeyDown={(event) => {
                                 if (event.key === 'Escape') {
@@ -1279,6 +1203,39 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
                         />
                     </label>
+                    {editForm.heat != null && (
+                        <label className="flex items-center gap-1 px-1 text-[11px] text-muted">
+                            {editForm.event === 'Heater'
+                                ? t('heaterEventsEditor.heat')
+                                : t(
+                                      editForm.event === 'Fan'
+                                          ? 'activeRoast.controls.fan'
+                                          : 'activeRoast.controls.drum',
+                                  )}
+                            <input
+                                id="chart-marker-heat"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                spellCheck={false}
+                                value={editForm.heat}
+                                onFocus={(event) => event.currentTarget.select()}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    if (!HEAT_DRAFT.test(next)) {
+                                        event.target.value = editForm.heat ?? '';
+                                        return;
+                                    }
+                                    setEditForm({ ...editForm, heat: next });
+                                }}
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                            />
+                            {editForm.heatSuffix && (
+                                <span className="font-mono text-xs text-(--color-text-primary)">
+                                    {editForm.heatSuffix}
+                                </span>
+                            )}
+                        </label>
+                    )}
                     <div className="flex items-center justify-end gap-1">
                         {onEventMarkerDelete &&
                             (canDeleteMarker(editForm.event) || (savedReview && editForm.event === 'TP')) && (

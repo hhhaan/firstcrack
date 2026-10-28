@@ -2,26 +2,16 @@
 
 import type { ControlData } from '@features/active-roast/lib/chart-option';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
-import { logger } from '@shared/lib/logger';
 import * as echarts from 'echarts';
 import { act, createElement, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoastTempChart, type RoastTempChartHandle } from './RoastTempChart';
 
-const dispatchTimeInput = (input: HTMLInputElement, data: string, inputType = 'insertText') => {
-    input.dispatchEvent(new InputEvent('beforeinput', { bubbles: true, cancelable: true, data, inputType }));
-};
-
-const typeMarkerTime = (input: HTMLInputElement, data: string, inputType = 'insertText') => {
-    input.focus();
-    dispatchTimeInput(input, data, inputType);
-};
-
 const replaceMarkerTime = (input: HTMLInputElement, data: string) => {
-    input.focus();
-    input.setSelectionRange(0, input.value.length);
-    dispatchTimeInput(input, data);
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, data);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
 };
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -771,7 +761,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', { timeSec: 8 });
     });
 
-    it('opens a marker editor on click and saves Heater time but not heat value', () => {
+    it('opens a marker editor on click and saves Heater time and heat value', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
         act(() => {
@@ -803,18 +793,20 @@ describe('RoastTempChart interactions', () => {
         });
         const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
         const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
+        const heat = form.querySelector('#chart-marker-heat') as HTMLInputElement;
         expect(time.value).toBe('0:05');
-        expect(form.querySelector('#chart-marker-heat')).toBeNull();
-        expect(form.querySelectorAll('input')).toHaveLength(1);
+        expect(heat.value).toBe('50');
+        expect(form.textContent).toContain('%');
+        expect(form.querySelectorAll('input')).toHaveLength(2);
 
         act(() => replaceMarkerTime(time, '0:08'));
+        act(() => replaceMarkerTime(heat, '80'));
         act(() =>
             container
                 .querySelector('[data-chart-marker-edit]')
                 ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })),
         );
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8 });
-        expect(onEventMarkerEdit.mock.calls[0][1].note).toBeUndefined();
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8, note: '80%' });
     });
 
     it('saved review edits and deletes a heater mark', () => {
@@ -850,13 +842,13 @@ describe('RoastTempChart interactions', () => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
         const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
-        expect(form.querySelector('#chart-marker-heat')).toBeNull();
-        expect(form.querySelectorAll('input')).toHaveLength(1);
+        expect((form.querySelector('#chart-marker-heat') as HTMLInputElement).value).toBe('80');
+        expect(form.querySelectorAll('input')).toHaveLength(2);
         expect(form.querySelector('[data-chart-marker-delete]')).not.toBeNull();
         const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
         act(() => replaceMarkerTime(time, '0:08'));
         act(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
-        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8 });
+        expect(onEventMarkerEdit).toHaveBeenCalledWith('heater-1', { timeSec: 8, note: '80%' });
     });
 
     it('keeps marker time to digits and seconds 0–60', () => {
@@ -890,12 +882,14 @@ describe('RoastTempChart interactions', () => {
         });
         const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
 
-        act(() => typeMarkerTime(time, 'a'));
+        act(() => replaceMarkerTime(time, 'a'));
         expect(time.value).toBe('0:05');
+        act(() => replaceMarkerTime(time, '1:37'));
+        expect(time.value).toBe('1:37');
         act(() => replaceMarkerTime(time, '0:61'));
-        expect(time.value).toBe('00:60');
+        expect(time.value).toBe('1:37');
         act(() => replaceMarkerTime(time, '0:60'));
-        expect(time.value).toBe('00:60');
+        expect(time.value).toBe('0:60');
         act(() =>
             container
                 .querySelector('[data-chart-marker-edit]')
@@ -904,7 +898,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerEdit).toHaveBeenCalledWith('yellow-1', { timeSec: 60 });
     });
 
-    it('turns typed 1234 into 12:34 and leaves the caret after the seconds', () => {
+    it('keeps a typed clock instead of filling four slots from the left', () => {
         const ref = createRef<RoastTempChartHandle>();
         act(() => {
             root.render(
@@ -935,20 +929,12 @@ describe('RoastTempChart interactions', () => {
             expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
         });
         const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
-        act(() => {
-            time.focus();
-            time.setSelectionRange(0, time.value.length);
-            dispatchTimeInput(time, '', 'deleteContentBackward');
-        });
-        expect(time.value).toBe('00:00');
-        act(() => typeMarkerTime(time, '1'));
-        act(() => typeMarkerTime(time, '2'));
-        expect(time.value).toBe('12:00');
-        expect(time.selectionStart).toBe(3);
-        act(() => typeMarkerTime(time, '3'));
-        act(() => typeMarkerTime(time, '4'));
+        act(() => replaceMarkerTime(time, '12:34'));
         expect(time.value).toBe('12:34');
-        expect(time.selectionStart).toBe(5);
+        act(() => replaceMarkerTime(time, '100:00'));
+        expect(time.value).toBe('100:00');
+        act(() => replaceMarkerTime(time, ''));
+        expect(time.value).toBe('');
     });
 
     it('steps marker time by one second on arrow keys and stops at the event cap', () => {
@@ -997,49 +983,6 @@ describe('RoastTempChart interactions', () => {
         expect(time.value).toBe('0:08');
         act(() => press('ArrowDown'));
         expect(time.value).toBe('0:07');
-    });
-
-    it('keeps a marker time edit that skipped beforeinput and reports it once', () => {
-        const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
-        const ref = createRef<RoastTempChartHandle>();
-        act(() => {
-            root.render(
-                createElement(RoastTempChart, {
-                    ...baseProps,
-                    ref,
-                    xs: [0, 5, 60],
-                    eventMarkerStyle: 'line',
-                    eventMarkers: [
-                        {
-                            logId: 'yellow-1',
-                            event: 'Yellow',
-                            timeSec: 5,
-                            timeStr: '0:05',
-                            temp: '180°C',
-                            color: '#888',
-                        },
-                    ],
-                    onEventMarkerDrag: vi.fn(),
-                    onEventMarkerEdit: vi.fn(),
-                }),
-            );
-        });
-        act(() => {
-            expect(ref.current?.openMarkerEdit({ clientX: 50, clientY: 20 })).toBe(true);
-        });
-        const time = container.querySelector('#chart-marker-time') as HTMLInputElement;
-        const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        act(() => {
-            setter?.call(time, '9:00');
-            time.dispatchEvent(new Event('input', { bubbles: true }));
-        });
-        expect(time.value).toBe('9:00');
-        act(() => {
-            setter?.call(time, '9:01');
-            time.dispatchEvent(new Event('input', { bubbles: true }));
-        });
-        expect(capture).toHaveBeenCalledOnce();
-        capture.mockRestore();
     });
 
     it.each(['Note', 'Heater', 'Yellow', 'FC Start', 'FC Rolling', 'FC End'])(

@@ -28,7 +28,13 @@ import {
 } from '@features/active-roast/lib/serialize-roast-events';
 import { rorUnitLabel, tempUnitLabel } from '@features/active-roast/lib/temperature';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
-import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
+import {
+    editedHeatSet,
+    patchHeaterPlanMarker,
+    patchStoredHeaterEvent,
+    profileHeaterBounds,
+    withEditedHeaterLog,
+} from '@features/machine-control/lib/heater-events';
 import { formatDuration } from '@shared/lib/format';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
@@ -240,14 +246,24 @@ export function HistorySessionChart({
     const [markerError, setMarkerError] = useState<string | null>(null);
     const onEventMarkerEdit = useCallback(
         (logId: string, patch: EventMarkerPatch) => {
-            const next = patchStoredControl(session.events, logId, patch);
+            const control = patchStoredControl(session.events, logId, patch);
+            const plan = control ? null : patchHeaterPlanMarker(session.heater_events, logId, patch);
+            const events = control || plan ? null : patchStoredHeaterEvent(session.events, logId, patch);
+            const next = control ?? events;
+            if (plan) {
+                void record.saveHeater(plan).then(
+                    () => setMarkerError(null),
+                    (error: unknown) => setMarkerError(record.errorText(error)),
+                );
+                return;
+            }
             if (!next) return;
             void record.saveEvents(next).then(
                 () => setMarkerError(null),
                 (error: unknown) => setMarkerError(record.errorText(error)),
             );
         },
-        [record, session.events],
+        [record, session.events, session.heater_events],
     );
     const onEventMarkerDelete = useCallback(
         (logId: string) => {

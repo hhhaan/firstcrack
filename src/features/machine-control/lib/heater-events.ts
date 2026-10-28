@@ -217,6 +217,52 @@ export const heaterEventsToJson = (events: ReplayEvent[]): Json =>
         e.trigger ? { t: e.t, bt: e.bt, heater: e.heater, trigger: e.trigger } : { t: e.t, bt: e.bt, heater: e.heater },
     );
 
+const heaterNoteNumber = (note: string): number | null => {
+    const match = note.trim().match(/^\d+(?:\.\d+)?/);
+    if (!match) return null;
+    const value = Number(match[0]);
+    return Number.isFinite(value) ? value : null;
+};
+
+/** Chart label `heater-plan-N` is the Nth stored heat step. Time and the label number can change. */
+export const patchHeaterPlanMarker = (
+    heaterEvents: unknown,
+    logId: string,
+    patch: { timeSec?: number; note?: string },
+): Json | null => {
+    const index = /^heater-plan-(\d+)$/.exec(logId);
+    if (!index) return null;
+    const plan = parseHeaterEvents(heaterEvents);
+    if (!plan) return null;
+    const at = Number(index[1]);
+    const step = plan[at];
+    if (!step) return null;
+    const heater = patch.note == null ? step.heater : heaterNoteNumber(patch.note);
+    if (heater == null) return null;
+    const t = patch.timeSec != null && Number.isFinite(patch.timeSec) ? Math.max(0, Math.round(patch.timeSec)) : step.t;
+    return heaterEventsToJson(plan.map((event, i) => (i === at ? { ...event, t, heater } : event)));
+};
+
+/** A recorded Heater row (BBP, or a log with no separate heat plan). */
+export const patchStoredHeaterEvent = (
+    raw: unknown,
+    logId: string,
+    patch: { timeSec?: number; note?: string },
+): Json | null => {
+    if (!Array.isArray(raw)) return null;
+    let found = false;
+    const next = raw.map((item) => {
+        if (item == null || typeof item !== 'object' || Array.isArray(item)) return item;
+        const row = item as Record<string, unknown>;
+        if (row.id !== logId || row.type !== 'Heater') return item;
+        found = true;
+        const timeSec =
+            patch.timeSec != null && Number.isFinite(patch.timeSec) ? Math.round(patch.timeSec) : row.time_sec;
+        return { ...row, time_sec: timeSec, ...(patch.note != null ? { note: patch.note } : {}) };
+    });
+    return found ? (next as Json) : null;
+};
+
 const FALLBACK_HEATER_BOUNDS: HeaterBounds = { min: 0, max: 100 };
 
 export const numericHeaterStep = (value: unknown): number | undefined =>

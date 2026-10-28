@@ -14,6 +14,8 @@ import {
     parseEditTime,
     parseFiniteNumber,
     parseHeaterEvents,
+    patchHeaterPlanMarker,
+    patchStoredHeaterEvent,
     profileHeaterBounds,
     profileHeatTarget,
     remapReplayIndex,
@@ -624,6 +626,22 @@ describe('history-edited Heat set (#623)', () => {
     it('no edit or an unreadable edit draws the TSV as-is', () => {
         expect(editedHeatSet(recorded, 600, null)).toBeNull();
         expect(editedHeatSet(recorded, 600, [{ t: 'x' }])).toBeNull();
+    });
+
+    it('edits one chart heat label without rewriting the other steps', () => {
+        const stored = [
+            { t: 0, bt: 200, heater: 65, trigger: 'time' as const },
+            { t: 90, bt: 120, heater: 45, trigger: 'bt' as const },
+        ];
+        expect(patchHeaterPlanMarker(stored, 'heater-plan-1', { timeSec: 95, note: '40kPa' })).toEqual([
+            { t: 0, bt: 200, heater: 65, trigger: 'time' },
+            { t: 95, bt: 120, heater: 40, trigger: 'bt' },
+        ]);
+        expect(patchHeaterPlanMarker(stored, 'missing', { note: '1%' })).toBeNull();
+        const events = [{ id: 'bbp-heat', type: 'Heater', time_sec: -30, note: '90%' }];
+        expect(patchStoredHeaterEvent(events, 'bbp-heat', { timeSec: -20, note: '70%' })).toEqual([
+            { id: 'bbp-heat', type: 'Heater', time_sec: -20, note: '70%' },
+        ]);
     });
 
     it('edited plan replaces recorded Heater log rows and keeps every other event', () => {
