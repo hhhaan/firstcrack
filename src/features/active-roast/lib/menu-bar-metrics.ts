@@ -1,7 +1,7 @@
 /** macOS status item images are shown at 18pt; baselines fit both rows without shrinking the type. */
 export const MENU_BAR_HEIGHT = 18;
 const LABEL_PX = 7;
-const VALUE_PX = 12;
+const VALUE_PX = 13;
 const PAD_X = 2;
 const LABEL_BASELINE = 6;
 const VALUE_BASELINE = 18;
