@@ -22,9 +22,11 @@ const sourceSessionOf = (batch: ProfileReferenceBatch) => ({
 export const ProfileReferenceBatches = ({
     profileId,
     sourceSessionId,
+    onOpenDetail,
 }: {
     profileId: string;
     sourceSessionId: string;
+    onOpenDetail?: (sessionId: string) => void;
 }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId } = useActiveWorkspace();
@@ -107,11 +109,26 @@ export const ProfileReferenceBatches = ({
                                     </td>
                                     <td className="py-2 pr-4 font-medium text-primary">{title}</td>
                                     <td className="py-2 text-right">
-                                        {current && (
-                                            <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium tracking-[0.14px] text-secondary">
-                                                {t('newProfileModal.basedOn')}
-                                            </span>
-                                        )}
+                                        <span className="inline-flex items-center justify-end gap-2.5">
+                                            {current && (
+                                                <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium tracking-[0.14px] text-secondary">
+                                                    {t('newProfileModal.basedOn')}
+                                                </span>
+                                            )}
+                                            {onOpenDetail && (
+                                                <button
+                                                    type="button"
+                                                    data-testid="profile-reference-detail"
+                                                    className="cursor-pointer border-none bg-transparent p-0 text-[12px] font-medium text-primary"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        onOpenDetail(batch.id);
+                                                    }}
+                                                >
+                                                    {t('history.expanded.show')}
+                                                </button>
+                                            )}
+                                        </span>
                                     </td>
                                 </tr>
                             );

@@ -501,6 +501,10 @@
                 "autoDropSensitivity": "検出感度",
                 "autoDropSensitivityDescription": "弱い下降も検出し、温度の揺らぎに反応しやすくなります。",
                 "autoDropUnavailable": "自動 Drop 検出を利用できません。手動 Drop を使うか、アプリを再起動してください。",
+                "replay": "Replay",
+                "replayDescription": "プロファイル火力の再生を始めるタイミング",
+                "replayOnCharge": "投入で Replay を開始",
+                "replayOnChargeDescription": "オンにすると投入時にプロファイル火力の再生が始まります。オフのときはこれまで通り再生を別にオンにします。",
                 "alerts": "リアルタイム警報",
                 "alertsDescription": "閾値警告と時間リマインダーを焙煎中に知らせます。",
                 "alertsEnabled": "警報を有効化",
@@ -1553,6 +1557,7 @@
             "failed": "削除できませんでした。もう一度お試しください。"
         },
         "saveAsProfile": "プロファイルとして保存",
+        "setReference": "基準にする",
         "exportCsv": "CSV書き出し",
         "exportConfirm": "保存先: {{path}}\n{{count}}件のセッションをCSVにエクスポートしますか？",
         "exportNoSessions": "エクスポートするセッションがありません。",

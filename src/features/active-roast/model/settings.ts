@@ -153,6 +153,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     autoChargeMode: 'standard',
     autoDropEnabled: true,
     autoDropMode: 'standard',
+    replayOnCharge: false,
     autoDropStartMin: AUTO_DROP_START_MIN_DEFAULT,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
@@ -428,6 +429,7 @@ export const normalizeRoastSettings = (
         autoChargeMode: merged.autoChargeMode === 'sensitive' ? 'sensitive' : 'standard',
         autoDropEnabled: asBool(merged.autoDropEnabled, DEFAULT_SETTINGS.autoDropEnabled),
         autoDropMode: merged.autoDropMode === 'sensitive' ? 'sensitive' : 'standard',
+        replayOnCharge: asBool(merged.replayOnCharge, DEFAULT_SETTINGS.replayOnCharge),
         autoDropStartMin: coerceAutoDropStartMin(
             merged.autoDropStartMin,
             previous?.autoDropStartMin ?? AUTO_DROP_START_MIN_DEFAULT,

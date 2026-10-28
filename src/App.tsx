@@ -31,7 +31,7 @@ import { ActiveRoastRuntime } from './views/active-roast/ActiveRoastRuntime';
 import { Beans } from './views/bean/Beans';
 import { Cupping } from './views/cupping/Cupping';
 import { Dashboard } from './views/dashboard/Dashboard';
-import { History } from './views/history/History';
+import { History, type HistoryFocus } from './views/history/History';
 import { Login } from './views/login/Login';
 import { Machines } from './views/machines/Machines';
 import { Orders } from './views/orders/Orders';
@@ -126,6 +126,15 @@ const AppShell = () => {
     }, []);
 
     const [view, setView] = useState<View>('dashboard');
+    const [historyFocus, setHistoryFocus] = useState<HistoryFocus | null>(null);
+    const showView = (next: View) => {
+        setHistoryFocus(null);
+        setView(next);
+    };
+    const openHistoryBatch = (sessionId: string, profileId: string) => {
+        setHistoryFocus({ sessionId, profileId });
+        setView('history');
+    };
     const [roastMount, setRoastMount] = useState(0);
     useEffect(() => {
         if (import.meta.env.VITE_E2E !== '1' && import.meta.env.VITE_E2E !== 'true') return;
@@ -284,7 +293,7 @@ const AppShell = () => {
                     {view !== 'settings' && (
                         <Sidebar
                             activeView={view}
-                            onNavigate={setView}
+                            onNavigate={showView}
                             collapsed={sidebarCollapsed}
                             onToggleCollapse={() => setSidebarCollapsed((current) => !current)}
                             onOpenSettings={(tab) => openSettings(tab as SettingsTabId)}
@@ -299,7 +308,7 @@ const AppShell = () => {
                         )}
                     >
                         {view !== 'settings' && (
-                            <InventoryAlertBanner userId={workspaceOwnerId || user.id} onNavigate={setView} />
+                            <InventoryAlertBanner userId={workspaceOwnerId || user.id} onNavigate={showView} />
                         )}
                         {view === 'settings' && (
                             <ViewErrorBoundary>
@@ -313,7 +322,7 @@ const AppShell = () => {
                         )}
                         {view === 'dashboard' && (
                             <ViewErrorBoundary>
-                                <Dashboard onNavigate={setView} />
+                                <Dashboard onNavigate={showView} />
                             </ViewErrorBoundary>
                         )}
                         {/* 탭 전환 시 화면 상태를 유지한다. 수집·타이머는 화면 오류 경계 밖에서 계속 실행된다. */}
@@ -339,7 +348,7 @@ const AppShell = () => {
                         </div>
                         {view === 'history' && (
                             <ViewErrorBoundary>
-                                <History />
+                                <History focus={historyFocus} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'cupping' && (
@@ -354,22 +363,22 @@ const AppShell = () => {
                         )}
                         {view === 'beans' && (
                             <ViewErrorBoundary>
-                                <Beans onNavigate={setView} onUpgrade={openComparePlans} />
+                                <Beans onNavigate={showView} onUpgrade={openComparePlans} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'pricing' && (
                             <ViewErrorBoundary>
-                                <Pricing onNavigate={setView} />
+                                <Pricing onNavigate={showView} />
                             </ViewErrorBoundary>
                         )}
                         {view === 'profiles' && (
                             <ViewErrorBoundary>
-                                <Profiles onNavigate={setView} />
+                                <Profiles onNavigate={showView} onOpenHistoryBatch={openHistoryBatch} />
                             </ViewErrorBoundary>
                         )}
                         <div style={{ display: view === 'machines' ? 'block' : 'none' }}>
                             <ViewErrorBoundary>
-                                <Machines isActive={view === 'machines'} onNavigate={setView} />
+                                <Machines isActive={view === 'machines'} onNavigate={showView} />
                             </ViewErrorBoundary>
                         </div>
                         {view === 'schedule' && (

@@ -1022,6 +1022,18 @@ export const RoastSettingsTab = () => {
             </SettingsSection>
             */}
 
+            <SettingsSection group="automation">
+                <SettingsSection.Header title={tk('replay')} description={tk('replayDescription')} />
+                <SettingsSection.Body>
+                    <SettingsCheckRow
+                        checked={roastSettings.replayOnCharge}
+                        label={tk('replayOnCharge')}
+                        description={tk('replayOnChargeDescription')}
+                        onChange={() => updateRoastSettings({ replayOnCharge: !roastSettings.replayOnCharge })}
+                    />
+                </SettingsSection.Body>
+            </SettingsSection>
+
             <SettingsSection group="bbp">
                 <SettingsSection.Header title={tk('bbp')} description={tk('bbpDescription')} />
                 <SettingsSection.Body className="grid gap-3">

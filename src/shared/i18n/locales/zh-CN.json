@@ -501,6 +501,10 @@
                 "autoDropSensitivity": "检测灵敏度",
                 "autoDropSensitivityDescription": "可检测较弱的下降，也更容易受到温度波动的影响。",
                 "autoDropUnavailable": "自动 Drop 检测不可用。请手动 Drop 或重启应用。",
+                "replay": "Replay",
+                "replayDescription": "何时开始回放配置火力",
+                "replayOnCharge": "投豆时开始 Replay",
+                "replayOnChargeDescription": "开启后，投豆时开始回放配置火力。关闭后仍需单独打开回放。",
                 "alerts": "实时警报",
                 "alertsDescription": "烘焙过程中的阈值警告与时间提醒。",
                 "alertsEnabled": "启用警报",
@@ -1553,6 +1557,7 @@
             "failed": "删除失败，请重试。"
         },
         "saveAsProfile": "保存为曲线",
+        "setReference": "设为基准",
         "exportCsv": "导出 CSV",
         "exportConfirm": "保存到：{{path}}\n导出{{count}}条记录为CSV？",
         "exportNoSessions": "没有可导出的会话。",

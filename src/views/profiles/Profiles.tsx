@@ -90,9 +90,10 @@ const ProfileDetailSkeleton = () => (
 
 interface ProfilesProps {
     onNavigate: (view: View) => void;
+    onOpenHistoryBatch?: (sessionId: string, profileId: string) => void;
 }
 
-export const Profiles = ({ onNavigate }: ProfilesProps) => {
+export const Profiles = ({ onNavigate, onOpenHistoryBatch }: ProfilesProps) => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
     const user = useAuthStore((s) => s.user);
@@ -250,6 +251,7 @@ export const Profiles = ({ onNavigate }: ProfilesProps) => {
                 onDuplicate={(profile) => void handleDuplicate(profile)}
                 onDelete={handleDelete}
                 onNavigate={onNavigate}
+                onOpenHistoryBatch={onOpenHistoryBatch}
             />
         );
     };

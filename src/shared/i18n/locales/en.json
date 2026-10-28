@@ -501,6 +501,10 @@
                 "autoDropSensitivity": "Detection sensitivity",
                 "autoDropSensitivityDescription": "Detects weaker declines and is more sensitive to temperature fluctuations.",
                 "autoDropUnavailable": "Automatic Drop detection is unavailable. Use manual Drop or restart the app.",
+                "replay": "Replay",
+                "replayDescription": "When profile heat replay starts",
+                "replayOnCharge": "Start Replay on Charge",
+                "replayOnChargeDescription": "Charge starts profile heat replay. Off keeps the separate Replay switch.",
                 "alerts": "Live Alarms",
                 "alertsDescription": "Threshold warnings and time reminders during the roast.",
                 "alertsEnabled": "Enable alarms",
@@ -1581,6 +1585,7 @@
             "failed": "Couldn't delete. Try again."
         },
         "saveAsProfile": "Save as profile",
+        "setReference": "Set as reference",
         "exportCsv": "Export CSV",
         "exportConfirm": "Save to: {{path}}\nExport {{count}} session(s) as CSV?",
         "exportNoSessions": "No sessions to export.",

@@ -23,9 +23,15 @@ type HistorySessionDetailProps = {
     session: RoastSessionWithRelations;
     onBack: () => void;
     onSaveAsProfile: (id: string) => void;
+    onSetReference?: () => void;
 };
 
-export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: HistorySessionDetailProps): ReactNode => {
+export const HistorySessionDetail = ({
+    session,
+    onBack,
+    onSaveAsProfile,
+    onSetReference,
+}: HistorySessionDetailProps): ReactNode => {
     const { t } = useTranslation();
     const [exportContainer, setExportContainer] = useState<HTMLDivElement | null>(null);
     const { temperatureUnit, totalBatchPrefix } = useRoastSettings();
@@ -77,6 +83,16 @@ export const HistorySessionDetail = ({ session, onBack, onSaveAsProfile }: Histo
                     >
                         {t('history.saveAsProfile')}
                     </button>
+                    {onSetReference && (
+                        <button
+                            type="button"
+                            data-testid="history-set-reference"
+                            onClick={onSetReference}
+                            className="inline-flex shrink-0 cursor-pointer items-center rounded-full border border-border-subtle bg-main-bg px-4 py-2 text-[12px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)"
+                        >
+                            {t('history.setReference')}
+                        </button>
+                    )}
                 </div>
             </header>
             <section

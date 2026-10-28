@@ -30,6 +30,8 @@ export interface ReplayControlInputs {
     elapsed: number;
     /** phase === 'roasting' — 이 밖에서는 판정도 쓰기도 하지 않는다 */
     roasting: boolean;
+    /** 설정이 켜져 있으면 Charge 상승에서 Replay를 켠다. 화면에서 끈 배치는 다음 Charge까지 꺼져 있다. */
+    armOnCharge?: boolean;
     /**
      * 실기 TP 사실 — 게이트와 대기 UI를 여기서 파생한다. fallback은 BT를 열지 않는다 (#314).
      * 뷰에 tpWaiting boolean을 두지 않는다.
@@ -157,6 +159,7 @@ export const useReplayControl = ({
     liveBt,
     elapsed,
     roasting,
+    armOnCharge = false,
     confirmedTurningPoint,
     heaterWritable,
     pidEngaged,
@@ -395,6 +398,9 @@ export const useReplayControl = ({
         bumpWriteGenOnRenderStop();
         // 이번 배치 편집본은 배치가 끝나면 버린다. Charge(false→true)에서는 유지.
         if (prevRoasting && !roasting) setBatchEvents(null);
+        const arm =
+            !prevRoasting && roasting && armOnCharge && !roastFinished && rawPlan != null && !referenceMachineMismatch;
+        if (arm) setActive(true);
     }
 
     useEffect(() => {

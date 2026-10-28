@@ -501,6 +501,10 @@
                 "autoDropSensitivity": "감지 민감도",
                 "autoDropSensitivityDescription": "민감 모드는 작은 온도 하강도 감지하며, 온도 흔들림의 영향이 더 큼",
                 "autoDropUnavailable": "자동 Drop 감지를 사용할 수 없습니다. 수동 Drop을 사용하거나 앱을 재시작해 주세요.",
+                "replay": "Replay",
+                "replayDescription": "프로파일 화력 재생을 언제 시작할지",
+                "replayOnCharge": "투입하면 Replay 시작",
+                "replayOnChargeDescription": "켜 두면 투입할 때 프로파일 화력 재생이 시작된다. 끄면 지금처럼 재생을 따로 켠다.",
                 "alerts": "실시간 알람",
                 "alertsDescription": "로스팅 중 온도·RoR 경고와 시간 알림",
                 "alertsEnabled": "알람 사용",
@@ -1228,6 +1232,7 @@
             "failed": "삭제하지 못했습니다. 다시 시도하세요."
         },
         "saveAsProfile": "프로파일로 저장",
+        "setReference": "기준",
         "exportCsv": "Export CSV",
         "exportConfirm": "저장 위치: {{path}}\n{{count}}개 세션을 CSV로 내보내시겠습니까?",
         "exportNoSessions": "내보낼 세션이 없습니다.",

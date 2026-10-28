@@ -88,6 +88,27 @@ describe('ProfileReferenceBatches', () => {
         });
     });
 
+    it('opens the history record without changing the reference', () => {
+        list.current = batches;
+        const onOpenDetail = vi.fn();
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        root = createRoot(host);
+        act(() => {
+            root.render(
+                createElement(ProfileReferenceBatches, {
+                    profileId: 'p1',
+                    sourceSessionId: 's3',
+                    onOpenDetail,
+                }),
+            );
+        });
+        const detail = host.querySelector<HTMLButtonElement>('[data-testid="profile-reference-detail"]');
+        act(() => detail?.click());
+        expect(onOpenDetail).toHaveBeenCalledWith('s4');
+        expect(mutateAsync).not.toHaveBeenCalled();
+    });
+
     it('does not write when the current reference is chosen again', () => {
         list.current = batches;
         render();

@@ -108,6 +108,8 @@ export type RoastSettings = {
     autoChargeMode: AutoChargeMode;
     autoDropEnabled: boolean;
     autoDropMode: AutoDropMode;
+    /** When on, Charge starts Replay and Drop stops it. The next Charge starts it again. */
+    replayOnCharge: boolean;
     /**
      * Minutes after Charge before auto Drop may fire.
      * The detector fires only once elapsed exceeds this value (`elapsed > minutes * 60`).

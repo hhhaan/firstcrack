@@ -1179,6 +1179,7 @@ export const ActiveRoast = ({ isActive, onOpenRoastSettings, onPlanBatchComplete
         liveBt: replayBt,
         elapsed,
         roasting: phase === 'roasting',
+        replayOnCharge: roastSettings.replayOnCharge,
         confirmedTurningPoint: confirmedTP,
         observationQuality,
         lastValidReceivedAtMs,

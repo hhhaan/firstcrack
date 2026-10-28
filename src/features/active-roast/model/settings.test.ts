@@ -629,6 +629,8 @@ it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C va
         autoDropEnabled: true,
         autoDropMode: 'standard',
     });
+    expect(normalizeRoastSettings({}).replayOnCharge).toBe(false);
+    expect(normalizeRoastSettings({ replayOnCharge: true }).replayOnCharge).toBe(true);
 });
 
 describe('curve styles', () => {

@@ -67,6 +67,26 @@ describe('useMachineControlComposition', () => {
         vi.useRealTimers();
     });
 
+    it('starts Replay on Charge only while the setting is on', async () => {
+        const hook = await renderComposition({ ...base(), roasting: false, replayOnCharge: false });
+        await hook.rerender({ ...base(), roasting: true, replayOnCharge: false });
+        expect(hook.get().replay.active).toBe(false);
+
+        await hook.rerender({ ...base(), roasting: false, replayOnCharge: true });
+        await hook.rerender({ ...base(), roasting: true, replayOnCharge: true });
+        expect(hook.get().replay.active).toBe(true);
+
+        await act(async () => hook.get().replay.toggle());
+        expect(hook.get().replay.active).toBe(false);
+        await hook.rerender({ ...base(), roasting: true, elapsed: 40, replayOnCharge: true });
+        expect(hook.get().replay.active).toBe(false);
+
+        await hook.rerender({ ...base(), roasting: false, replayOnCharge: true });
+        await hook.rerender({ ...base(), roasting: true, replayOnCharge: true });
+        expect(hook.get().replay.active).toBe(true);
+        await hook.unmount();
+    });
+
     it('runs Drop hold and zero while the panel is not mounted', async () => {
         const hold = await renderComposition({ ...base(), pidRuntime: runtime('running'), pidDropBehavior: 'hold' });
         await hold.rerender({

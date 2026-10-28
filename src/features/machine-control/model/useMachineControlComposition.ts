@@ -30,6 +30,8 @@ export interface MachineControlCompositionInput {
     liveBt: number | null;
     elapsed: number;
     roasting: boolean;
+    /** Settings: start Replay when Charge begins. Off leaves the panel checkbox as the only start. */
+    replayOnCharge?: boolean;
     /** 실기 TP 사실 — 게이트·대기 UI는 Replay 모듈이 파생 (#314, R08) */
     confirmedTurningPoint: { fallback?: boolean } | null;
     /** R04 제어용 관측 품질. null = 현재 generation 관측 없음 */
@@ -65,6 +67,7 @@ export const useMachineControlComposition = ({
     liveBt,
     elapsed,
     roasting,
+    replayOnCharge,
     confirmedTurningPoint,
     observationQuality,
     lastValidReceivedAtMs,
@@ -144,6 +147,7 @@ export const useMachineControlComposition = ({
         liveBt,
         elapsed,
         roasting,
+        armOnCharge: replayOnCharge,
         confirmedTurningPoint,
         heaterWritable: machine.writable && machine.limits.heater != null,
         // fault included — heater ownership stays with PID until it is off

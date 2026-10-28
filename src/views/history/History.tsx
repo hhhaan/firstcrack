@@ -5,12 +5,13 @@ import {
     useRoastSessions,
     useRoastSessionsPaginated,
 } from '@entities/roast';
-import { useCreateRoastProfile } from '@entities/roast-profile';
+import { useCreateRoastProfile, useSetProfileReference } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateTimeShort } from '@shared/lib/format';
 import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessions } from '@shared/lib/sessionFilter';
 import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
+import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -43,9 +44,11 @@ const findById = <T extends { id: string }>(id: string | null, ...lists: T[][]):
     return null;
 };
 
-export const History = () => {
+export type HistoryFocus = { sessionId: string; profileId: string };
+
+export const History = ({ focus = null }: { focus?: HistoryFocus | null }) => {
     const { t } = useTranslation();
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(focus?.sessionId ?? null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [compareMode, setCompareMode] = useState(false);
     const [compareIds, setCompareIds] = useState<string[]>([]);
@@ -88,7 +91,7 @@ export const History = () => {
     const [pendingExportRange, setPendingExportRange] = useState<ExportDateRange | null>(null);
     // Full list when client search/filter, duration sort (Drop-first, not duration_seconds),
     // bean sort (display name is a join, not a session column), compare, or export.
-    const needFullList = useClientPagination || compareMode || pendingExportRange !== null;
+    const needFullList = useClientPagination || compareMode || pendingExportRange !== null || focus != null;
 
     const {
         data: paginatedResult,
@@ -181,6 +184,7 @@ export const History = () => {
     const exportCsv = useExportCsv();
     const deleteSession = useDeleteRoastSession(workspaceOwnerId);
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
+    const { mutateAsync: setReference, isPending: settingReference } = useSetProfileReference(workspaceOwnerId);
 
     const handleProfileCreated = useCallback(
         async (profileData: RoastProfile) => {
@@ -317,7 +321,29 @@ export const History = () => {
                         session={selectedSession}
                         onBack={() => setSelectedId(null)}
                         onSaveAsProfile={setPromoteSessionId}
+                        onSetReference={
+                            focus
+                                ? () => {
+                                      if (settingReference) return;
+                                      void setReference({
+                                          id: focus.profileId,
+                                          sourceSessionId: selectedSession.id,
+                                          sourceSession: {
+                                              tsv_path: selectedSession.tsv_path,
+                                              bbp_tsv_path: selectedSession.bbp_tsv_path,
+                                              bbp_seconds: selectedSession.bbp_seconds,
+                                              events: selectedSession.events,
+                                              heater_events: selectedSession.heater_events,
+                                          },
+                                      }).catch(() => {
+                                          useToastStore.getState().show(t('profiles.detail.referenceFailed'));
+                                      });
+                                  }
+                                : undefined
+                        }
                     />
+                ) : selectedId && (isRawLoading || isPaginatedLoading) ? (
+                    <HistorySkeleton />
                 ) : (
                     <>
                         <PageHeader

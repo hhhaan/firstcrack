@@ -45,6 +45,7 @@ interface ProfileDetailProps {
     onDuplicate: (profile: RoastProfileWithSource) => void;
     onDelete: (id: string) => void;
     onNavigate: (view: View) => void;
+    onOpenHistoryBatch?: (sessionId: string, profileId: string) => void;
 }
 
 export const ProfileDetail = ({
@@ -59,6 +60,7 @@ export const ProfileDetail = ({
     onDuplicate,
     onDelete,
     onNavigate,
+    onOpenHistoryBatch,
 }: ProfileDetailProps) => {
     const { t } = useTranslation();
     const [moreOpen, setMoreOpen] = useState(false);
@@ -215,7 +217,13 @@ export const ProfileDetail = ({
                 />
             </div>
 
-            <ProfileReferenceBatches profileId={selected.id} sourceSessionId={selected.source_session_id} />
+            <ProfileReferenceBatches
+                profileId={selected.id}
+                sourceSessionId={selected.source_session_id}
+                onOpenDetail={
+                    onOpenHistoryBatch ? (sessionId) => onOpenHistoryBatch(sessionId, selected.id) : undefined
+                }
+            />
 
             {extraSensorColumns.length > 0 && (
                 <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 py-3 mb-5 overflow-x-auto">
