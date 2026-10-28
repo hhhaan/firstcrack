@@ -39,7 +39,7 @@ describe('layoutMenuBarMetrics', () => {
     it('starts the next column after the wider of the name and the number', () => {
         const et = glyphsAt(reading, 'ET')[0];
         const bt = glyphsAt(reading, 'BT')[0];
-        expect(bt && et ? bt.x - et.x : 0).toBe('210.2°C'.length + 8);
+        expect(bt && et ? bt.x - et.x : 0).toBe('210.2°C'.length + 12);
     });
 
     it('keeps column edges on whole points when font measurements are fractional', () => {
@@ -51,6 +51,6 @@ describe('layoutMenuBarMetrics', () => {
 
         expect(layout.width % 1).toBe(0);
         expect(layout.glyphs.every((glyph) => Number.isInteger(glyph.x))).toBe(true);
-        expect(layout.glyphs[2].x - layout.glyphs[0].x).toBe(46 + 8);
+        expect(layout.glyphs[2].x - layout.glyphs[0].x).toBe(46 + 12);
     });
 });

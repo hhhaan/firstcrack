@@ -5,7 +5,7 @@ const VALUE_PX = 13;
 const PAD_X = 2;
 const LABEL_BASELINE = 6;
 const VALUE_BASELINE = 18;
-const COLUMN_GAP = 8;
+const COLUMN_GAP = 12;
 const SCALE = 2;
 
 export type MenuBarReading = {
