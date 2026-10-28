@@ -324,3 +324,12 @@ html[lang="en"] {
 *::after {
     font-variant-numeric: tabular-nums lining-nums;
 }
+
+@keyframes door-probe {
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(350%);
+    }
+}

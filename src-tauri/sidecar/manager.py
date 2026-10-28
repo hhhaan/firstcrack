@@ -1281,9 +1281,12 @@ class RoasterManager:
             "discharge_open": 5,
             "discharge_close": 6,
         }
-        if action not in commands:
+        cooling = {"cooling_on": True, "cooling_off": False}
+        stirrer = {"stirrer_on": True, "stirrer_off": False}
+        if action not in commands and action not in cooling and action not in stirrer:
             raise ControlRangeError(
-                "door probe action must be read, fill_open, fill_close, discharge_open, or discharge_close"
+                "door probe action must be read, fill_open, fill_close, "
+                "discharge_open, discharge_close, cooling_on, cooling_off, stirrer_on, or stirrer_off"
             )
         adapter = self._adapter
         w60a = self._roaster_key == "giesen_w45a_w60a" and self._protocol == "s7"
@@ -1295,7 +1298,16 @@ class RoasterManager:
             or not hasattr(adapter, "door_probe")
         ):
             raise ControlUnavailable("W60A 또는 가상 머신 연결에서만 문 명령을 확인합니다.")
-        result = await adapter.door_probe(commands[action])
+        if action in cooling:
+            if not hasattr(adapter, "cooling_fan_probe"):
+                raise ControlUnavailable("이 연결은 쿨링팬 명령을 확인하지 않습니다.")
+            result = await adapter.cooling_fan_probe(cooling[action])
+        elif action in stirrer:
+            if not hasattr(adapter, "stirrer_probe"):
+                raise ControlUnavailable("이 연결은 교반기 명령을 확인하지 않습니다.")
+            result = await adapter.stirrer_probe(stirrer[action])
+        else:
+            result = await adapter.door_probe(commands[action])
         result["action"] = action
         self._record_door_probe(action, result)
         return result
@@ -1310,10 +1322,18 @@ class RoasterManager:
             "command_held": result.get("command_held"),
             "discharge_open_before": result.get("discharge_open_before"),
             "discharge_open_after": result.get("discharge_open_after"),
+            "cool_fan_before": result.get("cool_fan_before"),
+            "cool_fan_after": result.get("cool_fan_after"),
+            "cool_fan_held": result.get("cool_fan_held"),
+            "stirrer_before": result.get("stirrer_before"),
+            "stirrer_after": result.get("stirrer_after"),
+            "stirrer_held": result.get("stirrer_held"),
         }
         held = facts["command_held"]
+        fan_held = facts["cool_fan_held"]
+        stirrer_held = facts["stirrer_held"]
         _log.info(
-            "w60a door probe action=%s wrote=%s command %s->%s held=%s discharge_bit %s->%s",
+            "w60a door probe action=%s wrote=%s command %s->%s held=%s discharge_bit %s->%s cool_fan %s->%s fan_held=%s stirrer %s->%s stirrer_held=%s",
             action,
             facts["wrote"],
             facts["command_before"],
@@ -1321,9 +1341,15 @@ class RoasterManager:
             held,
             facts["discharge_open_before"],
             facts["discharge_open_after"],
+            facts["cool_fan_before"],
+            facts["cool_fan_after"],
+            fan_held,
+            facts["stirrer_before"],
+            facts["stirrer_after"],
+            stirrer_held,
         )
         try:
-            level = "warning" if held is False else "info"
+            level = "warning" if held is False or fan_held is False or stirrer_held is False else "info"
             held_tag = "none" if held is None else str(bool(held)).lower()
             with sentry_sdk.new_scope() as scope:
                 scope.set_tag("roaster", self._roaster_key)

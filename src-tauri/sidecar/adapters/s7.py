@@ -506,6 +506,194 @@ class S7Adapter:
 
         return await asyncio.get_running_loop().run_in_executor(None, _probe)
 
+    async def cooling_fan_probe(self, on: bool | None) -> dict[str, Any]:
+        """Artisan W60A cooling: setDBint(2,30,8|10); setDBbool(3,0,0,on); setDBint(2,30,0).
+
+        The command word is cleared to 0. The kept output is DB3 byte 0 bit 0.
+        A matching bit is not proof the fan is spinning.
+        """
+        plc = self._plc
+        session = self._session
+        if plc is None:
+            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+
+        def _probe() -> dict[str, Any]:
+            from snap7.util.getters import get_bool, get_int  # type: ignore[import]
+            from snap7.util.setters import set_bool, set_int  # type: ignore[import]
+
+            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                raise TimeoutError("S7 I/O 락 대기 시간 초과")
+            try:
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed before cooling fan probe")
+
+                def _command() -> bytearray:
+                    self._throttle()
+                    command = plc.db_read(2, 30, 2)
+                    if len(command) != 2:
+                        raise IOError(f"db_read(2,30,2) returned {len(command)} bytes")
+                    return command
+
+                def _write_command(value: int) -> None:
+                    command = _command()
+                    set_int(command, 0, value)
+                    self._throttle()
+                    TRACE.record(
+                        "tx", "s7",
+                        f"db_write db=2 offset=30 role=cooling_command value={value}",
+                        bytes(command),
+                    )
+                    plc.db_write(2, 30, command)
+
+                def _fan_byte() -> bytearray:
+                    self._throttle()
+                    byte = plc.db_read(3, 0, 1)
+                    if len(byte) != 1:
+                        raise IOError(f"db_read(3,0,1) returned {len(byte)} bytes")
+                    return byte
+
+                def _write_fan(value: bool) -> None:
+                    byte = _fan_byte()
+                    set_bool(byte, 0, 0, value)
+                    self._throttle()
+                    TRACE.record(
+                        "tx", "s7",
+                        f"db_write db=3 offset=0 bit=0 role=cool_fan value={int(value)}",
+                        bytes(byte),
+                    )
+                    plc.db_write(3, 0, byte)
+
+                command_before = int(get_int(_command(), 0))
+                fan_before = bool(get_bool(_fan_byte(), 0, 0))
+                pulse = None
+                if on is not None:
+                    pulse = 8 if on else 10
+                    _write_command(pulse)
+                    _write_fan(on)
+                    _write_command(0)
+                command_after = int(get_int(_command(), 0))
+                fan_after = bool(get_bool(_fan_byte(), 0, 0))
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed during cooling fan probe")
+                fan_held = None if on is None else fan_after is on
+                TRACE.record(
+                    "rx",
+                    "s7",
+                    (
+                        f"cooling_fan_probe pulse={pulse} command {command_before}->{command_after} "
+                        f"fan {fan_before}->{fan_after} held={fan_held}"
+                    ),
+                )
+                return {
+                    "wrote": pulse,
+                    "command_before": command_before,
+                    "command_after": command_after,
+                    "command_held": None if on is None else command_after == 0,
+                    "discharge_open_before": False,
+                    "discharge_open_after": False,
+                    "cool_fan_before": fan_before,
+                    "cool_fan_after": fan_after,
+                    "cool_fan_held": fan_held,
+                }
+            finally:
+                self._io_lock.release()
+
+        return await asyncio.get_running_loop().run_in_executor(None, _probe)
+
+    async def stirrer_probe(self, on: bool | None) -> dict[str, Any]:
+        """Artisan W60A stirrer: setDBint(2,30,7|9); setDBbool(2,83,1,on); setDBint(2,30,0).
+
+        The command word is cleared to 0. The kept output is DB2 byte 83 bit 1.
+        A matching bit is not proof the stirrer is turning.
+        """
+        plc = self._plc
+        session = self._session
+        if plc is None:
+            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+
+        def _probe() -> dict[str, Any]:
+            from snap7.util.getters import get_bool, get_int  # type: ignore[import]
+            from snap7.util.setters import set_bool, set_int  # type: ignore[import]
+
+            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                raise TimeoutError("S7 I/O 락 대기 시간 초과")
+            try:
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed before stirrer probe")
+
+                def _command() -> bytearray:
+                    self._throttle()
+                    command = plc.db_read(2, 30, 2)
+                    if len(command) != 2:
+                        raise IOError(f"db_read(2,30,2) returned {len(command)} bytes")
+                    return command
+
+                def _write_command(value: int) -> None:
+                    command = _command()
+                    set_int(command, 0, value)
+                    self._throttle()
+                    TRACE.record(
+                        "tx", "s7",
+                        f"db_write db=2 offset=30 role=stirrer_command value={value}",
+                        bytes(command),
+                    )
+                    plc.db_write(2, 30, command)
+
+                def _stirrer_byte() -> bytearray:
+                    self._throttle()
+                    byte = plc.db_read(2, 83, 1)
+                    if len(byte) != 1:
+                        raise IOError(f"db_read(2,83,1) returned {len(byte)} bytes")
+                    return byte
+
+                def _write_stirrer(value: bool) -> None:
+                    byte = _stirrer_byte()
+                    set_bool(byte, 0, 1, value)
+                    self._throttle()
+                    TRACE.record(
+                        "tx", "s7",
+                        f"db_write db=2 offset=83 bit=1 role=stirrer value={int(value)}",
+                        bytes(byte),
+                    )
+                    plc.db_write(2, 83, byte)
+
+                command_before = int(get_int(_command(), 0))
+                stirrer_before = bool(get_bool(_stirrer_byte(), 0, 1))
+                pulse = None
+                if on is not None:
+                    pulse = 7 if on else 9
+                    _write_command(pulse)
+                    _write_stirrer(on)
+                    _write_command(0)
+                command_after = int(get_int(_command(), 0))
+                stirrer_after = bool(get_bool(_stirrer_byte(), 0, 1))
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed during stirrer probe")
+                stirrer_held = None if on is None else stirrer_after is on
+                TRACE.record(
+                    "rx",
+                    "s7",
+                    (
+                        f"stirrer_probe pulse={pulse} command {command_before}->{command_after} "
+                        f"stirrer {stirrer_before}->{stirrer_after} held={stirrer_held}"
+                    ),
+                )
+                return {
+                    "wrote": pulse,
+                    "command_before": command_before,
+                    "command_after": command_after,
+                    "command_held": None if on is None else command_after == 0,
+                    "discharge_open_before": False,
+                    "discharge_open_after": False,
+                    "stirrer_before": stirrer_before,
+                    "stirrer_after": stirrer_after,
+                    "stirrer_held": stirrer_held,
+                }
+            finally:
+                self._io_lock.release()
+
+        return await asyncio.get_running_loop().run_in_executor(None, _probe)
+
     def _confirm_command_bytes(
         self,
         role: str,

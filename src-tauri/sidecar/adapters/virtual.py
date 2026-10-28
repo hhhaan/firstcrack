@@ -149,6 +149,8 @@ class VirtualMachineAdapter:
         # W60A door-probe stand-in. DB2.30 stays at the last 1/2/5/6. Bit follows 5/6 only.
         self._door_command = 0
         self._discharge_open = False
+        self._cool_fan = False
+        self._stirrer = False
 
     async def connect(self) -> None:
         self._connect_time = time.monotonic()
@@ -277,6 +279,52 @@ class VirtualMachineAdapter:
             "command_held": None if write is None else True,
             "discharge_open_before": discharge_open_before,
             "discharge_open_after": self._discharge_open,
+        }
+
+    async def cooling_fan_probe(self, on: bool | None) -> dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("가상 머신이 연결되어 있지 않습니다.")
+        command_before = self._door_command
+        fan_before = self._cool_fan
+        pulse = None
+        if on is not None:
+            pulse = 8 if on else 10
+            self._door_command = pulse
+            self._cool_fan = on
+            self._door_command = 0
+        return {
+            "wrote": pulse,
+            "command_before": command_before,
+            "command_after": self._door_command,
+            "command_held": None if on is None else self._door_command == 0,
+            "discharge_open_before": self._discharge_open,
+            "discharge_open_after": self._discharge_open,
+            "cool_fan_before": fan_before,
+            "cool_fan_after": self._cool_fan,
+            "cool_fan_held": None if on is None else self._cool_fan is on,
+        }
+
+    async def stirrer_probe(self, on: bool | None) -> dict[str, Any]:
+        if not self._connected:
+            raise ConnectionError("가상 머신이 연결되어 있지 않습니다.")
+        command_before = self._door_command
+        stirrer_before = self._stirrer
+        pulse = None
+        if on is not None:
+            pulse = 7 if on else 9
+            self._door_command = pulse
+            self._stirrer = on
+            self._door_command = 0
+        return {
+            "wrote": pulse,
+            "command_before": command_before,
+            "command_after": self._door_command,
+            "command_held": None if on is None else self._door_command == 0,
+            "discharge_open_before": self._discharge_open,
+            "discharge_open_after": self._discharge_open,
+            "stirrer_before": stirrer_before,
+            "stirrer_after": self._stirrer,
+            "stirrer_held": None if on is None else self._stirrer is on,
         }
 
     async def control(

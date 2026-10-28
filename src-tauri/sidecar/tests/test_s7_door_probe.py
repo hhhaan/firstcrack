@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
-from snap7.util.getters import get_int
+from snap7.util.getters import get_bool, get_int
 from snap7.util.setters import set_int
 
 from adapters.s7 import S7Adapter
@@ -78,6 +78,44 @@ class TestDoorProbe:
         assert result["command_after"] == 0
         assert result["command_held"] is False
 
+    async def test_cooling_on_follows_the_artisan_sequence(self):
+        writes: list[tuple[int, int, bytes]] = []
+        adapter = _adapter({})
+        store = adapter._plc.db_write.side_effect
+
+        def write(db: int, offset: int, payload: bytearray) -> None:
+            writes.append((db, offset, bytes(payload)))
+            store(db, offset, payload)
+
+        adapter._plc.db_write.side_effect = write
+        result = await adapter.cooling_fan_probe(True)
+        assert [(db, offset) for db, offset, _payload in writes] == [(2, 30), (3, 0), (2, 30)]
+        assert get_int(bytearray(writes[0][2]), 0) == 8
+        assert get_bool(bytearray(writes[1][2]), 0, 0) is True
+        assert get_int(bytearray(writes[2][2]), 0) == 0
+        assert result["wrote"] == 8
+        assert result["command_after"] == 0
+        assert result["cool_fan_held"] is True
+
+    async def test_stirrer_on_follows_the_artisan_sequence(self):
+        writes: list[tuple[int, int, bytes]] = []
+        adapter = _adapter({})
+        store = adapter._plc.db_write.side_effect
+
+        def write(db: int, offset: int, payload: bytearray) -> None:
+            writes.append((db, offset, bytes(payload)))
+            store(db, offset, payload)
+
+        adapter._plc.db_write.side_effect = write
+        result = await adapter.stirrer_probe(True)
+        assert [(db, offset) for db, offset, _payload in writes] == [(2, 30), (2, 83), (2, 30)]
+        assert get_int(bytearray(writes[0][2]), 0) == 7
+        assert get_bool(bytearray(writes[1][2]), 0, 1) is True
+        assert get_int(bytearray(writes[2][2]), 0) == 0
+        assert result["wrote"] == 7
+        assert result["command_after"] == 0
+        assert result["stirrer_held"] is True
+
     async def test_virtual_machine_keeps_the_command(self):
         from adapters.virtual import VirtualMachineAdapter
 
@@ -90,6 +128,16 @@ class TestDoorProbe:
         read = await adapter.door_probe(None)
         assert read["command_before"] == 5
         assert read["wrote"] is None
+        cooled = await adapter.cooling_fan_probe(True)
+        assert cooled["command_after"] == 0
+        assert cooled["cool_fan_after"] is True
+        assert cooled["cool_fan_held"] is True
+        stirred = await adapter.stirrer_probe(True)
+        assert stirred["wrote"] == 7
+        assert stirred["command_after"] == 0
+        assert stirred["stirrer_after"] is True
+        fan = await adapter.cooling_fan_probe(None)
+        assert fan["cool_fan_after"] is True
 
     async def test_manager_accepts_the_virtual_machine(self):
         from manager import RoasterManager

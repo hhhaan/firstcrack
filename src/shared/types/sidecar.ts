@@ -35,17 +35,34 @@ export type RoastersResponse = Record<string, RoasterDef>;
 
 export type ReadUnits = Partial<Record<'heater' | 'fan' | 'drum', '%' | 'Pa' | 'Hz' | 'RPM'>>;
 
-export type DoorProbeAction = 'read' | 'fill_open' | 'fill_close' | 'discharge_open' | 'discharge_close';
+export type DoorProbeAction =
+    | 'read'
+    | 'fill_open'
+    | 'fill_close'
+    | 'discharge_open'
+    | 'discharge_close'
+    | 'cooling_on'
+    | 'cooling_off'
+    | 'stirrer_on'
+    | 'stirrer_off';
 
-/** POST /door-probe. command_held is null on a read. It is not door motion. */
+/** POST /door-probe. command_held is null on a read. It is not door or fan motion. */
 export interface DoorProbeResult {
     action: DoorProbeAction;
-    wrote: 1 | 2 | 5 | 6 | null;
+    wrote: number | null;
     command_before: number;
     command_after: number;
     command_held: boolean | null;
     discharge_open_before: boolean;
     discharge_open_after: boolean;
+    /** Present for cooling actions. DB3 byte 0 bit 0. */
+    cool_fan_before?: boolean;
+    cool_fan_after?: boolean;
+    cool_fan_held?: boolean | null;
+    /** Present for stirrer actions. DB2 byte 83 bit 1. */
+    stirrer_before?: boolean;
+    stirrer_after?: boolean;
+    stirrer_held?: boolean | null;
 }
 
 // GET /status 응답

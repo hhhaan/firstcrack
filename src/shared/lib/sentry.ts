@@ -411,6 +411,20 @@ export const captureDoorProbe = (result: DoorProbeResult) => {
             command_after: result.command_after,
             discharge_open_before: result.discharge_open_before,
             discharge_open_after: result.discharge_open_after,
+            ...(result.cool_fan_before == null
+                ? {}
+                : {
+                      cool_fan_before: result.cool_fan_before,
+                      cool_fan_after: result.cool_fan_after,
+                      cool_fan_held: result.cool_fan_held,
+                  }),
+            ...(result.stirrer_before == null
+                ? {}
+                : {
+                      stirrer_before: result.stirrer_before,
+                      stirrer_after: result.stirrer_after,
+                      stirrer_held: result.stirrer_held,
+                  }),
         },
     });
 };
