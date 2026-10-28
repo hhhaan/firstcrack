@@ -853,7 +853,7 @@ describe('buildRoastChartOption', () => {
         expect(series.some((item) => item.name === 'Event marker lines')).toBe(false);
     });
 
-    it('draws major event labels at the plot top independently of BT', () => {
+    it('draws major event labels beside BT with a leader', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
             xs: [0, 60],
@@ -879,11 +879,11 @@ describe('buildRoastChartOption', () => {
             { coord: (value: number[]) => [value[0] * 2, 250 - value[1]], getWidth: () => 440 },
         );
         const text = result?.children.find((child) => child.type === 'text');
-        expect(text).toMatchObject({ type: 'text', x: 124, y: 8, style: { font: MARKER_LABEL_FONT } });
+        expect(text).toMatchObject({ type: 'text', x: 136, y: 43, style: { font: MARKER_LABEL_FONT } });
         expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
     });
 
-    it('keeps major labels at the top when BT leaves the grid, but hides them outside the time window', () => {
+    it('hides curve annotations when their BT anchor or time leaves the plot', () => {
         const option = buildRoastChartOption({
             ...baseParams(),
             xs: [0, 60],
@@ -899,8 +899,7 @@ describe('buildRoastChartOption', () => {
         const grid = { dataIndex: 0, coordSys: { x: 40, y: 10, width: 400, height: 300 } };
         expect(renderItem?.(grid, { coord: () => [-20, 80], getWidth: () => 800 })).toBeUndefined();
         const outsideBt = renderItem?.(grid, { coord: () => [120, 400], getWidth: () => 800 });
-        expect(outsideBt?.children).toContainEqual(expect.objectContaining({ type: 'text', y: 18 }));
-        expect(outsideBt?.children).not.toContainEqual(expect.objectContaining({ type: 'circle' }));
+        expect(outsideBt).toBeUndefined();
     });
 
     it('clears a label left outside the window on the next merged frame and restores it when zoom resets', () => {
