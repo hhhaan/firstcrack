@@ -6,6 +6,8 @@ import {
     MARKER_LABEL_DISTANCE_PX,
     MARKER_LABEL_FONT_SIZE,
     MARKER_LABEL_GAP_PX,
+    MARKER_LABEL_LEADER_X_PX,
+    MARKER_LABEL_LEADER_Y_PX,
     MARKER_LABEL_MAX_WIDTH_PX,
     MARKER_LABEL_MIN_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
@@ -17,6 +19,7 @@ import { controlChangeLabel, formatRoastNote } from '@features/active-roast/lib/
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { EventMarkerStyle, TemperatureUnit } from '../../model/settings';
+import { TP_MARKER_ID } from '../constants';
 import type { TurningPoint } from '../turningPoints';
 import { buildTargetDeltaMarkPoint } from './target-delta-label';
 import type { ResolvedChartColors, RoastEventMarker } from './types';
@@ -166,6 +169,9 @@ export interface MarkerLabelGeometry {
 }
 
 export interface CurveLabelItem {
+    /** Source identity also used by chart editing; reference events remain read-only. */
+    marker?: RoastEventMarker;
+    showLeader?: boolean;
     timeSec: number;
     y: number;
     text: string;
@@ -180,6 +186,7 @@ export interface CurveLabelItem {
 }
 
 export interface CurveLabelLayoutInput {
+    showLeader?: boolean;
     timeSec: number;
     xPx: number;
     yPx: number;
@@ -193,6 +200,7 @@ export interface CurveLabelLayoutInput {
 }
 
 export interface CurveLabelBox {
+    showLeader: boolean;
     x: number;
     textY: number;
     left: number;
@@ -217,7 +225,7 @@ const labelsNeedStacking = (a: CurveLabelBox, b: CurveLabelBox, scale: number) =
     if (a.bottom <= a.top || b.bottom <= b.top) return false;
     if (a.labelAtTop && b.labelAtTop) return true;
     if (a.left >= b.right + gap || a.right + gap <= b.left) return false;
-    return a.labelAtTop === b.labelAtTop || (a.top < b.bottom + gap && a.bottom + gap > b.top);
+    return a.top < b.bottom + gap && a.bottom + gap > b.top;
 };
 
 const moveLabelBox = (box: CurveLabelBox, top: number) => {
@@ -233,13 +241,14 @@ const makeLabelBox = (
     canvasWidth: number,
     scale: number,
     canvasHeight: number,
+    origin: { left: number; top: number },
 ): CurveLabelBox => {
     const gutter = scaleChartPx(MARKER_LABEL_CANVAS_GUTTER_PX, scale);
     const xOffset = scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale);
     const stack = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
-    const width = Math.min(estimateLabelWidth(item.text, scale), Math.max(0, canvasWidth - gutter));
+    const width = Math.min(estimateLabelWidth(item.text, scale), Math.max(0, canvasWidth - origin.left - gutter));
     const lines = wrapMarkerLabel(item.text, width, scale).split('\n');
-    const maxLines = Math.max(0, Math.floor(canvasHeight / stack));
+    const maxLines = Math.max(0, Math.floor((canvasHeight - origin.top) / stack));
     // Oversized labels leave room for other marks. The event-details panel retains every value.
     let visible = lines;
     if (lines.length > maxLines) {
@@ -249,13 +258,24 @@ const makeLabelBox = (
     const text = visible.join('\n');
     const height = stack * visible.length;
     textY = item.below
-        ? Math.max(0, Math.min(textY, Math.max(0, canvasHeight - height)))
-        : Math.max(height, Math.min(textY, canvasHeight));
-    const rawX = item.xPx + xOffset;
+        ? Math.max(origin.top, Math.min(textY, Math.max(origin.top, canvasHeight - height)))
+        : Math.max(origin.top + height, Math.min(textY, canvasHeight));
+    const leaderX = scaleChartPx(MARKER_LABEL_LEADER_X_PX, scale);
+    let rawX = item.xPx + (item.showLeader ? leaderX : xOffset);
+    if (
+        item.showLeader &&
+        rawX + width > canvasWidth - xOffset &&
+        item.xPx - leaderX - width >= origin.left + xOffset
+    ) {
+        rawX = item.xPx - leaderX - width;
+    }
     // Clamp only anchors already on the canvas. Off-chart anchors must stay off-chart.
-    const anchorOnCanvas = item.xPx >= 0 && item.xPx <= canvasWidth;
+    const anchorOnCanvas = item.xPx >= origin.left && item.xPx <= canvasWidth;
     const x = anchorOnCanvas
-        ? Math.max(xOffset, Math.min(rawX, Math.max(xOffset, canvasWidth - xOffset - width)))
+        ? Math.max(
+              origin.left + xOffset,
+              Math.min(rawX, Math.max(origin.left + xOffset, canvasWidth - xOffset - width)),
+          )
         : rawX;
     const top = item.below ? textY : textY - height;
     const bottom = item.below ? textY + height : textY;
@@ -273,6 +293,7 @@ const makeLabelBox = (
         opacity: item.opacity ?? 1,
         showDot: item.showDot,
         labelAtTop: item.labelTopPx != null,
+        showLeader: item.showLeader ?? false,
         anchorX: item.xPx,
         anchorY: item.yPx,
         timeSec: item.timeSec,
@@ -280,7 +301,11 @@ const makeLabelBox = (
 };
 
 const labelTextY = (item: CurveLabelLayoutInput, scale: number) =>
-    (item.labelTopPx ?? item.yPx) + markerLabelDy(item.below, 0, scale) + (item.topInsetPx ?? 0);
+    (item.labelTopPx ?? item.yPx) +
+    (item.showLeader
+        ? (item.below ? 1 : -1) * scaleChartPx(MARKER_LABEL_LEADER_Y_PX, scale)
+        : markerLabelDy(item.below, 0, scale)) +
+    (item.topInsetPx ?? 0);
 
 /**
  * Axis max converts to the plot top and can land a fraction above it.
@@ -298,17 +323,23 @@ export const layoutCurveLabelBoxes = (
     canvasWidth = Infinity,
     scale = 1,
     canvasHeight = Infinity,
+    origin = { left: 0, top: 0 },
 ): CurveLabelBox[] => {
     const gap = scaleChartPx(MARKER_LABEL_GAP_PX, scale);
     const order = items
         .map((item, index) => ({ item, index }))
         .filter(({ item }) => Number.isFinite(item.xPx) && Number.isFinite(item.yPx))
-        .sort((a, b) => a.item.timeSec - b.item.timeSec || a.index - b.index);
+        .sort(
+            (a, b) =>
+                Number(b.item.labelTopPx != null) - Number(a.item.labelTopPx != null) ||
+                a.item.timeSec - b.item.timeSec ||
+                a.index - b.index,
+        );
     const placed: CurveLabelBox[] = [];
     const byIndex: CurveLabelBox[] = [];
     for (const { item, index } of order) {
-        const box = makeLabelBox(item, labelTextY(item, scale), canvasWidth, scale, canvasHeight);
-        for (const prior of placed) {
+        const box = makeLabelBox(item, labelTextY(item, scale), canvasWidth, scale, canvasHeight, origin);
+        for (const prior of [...placed].sort((a, b) => a.top - b.top)) {
             if (labelsNeedStacking(box, prior, scale)) {
                 moveLabelBox(box, Math.max(box.top, prior.bottom + gap));
             }
@@ -316,14 +347,17 @@ export const layoutCurveLabelBoxes = (
         placed.push(box);
         byIndex[index] = box;
     }
-    // Make room above a bottom-edge cluster without reversing its event order.
+    // Clamp before checking collisions: moving an overflowing label back onto the
+    // plot can create a new overlap with labels that already fit at the bottom.
     for (let index = placed.length - 1; index >= 0; index--) {
         const box = placed[index];
-        let bottom = canvasHeight;
-        for (let next = index + 1; next < placed.length; next++) {
-            if (labelsNeedStacking(box, placed[next], scale)) bottom = Math.min(bottom, placed[next].top - gap);
+        const height = box.bottom - box.top;
+        moveLabelBox(box, Math.max(origin.top, Math.min(box.top, canvasHeight - height)));
+        for (const next of placed.slice(index + 1).sort((a, b) => b.top - a.top)) {
+            if (labelsNeedStacking(box, next, scale)) {
+                moveLabelBox(box, Math.max(origin.top, Math.min(box.top, next.top - gap - height)));
+            }
         }
-        moveLabelBox(box, Math.max(0, Math.min(box.top, bottom - (box.bottom - box.top))));
     }
     return items.map((_, index) => byIndex[index]).filter(Boolean);
 };
@@ -386,6 +420,105 @@ export interface MarkerBuildResult {
     tempBottomBorderLine: object | null;
 }
 
+type CurveLabelBuildParams = Pick<
+    MarkerBuildParams,
+    | 'eventMarkerStyle'
+    | 'eventMarkers'
+    | 'turningPoints'
+    | 'temperatureUnit'
+    | 'unitLabel'
+    | 'xs'
+    | 'btActual'
+    | 'xMin'
+    | 'xMax'
+    | 'tempYMax'
+    | 'hideChargeLabel'
+    | 'fontScale'
+> & { colors?: ResolvedChartColors };
+
+/** One source for rendered annotations and their click/drag targets. */
+export const buildCurveLabels = ({
+    eventMarkerStyle,
+    eventMarkers,
+    turningPoints,
+    temperatureUnit,
+    unitLabel,
+    xs,
+    btActual,
+    xMin,
+    xMax,
+    tempYMax,
+    hideChargeLabel = false,
+    fontScale = 1,
+    colors,
+}: CurveLabelBuildParams): CurveLabelItem[] => {
+    const showDot = eventMarkerStyle === 'point';
+    const callout = eventMarkerStyle === 'callout';
+    const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
+        if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
+        if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
+        return m.temp?.trim() || '—';
+    };
+    return [
+        ...eventMarkers.flatMap((marker): CurveLabelItem[] => {
+            if (hideChargeLabel && marker.event === 'Charge') return [];
+            const visible = marker.reference
+                ? Number.isFinite(marker.timeSec) && marker.timeSec >= xMin && marker.timeSec <= xMax
+                : isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual);
+            if (!visible) return [];
+            const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
+            const storedY =
+                typeof marker.tempC === 'number' && Number.isFinite(marker.tempC)
+                    ? toDisplayTemp(marker.tempC, temperatureUnit)
+                    : null;
+            const atTop = noteAnchoredAtTop(marker.event);
+            const labelAtTop =
+                !callout || atTop || isControlEvent(marker.event) || (nearest == null && storedY == null);
+            return [
+                {
+                    marker,
+                    timeSec: marker.timeSec,
+                    y: atTop ? tempYMax : (nearest ?? storedY ?? tempYMax),
+                    text: eventLabelText(
+                        marker.event,
+                        marker.timeSec,
+                        markerTemp(marker, nearest),
+                        marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
+                    ),
+                    color: (isControlEvent(marker.event) ? colors?.eventControl : colors?.markerLabelColor) ?? '',
+                    opacity: marker.reference ? REFERENCE_CURVE_OPACITY : 1,
+                    below: labelAtTop || ['TP', 'Drop', 'End'].includes(marker.event),
+                    showDot: marker.event !== 'Charge' && showDot,
+                    labelAtTop,
+                    showLeader: callout && !labelAtTop,
+                    topInsetPx: noteLabelTopInsetPx(labelAtTop, fontScale),
+                },
+            ];
+        }),
+        ...turningPoints
+            .filter((tp) => isCurveMarkerVisible(tp.timeSec, xMin, xMax, xs, btActual))
+            .map((tp) => ({
+                marker: {
+                    logId: TP_MARKER_ID,
+                    event: 'TP',
+                    timeSec: tp.timeSec,
+                    tempC: tp.temp,
+                    temp: formatTemp(tp.temp, temperatureUnit),
+                    timeStr: '',
+                    color: '',
+                },
+                timeSec: tp.timeSec,
+                y: nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit),
+                text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
+                color: colors?.markerLabelColor ?? '',
+                below: true,
+                showDot,
+                labelAtTop: !callout,
+                showLeader: callout,
+            })),
+    ];
+};
+
 export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     const {
         charged,
@@ -396,18 +529,15 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         eventMarkers,
         turningPoints,
         temperatureUnit,
-        unitLabel,
         xs,
         btActual,
         colors,
         tempYMin,
-        tempYMax,
         hasControlSeries,
         showFcBand = true,
         showTargetDeltaLabel = false,
         targetXs,
         targetBt,
-        hideChargeLabel = false,
         fontScale = 1,
     } = params;
 
@@ -450,12 +580,6 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
     }
 
     const markerColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.eventMark);
-    const markerLabelColor = (event: string) => (isControlEvent(event) ? colors.eventControl : colors.markerLabelColor);
-    const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
-        if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
-        if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
-        return m.temp?.trim() || '—';
-    };
 
     // ── line mode: unlabeled verticals (labels are drawn on BT via custom series)
     const eventMarkLines = lineEvents.map((m) => ({
@@ -483,48 +607,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         label: { show: false },
     }));
 
-    const showDot = eventMarkerStyle === 'point';
-    const labeledEvents = (hideChargeLabel ? eventMarkers.filter((m) => m.event !== 'Charge') : eventMarkers).filter(
-        markerVisible,
-    );
-    const curveLabels: CurveLabelItem[] = [
-        ...labeledEvents.map((m) => {
-            const nearest = m.reference ? null : nearestBtAt(xs, btActual, m.timeSec);
-            const atTop = noteAnchoredAtTop(m.event);
-            const y = atTop
-                ? tempYMax
-                : (nearest ??
-                  (typeof m.tempC === 'number' && Number.isFinite(m.tempC)
-                      ? toDisplayTemp(m.tempC, temperatureUnit)
-                      : tempYMax));
-            return {
-                timeSec: m.timeSec,
-                y,
-                text: eventLabelText(
-                    m.event,
-                    m.timeSec,
-                    markerTemp(m, nearest),
-                    m.event === 'Note' ? formatRoastNote(m, '\n') : m.note,
-                ),
-                color: markerLabelColor(m.event),
-                opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
-                below: true,
-                showDot: m.event === 'Charge' ? false : showDot,
-                labelAtTop: true,
-                topInsetPx: noteLabelTopInsetPx(true, fontScale),
-            };
-        }),
-        ...visibleTurningPoints.map((tp) => ({
-            timeSec: tp.timeSec,
-            y: nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit),
-            text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
-            color: colors.markerLabelColor,
-            below: true,
-            showDot,
-            labelAtTop: true,
-            topInsetPx: noteLabelTopInsetPx(true, fontScale),
-        })),
-    ];
+    const curveLabels = buildCurveLabels(params);
 
     const markPointData: object[] = [];
 

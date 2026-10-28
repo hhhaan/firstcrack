@@ -61,6 +61,11 @@ const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; desc
         descKey: 'settings.tabs.roast.eventMarkerPointDescription',
     },
     {
+        value: 'callout',
+        labelKey: 'settings.tabs.roast.eventMarkerCallout',
+        descKey: 'settings.tabs.roast.eventMarkerCalloutDescription',
+    },
+    {
         value: 'tempLine',
         labelKey: 'settings.tabs.roast.eventMarkerTempLine',
         descKey: 'settings.tabs.roast.eventMarkerTempLineDescription',
