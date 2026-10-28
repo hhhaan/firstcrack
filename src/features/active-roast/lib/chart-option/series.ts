@@ -1,6 +1,8 @@
 import {
+    MARKER_LABEL_CANVAS_GUTTER_PX,
     MARKER_LABEL_CHAR_WIDTH_PX,
     MARKER_LABEL_GAP_PX,
+    MARKER_LABEL_MAX_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     markerLabelFont,
     PHASE_BAR_FONT_FAMILY,
@@ -19,8 +21,7 @@ import { formatElapsed } from '@shared/lib/format';
 import * as echarts from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
 import type { PhaseSegment } from '../phases';
-import { curveLabelLeader, projectCurveLabels } from './curve-label-projection';
-import type { CurveLabelItem } from './markers';
+import { type CurveLabelItem, clampCurveLabelY, layoutCurveLabelBoxes } from './markers';
 import type { ControlData, ResolvedChartColors } from './types';
 
 export const lineSeriesBase = {
@@ -403,22 +404,38 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgr
     // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
     renderItem: (params: any, api: any) => {
         if (params.dataIndex !== 0) return;
-        const { y: plotY, height: plotHeight } = params.coordSys;
-        const laid = projectCurveLabels(items, (point) => api.coord(point), params.coordSys, scale);
+        const { x: plotX, y: plotY, width: plotWidth, height: plotHeight } = params.coordSys;
+        const laid = layoutCurveLabelBoxes(
+            items.flatMap((item) => {
+                const point = api.coord([item.timeSec, item.y]) as number[];
+                const yPx = clampCurveLabelY(point[1], plotY, plotHeight) ?? (item.labelAtTop ? point[1] : null);
+                if (!Number.isFinite(point[0]) || yPx == null || !Number.isFinite(yPx)) return [];
+                if (point[0] < plotX || point[0] > plotX + plotWidth) return [];
+                return [
+                    {
+                        timeSec: item.timeSec,
+                        xPx: point[0],
+                        yPx,
+                        text: item.text,
+                        below: item.below,
+                        color: item.color,
+                        opacity: item.opacity,
+                        showDot: item.showDot,
+                        topInsetPx: item.topInsetPx,
+                        labelTopPx: item.labelAtTop ? plotY : undefined,
+                    },
+                ];
+            }),
+            plotX + plotWidth,
+            scale,
+            api.getHeight?.() ?? Infinity,
+        );
         // Empty children are merged by index and leave the previous frame's text
         // (setOption notMerge:false while zooming). Returning nothing removes it.
         if (laid.length === 0) return;
         // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children
         const children: any[] = [];
         for (const box of laid) {
-            const leader = curveLabelLeader(box);
-            if (leader) {
-                children.push({
-                    type: 'line',
-                    shape: leader,
-                    style: { stroke: box.color, lineWidth: 1, opacity: box.opacity },
-                });
-            }
             if (box.showDot && box.anchorY >= plotY && box.anchorY <= plotY + plotHeight) {
                 children.push({
                     type: 'circle',
@@ -439,7 +456,12 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgr
                     lineHeight: scaleChartPx(MARKER_LABEL_STACK_PX, scale),
                     textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',
-                    width: box.right - box.left,
+                    width: backgroundColor
+                        ? box.right - box.left
+                        : Math.min(
+                              scaleChartPx(MARKER_LABEL_MAX_WIDTH_PX, scale),
+                              api.getWidth() - scaleChartPx(MARKER_LABEL_CANVAS_GUTTER_PX, scale),
+                          ),
                 },
             });
         }
