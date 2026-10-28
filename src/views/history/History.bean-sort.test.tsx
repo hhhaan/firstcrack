@@ -60,6 +60,7 @@ vi.mock('@entities/roast', () => ({
 
 vi.mock('@entities/roast-profile', () => ({
     useCreateRoastProfile: () => ({ mutateAsync: vi.fn() }),
+    useSetProfileReference: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@features/export-csv', () => ({ useExportCsv: () => vi.fn() }));

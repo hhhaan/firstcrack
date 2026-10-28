@@ -31,12 +31,15 @@ it('sends native readings, skips unchanged readings, and removes the item on unm
 });
 
 it('waits for pending native updates before unmount cleanup', async () => {
-    const pending = Promise.withResolvers<void>();
-    vi.mocked(invoke).mockImplementationOnce(() => pending.promise);
+    let resolvePending: (() => void) | undefined;
+    const pending = new Promise<void>((resolve) => {
+        resolvePending = resolve;
+    });
+    vi.mocked(invoke).mockImplementationOnce(() => pending);
     const root = createRoot(document.createElement('div'));
     await act(async () => root.render(createElement(Probe, { value: reading })));
     await act(async () => root.unmount());
     expect(invoke).toHaveBeenCalledTimes(1);
-    await act(async () => pending.resolve());
+    await act(async () => resolvePending?.());
     expect(invoke).toHaveBeenLastCalledWith('update_menu_bar_metrics', { reading: null });
 });
