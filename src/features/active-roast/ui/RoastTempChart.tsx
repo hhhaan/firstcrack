@@ -12,17 +12,22 @@ import {
 } from '@features/active-roast/lib/chart-option';
 import { computeTempYRange } from '@features/active-roast/lib/chart-option/axes';
 import {
-    isCurveLabelLeaderHit,
-    projectCurveLabels,
-} from '@features/active-roast/lib/chart-option/curve-label-projection';
-import { buildCurveLabels } from '@features/active-roast/lib/chart-option/markers';
-import { isRemovableLogEvent } from '@features/active-roast/lib/constants';
+    eventLabelText,
+    isCurveMarkerVisible,
+    isEventMarkerVisible,
+    layoutCurveLabelBoxes,
+    nearestBtAt,
+    noteAnchoredAtTop,
+    noteLabelTopInsetPx,
+} from '@features/active-roast/lib/chart-option/markers';
+import { isRemovableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
+import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import type { TurningPoint } from '@features/active-roast/lib/turningPoints';
 import {
     type EventMarkerStyle,
@@ -637,37 +642,86 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             if (point.x < 0 || point.y < 0 || point.x > chart.getWidth() || point.y > chart.getHeight()) return null;
             const xMin = xViewMin ?? xs[0] ?? 0;
             const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-            const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
-            const items = buildCurveLabels({
-                eventMarkerStyle,
-                eventMarkers,
-                turningPoints,
-                temperatureUnit,
-                unitLabel: `°${temperatureUnit}`,
-                xs,
-                btActual,
-                xMin,
-                xMax,
-                tempYMax,
-                hideChargeLabel,
-                fontScale,
-            });
-            const coord = ([time, temp]: number[]) => [
-                scalar(chart.convertToPixel({ xAxisIndex: 0 }, time)) ?? Number.NaN,
-                scalar(chart.convertToPixel({ yAxisIndex: 0 }, temp)) ?? Number.NaN,
+            const axisTop = computeTempYRange(tempMinC, tempMaxC, temperatureUnit).tempYMax;
+            const layoutInputs = [
+                ...eventMarkers.flatMap((marker) => {
+                    if (hideChargeLabel && marker.event === 'Charge') return [];
+                    const visible = marker.reference
+                        ? Number.isFinite(marker.timeSec) && marker.timeSec >= xMin && marker.timeSec <= xMax
+                        : isEventMarkerVisible(marker.event, marker.timeSec, xMin, xMax, xs, btActual);
+                    if (!visible) return [];
+                    const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, marker.timeSec));
+                    const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
+                    const atTop = noteAnchoredAtTop(marker.event);
+                    const displayY = atTop
+                        ? axisTop
+                        : (nearest ??
+                          (marker.tempC != null && Number.isFinite(marker.tempC)
+                              ? toDisplayTemp(marker.tempC, temperatureUnit)
+                              : axisTop));
+                    const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    const temp =
+                        marker.tempC != null && Number.isFinite(marker.tempC)
+                            ? formatTemp(marker.tempC, temperatureUnit)
+                            : nearest != null
+                              ? `${nearest.toFixed(1)}°${temperatureUnit}`
+                              : marker.temp || '—';
+                    return [
+                        {
+                            marker,
+                            timeSec: marker.timeSec,
+                            xPx: x ?? Number.NaN,
+                            yPx: y ?? Number.NaN,
+                            text: eventLabelText(
+                                marker.event,
+                                marker.timeSec,
+                                temp,
+                                marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
+                            ),
+                            below: true,
+                            labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
+                            topInsetPx: noteLabelTopInsetPx(true, fontScale),
+                            color: '',
+                            showDot: eventMarkerStyle === 'point',
+                        },
+                    ];
+                }),
+                ...turningPoints.flatMap((tp) => {
+                    if (!isCurveMarkerVisible(tp.timeSec, xMin, xMax, xs, btActual)) return [];
+                    const x = scalar(chart.convertToPixel({ xAxisIndex: 0 }, tp.timeSec));
+                    const displayY = nearestBtAt(xs, btActual, tp.timeSec) ?? toDisplayTemp(tp.temp, temperatureUnit);
+                    const y = scalar(chart.convertToPixel({ yAxisIndex: 0 }, displayY));
+                    const temp = formatTemp(tp.temp, temperatureUnit);
+                    const marker: RoastEventMarker = {
+                        logId: TP_MARKER_ID,
+                        timeSec: tp.timeSec,
+                        event: 'TP',
+                        color: '',
+                        timeStr: '',
+                        temp,
+                        tempC: tp.temp,
+                    };
+                    return [
+                        {
+                            marker,
+                            timeSec: tp.timeSec,
+                            xPx: x ?? Number.NaN,
+                            yPx: y ?? Number.NaN,
+                            text: eventLabelText('TP', tp.timeSec, temp),
+                            below: true,
+                            labelTopPx: scalar(chart.convertToPixel({ yAxisIndex: 0 }, axisTop)) ?? Number.NaN,
+                            topInsetPx: noteLabelTopInsetPx(true, fontScale),
+                            color: '',
+                            showDot: eventMarkerStyle === 'point',
+                        },
+                    ];
+                }),
             ];
-            const [left, top] = coord([xMin, tempYMax]);
-            const [right, bottom] = coord([xMax, tempYMin]);
-            const boxes = projectCurveLabels(
-                items,
-                coord,
-                { x: left, y: top, width: right - left, height: bottom - top },
-                fontScale,
-            );
-            const byItem = new Map(boxes.map((box) => [box.item, box]));
-            const candidates = items.flatMap((item, index) => {
-                const marker = item.marker;
-                if (!marker) return [];
+            const grid = Array.isArray(option.grid) ? option.grid[0] : option.grid;
+            const labelRight = chart.getWidth() - (typeof grid?.right === 'number' ? grid.right : 0);
+            const boxes = layoutCurveLabelBoxes(layoutInputs, labelRight, fontScale, chart.getHeight());
+            const candidates = layoutInputs.flatMap((input, index) => {
+                const marker = input.marker;
                 if (marker.reference || marker.readOnly) return [];
                 if (
                     !marker?.logId ||
@@ -675,9 +729,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     (savedReview && !isReviewEditableEvent(marker.event))
                 )
                     return [];
-                const [x, anchorY] = coord([item.timeSec, item.y]);
+                const x = input.xPx;
+                const anchorY = input.yPx;
                 if (!Number.isFinite(x)) return [];
-                const box = byItem.get(item);
+                const box = boxes[index];
                 const labelHit = Boolean(
                     box &&
                         box.bottom > box.top &&
@@ -689,16 +744,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 const plotHit = chart.containPixel({ gridIndex: [0, 1, 2] }, [point.x, point.y]);
                 const pointHit =
                     eventMarkerStyle === 'point' &&
-                    item.showDot &&
-                    anchorY >= top &&
-                    anchorY <= bottom &&
                     plotHit &&
                     Number.isFinite(anchorY) &&
                     Math.hypot(point.x - x, point.y - anchorY) <= PIXEL_THRESHOLD;
                 const lineHit = eventMarkerStyle !== 'point' && plotHit && Math.abs(point.x - x) <= PIXEL_THRESHOLD;
                 const labelY = box?.textY ?? anchorY;
-                const leaderHit = box && plotHit && isCurveLabelLeaderHit(box, point.x, point.y, PIXEL_THRESHOLD);
-                return labelHit || pointHit || lineHit || leaderHit
+                return labelHit || pointHit || lineHit
                     ? [
                           {
                               marker,
@@ -719,6 +770,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             localPoint,
             onEventMarkerDrag,
             onEventMarkerEdit,
+            option.grid,
             tempMaxC,
             tempMinC,
             temperatureUnit,
