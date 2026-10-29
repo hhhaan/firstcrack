@@ -55,6 +55,25 @@ export const setLanguage = async (language: SupportedLanguage) => {
     await persistLanguage(language);
 };
 
+const localeBundles = {
+    ko,
+    en,
+    ja,
+    'zh-CN': zhCNJson,
+} as const;
+
+/** Vite keeps i18n alive across edits. Push the new JSON or a new key stays on screen as the key path. */
+const syncLocaleBundles = () => {
+    if (!i18n.isInitialized) return;
+    for (const [lng, bundle] of Object.entries(localeBundles)) {
+        i18n.addResourceBundle(lng, 'translation', bundle, true, true);
+    }
+    i18n.emit('languageChanged', i18n.language);
+};
+
+if (import.meta.hot) import.meta.hot.accept();
+syncLocaleBundles();
+
 export const initI18n = async ({ persist = true }: { persist?: boolean } = {}) => {
     const savedLanguage = await getStoredLanguage();
     const language = normalizeLanguage(savedLanguage ?? (await getSystemLanguage()));
@@ -64,10 +83,10 @@ export const initI18n = async ({ persist = true }: { persist?: boolean } = {}) =
         fallbackLng: 'en',
         supportedLngs: supportedLanguages,
         resources: {
-            ko: { translation: ko },
-            en: { translation: en },
-            ja: { translation: ja },
-            'zh-CN': { translation: zhCNJson },
+            ko: { translation: localeBundles.ko },
+            en: { translation: localeBundles.en },
+            ja: { translation: localeBundles.ja },
+            'zh-CN': { translation: localeBundles['zh-CN'] },
         },
         interpolation: { escapeValue: false },
     });
