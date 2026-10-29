@@ -399,6 +399,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                 bbpTarget: bbpTarget.data ?? [],
                 bbpTargetError: bbpTarget.isError,
                 bbpCapture: bbpEnabled ? (reviewSnapshot?.bbpCapture ?? runningBbpCapture) : null,
+                joinBbp: roastSettings.bbpJoinCharge,
             }),
         [
             bbpActive,
@@ -411,6 +412,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
             reviewing,
             backgroundCurvePoints,
             reviewSnapshot,
+            roastSettings.bbpJoinCharge,
             runningBbpCapture,
         ],
     );
@@ -427,7 +429,8 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         if (bbpActive && !reviewing) return bbpEventsForDisplay(bbpEvents, bbpEventOrigin);
         if (dropWaitOffset != null) return bbpEventsForDisplay(curveEntries, dropWaitOffset);
         const capture = reviewSnapshot?.bbpCapture ?? runningBbpCapture;
-        const before = capture && bbpEnabled ? (splitBatchBbp(capture).bbp?.events ?? []) : [];
+        const before =
+            capture && bbpEnabled && roastSettings.bbpJoinCharge ? (splitBatchBbp(capture).bbp?.events ?? []) : [];
         return [...storedEventsToLogEntries(before, unit, true), ...curveEntries];
     }, [
         bbpActive,
@@ -439,6 +442,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         reviewSnapshot,
         runningBbpCapture,
         bbpEnabled,
+        roastSettings.bbpJoinCharge,
         unit,
     ]);
     const bbpNowSec = latestSampleTime(bbpPoints);
@@ -452,7 +456,8 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         tempMaxC: roastSettings.tempMaxC,
     });
 
-    const displayedCapture = bbpEnabled ? (reviewSnapshot?.bbpCapture ?? runningBbpCapture) : null;
+    const displayedCapture =
+        bbpEnabled && roastSettings.bbpJoinCharge ? (reviewSnapshot?.bbpCapture ?? runningBbpCapture) : null;
     const timelineIdentity = reviewing
         ? `review:${reviewSnapshot.sessionId}`
         : displayedCapture
@@ -460,13 +465,14 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
           : bbpActive
             ? `wait:${bbpStartMs}`
             : `roast:${sessionId ?? 'pre'}`;
-    const timelineKey = `${timelineIdentity}:${chartSpanSec(roastSettings)}`;
+    const chargeOnly = charged && !roastSettings.bbpJoinCharge ? ':charge' : '';
+    const timelineKey = `${timelineIdentity}:${chartSpanSec(roastSettings)}${chargeOnly}`;
     // ── 차트 데이터 파이프라인 ────────────────────────────────────
     const chart = useChartPipeline({
         livePoints: chartView.livePoints,
         targetCurvePoints: chartView.targetPoints,
         timelineKey,
-        coordinateOrigin: chartView.eventTimeOrigin,
+        coordinateOrigin: chartView.axisOrigin,
         xMin: chartView.xMin,
         xMaxFloor: chartView.xMaxFloor ?? chartSpanSec(roastSettings),
         showRoR: roastSettings.showRoRChart,

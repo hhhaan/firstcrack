@@ -1051,6 +1051,14 @@ export const RoastSettingsTab = () => {
                             updateRoastSettings({ bbpEnabled: !roastSettings.bbpEnabled });
                         }}
                     />
+                    {/* 투입 후 BBP 이음은 기본 끔. 다시 넣을 때 주석 해제.
+                    <SettingsCheckRow
+                        checked={roastSettings.bbpJoinCharge}
+                        label={tk('bbpJoinCharge')}
+                        description={tk('bbpJoinChargeDescription')}
+                        onChange={() => updateRoastSettings({ bbpJoinCharge: !roastSettings.bbpJoinCharge })}
+                    />
+                    */}
                 </SettingsSection.Body>
             </SettingsSection>
 

@@ -67,6 +67,8 @@ export type RoastSettings = {
     /** FC Start–End vertical band on the temp chart */
     showFcBand: boolean;
     bbpEnabled: boolean;
+    /** When on, the live chart and History keep BBP to the left of Charge. Recording stays either way. */
+    bbpJoinCharge: boolean;
     eventMarkerStyle: EventMarkerStyle;
     /** Which side-panel mark buttons are shown. Drop stays on. */
     eventButtons: RoastEventButtons;

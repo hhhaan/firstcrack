@@ -496,6 +496,8 @@
                 "bbp": "BBP",
                 "bbpDescription": "배치 사이의 온도와 제어값 기록",
                 "bbpEnabled": "BBP 기록",
+                "bbpJoinCharge": "투입 후에도 BBP 표시",
+                "bbpJoinChargeDescription": "켜면 투입 이후와 히스토리에서 BBP 곡선이 Charge 왼쪽에 이어진다. 끄면 차트는 투입부터 시작한다.",
                 "autoCharge": "자동 투입 감지",
                 "autoChargeDescription": "투입 대기 중 원두 온도의 하강을 감지해 투입 시점 자동 기록. 수동 기록도 가능",
                 "autoDrop": "자동 배출 감지",

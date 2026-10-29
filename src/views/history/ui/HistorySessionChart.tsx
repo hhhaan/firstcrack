@@ -219,7 +219,9 @@ export function HistorySessionChart({
         showProfileDrum,
         showProfileHeat,
         showProfileFan,
+        bbpJoinCharge,
     } = useRoastSettings();
+    const joinBbp = bbpJoinCharge !== false;
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const roast = useHistoryChart(orNull(session.tsv_path));
     const bbp = useBbpCurve(session.user_id, session.id, session.bbp_tsv_path);
@@ -228,19 +230,18 @@ export function HistorySessionChart({
     const source = resolveSourceSession(profile?.source_session);
     const { points: targetPoints } = useResolvedProfileCurve(profile);
     const targetBbp = useBbpCurve(session.user_id, orNull(profile?.source_session_id), source?.bbp_tsv_path);
-    const actual = useMemo(
-        () =>
-            combineBbpCurve(
-                roast.isError ? [] : roast.points,
-                bbp.isError ? [] : (bbp.data ?? []),
-                session.bbp_seconds,
-            ),
-        [roast.points, roast.isError, bbp.data, bbp.isError, session.bbp_seconds],
-    );
-    const target = useMemo(
-        () => combineBbpCurve(targetPoints, targetBbp.isError ? [] : (targetBbp.data ?? []), source?.bbp_seconds),
-        [targetPoints, targetBbp.data, targetBbp.isError, source?.bbp_seconds],
-    );
+    const actual = useMemo(() => {
+        const points = roast.isError ? [] : roast.points;
+        return joinBbp
+            ? combineBbpCurve(points, bbp.isError ? [] : (bbp.data ?? []), session.bbp_seconds)
+            : { points, bbpRange: undefined };
+    }, [roast.points, roast.isError, bbp.data, bbp.isError, session.bbp_seconds, joinBbp]);
+    const target = useMemo(() => {
+        const bbpPoints = targetBbp.isError ? [] : (targetBbp.data ?? []);
+        return joinBbp
+            ? combineBbpCurve(targetPoints, bbpPoints, source?.bbp_seconds)
+            : { points: targetPoints, bbpRange: undefined };
+    }, [targetPoints, targetBbp.data, targetBbp.isError, source?.bbp_seconds, joinBbp]);
     const machines = useMachines((s) => s.machines);
     const heaterUnit = profileHeaterBounds(session, machines, ROASTER_REGISTRY).unit;
     const record = useRoastRecordSave(session);

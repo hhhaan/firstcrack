@@ -19,7 +19,10 @@ still only the measured span (#547): the 15-minute FIFO cap is not a reserved
 background. No saved and no measured BBP means no BBP region, and a shorter
 recording — including samples that fill only part of the cap window — is drawn
 at that length on both the temperature and control grids. After Charge the live chart
-keeps that batch's measured BBP at negative times and continues the roast at 00:00.
+keeps that batch's measured BBP at negative times and continues the roast at 00:00
+when `bbpJoinCharge` is on. It defaults to off. When it is off, the charged live chart,
+its event log, and History start at Charge. The pre-Charge wait chart is unchanged.
+Recording and save do not follow this switch.
 The two grids share the same range. The recorded BBP belongs to the incoming roast,
 not to the previous completed batch (#1048).
 

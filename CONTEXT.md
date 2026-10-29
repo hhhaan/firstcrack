@@ -166,8 +166,11 @@ _Avoid_: Production plan item.
 **Production plan item**: Planned production of a specified coffee or blend recipe and quantity. A post-roast blend is fulfilled by roasting its components separately and blending them afterward.
 _Avoid_: Roast batch.
 
-**Between-batch protocol (BBP)**: A procedure for managing the roaster's thermal condition between one batch's discharge and the next charge. It is distinct from cooling the discharged coffee.
-_Avoid_: Cooling the roasted coffee.
+**Between-batch protocol (BBP)**: A procedure for managing the roaster's thermal condition between one batch's discharge and the next charge. It is distinct from cooling the discharged coffee. The BBP recorded on a reference batch ends at that batch's Charge.
+_Avoid_: Cooling the roasted coffee. Treating the live wait and the reference batch's BBP as one curve.
+
+**Reference batch**: The completed roast a profile recalls. Its BBP and its roast curve meet at its Charge.
+_Avoid_: The live wait. A heat-replay plan.
 
 ## Quality
 

@@ -496,6 +496,8 @@
                 "bbp": "BBP",
                 "bbpDescription": "记录批次之间的温度和控制值。",
                 "bbpEnabled": "记录 BBP",
+                "bbpJoinCharge": "投豆后继续显示 BBP",
+                "bbpJoinChargeDescription": "开启后，烘焙中和历史记录里 BBP 曲线留在投豆左侧。关闭后，图表从投豆开始。",
                 "autoCharge": "自动 Charge 检测",
                 "autoChargeDescription": "等待投豆时检测豆温转为下降。关闭后仍可手动投豆。",
                 "autoDrop": "自动 Drop 检测",

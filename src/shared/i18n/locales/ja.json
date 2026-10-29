@@ -496,6 +496,8 @@
                 "bbp": "BBP",
                 "bbpDescription": "バッチ間の温度と制御値を記録します。",
                 "bbpEnabled": "BBPを記録",
+                "bbpJoinCharge": "Charge 後も BBP を表示",
+                "bbpJoinChargeDescription": "オンにすると、焙煎中と履歴で BBP 曲線が Charge の左に残ります。オフにするとチャートは Charge から始まります。",
                 "autoCharge": "自動 Charge 検出",
                 "autoChargeDescription": "投入待機中に豆温度が下降に転じたことを検出します。オフでも手動投入できます。",
                 "autoDrop": "自動 Drop 検出",

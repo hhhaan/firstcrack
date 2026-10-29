@@ -366,6 +366,8 @@ it('이전에 저장된 BBP 기록 범위는 켜기/끄기 외에 영향을 주�
     const huge = { bbpEnabled: true, bbpWindowMinutes: 100 };
     const settings = normalizeRoastSettings(stored);
     expect(settings.bbpEnabled).toBe(false);
+    expect(normalizeRoastSettings({}).bbpJoinCharge).toBe(false);
+    expect(normalizeRoastSettings({ bbpJoinCharge: true }).bbpJoinCharge).toBe(true);
     expect(settings).not.toHaveProperty('bbpWindowMinutes');
     expect(normalizeRoastSettings(zero).bbpEnabled).toBe(true);
     expect(normalizeRoastSettings(zero)).not.toHaveProperty('bbpWindowMinutes');
