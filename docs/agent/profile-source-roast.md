@@ -8,4 +8,6 @@
 
 이 기준은 다른 프로파일이 아니다. `CONTEXT.md`의 Reference roast(재현할 대상 프로파일)와도 다르다.
 
+재생 화력은 이 기준 로스트의 화력 값이다. 프로파일은 화력을 따로 두지 않는다. 2026-10-29 재확인.
+
 구현: `src/widgets/profile-detail/ui/ProfileReferenceBatches.tsx`.

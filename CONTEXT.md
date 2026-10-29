@@ -155,8 +155,8 @@ _Avoid_: A manual gas change.
 _Avoid_: A temperature-curve target as a synonym for a command's replay condition.
 
 **Gas replay**:
-곡선을 낸 로스트 기록의 Heat set 명령의 재생. 기계가 보고한 Heat feedback 곡선과는 구별된다.
-_Avoid_: Replaying bean temperature as if it were the gas command. Heat recorded on a different roast.
+기준 로스트에 있는 화력 값의 재생. 기계가 보고한 Heat feedback 곡선과는 구별되고, 프로파일은 그 값을 따로 두지 않는다.
+_Avoid_: Replaying bean temperature as if it were the gas command. Heat recorded on a different roast. A second heat plan stored on the profile.
 
 ## Production
 
