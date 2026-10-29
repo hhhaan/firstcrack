@@ -267,16 +267,14 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "default_params": {
             "mode": "C",
             # 가상 머신은 PLC 주소가 없으므로 클램프 범위만 있으면 된다.
-            # 실기 없이 제어 UI와 PID 루프를 검증하는 경로.
+            # BT/ET는 실측 재생이고 화력 명령으로 온도가 바뀌지 않는다.
             "write_map": {
                 "heater": {"min": 0, "max": 100, "unit": "%"},
                 "fan": {"min": 0, "max": 100, "unit": "%"},
                 "drum": {"min": 0, "max": 100, "unit": "%"},
             },
         },
-        # 가상 머신 열 모델(tau=40s, 2.4°C/%)에 맞춘 게인 — 실기 값이 아니다.
-        # Giesen 게인(Kp20/Ki0.01/Kd3)은 실제 로스터의 열질량 기준이라 이 모델에서는
-        # 적분이 사실상 쌓이지 않는다.
+        # 가상 머신 온도는 화력을 따라가지 않는다. 게인은 실기 값이 아니다.
         "pid": {"Kp": 4, "Ki": 0.3, "Kd": 2},
         "capabilities": ["heater", "fan", "drum"],
     },
