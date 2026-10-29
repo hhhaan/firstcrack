@@ -5,16 +5,17 @@ const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
 
 const UpdaterContext = createContext<UseUpdateCheckerReturn | null>(null);
 
-export function UpdateCheckerProvider({ children }: { children: ReactNode }) {
+export function UpdateCheckerProvider({ children, autoDownload }: { children: ReactNode; autoDownload: boolean }) {
     const checker = useUpdateChecker();
+    const checkAutomatically = autoDownload ? checker.checkAndDownload : checker.checkForUpdate;
 
     useEffect(() => {
-        void checker.checkForUpdate();
+        void checkAutomatically();
         const id = setInterval(() => {
-            void checker.checkForUpdate();
+            void checkAutomatically();
         }, CHECK_INTERVAL_MS);
         return () => clearInterval(id);
-    }, [checker.checkForUpdate]);
+    }, [checkAutomatically]);
 
     return <UpdaterContext.Provider value={checker}>{children}</UpdaterContext.Provider>;
 }

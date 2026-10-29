@@ -35,6 +35,12 @@ describe('UpdateCheckerProvider', () => {
         return checker;
     };
 
+    const renderProvider = async (autoDownload = true) => {
+        await act(async () =>
+            root.render(createElement(UpdateCheckerProvider, { autoDownload }, createElement(Consumer))),
+        );
+    };
+
     const update = () => ({
         version: '1.4.0',
         currentVersion: '1.3.3',
@@ -53,7 +59,7 @@ describe('UpdateCheckerProvider', () => {
         checker = undefined;
         container = document.createElement('div');
         root = createRoot(container);
-        await act(async () => root.render(createElement(UpdateCheckerProvider, null, createElement(Consumer))));
+        await renderProvider();
     });
 
     afterEach(() => {
@@ -62,7 +68,7 @@ describe('UpdateCheckerProvider', () => {
         vi.unstubAllEnvs();
     });
 
-    it('checks on startup and every four hours without downloading or installing', async () => {
+    it('checks on startup and every four hours, downloading once without installing', async () => {
         expect(native.check).toHaveBeenCalledOnce();
         const available = update();
         native.check.mockResolvedValue(available);
@@ -70,26 +76,48 @@ describe('UpdateCheckerProvider', () => {
         await act(async () => vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000));
 
         expect(native.check).toHaveBeenCalledTimes(2);
-        expect(available.download).not.toHaveBeenCalled();
+        expect(available.download).toHaveBeenCalledOnce();
         expect(available.downloadAndInstall).not.toHaveBeenCalled();
         expect(available.install).not.toHaveBeenCalled();
-        expect(api().state.status).toBe('available');
+        expect(api().state.status).toBe('ready');
         await act(async () => vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000));
-        expect(native.check).toHaveBeenCalledTimes(3);
-        expect(available.download).not.toHaveBeenCalled();
+        expect(native.check).toHaveBeenCalledTimes(2);
+        expect(available.download).toHaveBeenCalledOnce();
         expect(available.install).not.toHaveBeenCalled();
     });
 
-    it('only announces an available update on startup', async () => {
+    it.each(['macos', 'windows'])('downloads automatically on %s startup without installing', async (os) => {
         act(() => root.unmount());
         root = createRoot(container);
         const available = update();
+        native.platform.mockReturnValue(os);
         native.check.mockResolvedValue(available);
-        await act(async () => root.render(createElement(UpdateCheckerProvider, null, createElement(Consumer))));
-        expect(api().state.status).toBe('available');
-        expect(available.download).not.toHaveBeenCalled();
+        await renderProvider();
+        expect(api().state.status).toBe('ready');
+        expect(available.download).toHaveBeenCalledOnce();
         expect(available.downloadAndInstall).not.toHaveBeenCalled();
         expect(available.install).not.toHaveBeenCalled();
+        expect(native.invoke).not.toHaveBeenCalled();
+    });
+
+    it('keeps checking while automatic downloads are deferred and downloads when allowed', async () => {
+        const available = update();
+        native.check.mockResolvedValue(available);
+
+        await renderProvider(false);
+        await act(async () => vi.advanceTimersByTimeAsync(4 * 60 * 60 * 1000));
+
+        expect(native.check).toHaveBeenCalledTimes(3);
+        expect(api().state.status).toBe('available');
+        expect(available.download).not.toHaveBeenCalled();
+        expect(available.install).not.toHaveBeenCalled();
+
+        await renderProvider();
+
+        expect(api().state.status).toBe('ready');
+        expect(available.download).toHaveBeenCalledOnce();
+        expect(available.install).not.toHaveBeenCalled();
+        expect(native.invoke).not.toHaveBeenCalled();
     });
 
     it.each(['macos', 'windows'])('checks manually and reuses the %s update path', async (os) => {

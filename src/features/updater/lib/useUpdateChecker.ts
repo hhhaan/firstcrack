@@ -30,7 +30,7 @@ export interface UseUpdateCheckerReturn {
     state: UpdateState;
     /** 버전만 확인한다. 다운로드하지 않는다. */
     checkForUpdate: () => Promise<void>;
-    /** 수동 업데이트 버튼에서 체크 후 다운로드만 한다. DEV에서는 건너뛴다. */
+    /** 자동 확인 또는 수동 업데이트 버튼에서 체크 후 다운로드만 한다. DEV에서는 건너뛴다. */
     checkAndDownload: () => Promise<void>;
     /** 다운로드한 업데이트 설치 후 앱 재시작 */
     applyAndRelaunch: () => Promise<void>;
@@ -187,7 +187,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
                     // retry: 아래로 fall-through → 다운로드 재시도
                 }
 
-                // 사용자 요청으로 다운로드 시작 — 설치는 재시작 버튼에서 수행한다.
+                // 백그라운드 다운로드 — 설치는 재시작 버튼에서 수행한다.
                 downloadedRef.current = 0;
                 totalRef.current = undefined;
                 statusRef.current = 'downloading';

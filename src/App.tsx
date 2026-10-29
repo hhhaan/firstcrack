@@ -50,11 +50,15 @@ import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
 const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
-export const App = () => (
-    <UpdateCheckerProvider>
-        <AppShell />
-    </UpdateCheckerProvider>
-);
+export const App = () => {
+    const autoDownload = useRoastingStore((s) => s.phase === 'idle');
+
+    return (
+        <UpdateCheckerProvider autoDownload={autoDownload}>
+            <AppShell />
+        </UpdateCheckerProvider>
+    );
+};
 
 const AppShell = () => {
     const user = useAuthStore((s) => s.user);
