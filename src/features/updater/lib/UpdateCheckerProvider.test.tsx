@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from 'react';
+import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { UpdateCheckerProvider, useUpdater } from './UpdateCheckerProvider';
@@ -37,7 +37,11 @@ describe('UpdateCheckerProvider', () => {
 
     const renderProvider = async (autoDownload = true) => {
         await act(async () =>
-            root.render(createElement(UpdateCheckerProvider, { autoDownload }, createElement(Consumer))),
+            root.render(
+                <UpdateCheckerProvider autoDownload={autoDownload}>
+                    <Consumer />
+                </UpdateCheckerProvider>,
+            ),
         );
     };
 
