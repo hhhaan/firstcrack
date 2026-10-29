@@ -3,6 +3,7 @@ import type {
     DoorProbeResult,
     NetworkHost,
     PidRuntime,
+    ProtocolTraceEntry,
     SerialPort,
     SidecarStatus,
     TemperatureReading,
@@ -38,13 +39,21 @@ export class SidecarHttpError extends Error {
     readonly route: string;
     readonly status: number | 'network' | 'timeout';
     readonly sentryReported: boolean;
+    readonly trace: ProtocolTraceEntry[];
 
-    constructor(route: string, status: number | 'network' | 'timeout', message: string, sentryReported = false) {
+    constructor(
+        route: string,
+        status: number | 'network' | 'timeout',
+        message: string,
+        sentryReported = false,
+        trace: ProtocolTraceEntry[] = [],
+    ) {
         super(message);
         this.name = 'SidecarHttpError';
         this.route = route;
         this.status = status;
         this.sentryReported = sentryReported;
+        this.trace = trace;
     }
 }
 
@@ -134,11 +143,11 @@ async function request<T>(
             signal: AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) {
-            const body = await res.json().catch(() => ({}));
-            const msg = (body as { error?: string }).error ?? `HTTP ${res.status}`;
+            const body = (await res.json().catch(() => ({}))) as { error?: string; trace?: ProtocolTraceEntry[] };
+            const msg = body.error ?? `HTTP ${res.status}`;
             const reported = reportErrors ? reportSidecarFailure(route, method, res.status) : false;
             if (reportErrors) devSidecarLog(`[sidecar] ${method} ${path} 실패:`, msg);
-            throw new SidecarHttpError(route, res.status, msg, reported);
+            throw new SidecarHttpError(route, res.status, msg, reported, Array.isArray(body.trace) ? body.trace : []);
         }
         return await (res.json() as Promise<T>);
     } catch (err) {

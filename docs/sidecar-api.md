@@ -669,7 +669,7 @@ Notes:
 
 ### GET /debug/trace
 
-프로토콜 트레이스 버퍼를 덤프한다.
+프로토콜 트레이스 버퍼를 덤프한다. 프로세스가 켜지면 기록은 기본으로 켜져 있고, `POST /debug/trace`로 끌 수 있다. S7, Modbus, Probat WS, Kaleido, Phidget 송수신과 오류가 링버퍼에 쌓인다. 호스트와 시리얼 번호는 일부러 넣지 않는다.
 
 Response:
 
@@ -822,7 +822,7 @@ Each command uses `read_area(Area.DB, ...)` then `write_area(Area.DB, ...)` unde
 
 On successful delivery, `wrote` is the requested command code and `command_before` comes from the first mandatory RMW read. Cooling/stirrer `*_before` comes from that command's RMW read, not a simultaneous preflight snapshot. Unobserved `command_after`, `command_held`, `discharge_open_before/after`, and cooling/stirrer `*_after/held` are `null`; a 200 response does not confirm physical movement. The explicit `read` action returns observations. The simulator follows the same response contract.
 
-Like Artisan, an individual I/O error does not skip subsequent command tokens in the same session. FC reports the failure as HTTP 502 after attempting the remaining tokens, including the final zero. A connection/session change or lock acquisition timeout aborts the request immediately; remaining commands are never transferred to a replacement connection. Controls are not retried or reconnected automatically by this path.
+Like Artisan, an individual I/O error does not skip subsequent command tokens in the same session. FC reports the failure as HTTP 502 after attempting the remaining tokens, including the final zero. The 502 body includes `trace`, the protocol records captured during that request, including token errors. A connection/session change or lock acquisition timeout aborts the request immediately; remaining commands are never transferred to a replacement connection. Controls are not retried or reconnected automatically by this path. A failed `POST /control` body also includes `trace`.
 
 The S7 receive timeout is 3000ms, matching the local Snap7 default left unchanged by Artisan. Each response can complete earlier; this does not change polling cadence or the 40ms request interval. Webview requests for actuator controls, numeric controls, PID on/off and roast reset wait up to 30s for multi-I/O operations; they are not automatically resent on timeout.
 

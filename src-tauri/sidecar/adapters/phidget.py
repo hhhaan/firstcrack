@@ -5,6 +5,7 @@ from typing import Any
 
 from adapters.base import Reading
 from control_guard import ControlUnavailable
+from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
 
@@ -109,11 +110,17 @@ class PhidgetAdapter:
             # BT는 필수 채널 — 예외를 삼키지 않고 그대로 전파해야 manager의
             # stale/재연결 계약이 작동한다. 삼키면 USB 분리 후에도 직전 EMA가
             # 정상 온도처럼 계속 표시된다 (H1).
-            bt = round(float(self._sensor_bt.getTemperature()), 1)
+            try:
+                bt = round(float(self._sensor_bt.getTemperature()), 1)
+            except Exception as exc:
+                TRACE.record("err", "phidget", f"bt {type(exc).__name__}", force=True)
+                raise
             try:
                 et = round(float(self._sensor_et.getTemperature()), 1) if self._sensor_et else -1.0
-            except Exception:
+            except Exception as exc:
+                TRACE.record("err", "phidget", f"et {type(exc).__name__}", force=True)
                 et = -1.0  # ET는 선택 채널 — soft-fail로 두어 로스팅을 계속한다
+            TRACE.record("rx", "phidget", "temperature", {"bt": bt, "et": et})
             return bt, et
 
         loop = asyncio.get_running_loop()

@@ -36,6 +36,20 @@ class TestProtocolTrace:
         assert len(entries) == 3
         assert entries[0]["detail"] == "entry 2"  # 오래된 항목 탈락
 
+    def test_span_keeps_traffic_and_restores_the_toggle(self):
+        t = ProtocolTrace()
+        started = t.begin()
+        t.record("tx", "s7", "actuator write", b"\x00\x01")
+        entries = t.end(started)
+        assert t.enabled is False
+        assert entries[0]["data"] == "00 01"
+        assert entries[0]["protocol"] == "s7"
+
+    def test_force_keeps_an_error_while_tracing_is_off(self):
+        t = ProtocolTrace()
+        t.record("err", "s7", "actuator OSError", force=True)
+        assert t.dump()[0]["dir"] == "err"
+
     def test_clear_empties_buffer(self):
         t = ProtocolTrace()
         t.enabled = True

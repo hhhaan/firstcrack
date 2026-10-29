@@ -356,7 +356,10 @@ class TestDoorProbeRoute:
         manager._capture_hardware_error = MagicMock()
         response = await client.post("/door-probe", json={"action": "stirrer_on"})
         assert response.status == 502
+        body = await response.json()
+        assert any(entry["dir"] == "err" and entry["protocol"] == "s7" for entry in body["trace"])
         assert adapter._plc.write_area.call_args.args[1:] == (2, 30, bytearray(2))
+        assert manager._capture_hardware_error.call_args.kwargs["traffic"] == body["trace"]
         assert adapter._plc.write_area.call_count == 3
         manager._capture_hardware_error.assert_called_once()
 

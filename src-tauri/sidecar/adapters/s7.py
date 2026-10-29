@@ -188,22 +188,28 @@ class S7Adapter:
             return client
 
         loop = asyncio.get_running_loop()
-        client = await loop.run_in_executor(None, _connect)
+        try:
+            client = await loop.run_in_executor(None, _connect)
 
-        # 연결 검증은 get_cpu_state() 네트워크 왕복을 포함 → 이벤트 루프 밖에서 평가 (H5).
-        # 읽기 경로에서는 제거했지만(예산 20% 낭비) connect 시에는 왕복 비용이 정당하다.
-        if not await loop.run_in_executor(None, lambda: _client_alive(client)):
-            raise ConnectionError(
-                f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
-            )
+            # 연결 검증은 get_cpu_state() 네트워크 왕복을 포함 → 이벤트 루프 밖에서 평가 (H5).
+            # 읽기 경로에서는 제거했지만(예산 20% 낭비) connect 시에는 왕복 비용이 정당하다.
+            if not await loop.run_in_executor(None, lambda: _client_alive(client)):
+                raise ConnectionError(
+                    f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
+                )
+        except Exception as exc:
+            TRACE.record("err", "s7", f"connect {type(exc).__name__}", force=True)
+            raise
         self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
         self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
         self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)
         self._fc_ch = next((c for c in self._channels if c.get("role") == "fan"), None)
         self._drum_ch = next((c for c in self._channels if c.get("role") == "drum"), None)
+        TRACE.record("info", "s7", "connect")
         _log.info("S7Adapter connected: %s:%d", self._host, self._port)
 
     async def disconnect(self) -> None:
+        TRACE.record("info", "s7", "disconnect")
         # 1) 에폭 +1 — 진행 중인 connect가 뒤늦게 완료돼도 바인딩되지 않는다 (#208).
         # 2) _plc = None을 락보다 먼저 — 새 I/O를 즉시 차단한다(GIL 하 원자적).
         #    이 덕에 재연결 disconnect가 좀비 read 뒤에서 기다리지 않는다.
@@ -508,6 +514,11 @@ class S7Adapter:
                         plc.write_area(Area.DB, db, offset, payload)
                     except Exception as exc:
                         # Artisan continues subsequent tokens; FC still reports delivery failure after the sequence.
+                        TRACE.record(
+                            "err", "s7",
+                            f"actuator db={db} offset={offset} bit={bit} {type(exc).__name__}",
+                            force=True,
+                        )
                         if first_error is None:
                             first_error = exc
                         _log.warning("S7 actuator command failed db=%s offset=%s", db, offset, exc_info=True)

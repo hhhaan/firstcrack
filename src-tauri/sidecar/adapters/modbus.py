@@ -199,16 +199,21 @@ class ModbusAdapter:
             )
 
         is_net = self._mode in ("tcp", "udp")
-        await self._client.connect()
-        if not self._client.connected:
-            raise ConnectionError(
-                f"MODBUS 연결 실패: "
-                f"{'%s:%d' % (self._host, self._port) if is_net else self._comport}"
-            )
+        try:
+            await self._client.connect()
+            if not self._client.connected:
+                raise ConnectionError(
+                    f"MODBUS 연결 실패: "
+                    f"{'%s:%d' % (self._host, self._port) if is_net else self._comport}"
+                )
+        except Exception as exc:
+            TRACE.record("err", "modbus", f"connect {self._mode} {type(exc).__name__}", force=True)
+            raise
         if is_net:
             await asyncio.sleep(0.3)  # Artisan: "avoid possible hickups on startup"
         else:
             await asyncio.sleep(config.MODBUS_RTU_CONNECT_DELAY)
+        TRACE.record("info", "modbus", f"connect {self._mode}")
         _log.info("ModbusAdapter connected OK (mode=%s)", self._mode)
 
     async def disconnect(self) -> None:

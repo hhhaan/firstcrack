@@ -9,7 +9,7 @@
  * - 앱 내 ErrorBoundary는 캡처하지 않는다. React 19 root 핸들러(reactRootOptions)가 유일한 경로다.
  */
 import * as Sentry from '@sentry/react';
-import type { DoorProbeResult } from '@shared/types/sidecar';
+import type { DoorProbeResult, ProtocolTraceEntry } from '@shared/types/sidecar';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf, isClientSqlStateWarning, isDeterministicClientError, isExpectedRefusal } from './httpStatus';
@@ -425,16 +425,17 @@ export const captureDoorProbe = (result: DoorProbeResult) => {
                       stirrer_after: result.stirrer_after,
                       stirrer_held: result.stirrer_held,
                   }),
+            ...(result.trace ? { trace: result.trace } : {}),
         },
     });
 };
 
-export const captureDoorProbeFailure = (action: string, message: string) => {
+export const captureDoorProbeFailure = (action: string, message: string, trace?: ProtocolTraceEntry[]) => {
     Sentry.captureMessage('w60a door probe failed', {
         level: 'error',
         fingerprint: ['door-probe', action, 'failed'],
         tags: { feature: 'w60a-door-probe', action },
-        extra: { message },
+        extra: trace ? { message, trace } : { message },
     });
 };
 

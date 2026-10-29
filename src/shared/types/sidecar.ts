@@ -46,6 +46,15 @@ export type DoorProbeAction =
     | 'stirrer_on'
     | 'stirrer_off';
 
+/** One protocol trace line. Hosts and serial numbers are not recorded. */
+export interface ProtocolTraceEntry {
+    ts: number;
+    dir: 'tx' | 'rx' | 'err' | 'info';
+    protocol: string;
+    detail: string;
+    data?: string | number | boolean | null | Record<string, unknown>;
+}
+
 /** POST /door-probe. Writes follow Artisan without readback; unobserved fields are null. */
 export interface DoorProbeResult {
     action: DoorProbeAction;
@@ -63,6 +72,8 @@ export interface DoorProbeResult {
     stirrer_before?: boolean | null;
     stirrer_after?: boolean | null;
     stirrer_held?: boolean | null;
+    /** Records captured while this command ran, including a failed attempt. */
+    trace?: ProtocolTraceEntry[];
 }
 
 // GET /status 응답

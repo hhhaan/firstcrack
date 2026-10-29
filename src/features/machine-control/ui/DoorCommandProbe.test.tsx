@@ -266,7 +266,7 @@ describe('DoorCommandProbe', () => {
         await act(async () => {
             button?.click();
         });
-        expect(captureDoorProbeFailure).toHaveBeenCalledWith('fill_open', '문 명령 확인에 실패했습니다.');
+        expect(captureDoorProbeFailure).toHaveBeenCalledWith('fill_open', '문 명령 확인에 실패했습니다.', undefined);
         expect(captureDoorProbe).not.toHaveBeenCalled();
     });
 });
