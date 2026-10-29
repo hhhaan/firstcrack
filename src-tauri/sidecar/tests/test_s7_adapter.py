@@ -9,6 +9,7 @@ import socket
 import struct
 import threading
 import time
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -281,7 +282,7 @@ def fast_s7_timing(monkeypatch):
 
     상수 간 부등식 자체는 TestBudgetRelation이 실제 값으로 검증한다.
     """
-    monkeypatch.setattr(config, "S7_RECV_TIMEOUT_MS", 100)
+    monkeypatch.setattr(config, "S7_RECV_TIMEOUT_MS", 200)
     monkeypatch.setattr(config, "S7_READ_BUDGET_S", 0.4)
     monkeypatch.setattr(config, "S7_IO_LOCK_TIMEOUT_S", 0.1)
     monkeypatch.setattr(config, "S7_TEARDOWN_LOCK_TIMEOUT_S", 0.6)
@@ -372,13 +373,47 @@ class TestReadBudget:
 class TestBudgetRelation:
     def test_budget_relation_holds(self):
         """어느 상수를 손대든 이 부등식이 깨지면 좀비 스레드가 돌아온다. 실제 config 값으로 검증."""
-        worst = (
-            config.S7_READ_BUDGET_S
+        first_attempt = (
+            config.S7_IO_LOCK_TIMEOUT_S
             + config.S7_MIN_REQUEST_INTERVAL
             + config.S7_RECV_TIMEOUT_MS / 1000.0
         )
-        assert worst < config.READ_TIMEOUT
-        assert config.S7_TEARDOWN_LOCK_TIMEOUT_S > worst - config.S7_IO_LOCK_TIMEOUT_S
+        assert first_attempt < config.S7_READ_BUDGET_S
+        assert config.S7_READ_BUDGET_S < config.READ_TIMEOUT
+        assert config.S7_READ_BUDGET_S < config.S7_TEARDOWN_LOCK_TIMEOUT_S
+
+    @pytest.mark.parametrize("response_s, expected_calls", [(0.1, 5), (0.6, 2), (0.99, 1)])
+    async def test_default_budget_reserves_receive_timeout_before_each_request(
+        self, adapter, monkeypatch, response_s, expected_calls,
+    ):
+        import adapters.s7 as s7_module
+
+        now = 100.0
+        starts = []
+
+        def advance(seconds):
+            nonlocal now
+            now += seconds
+
+        def read(db, offset, size):
+            starts.append(now)
+            advance(response_s)
+            return bytearray(size)
+
+        monkeypatch.setattr(s7_module, "time", SimpleNamespace(monotonic=lambda: now, sleep=advance))
+        adapter._min_interval = config.S7_MIN_REQUEST_INTERVAL
+        adapter._plc.db_read.side_effect = read
+        if expected_calls == 5:
+            await adapter.read()
+        else:
+            with pytest.raises(TimeoutError, match="읽기 예산 소진"):
+                await adapter.read()
+
+        assert len(starts) == expected_calls
+        assert all(start + adapter._attempt_cost() <= 100.0 + config.S7_READ_BUDGET_S for start in starts)
+        assert now - 100.0 < config.READ_TIMEOUT
+        assert adapter._io_lock.acquire(blocking=False)
+        adapter._io_lock.release()
 
 
 # ---------------------------------------------------------------------------
@@ -506,6 +541,18 @@ class TestPlcRebind:
 
 
 class TestConnectProbe:
+    async def test_sets_one_second_receive_timeout_before_connect(self, adapter):
+        from snap7.type import Parameter
+
+        client = MagicMock()
+        client.get_cpu_state.return_value = "S7CpuStatusRun"
+        client.connect.side_effect = lambda *args: client.set_param.assert_called_once_with(
+            Parameter.RecvTimeout, 1000,
+        )
+        with patch("snap7.client.Client", return_value=client):
+            await adapter.connect()
+        assert adapter._plc is client
+
     async def test_unreachable_host_fails_fast_without_snap7(self, adapter, monkeypatch):
         """프로브가 막히면 snap7 클라이언트를 만들지도 않고 즉시 실패한다 (Artisan isOpen)."""
         adapter._plc = None

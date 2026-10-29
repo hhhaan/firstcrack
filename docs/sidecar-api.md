@@ -823,4 +823,4 @@ On successful delivery, `wrote` is the requested command code and `command_befor
 
 Like Artisan, an individual I/O error does not skip subsequent command tokens in the same session. FC reports the failure as HTTP 502 after attempting the remaining tokens, including the final zero. A connection/session change or lock acquisition timeout aborts the request immediately; remaining commands are never transferred to a replacement connection. Controls are not retried or reconnected automatically by this path.
 
-The parity scope is the eight button command sequences, not full application or wire timing. FC retains its monotonic clock, 500ms receive timeout, bounded lock wait, session fencing and its own polling schedule. These safeguards and actual hardware behavior are not claimed identical to Artisan.
+The parity scope is the eight button command sequences, not full application or wire timing. FC retains its monotonic clock, 1000ms receive timeout, bounded lock wait, session fencing and its own polling schedule. These safeguards and actual hardware behavior are not claimed identical to Artisan.
