@@ -46,22 +46,22 @@ export type DoorProbeAction =
     | 'stirrer_on'
     | 'stirrer_off';
 
-/** POST /door-probe. command_held is null on a read. It is not door or fan motion. */
+/** POST /door-probe. Writes follow Artisan without readback; unobserved fields are null. */
 export interface DoorProbeResult {
     action: DoorProbeAction;
     wrote: number | null;
-    command_before: number;
-    command_after: number;
+    command_before: number | null;
+    command_after: number | null;
     command_held: boolean | null;
-    discharge_open_before: boolean;
-    discharge_open_after: boolean;
+    discharge_open_before: boolean | null;
+    discharge_open_after: boolean | null;
     /** Present for cooling actions. DB3 byte 0 bit 0. */
-    cool_fan_before?: boolean;
-    cool_fan_after?: boolean;
+    cool_fan_before?: boolean | null;
+    cool_fan_after?: boolean | null;
     cool_fan_held?: boolean | null;
     /** Present for stirrer actions. DB2 byte 83 bit 1. */
-    stirrer_before?: boolean;
-    stirrer_after?: boolean;
+    stirrer_before?: boolean | null;
+    stirrer_after?: boolean | null;
     stirrer_held?: boolean | null;
 }
 

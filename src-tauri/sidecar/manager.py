@@ -1273,7 +1273,7 @@ class RoasterManager:
         }
 
     async def door_probe(self, action: str) -> dict[str, Any]:
-        """W60A 문 명령 확인. 쓰기 성공을 문 이동으로 보고하지 않는다."""
+        """W60A Artisan 명령/명시적 읽기. 전송 완료는 물리 동작 확인이 아니다."""
         commands = {
             "read": None,
             "fill_open": 1,

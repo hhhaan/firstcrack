@@ -32,10 +32,10 @@ const report = (overrides: Partial<DoorProbeResult> = {}): DoorProbeResult => ({
     action: 'discharge_open',
     wrote: 5,
     command_before: 0,
-    command_after: 5,
-    command_held: true,
-    discharge_open_before: false,
-    discharge_open_after: false,
+    command_after: null,
+    command_held: null,
+    discharge_open_before: null,
+    discharge_open_after: null,
     ...overrides,
 });
 

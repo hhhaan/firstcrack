@@ -431,268 +431,135 @@ class S7Adapter:
         return await loop.run_in_executor(None, _read_one)
 
     async def door_probe(self, write: int | None) -> dict[str, Any]:
-        """Read DB2.30 and the discharge status bit. Optionally write 1, 2, 5, or 6.
-
-        Artisan W60A sends one setDBint(2, 30, value) and does not write 0 afterwards.
-        writeInt reads two bytes, set_int on that buffer, then writes the same buffer.
-        The following readback and DB2.82 bit 6 are extra. A held value is not door motion.
-        """
-        if write is not None and write not in (1, 2, 5, 6):
+        if write is None:
+            return await self._read_actuator_probe("discharge_open", 2, 82, 6)
+        if write not in (1, 2, 5, 6):
             raise ValueError("W60A door command must be 1, 2, 5, or 6")
-        plc = self._plc
-        session = self._session
-        if plc is None:
-            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
-
-        def _probe() -> dict[str, Any]:
-            from snap7.util.getters import get_bool, get_int  # type: ignore[import]
-            from snap7.util.setters import set_int  # type: ignore[import]
-
-            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
-                raise TimeoutError("S7 I/O 락 대기 시간 초과")
-            try:
-                if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed before door probe")
-
-                def _command() -> bytearray:
-                    self._throttle()
-                    command = plc.db_read(2, 30, 2)
-                    if len(command) != 2:
-                        raise IOError(f"db_read(2,30,2) returned {len(command)} bytes")
-                    return command
-
-                def _discharge_open() -> bool:
-                    self._throttle()
-                    status = plc.db_read(2, 82, 1)
-                    if len(status) != 1:
-                        raise IOError(f"db_read(2,82,1) returned {len(status)} bytes")
-                    return bool(get_bool(status, 0, 6))
-
-                command = _command()
-                command_before = int(get_int(command, 0))
-                discharge_open_before = _discharge_open()
-                if write is not None:
-                    set_int(command, 0, write)
-                    self._throttle()
-                    TRACE.record(
-                        "tx", "s7",
-                        f"db_write db=2 offset=30 role=door_command value={write}",
-                        bytes(command),
-                    )
-                    plc.db_write(2, 30, command)
-                command_after = int(get_int(_command(), 0))
-                discharge_open_after = _discharge_open()
-                if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed during door probe")
-                held = None if write is None else command_after == write
-                TRACE.record(
-                    "rx",
-                    "s7",
-                    (
-                        f"door_probe wrote={write} command {command_before}->{command_after} "
-                        f"held={held} discharge {discharge_open_before}->{discharge_open_after}"
-                    ),
-                )
-                return {
-                    "wrote": write,
-                    "command_before": command_before,
-                    "command_after": command_after,
-                    "command_held": held,
-                    "discharge_open_before": discharge_open_before,
-                    "discharge_open_after": discharge_open_after,
-                }
-            finally:
-                self._io_lock.release()
-
-        return await asyncio.get_running_loop().run_in_executor(None, _probe)
+        return await self._write_actuator_commands(((2, 30, write, None),))
 
     async def cooling_fan_probe(self, on: bool | None) -> dict[str, Any]:
-        """Artisan W60A cooling: setDBint(2,30,8|10); setDBbool(3,0,0,on); setDBint(2,30,0).
-
-        The command word is cleared to 0. The kept output is DB3 byte 0 bit 0.
-        A matching bit is not proof the fan is spinning.
-        """
-        plc = self._plc
-        session = self._session
-        if plc is None:
-            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
-
-        def _probe() -> dict[str, Any]:
-            from snap7.util.getters import get_bool, get_int  # type: ignore[import]
-            from snap7.util.setters import set_bool, set_int  # type: ignore[import]
-
-            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
-                raise TimeoutError("S7 I/O 락 대기 시간 초과")
-            try:
-                if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed before cooling fan probe")
-
-                def _command() -> bytearray:
-                    self._throttle()
-                    command = plc.db_read(2, 30, 2)
-                    if len(command) != 2:
-                        raise IOError(f"db_read(2,30,2) returned {len(command)} bytes")
-                    return command
-
-                def _write_command(value: int) -> None:
-                    command = _command()
-                    set_int(command, 0, value)
-                    self._throttle()
-                    TRACE.record(
-                        "tx", "s7",
-                        f"db_write db=2 offset=30 role=cooling_command value={value}",
-                        bytes(command),
-                    )
-                    plc.db_write(2, 30, command)
-
-                def _fan_byte() -> bytearray:
-                    self._throttle()
-                    byte = plc.db_read(3, 0, 1)
-                    if len(byte) != 1:
-                        raise IOError(f"db_read(3,0,1) returned {len(byte)} bytes")
-                    return byte
-
-                def _write_fan(value: bool) -> None:
-                    byte = _fan_byte()
-                    set_bool(byte, 0, 0, value)
-                    self._throttle()
-                    TRACE.record(
-                        "tx", "s7",
-                        f"db_write db=3 offset=0 bit=0 role=cool_fan value={int(value)}",
-                        bytes(byte),
-                    )
-                    plc.db_write(3, 0, byte)
-
-                command_before = int(get_int(_command(), 0))
-                fan_before = bool(get_bool(_fan_byte(), 0, 0))
-                pulse = None
-                if on is not None:
-                    pulse = 8 if on else 10
-                    _write_command(pulse)
-                    _write_fan(on)
-                    _write_command(0)
-                command_after = int(get_int(_command(), 0))
-                fan_after = bool(get_bool(_fan_byte(), 0, 0))
-                if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed during cooling fan probe")
-                fan_held = None if on is None else fan_after is on
-                TRACE.record(
-                    "rx",
-                    "s7",
-                    (
-                        f"cooling_fan_probe pulse={pulse} command {command_before}->{command_after} "
-                        f"fan {fan_before}->{fan_after} held={fan_held}"
-                    ),
-                )
-                return {
-                    "wrote": pulse,
-                    "command_before": command_before,
-                    "command_after": command_after,
-                    "command_held": None if on is None else command_after == 0,
-                    "discharge_open_before": False,
-                    "discharge_open_after": False,
-                    "cool_fan_before": fan_before,
-                    "cool_fan_after": fan_after,
-                    "cool_fan_held": fan_held,
-                }
-            finally:
-                self._io_lock.release()
-
-        return await asyncio.get_running_loop().run_in_executor(None, _probe)
+        if on is None:
+            return await self._read_actuator_probe("cool_fan", 3, 0, 0)
+        return await self._write_actuator_commands(
+            ((2, 30, 8 if on else 10, None), (3, 0, on, 0), (2, 30, 0, None)),
+            "cool_fan",
+        )
 
     async def stirrer_probe(self, on: bool | None) -> dict[str, Any]:
-        """Artisan W60A stirrer: setDBint(2,30,7|9); setDBbool(2,83,1,on); setDBint(2,30,0).
+        if on is None:
+            return await self._read_actuator_probe("stirrer", 2, 83, 1)
+        return await self._write_actuator_commands(
+            ((2, 30, 7 if on else 9, None), (2, 83, on, 1), (2, 30, 0, None)),
+            "stirrer",
+        )
 
-        The command word is cleared to 0. The kept output is DB2 byte 83 bit 1.
-        A matching bit is not proof the stirrer is turning.
-        """
-        plc = self._plc
-        session = self._session
+    async def _write_actuator_commands(
+        self,
+        commands: tuple[tuple[int, int, int | bool, int | None], ...],
+        bit_name: str | None = None,
+    ) -> dict[str, Any]:
+        """W60A.aset commands: Artisan writeInt/writeBool RMW, one lock per command."""
+        from snap7.type import Area
+        from snap7.util.getters import get_bool, get_int
+        from snap7.util.setters import set_bool, set_int
+
+        plc, session = self._plc, self._session
         if plc is None:
             raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
 
-        def _probe() -> dict[str, Any]:
-            from snap7.util.getters import get_bool, get_int  # type: ignore[import]
-            from snap7.util.setters import set_bool, set_int  # type: ignore[import]
+        def check_session() -> None:
+            if self._plc is not plc or self._session != session:
+                raise ConnectionError("S7 connection changed during actuator command")
 
+        def execute() -> dict[str, Any]:
+            result: dict[str, Any] = {
+                "wrote": commands[0][2],
+                "command_before": None,
+                "command_after": None,
+                "command_held": None,
+                "discharge_open_before": None,
+                "discharge_open_after": None,
+            }
+            if bit_name is not None:
+                result.update({f"{bit_name}_before": None, f"{bit_name}_after": None, f"{bit_name}_held": None})
+            first_error: Exception | None = None
+            for index, (db, offset, value, bit) in enumerate(commands):
+                if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                    raise TimeoutError("S7 I/O 락 대기 시간 초과")
+                try:
+                    check_session()
+                    try:
+                        size = 2 if bit is None else 1
+                        self._throttle()
+                        check_session()
+                        TRACE.record("tx", "s7", f"actuator read_area db={db} offset={offset} size={size}")
+                        payload = plc.read_area(Area.DB, db, offset, size)
+                        TRACE.record("rx", "s7", f"actuator read_area db={db} offset={offset}", bytes(payload))
+                        if len(payload) != size:
+                            raise IOError(f"read_area(DB,{db},{offset},{size}) returned {len(payload)} bytes")
+                        if bit is None:
+                            if index == 0:
+                                result["command_before"] = int(get_int(payload, 0))
+                            set_int(payload, 0, int(value))
+                        else:
+                            result[f"{bit_name}_before"] = bool(get_bool(payload, 0, bit))
+                            set_bool(payload, 0, bit, bool(value))
+                        self._throttle()
+                        check_session()
+                        TRACE.record("tx", "s7", f"actuator write_area db={db} offset={offset}", bytes(payload))
+                        plc.write_area(Area.DB, db, offset, payload)
+                    except Exception as exc:
+                        # Artisan continues subsequent tokens; FC still reports delivery failure after the sequence.
+                        if first_error is None:
+                            first_error = exc
+                        _log.warning("S7 actuator command failed db=%s offset=%s", db, offset, exc_info=True)
+                    check_session()
+                finally:
+                    self._io_lock.release()
+            if first_error is not None:
+                raise first_error
+            return result
+
+        return await asyncio.get_running_loop().run_in_executor(None, execute)
+
+    async def _read_actuator_probe(self, bit_name: str, db: int, offset: int, bit: int) -> dict[str, Any]:
+        """Explicit diagnostics only; command buttons do not add these reads."""
+        from snap7.util.getters import get_bool, get_int
+
+        plc, session = self._plc, self._session
+        if plc is None:
+            raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+
+        def read() -> dict[str, Any]:
             if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 대기 시간 초과")
             try:
-                if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed before stirrer probe")
-
-                def _command() -> bytearray:
-                    self._throttle()
-                    command = plc.db_read(2, 30, 2)
-                    if len(command) != 2:
-                        raise IOError(f"db_read(2,30,2) returned {len(command)} bytes")
-                    return command
-
-                def _write_command(value: int) -> None:
-                    command = _command()
-                    set_int(command, 0, value)
-                    self._throttle()
-                    TRACE.record(
-                        "tx", "s7",
-                        f"db_write db=2 offset=30 role=stirrer_command value={value}",
-                        bytes(command),
-                    )
-                    plc.db_write(2, 30, command)
-
-                def _stirrer_byte() -> bytearray:
-                    self._throttle()
-                    byte = plc.db_read(2, 83, 1)
-                    if len(byte) != 1:
-                        raise IOError(f"db_read(2,83,1) returned {len(byte)} bytes")
-                    return byte
-
-                def _write_stirrer(value: bool) -> None:
-                    byte = _stirrer_byte()
-                    set_bool(byte, 0, 1, value)
-                    self._throttle()
-                    TRACE.record(
-                        "tx", "s7",
-                        f"db_write db=2 offset=83 bit=1 role=stirrer value={int(value)}",
-                        bytes(byte),
-                    )
-                    plc.db_write(2, 83, byte)
-
-                command_before = int(get_int(_command(), 0))
-                stirrer_before = bool(get_bool(_stirrer_byte(), 0, 1))
-                pulse = None
-                if on is not None:
-                    pulse = 7 if on else 9
-                    _write_command(pulse)
-                    _write_stirrer(on)
-                    _write_command(0)
-                command_after = int(get_int(_command(), 0))
-                stirrer_after = bool(get_bool(_stirrer_byte(), 0, 1))
-                if self._plc is not plc or self._session != session:
-                    raise ConnectionError("S7 connection changed during stirrer probe")
-                stirrer_held = None if on is None else stirrer_after is on
-                TRACE.record(
-                    "rx",
-                    "s7",
-                    (
-                        f"stirrer_probe pulse={pulse} command {command_before}->{command_after} "
-                        f"stirrer {stirrer_before}->{stirrer_after} held={stirrer_held}"
-                    ),
-                )
-                return {
-                    "wrote": pulse,
-                    "command_before": command_before,
-                    "command_after": command_after,
-                    "command_held": None if on is None else command_after == 0,
-                    "discharge_open_before": False,
-                    "discharge_open_after": False,
-                    "stirrer_before": stirrer_before,
-                    "stirrer_after": stirrer_after,
-                    "stirrer_held": stirrer_held,
+                result: dict[str, Any] = {
+                    "wrote": None,
+                    "command_held": None,
+                    "discharge_open_before": None,
+                    "discharge_open_after": None,
                 }
+                for phase in ("before", "after"):
+                    for name, block, start, size in (("command", 2, 30, 2), (bit_name, db, offset, 1)):
+                        self._throttle()
+                        if self._plc is not plc or self._session != session:
+                            raise ConnectionError("S7 connection changed during actuator read")
+                        TRACE.record("tx", "s7", f"actuator db_read db={block} offset={start} size={size}")
+                        payload = plc.db_read(block, start, size)
+                        TRACE.record("rx", "s7", f"actuator db_read db={block} offset={start}", bytes(payload))
+                        if len(payload) != size:
+                            raise IOError(f"db_read({block},{start},{size}) returned {len(payload)} bytes")
+                        result[f"{name}_{phase}"] = int(get_int(payload, 0)) if name == "command" else bool(get_bool(payload, 0, bit))
+                if self._plc is not plc or self._session != session:
+                    raise ConnectionError("S7 connection changed during actuator read")
+                if bit_name != "discharge_open":
+                    result[f"{bit_name}_held"] = None
+                return result
             finally:
                 self._io_lock.release()
 
-        return await asyncio.get_running_loop().run_in_executor(None, _probe)
+        return await asyncio.get_running_loop().run_in_executor(None, read)
 
     def _confirm_command_bytes(
         self,
