@@ -5,7 +5,7 @@ import { sessionBeanName } from './sessionBeanName';
 export const DEFAULT_TOTAL_BATCH_PREFIX = 'PR';
 export const TOTAL_BATCH_PREFIX_MAX = 12;
 
-/** Drop the separators the mark adds itself, then keep a short visible word. */
+/** Strip separators so the mark is the word glued to the number, like PR304. */
 export const normalizeTotalBatchPrefix = (value: unknown): string => {
     if (typeof value !== 'string') return DEFAULT_TOTAL_BATCH_PREFIX;
     const cleaned = value.replace(/[#·]/g, '').replace(/\s+/g, ' ').trim().slice(0, TOTAL_BATCH_PREFIX_MAX);
@@ -13,7 +13,7 @@ export const normalizeTotalBatchPrefix = (value: unknown): string => {
 };
 
 export const totalBatchMark = (total: number, prefix: unknown = DEFAULT_TOTAL_BATCH_PREFIX): string =>
-    `${normalizeTotalBatchPrefix(prefix)} #${total}`;
+    `${normalizeTotalBatchPrefix(prefix)}${total}`;
 
 /** Saved metadata survives title edits and hidden title numbering. */
 export const sessionBatchNumberLabel = (

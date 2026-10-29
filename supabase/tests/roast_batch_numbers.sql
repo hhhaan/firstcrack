@@ -59,7 +59,7 @@ BEGIN
     'status', 'completed', 'weight_grams', 1000, 'bean_id', bean_id, 'profile_id', profile_a,
     'batch_name', '  Batch C  ', 'batch_title_numbering', 'both',
     'profile_batch_number', 99, 'total_batch_number', 999), false, 0, 0, false);
-  ASSERT saved.batch_name = 'Batch C #1 · PR #1' AND saved.profile_batch_number = 1 AND saved.total_batch_number = 1,
+  ASSERT saved.batch_name = 'Batch C #1 · PR1' AND saved.profile_batch_number = 1 AND saved.total_batch_number = 1,
     'server ignores client numbers and assigns at save';
   retried := public.save_roast_op(jsonb_build_object('id', saved.id, 'user_id', owner_id,
     'profile_id', profile_b, 'profile_batch_number', 9), false, 0, 0, false);
@@ -114,7 +114,7 @@ BEGIN
   retried := public.save_roast_op(jsonb_build_object('id', gen_random_uuid(), 'user_id', owner_id,
     'status', 'completed', 'weight_grams', 0, 'batch_name', 'No profile', 'batch_title_numbering', 'total',
     'batch_title_prefix', ' LOT# '), false, 0, 0, false);
-  ASSERT retried.batch_name = 'No profile LOT #5' AND retried.profile_batch_number IS NULL AND retried.total_batch_number = 5;
+  ASSERT retried.batch_name = 'No profile LOT5' AND retried.profile_batch_number IS NULL AND retried.total_batch_number = 5;
   ASSERT public.get_roast_batch_counters(owner_id) = jsonb_build_object(
     'total', 5, profile_a::text, 3, profile_b::text, 1), 'cached counters cover every profile';
   ASSERT (SELECT profile_batch_number IS NULL AND total_batch_number IS NULL FROM public.roast_sessions WHERE id = source_id),

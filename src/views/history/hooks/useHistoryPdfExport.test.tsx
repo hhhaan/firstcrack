@@ -56,7 +56,7 @@ it('exports the selected batch title in the filename and PDF header while retain
                 header: expect.objectContaining({
                     roastTitle: 'Batch A',
                     bean: 'Green B',
-                    batchNumbers: '#9 · PR #13',
+                    batchNumbers: '#9 · PR13',
                     date: '26-10-19 14:35',
                     labels: expect.objectContaining({ roastTitle: en.history.recordText.title }),
                 }),
@@ -70,7 +70,7 @@ it('exports the selected batch title in the filename and PDF header while retain
                 header: expect.objectContaining({
                     roastTitle: 'Batch B',
                     bean: 'Green B',
-                    batchNumbers: '#9 · PR #13',
+                    batchNumbers: '#9 · PR13',
                 }),
             }),
         );

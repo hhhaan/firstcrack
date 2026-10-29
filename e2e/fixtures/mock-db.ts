@@ -462,7 +462,7 @@ export class MockDb {
         const totalPrefix = rawPrefix.replace(/[#·]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12) || 'PR';
         const suffix = [
             (mode === 'profile' || mode === 'both') && profileNumber != null ? `#${profileNumber}` : null,
-            mode === 'total' || mode === 'both' ? `${totalPrefix} #${totalNumber}` : null,
+            mode === 'total' || mode === 'both' ? `${totalPrefix}${totalNumber}` : null,
         ]
             .filter(Boolean)
             .join(' · ');

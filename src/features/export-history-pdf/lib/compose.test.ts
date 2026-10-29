@@ -77,7 +77,7 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
         header: {
             bean: hasTitle ? 'Green B' : bean,
             ...(hasTitle ? { roastTitle: bean } : {}),
-            batchNumbers: '#9 · PR #13',
+            batchNumbers: '#9 · PR13',
             date: '2026-10-25 14:35',
             duration: '10:42',
             charge: '195°C',
@@ -96,7 +96,7 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
         legend: [{ label: 'BT (°C)', color: '#009d4c' }],
     });
     expect(load).toHaveBeenCalledTimes(4);
-    expect(ctx.fillText).toHaveBeenCalledWith('배치 번호: #9 · PR #13', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('배치 번호: #9 · PR13', expect.any(Number), expect.any(Number));
     expect(ctx.fillText).toHaveBeenCalledWith('2026-10-25 14:35', expect.any(Number), expect.any(Number));
     expect(result).toMatchObject(HISTORY_PDF_PAGE_PX);
     const titleLines = ctx.fillText.mock.calls.filter(
@@ -150,7 +150,7 @@ it('bounds long report and batch labels away from the brand and page number with
         title: 'Roast history '.repeat(30),
         header: {
             bean: 'Ethiopia',
-            batchNumbers: '#9 · PR #13 '.repeat(30),
+            batchNumbers: '#9 · PR13 '.repeat(30),
             date: '2026-10-25 14:35',
             duration: '10:42',
             charge: '195°C',

@@ -14,11 +14,11 @@ it('formats preview modes without changing the source identity', () => {
     const identity = { name: 'Lot' };
     const numbers = { profile_batch_number: 3, total_batch_number: 12 };
     expect(automaticBatchTitle(identity, 'profile', numbers)).toBe('Lot #3');
-    expect(automaticBatchTitle(identity, 'total', numbers)).toBe('Lot PR #12');
-    expect(automaticBatchTitle(identity, 'both', numbers)).toBe('Lot #3 · PR #12');
-    expect(automaticBatchTitle(identity, 'total', numbers, 'LOT')).toBe('Lot LOT #12');
+    expect(automaticBatchTitle(identity, 'total', numbers)).toBe('Lot PR12');
+    expect(automaticBatchTitle(identity, 'both', numbers)).toBe('Lot #3 · PR12');
+    expect(automaticBatchTitle(identity, 'total', numbers, 'LOT')).toBe('Lot LOT12');
     expect(automaticBatchTitle(identity, 'none', numbers)).toBe('Lot');
-    expect(automaticBatchTitle(identity, 'both', { ...numbers, profile_batch_number: null })).toBe('Lot PR #12');
+    expect(automaticBatchTitle(identity, 'both', { ...numbers, profile_batch_number: null })).toBe('Lot PR12');
     expect(identity).toEqual({ name: 'Lot' });
 });
 
@@ -28,5 +28,5 @@ it('keeps the preview suffix within the title length limit', () => {
         total_batch_number: 12,
     });
     expect(title).toHaveLength(120);
-    expect(title.endsWith(' #3 · PR #12')).toBe(true);
+    expect(title.endsWith(' #3 · PR12')).toBe(true);
 });

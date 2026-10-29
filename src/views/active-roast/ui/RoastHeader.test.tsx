@@ -398,13 +398,13 @@ describe('inline running title edits', () => {
                     createElement(RoastHeader, { ...props, targetProfileId: 'prof-1', selectedBeanId: 'bean-2' }),
                 );
             });
-            expect(titleButton()?.textContent).toBe(mode === 'none' ? 'Morning roast' : 'Morning roast PR #12');
+            expect(titleButton()?.textContent).toBe(mode === 'none' ? 'Morning roast' : 'Morning roast PR12');
             act(() =>
                 root.render(
                     createElement(RoastHeader, { ...props, targetProfileId: 'prof-2', selectedBeanId: 'bean-2' }),
                 ),
             );
-            expect(titleButton()?.textContent).toBe(mode === 'none' ? 'Morning roast' : 'Morning roast PR #12');
+            expect(titleButton()?.textContent).toBe(mode === 'none' ? 'Morning roast' : 'Morning roast PR12');
         } finally {
             act(() => updateRoastSettings({ batchTitleNumbering: previous }));
         }

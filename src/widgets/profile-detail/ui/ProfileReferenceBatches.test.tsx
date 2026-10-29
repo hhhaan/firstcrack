@@ -77,7 +77,7 @@ describe('ProfileReferenceBatches', () => {
         const rows = [...host.querySelectorAll<HTMLTableRowElement>('[data-testid="profile-reference-row"]')];
         expect(rows.map((row) => row.dataset.current)).toEqual(['false', 'true']);
         expect(rows[1]?.textContent).toContain('newProfileModal.basedOn');
-        expect(rows[1]?.textContent).toContain('#3 · PR #31');
+        expect(rows[1]?.textContent).toContain('#3 · PR31');
 
         act(() => rows[0]?.click());
 
