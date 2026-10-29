@@ -1286,7 +1286,8 @@ describe('RoastTempChart interactions', () => {
         expect(element?.isConnected).toBe(false);
         const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
         expect(printOption.grid).toHaveLength(2);
-        expect(printOption.grid[1].top).toBe('65%');
+        expect(printOption.grid[0].height).toBe('65%');
+        expect(printOption.grid[1].top).toBe('76%');
         expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
             '#009d4c',
         );

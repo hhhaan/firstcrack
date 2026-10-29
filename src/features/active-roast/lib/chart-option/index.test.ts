@@ -100,6 +100,34 @@ describe('buildRoastChartOption font scale', () => {
 });
 
 describe('buildRoastChartOption', () => {
+    it('prints a separate control band with both timelines even when screen controls are merged', () => {
+        const params = {
+            ...baseParams(),
+            mergeControlChart: true,
+            controlData: { xs: [0, 60], drumTemp: [50, 50], heatPower: [80, 60], fanSpeed: [20, 30] },
+        };
+        const screen = buildRoastChartOption(params);
+        const paper = buildRoastChartOption({ ...params, print: true });
+        expect(screen.grid).toMatchObject([{ bottom: 30 }]);
+        expect(paper.grid).toMatchObject([
+            { height: '65%', left: 56, right: 56 },
+            { top: '76%', left: 56, right: 56 },
+        ]);
+        expect(paper.xAxis).toMatchObject([
+            { gridIndex: 0, axisLabel: { formatter: expect.any(Function) }, splitLine: { show: false } },
+            { gridIndex: 1, axisLabel: { formatter: expect.any(Function) }, splitLine: { show: false } },
+        ]);
+        expect(paper.yAxis).toMatchObject([
+            { splitLine: { show: true } },
+            { splitLine: { show: false } },
+            { gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: true } },
+            { gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: false } },
+        ]);
+        expect(paper.series).toEqual(
+            expect.arrayContaining([expect.objectContaining({ name: 'Drum', xAxisIndex: 1, markPoint: { data: [] } })]),
+        );
+    });
+
     it('covers the full supported Fahrenheit ranges with one-unit number spacing', () => {
         const option = buildRoastChartOption({
             ...baseParams(),

@@ -36,7 +36,7 @@ export const useHistoryPdfExport = ({
 
     const onExportPdf = useCallback(async () => {
         if (roasting) return;
-        // Lay out in PDF points so chart text prints at its configured point size.
+        // Capture at 200 dpi; getDataURL converts raster dimensions to PDF points.
         const chartDataUrl = chartRef.current?.getDataURL({ ...historyPdfChartBox(true), pixelRatio: 200 / 72 });
         if (!chartDataUrl) {
             useToastStore.getState().show(t('history.exportPdfUnavailable'), 'error');

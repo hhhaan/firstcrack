@@ -122,7 +122,7 @@ export const getResolvedChartColors = (print = false) => {
         phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
         nowLabel: gv('--color-phase-ready', '#009d4c'),
-        gridLine: gv('--color-chart-grid-stroke', 'rgba(0,0,0,0.05)'),
+        gridLine: gv('--color-chart-grid-stroke', print ? '#d1d5db' : 'rgba(0,0,0,0.05)'),
         gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
         axisLabel: gv('--color-chart-axis-label', '#666'),
         axisPointerLine: gv('--color-chart-axis-pointer', '#64748b'),

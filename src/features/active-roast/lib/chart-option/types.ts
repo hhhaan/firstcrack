@@ -54,7 +54,7 @@ export interface ChartOptionParams {
         >;
     /** Saved-record presentation: sparse grid, no instrument frame. */
     report?: boolean;
-    /** White paper, with enough room for enlarged control labels. */
+    /** White paper with a separate, compact control band and aligned timelines. */
     print?: boolean;
     xs: number[];
     btTarget: (number | null)[];

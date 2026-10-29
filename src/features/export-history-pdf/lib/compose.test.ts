@@ -32,7 +32,9 @@ const ctx = {
     fillRect: vi.fn(),
     fillText: vi.fn(),
     drawImage: vi.fn(),
-    measureText: (value: string) => ({ width: Array.from(value).length * 30 }),
+    measureText: (value: string) => ({
+        width: Array.from(value).reduce((sum, char) => sum + (char.charCodeAt(0) > 127 ? 30 : 18), 0),
+    }),
     setLineDash: vi.fn(),
     beginPath: vi.fn(),
     moveTo: vi.fn(),
@@ -96,15 +98,27 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
     expect(ctx.fillText).toHaveBeenCalledWith('2026-10-25 14:35', expect.any(Number), expect.any(Number));
     expect(result).toMatchObject(HISTORY_PDF_PAGE_PX);
     const titleLines = ctx.fillText.mock.calls.filter(
-        ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 76 || y === HISTORY_PDF_MARGIN_PX + 144,
+        ([, , y]) => y === HISTORY_PDF_MARGIN_PX + 60 || y === HISTORY_PDF_MARGIN_PX + 116,
     );
     expect(titleLines).toHaveLength(2);
     expect(titleLines[1][0]).toMatch(/…$/);
     const date = ctx.fillText.mock.calls.find(([text]) => text === '2026-10-25 14:35');
     expect(date).toBeDefined();
-    expect(date?.[2]).toBeGreaterThan(titleLines[1][2] + 56);
+    expect(date?.[2]).toBeGreaterThan(titleLines[1][2] + 100);
     if (hasTitle) {
         expect(ctx.fillText).toHaveBeenCalledWith('Green B', expect.any(Number), expect.any(Number));
+    }
+    expect(historyPdfChartBox(true).height).toBeGreaterThan(HISTORY_PDF_PAGE_PX.height * 0.6);
+    const headerRuleY = HISTORY_PDF_MARGIN_PX + HISTORY_PDF_HEADER_PX - 4;
+    const metadata = ctx.fillText.mock.calls.filter(([, , y]) => y >= HISTORY_PDF_MARGIN_PX + 226 && y < headerRuleY);
+    expect(metadata).toHaveLength(8);
+    for (let i = 0; i < metadata.length; i += 2) {
+        const [label, x] = metadata[i];
+        const [value, valueX] = metadata[i + 1];
+        expect(valueX).toBeGreaterThan(x + ctx.measureText(label).width);
+        expect(valueX + ctx.measureText(value).width).toBeLessThanOrEqual(
+            x + (HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2) / 4,
+        );
     }
     for (const [text, x, y] of ctx.fillText.mock.calls) {
         expect(x).toBeGreaterThanOrEqual(HISTORY_PDF_MARGIN_PX);

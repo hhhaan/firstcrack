@@ -34,7 +34,7 @@ export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMar
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
     const {
-        report = false,
+        report: configuredReport = false,
         print = false,
         xs,
         btActual,
@@ -69,7 +69,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         showControlHeat,
         showControlFan,
         controlChartHeightPct: configuredControlChartHeightPct,
-        mergeControlChart = false,
+        mergeControlChart: configuredMergeControlChart = false,
         controlYMin,
         controlYMax,
         phaseSegments,
@@ -86,9 +86,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
     } = params;
-    const controlChartHeightPct = print
-        ? Math.max(35, configuredControlChartHeightPct)
-        : configuredControlChartHeightPct;
+    const report = print || configuredReport;
+    const mergeControlChart = !print && configuredMergeControlChart;
+    const controlChartHeightPct = print ? 24 : configuredControlChartHeightPct;
     const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
 
     const fontScale = chartFontScale(fontScaleRaw);
@@ -256,8 +256,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             }
         }
         const { grid, xAxis, yAxis } = buildDualGridLayout({
-            leftMargin,
-            rightMargin,
+            leftMargin: print ? 56 : leftMargin,
+            rightMargin: print ? 56 : rightMargin,
             topMargin,
             controlChartHeightPct,
             mergeControlChart,
@@ -292,6 +292,20 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         });
 
         tuneAxes({ xAxis, yAxis });
+        if (print && Array.isArray(yAxis)) {
+            // Leave room for the temperature timeline above the compact control band.
+            const tempGrid = grid[0];
+            if ('height' in tempGrid) tempGrid.height = '65%';
+            xAxis[0].axisLabel = { ...xAxis[1].axisLabel };
+            for (const axis of yAxis.slice(2)) {
+                axis.axisLabel = { ...axisLabelStyle };
+                if (axis.type === 'value') {
+                    axis.interval = undefined;
+                    axis.splitNumber = 2;
+                }
+            }
+            yAxis[2].splitLine = { show: true, lineStyle: { color: colors.gridLine } };
+        }
 
         return {
             backgroundColor: 'transparent',
@@ -317,7 +331,11 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 ...(bbpRange ? [bbpBackground(false)] : []),
                 ...(bbpRange && !mergeControlChart ? [bbpBackground(true)] : []),
                 ...tempSeries,
-                ...controlSeries.map((series) => ({ ...series, xAxisIndex: mergeControlChart ? 0 : 1 })),
+                ...controlSeries.map((series) => ({
+                    ...series,
+                    xAxisIndex: mergeControlChart ? 0 : 1,
+                    ...(print ? { markPoint: { data: [] } } : {}),
+                })),
                 curveLabelSeries,
                 ...(phaseSeries ? [phaseSeries] : []),
             ],
