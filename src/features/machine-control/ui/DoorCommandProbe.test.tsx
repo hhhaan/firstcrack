@@ -64,14 +64,34 @@ describe('DoorCommandProbe', () => {
 
     it('shows the same test buttons on the virtual machine', () => {
         const host = renderProbe('virtual');
-        expect(host.querySelectorAll('button')).toHaveLength(9);
+        expect(host.querySelectorAll('button')).toHaveLength(10);
         expect(host.textContent).toContain('machines.doorProbe.dischargeOpen');
+    });
+
+    it('closes and reopens the command buttons', () => {
+        const host = renderProbe('giesen_w45a_w60a');
+        const toggle = [...host.querySelectorAll('button')].find(
+            (item) => item.textContent === 'machines.doorProbe.title',
+        );
+        if (!toggle) throw new Error('machines.doorProbe.title');
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        act(() => {
+            toggle.click();
+        });
+        expect(toggle.getAttribute('aria-expanded')).toBe('false');
+        expect(host.textContent).not.toContain('machines.doorProbe.fillOpen');
+        act(() => {
+            toggle.click();
+        });
+        expect(toggle.getAttribute('aria-expanded')).toBe('true');
+        expect(host.textContent).toContain('machines.doorProbe.fillOpen');
     });
 
     it('shows test buttons that are not tied to Charge or Drop', () => {
         const host = renderProbe('giesen_w45a_w60a');
         const labels = [...host.querySelectorAll('button')].map((button) => button.textContent);
         expect(labels).toEqual([
+            'machines.doorProbe.title',
             'machines.doorProbe.read',
             'machines.doorProbe.fillOpen',
             'machines.doorProbe.fillClose',
