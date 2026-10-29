@@ -1,8 +1,21 @@
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager, WindowEvent};
 
+const MAX_TRANSIENT_CREATE_ATTEMPTS: u32 = 5;
+const CREATE_BACKOFF_CAP: Duration = Duration::from_secs(30);
+
 #[derive(Default)]
-pub struct RoastMonitorState(Mutex<bool>);
+struct CreationBackoff {
+    transient_failures: u32,
+    next_attempt: Option<Instant>,
+}
+
+#[derive(Default)]
+pub struct RoastMonitorState {
+    enabled: Mutex<bool>,
+    creation: Mutex<CreationBackoff>,
+}
 
 enum Action {
     Sync(bool),
@@ -14,10 +27,30 @@ fn should_show_monitor(enabled: bool, main_minimized: bool) -> bool {
     enabled && main_minimized
 }
 
-fn is_transient_webview_error(error: &str) -> bool {
-    error.contains("8007139F")
-        || error.contains("ERROR_INVALID_STATE")
-        || error.contains("failed to create webview")
+fn is_transient_webview_hresult(error: &str) -> bool {
+    let upper = error.to_ascii_uppercase();
+    upper.contains("8007139F") || upper.contains("ERROR_INVALID_STATE")
+}
+
+fn creation_backoff_after_failure(state: &mut CreationBackoff, transient: bool) -> Option<Duration> {
+    if !transient {
+        state.transient_failures = 0;
+        state.next_attempt = None;
+        return None;
+    }
+    state.transient_failures = state.transient_failures.saturating_add(1);
+    let shift = state.transient_failures.saturating_sub(1).min(6);
+    let millis = 500_u64.saturating_mul(1_u64 << shift);
+    let delay = Duration::from_millis(millis).min(CREATE_BACKOFF_CAP);
+    state.next_attempt = Some(Instant::now() + delay);
+    Some(delay)
+}
+
+fn creation_backoff_cooldown(state: &CreationBackoff) -> Option<Duration> {
+    state
+        .next_attempt
+        .and_then(|deadline| deadline.checked_duration_since(Instant::now()))
+        .filter(|remaining| !remaining.is_zero())
 }
 
 fn restore_main(main: &tauri::WebviewWindow, focus: bool) -> tauri::Result<()> {
@@ -39,17 +72,40 @@ fn monitor_config(app: &AppHandle) -> Result<tauri::utils::config::WindowConfig,
         .ok_or_else(|| "Roast monitor configuration is missing".to_string())
 }
 
-fn ensure_monitor_window(app: &AppHandle) -> Result<Option<tauri::WebviewWindow>, String> {
+fn ensure_monitor_window(
+    app: &AppHandle,
+    creation: &mut CreationBackoff,
+) -> Result<Option<tauri::WebviewWindow>, String> {
     if let Some(window) = app.get_webview_window("roast-monitor") {
+        creation.transient_failures = 0;
+        creation.next_attempt = None;
         return Ok(Some(window));
+    }
+    if let Some(remaining) = creation_backoff_cooldown(creation) {
+        eprintln!(
+            "[roast-monitor] Webview creation backing off for {}ms",
+            remaining.as_millis()
+        );
+        return Ok(None);
     }
     let config = monitor_config(app)?;
     match crate::browser_defaults::create_window(app, &config) {
-        Ok(()) => Ok(app.get_webview_window("roast-monitor")),
+        Ok(()) => {
+            creation.transient_failures = 0;
+            creation.next_attempt = None;
+            Ok(app.get_webview_window("roast-monitor"))
+        }
         Err(error) => {
             let message = error.to_string();
-            if is_transient_webview_error(&message) {
-                eprintln!("[roast-monitor] Webview creation deferred: {message}");
+            let transient = is_transient_webview_hresult(&message);
+            if transient && creation.transient_failures + 1 >= MAX_TRANSIENT_CREATE_ATTEMPTS {
+                return Err(message);
+            }
+            if let Some(delay) = creation_backoff_after_failure(creation, transient) {
+                eprintln!(
+                    "[roast-monitor] Webview creation deferred ({}ms): {message}",
+                    delay.as_millis()
+                );
                 Ok(None)
             } else {
                 Err(message)
@@ -58,10 +114,22 @@ fn ensure_monitor_window(app: &AppHandle) -> Result<Option<tauri::WebviewWindow>
     }
 }
 
-fn apply_on_main_thread(app: &AppHandle, action: Action) -> Result<(), String> {
-    let controller = app.state::<RoastMonitorState>();
-    let mut enabled = controller.0.lock().map_err(|error| error.to_string())?;
+fn destroy_monitor_if_present(app: &AppHandle) {
+    if let Some(monitor) = app.get_webview_window("roast-monitor") {
+        let _ = monitor.destroy();
+    }
+}
+
+fn apply_inner(app: &AppHandle, action: Action) -> Result<(), String> {
+    let state = app.state::<RoastMonitorState>();
+    let mut enabled = state.enabled.lock().map_err(|error| error.to_string())?;
+    let mut creation = state.creation.lock().map_err(|error| error.to_string())?;
     if let Action::Sync(next) = action {
+        if !next {
+            destroy_monitor_if_present(app);
+            creation.transient_failures = 0;
+            creation.next_attempt = None;
+        }
         *enabled = next;
     }
     let Some(main) = app.get_webview_window("main") else {
@@ -78,15 +146,11 @@ fn apply_on_main_thread(app: &AppHandle, action: Action) -> Result<(), String> {
     let main_minimized = main.is_minimized().map_err(|error| error.to_string())?;
     let show_monitor = !returning && should_show_monitor(*enabled, main_minimized);
 
-    if *enabled && monitor.is_none() {
-        let _ = ensure_monitor_window(app)?;
-    }
-
     if show_monitor {
-        let monitor = if let Some(window) = app.get_webview_window("roast-monitor") {
+        let monitor = if let Some(window) = monitor {
             window
         } else {
-            match ensure_monitor_window(app)? {
+            match ensure_monitor_window(app, &mut creation)? {
                 Some(window) => window,
                 None => return Ok(()),
             }
@@ -122,21 +186,18 @@ fn apply_on_main_thread(app: &AppHandle, action: Action) -> Result<(), String> {
     Ok(())
 }
 
-async fn run_on_ui_thread(app: AppHandle, action: Action) -> Result<(), String> {
-    let (send, receive) = tokio::sync::oneshot::channel();
-    let app_for_thread = app.clone();
-    app.run_on_main_thread(move || {
-        let _ = send.send(apply_on_main_thread(&app_for_thread, action));
-    })
-    .map_err(|error| error.to_string())?;
-    receive.await.map_err(|error| error.to_string())?
-}
-
 async fn apply(app: AppHandle, action: Action) -> Result<(), String> {
     static APPLY: std::sync::LazyLock<tokio::sync::Mutex<()>> =
         std::sync::LazyLock::new(|| tokio::sync::Mutex::new(()));
     let _guard = APPLY.lock().await;
-    run_on_ui_thread(app, action).await
+    tauri::async_runtime::spawn_blocking(move || {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| apply_inner(&app, action))) {
+            Ok(result) => result,
+            Err(_) => Err("Roast monitor window logic panicked".to_string()),
+        }
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -209,10 +270,40 @@ mod tests {
     }
 
     #[test]
-    fn recognizes_transient_webview_creation_failures() {
-        assert!(is_transient_webview_error(
+    fn transient_hresult_matches_only_known_webview2_state_errors() {
+        assert!(is_transient_webview_hresult(
             "runtime error: failed to create webview: WebView2 error: WindowsError(Error { code: HRESULT(0x8007139F)"
         ));
-        assert!(!is_transient_webview_error("Roast monitor configuration is missing"));
+        assert!(is_transient_webview_hresult("ERROR_INVALID_STATE in environment"));
+        assert!(!is_transient_webview_hresult(
+            "runtime error: failed to create webview: WebView2 error: other"
+        ));
+        assert!(!is_transient_webview_hresult("Roast monitor configuration is missing"));
+    }
+
+    #[test]
+    fn creation_backoff_waits_then_allows_retry() {
+        let mut state = CreationBackoff::default();
+        let delay = creation_backoff_after_failure(&mut state, true).unwrap();
+        assert_eq!(state.transient_failures, 1);
+        assert!(creation_backoff_cooldown(&state).unwrap() <= delay);
+
+        state.next_attempt = Some(Instant::now() - Duration::from_millis(1));
+        assert!(creation_backoff_cooldown(&state).is_none());
+
+        creation_backoff_after_failure(&mut state, false);
+        assert_eq!(state.transient_failures, 0);
+        assert!(state.next_attempt.is_none());
+    }
+
+    #[test]
+    fn permanent_create_errors_clear_transient_backoff() {
+        let mut state = CreationBackoff {
+            transient_failures: 2,
+            next_attempt: Some(Instant::now() + Duration::from_secs(5)),
+        };
+        assert!(creation_backoff_after_failure(&mut state, false).is_none());
+        assert_eq!(state.transient_failures, 0);
+        assert!(state.next_attempt.is_none());
     }
 }
