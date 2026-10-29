@@ -3,6 +3,7 @@ import type { AlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
 import type { CurveStyles } from '../lib/curve-style';
 import type { RoastEventButtons } from '../lib/event-buttons';
+import type { ManualControlSetting } from '../lib/manual-controls';
 import type { TemperatureUnit } from '../lib/temperature';
 
 export type PollIntervalMs = 500 | 1000;
@@ -69,6 +70,8 @@ export type RoastSettings = {
     eventMarkerStyle: EventMarkerStyle;
     /** Which side-panel mark buttons are shown. Drop stays on. */
     eventButtons: RoastEventButtons;
+    /** Hand-entered gas, airflow, and drum. Numbers only; name and unit are the operator's. */
+    manualControls: ManualControlSetting[];
     /** Per-channel line color, width, and dash for live and reference curves. */
     curveStyles: CurveStyles;
     tempMinC: number;

@@ -726,10 +726,11 @@ describe('RoastTempChart interactions', () => {
 
     it.each([
         ['0', '', '', '', { gas: '0' }],
-        ['', '50%', '', '', { airflow: '50%' }],
+        ['', '50%', '', '', { airflow: '50' }],
         ['', '', '0', '', { drum: '0' }],
         ['', '', ' 55.5 ', '', { drum: '55.5' }],
-        ['1.2 kPa', '30', '55', '색 변화 확인', { gas: '1.2 kPa', airflow: '30', drum: '55' }],
+        ['1.', '', '', '', { gas: '1' }],
+        ['1.2 kPa', '30', '55', '색 변화 확인', { gas: '1.2', airflow: '30', drum: '55' }],
     ])('keeps all fields visible and records manual values %s / %s / %s', (gas, airflow, drum, note, controls) => {
         const onAddNote = vi.fn();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, onAddNote })));
@@ -799,7 +800,7 @@ describe('RoastTempChart interactions', () => {
         const form = container.querySelector('[data-chart-marker-edit]') as HTMLFormElement;
         expect(form.textContent).toContain('Gas 0');
         expect((form.querySelector('#chart-marker-gas') as HTMLInputElement).value).toBe('0');
-        expect((form.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
+        expect((form.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50');
         expect((form.querySelector('#chart-marker-drum') as HTMLInputElement).value).toBe('55');
         expect((form.querySelector('#chart-marker-note') as HTMLTextAreaElement).value).toBe('color');
         const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
@@ -811,8 +812,8 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerEdit).toHaveBeenCalledWith('manual', {
             timeSec: 8,
             note: 'color',
-            gas: '1.2 kPa',
-            airflow: '50%',
+            gas: '1.2',
+            airflow: '50',
             drum: '55',
         });
     });

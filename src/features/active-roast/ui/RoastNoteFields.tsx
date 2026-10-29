@@ -1,7 +1,11 @@
+import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type ManualControlId, noteControlDraft } from '../lib/manual-controls';
 
 export type RoastNoteValues = { gas: string; airflow: string; drum: string; note: string };
+
+const labelKey = (id: ManualControlId) => (id === 'drum' ? 'activeRoast.controls.drum' : `activeRoast.noteEntry.${id}`);
 
 const fitComment = (gas: HTMLInputElement, comment: HTMLTextAreaElement) => {
     comment.style.height = `${gas.offsetHeight}px`;
@@ -23,40 +27,48 @@ export const RoastNoteFields = ({
     autoFocus?: boolean;
 }) => {
     const { t } = useTranslation();
-    const gasRef = useRef<HTMLInputElement>(null);
+    const controls = useRoastSettings().manualControls.filter((control) => control.enabled);
+    const measureRef = useRef<HTMLInputElement>(null);
     const commentRef = useRef<HTMLTextAreaElement>(null);
     const inputClass =
-        'min-w-0 w-full rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none focus:border-(--color-primary)';
+        'min-w-0 w-full rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus:border-(--color-primary)';
 
     // biome-ignore lint/correctness/useExhaustiveDependencies: note changes update the textarea DOM before its height is measured
     useLayoutEffect(() => {
-        const gas = gasRef.current;
+        const measure = measureRef.current;
         const comment = commentRef.current;
-        if (!gas || !comment) return;
-        fitComment(gas, comment);
+        if (!measure || !comment) return;
+        fitComment(measure, comment);
     }, [values.note]);
 
     return (
-        <div className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
-            {(['gas', 'airflow', 'drum'] as const).map((field) => (
-                <label key={field} className="contents" htmlFor={`${prefix}-${field}`}>
-                    <span>
-                        {field === 'drum'
-                            ? `${t('activeRoast.controls.drum')} RPM`
-                            : t(`activeRoast.noteEntry.${field}`)}
-                    </span>
-                    <input
-                        ref={field === 'gas' ? gasRef : undefined}
-                        id={`${prefix}-${field}`}
-                        autoFocus={autoFocus && field === 'gas'}
-                        value={values[field]}
-                        placeholder={field === 'drum' ? 'RPM' : t(`activeRoast.noteEntry.${field}Placeholder`)}
-                        inputMode={field === 'drum' ? 'decimal' : undefined}
-                        onChange={(event) => onChange({ ...values, [field]: event.target.value })}
-                        className={inputClass}
-                    />
-                </label>
-            ))}
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
+            {controls.map((control, index) => {
+                const label = control.label.trim() || t(labelKey(control.id));
+                const unit = control.unit.trim();
+                return (
+                    <label key={control.id} className="contents" htmlFor={`${prefix}-${control.id}`}>
+                        <span className="max-w-24 truncate" title={label}>
+                            {label}
+                        </span>
+                        <input
+                            ref={index === 0 ? measureRef : undefined}
+                            id={`${prefix}-${control.id}`}
+                            autoFocus={autoFocus && index === 0}
+                            value={values[control.id]}
+                            placeholder={t(`activeRoast.noteEntry.${control.id}Placeholder`)}
+                            inputMode="decimal"
+                            autoComplete="off"
+                            spellCheck={false}
+                            onChange={(event) =>
+                                onChange({ ...values, [control.id]: noteControlDraft(event.target.value) })
+                            }
+                            className={inputClass}
+                        />
+                        <span className="min-w-4 font-mono text-[11px] whitespace-nowrap">{unit}</span>
+                    </label>
+                );
+            })}
             <label className="contents" htmlFor={commentId}>
                 <span>{t('activeRoast.noteEntry.comment')}</span>
                 <textarea
@@ -68,6 +80,7 @@ export const RoastNoteFields = ({
                     onChange={(event) => onChange({ ...values, note: event.target.value })}
                     className={`${inputClass} resize-none overflow-hidden`}
                 />
+                <span />
             </label>
         </div>
     );

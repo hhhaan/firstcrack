@@ -40,6 +40,7 @@ import { BatchTitleNameSettings } from './BatchTitleNameSettings';
 import { BatchTitleSettings } from './BatchTitleSettings';
 import { CurveStyleSection } from './CurveStyleSection';
 import { EventButtonSection } from './EventButtonSection';
+import { ManualControlSection } from './ManualControlSection';
 import { RoastingSettingsImport } from './RoastingSettingsImport';
 import {
     SettingsCheckRow,
@@ -1104,6 +1105,7 @@ export const RoastSettingsTab = () => {
                 </SettingsSection.Body>
             </SettingsSection>
             <EventButtonSection />
+            <ManualControlSection />
 
             <SettingsSection group="display">
                 <SettingsSection.Header title={tk('dataVisibility')} description={tk('dataVisibilityDescription')} />

@@ -20,12 +20,14 @@ import { isRemovableLogEvent } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
+import { commitManualControl } from '@features/active-roast/lib/manual-controls';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
 import type { TurningPoint } from '@features/active-roast/lib/turningPoints';
 import {
     type EventMarkerStyle,
+    getRoastSettings,
     type RoastSettings,
     type TemperatureUnit,
     useRoastSettings,
@@ -818,12 +820,13 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                   ? noteTitle
                   : roastEventLabel(selected.event);
             const heat = labelHeat(selected.event, selected.note);
+            const manual = getRoastSettings().manualControls;
             const controls =
                 selected.event === 'Note'
                     ? {
-                          gas: selected.gas ?? '',
-                          airflow: selected.airflow ?? '',
-                          drum: selected.drum ?? '',
+                          gas: commitManualControl('gas', selected.gas ?? '', manual),
+                          airflow: commitManualControl('airflow', selected.airflow ?? '', manual),
+                          drum: commitManualControl('drum', selected.drum ?? '', manual),
                           note: selected.note ?? '',
                       }
                     : null;
@@ -942,10 +945,11 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     );
 
     const submitNote = useCallback(() => {
+        const manual = getRoastSettings().manualControls;
         const note = noteValues.note.trim();
-        const gas = noteValues.gas.trim();
-        const airflow = noteValues.airflow.trim();
-        const drum = noteValues.drum.trim();
+        const gas = commitManualControl('gas', noteValues.gas, manual);
+        const airflow = commitManualControl('airflow', noteValues.airflow, manual);
+        const drum = commitManualControl('drum', noteValues.drum, manual);
         if (!noteForm || (!note && !gas && !airflow && !drum) || !onAddNote) return;
         if (gas || airflow || drum)
             onAddNote(note, noteForm.timeSec, {
@@ -967,11 +971,17 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const note = editForm.heat == null ? null : heatNote(editForm.heat, editForm.heatSuffix);
         if (editForm.heat != null && note == null) return;
         const controls = editForm.controls;
+        const manual = getRoastSettings().manualControls;
         onEventMarkerEdit(editForm.logId, {
             timeSec: clampMarkerTime(editForm.event, timeSec, currentTimeSec, axisMax),
             ...(note != null ? { note } : {}),
             ...(controls
-                ? { note: controls.note, gas: controls.gas, airflow: controls.airflow, drum: controls.drum }
+                ? {
+                      note: controls.note,
+                      gas: commitManualControl('gas', controls.gas, manual),
+                      airflow: commitManualControl('airflow', controls.airflow, manual),
+                      drum: commitManualControl('drum', controls.drum, manual),
+                  }
                 : {}),
         });
         setEditForm(null);

@@ -515,6 +515,32 @@ describe('normalize — font scale', () => {
     );
 });
 
+describe('normalize — manual controls', () => {
+    it('starts with gas, airflow, and drum RPM', () => {
+        expect(normalizeRoastSettings({}).manualControls).toEqual([
+            { id: 'gas', label: '', unit: '%', enabled: true },
+            { id: 'airflow', label: '', unit: '%', enabled: true },
+            { id: 'drum', label: '', unit: 'RPM', enabled: true },
+        ]);
+    });
+
+    it('keeps a renamed unit and a hidden drum, and drops an unknown control', () => {
+        expect(
+            normalizeRoastSettings({
+                manualControls: [
+                    { id: 'gas', label: '버너압', unit: 'kPa', enabled: true },
+                    { id: 'drum', label: '', unit: 'Hz', enabled: false },
+                    { id: 'damper', label: '댐퍼', unit: '%', enabled: true },
+                ] as never,
+            }).manualControls,
+        ).toEqual([
+            { id: 'gas', label: '버너압', unit: 'kPa', enabled: true },
+            { id: 'airflow', label: '', unit: '%', enabled: true },
+            { id: 'drum', label: '', unit: 'Hz', enabled: false },
+        ]);
+    });
+});
+
 describe('normalize — event buttons', () => {
     it('shows the three built-in buttons when the store has no event buttons', () => {
         expect(normalizeRoastSettings({}).eventButtons).toEqual({

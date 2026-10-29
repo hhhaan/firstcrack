@@ -41,7 +41,7 @@ describe('RoastLog removable entries', () => {
                 }),
             ),
         );
-        expect(container.textContent).toContain('Gas 0 · Airflow 1.2 kPa · Drum 55 RPM');
+        expect(container.textContent).toContain('Gas 0 % · Airflow 1.2 kPa · Drum 55 RPM');
     });
 
     it.each(['panel', 'main', 'sidebar'] as const)(

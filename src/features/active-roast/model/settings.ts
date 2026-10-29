@@ -16,6 +16,7 @@ import {
 } from '../lib/curve-style';
 import { DEFAULT_EVENT_BUTTONS, normalizeEventButtons } from '../lib/event-buttons';
 import { mapFirescopeGraphSettings } from '../lib/firescope-settings';
+import { DEFAULT_MANUAL_CONTROLS, normalizeManualControls } from '../lib/manual-controls';
 import {
     fromDisplayTempDelta,
     normalizeRorTicks,
@@ -125,6 +126,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     bbpEnabled: true,
     eventMarkerStyle: 'line',
     eventButtons: DEFAULT_EVENT_BUTTONS,
+    manualControls: [...DEFAULT_MANUAL_CONTROLS],
     curveStyles: DEFAULT_CURVE_STYLES,
     tempMinC: 130,
     tempMaxC: 240,
@@ -380,6 +382,7 @@ export const normalizeRoastSettings = (
         fontScalePct: isFontScalePct(merged.fontScalePct) ? merged.fontScalePct : DEFAULT_SETTINGS.fontScalePct,
         eventMarkerStyle: eventMarkerStyleOf(merged.eventMarkerStyle),
         eventButtons: normalizeEventButtons(merged.eventButtons),
+        manualControls: normalizeManualControls(merged.manualControls),
         logExpanded: asBool(merged.logExpanded, DEFAULT_SETTINGS.logExpanded),
         batchTitleSource: merged.batchTitleSource === 'profile' ? 'profile' : 'bean',
         batchTitleNumbering:
