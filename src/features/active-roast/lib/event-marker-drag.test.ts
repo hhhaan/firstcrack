@@ -78,10 +78,10 @@ describe('applyEventMarkerDrag', () => {
         expect(applyEventMarkerDrag(entries, 'charge', 20, livePoints, 'C', 100)).toBe(entries);
     });
 
-    it('moves Heater time and keeps the committed heat note', () => {
+    it('moves Heater time and keeps the recorded bean temperature and heat note', () => {
         const entries = [entry('heater', 'Heater', 30, 160, '50%')];
         const next = applyEventMarkerDrag(entries, 'heater', 60, livePoints, 'C', 90);
-        expect(next[0]).toMatchObject({ timeSec: 60, tempC: 200, note: '50%' });
+        expect(next[0]).toMatchObject({ timeSec: 60, tempC: 160, temp: '160.0°C', note: '50%' });
     });
 
     it('rounds and clamps time to the recorded interval, including zero', () => {
@@ -152,6 +152,12 @@ describe('applyEventMarkerEdit', () => {
         const entries = [entry('heater', 'Heater', 30, 160, '50%')];
         const next = applyEventMarkerEdit(entries, 'heater', { note: '70%' }, livePoints, 'C', 90);
         expect(next[0]).toMatchObject({ timeSec: 30, tempC: 160, note: '70%' });
+    });
+
+    it('moves Heater time and heat together without taking the curve temperature', () => {
+        const entries = [entry('heater', 'Heater', 30, 160, '50%')];
+        const next = applyEventMarkerEdit(entries, 'heater', { timeSec: 60, note: '40%' }, livePoints, 'C', 90);
+        expect(next[0]).toMatchObject({ timeSec: 60, tempC: 160, temp: '160.0°C', note: '40%' });
     });
 
     it('updates Note body and time together', () => {

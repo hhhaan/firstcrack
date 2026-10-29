@@ -107,6 +107,7 @@ export function upsertReviewTurningPoint(
 /**
  * Patch an event from the chart or log editor. Charge stays immutable.
  * Time changes snap BT to a sample; temperature changes resolve the closest curve crossing.
+ * A Heater keeps its recorded BT. Time and the heat note still change.
  * Note applies to Heater/Note only.
  */
 export function applyEventMarkerEdit(
@@ -187,6 +188,9 @@ export function applyEventMarkerEdit(
                     ? Math.max(0, Math.round(nextTimeSec))
                     : Math.min(Math.max(Math.round(nextTimeSec), 0), Math.floor(maxTimeSec));
             const newTimeStr = formatElapsed(boundedTimeSec);
+            if (target.event === 'Heater' && nextTemp === undefined) {
+                return { ...next, time: newTimeStr, timeSec: boundedTimeSec };
+            }
             const nearest = nearestLivePointAt(livePoints, boundedTimeSec);
             const close = nearest != null && Math.abs(nearest.time - boundedTimeSec) <= NEAREST_BT_MAX_SEC;
             if (target.event === 'Note' && !close) {
