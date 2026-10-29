@@ -772,7 +772,8 @@ class RoasterManager:
         try:
             # 어댑터 hang 시 /temperatures가 무기한 pending 되지 않도록 전역 타임아웃 (H7).
             # 주의: executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다.
-            reading = await asyncio.wait_for(adapter.read(), timeout=config.READ_TIMEOUT)
+            read_timeout = config.S7_READ_TIMEOUT_S if self._protocol == "s7" else config.READ_TIMEOUT
+            reading = await asyncio.wait_for(adapter.read(), timeout=read_timeout)
             # 예외 없이 돌아온 센티넬/NaN도 실패로 승격 — 아래 except가 stale/재연결을 담당 (H1)
             _validate_bt(reading.bt)
             for role in ("heater", "fan", "drum"):

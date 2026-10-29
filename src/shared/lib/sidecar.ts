@@ -23,6 +23,10 @@ export const SIDECAR_BASE = 'http://127.0.0.1:9999';
 
 /** 폴링·상태 조회 등 즉답 요청 기준 */
 const DEFAULT_TIMEOUT_MS = 5000;
+/** PID와 UI의 읽기가 직렬화돼도 S7 전체 읽기 제한(4.5s)을 기다린다. */
+const TEMPERATURE_TIMEOUT_MS = 10_000;
+/** S7 복합 제어는 최대 6회 I/O × 수신 3s와 잠금 대기를 포함한다. */
+const CONTROL_TIMEOUT_MS = 30_000;
 /** connect는 사이드카 내부 핸드셰이크가 더 길다 (Kaleido 15s, Phidget attach 최대 10s) */
 const CONNECT_TIMEOUT_MS = 20_000;
 /** /scan-network: /24 TCP probe, ~2–3s typical, headroom for slow LANs */
@@ -186,7 +190,7 @@ export const sidecar = {
     // 기다려야 하므로, 5s 기본값이면 요청이 먼저 abort돼 상태가 갱신되지 않는다.
     disconnect: () => request<SidecarStatus>('/disconnect', { method: 'POST' }, CONNECT_TIMEOUT_MS),
 
-    getTemperatures: () => request<TemperatureReading>('/temperatures'),
+    getTemperatures: () => request<TemperatureReading>('/temperatures', undefined, TEMPERATURE_TIMEOUT_MS),
 
     updateSettings: (settings: Record<string, unknown>, options?: { reportErrors?: boolean }) =>
         request<{ ok: boolean }>(
@@ -206,7 +210,7 @@ export const sidecar = {
     startRoast: () => request<{ ok: boolean }>('/start', { method: 'POST' }, DEFAULT_TIMEOUT_MS, false),
 
     // 로스트 종료/리셋 — 어댑터 상태를 초기화해 다음 로스트를 예열 상태에서 시작
-    resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }, DEFAULT_TIMEOUT_MS, false),
+    resetRoast: () => request<{ ok: boolean }>('/reset', { method: 'POST' }, CONTROL_TIMEOUT_MS, false),
 
     /**
      * 머신 제어값 쓰기. 사이드카가 write_map 범위로 자른 뒤 `applied`로 실제 값을 돌려준다.
@@ -214,30 +218,46 @@ export const sidecar = {
      */
     /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
     doorProbe: (action: DoorProbeAction) =>
-        request<DoorProbeResult>('/door-probe', {
-            method: 'POST',
-            body: JSON.stringify({ action }),
-        }),
+        request<DoorProbeResult>(
+            '/door-probe',
+            {
+                method: 'POST',
+                body: JSON.stringify({ action }),
+            },
+            CONTROL_TIMEOUT_MS,
+        ),
 
     setControl: (cmd: Partial<Record<'heater' | 'fan' | 'drum', number>>, retry?: { connectionEpoch: number }) =>
-        request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>('/control', {
-            method: 'POST',
-            body: JSON.stringify(retry ? { ...cmd, retry_epoch: retry.connectionEpoch } : cmd),
-        }),
+        request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>(
+            '/control',
+            {
+                method: 'POST',
+                body: JSON.stringify(retry ? { ...cmd, retry_epoch: retry.connectionEpoch } : cmd),
+            },
+            CONTROL_TIMEOUT_MS,
+        ),
 
     /** PID 제어 시작. sv = 목표 BT(°C). 409 = 미연결/미지원, 400 = 범위 밖 */
     pidOn: (sv: number) =>
-        request<{ ok: boolean; pid: PidRuntime }>('/pid/on', {
-            method: 'POST',
-            body: JSON.stringify({ sv }),
-        }),
+        request<{ ok: boolean; pid: PidRuntime }>(
+            '/pid/on',
+            {
+                method: 'POST',
+                body: JSON.stringify({ sv }),
+            },
+            CONTROL_TIMEOUT_MS,
+        ),
 
     /** PID 해제. mode='hold'는 현재 화력 유지, 'zero'는 히터 0. */
     pidOff: (mode: 'hold' | 'zero' = 'hold') =>
-        request<{ ok: boolean; pid: PidRuntime }>('/pid/off', {
-            method: 'POST',
-            body: JSON.stringify({ mode }),
-        }),
+        request<{ ok: boolean; pid: PidRuntime }>(
+            '/pid/off',
+            {
+                method: 'POST',
+                body: JSON.stringify({ mode }),
+            },
+            CONTROL_TIMEOUT_MS,
+        ),
 
     pidSetSv: (sv: number) =>
         request<{ ok: boolean; pid: PidRuntime }>('/pid/sv', {

@@ -21,7 +21,7 @@ STALE_TOLERANCE_READS = 3
 RECONNECT_BACKOFFS = [2.0, 5.0, 10.0]
 
 # adapter.read() 전역 타임아웃(초). 드라이버가 응답하지 않아도 /temperatures가
-# 무기한 pending 되지 않게 한다. 프론트 요청 타임아웃(5s)보다 짧아야 하고,
+# 무기한 pending 되지 않게 한다. 프론트 온도 요청 타임아웃(10s)보다 짧아야 하고,
 # 최악 케이스 RTU read(채널 3개 × retry ≈ 1.8s)보다는 길어야 한다.
 READ_TIMEOUT = 3.0
 
@@ -48,18 +48,19 @@ S7_MIN_REQUEST_INTERVAL = 0.04  # PLC 과부하 방지 40ms
 S7_PROBE_TIMEOUT_S = 1.0
 
 # ── S7 I/O 예산 ─────────────────────────────────────────────────────────
-# manager의 wait_for(READ_TIMEOUT)는 코루틴만 풀어주고 snap7 동기 호출이 도는
+# manager의 wait_for(S7_READ_TIMEOUT_S)는 코루틴만 풀어주고 snap7 동기 호출이 도는
 # executor 스레드는 중단시키지 못한다. 그 스레드가 _io_lock을 오래 쥐면 재연결
 # disconnect가 락 대기열 뒤에 줄을 서 백오프와 무관하게 지연된다.
 # → 읽기 경로 전체를 벽시계 예산으로 묶어 "스레드가 wait_for 만료 전에 반드시
 #   락을 놓는다"를 보장한다 (좀비 스레드가 생기지 않는 조건).
-S7_RECV_TIMEOUT_MS = 1000         # snap7 RecvTimeout. 기본 3000 → 하향
-S7_READ_BUDGET_S = 2.0            # _read_all 진입~반환 벽시계 예산(락 대기 포함)
+S7_RECV_TIMEOUT_MS = 3000         # Artisan이 별도로 변경하지 않는 snap7 기본 수신 대기
+S7_READ_BUDGET_S = 4.0            # _read_all 진입~반환 벽시계 예산(락 대기 포함)
+S7_READ_TIMEOUT_S = 4.5           # manager 상한 — 읽기 예산보다 길고 HTTP 대기보다 짧게
 S7_IO_LOCK_TIMEOUT_S = 0.5        # 읽기/쓰기 락 획득 상한 — 실패 = 읽기 실패로 승격
-S7_TEARDOWN_LOCK_TIMEOUT_S = 3.0  # connect 바인딩/disconnect 락 상한(최악 read보다 커야 함)
+S7_TEARDOWN_LOCK_TIMEOUT_S = 5.0  # connect 바인딩/disconnect 락 상한(최악 read보다 커야 함)
 # 매 시도 전에 throttle + RecvTimeout이 남은 예산에 들어가는지 검사한다.
-# 첫 시도 여유: 락 0.5 + throttle 0.04 + 수신 1.0 = 1.54s < 예산 2.0s.
-# 수신 상한을 지키는 드라이버에서 읽기 예산 2.0s < READ_TIMEOUT(3.0s).
+# 첫 시도 여유: 락 0.5 + throttle 0.04 + 수신 3.0 = 3.54s < 예산 4.0s.
+# 수신 상한을 지키는 드라이버에서 읽기 예산 4.0s < S7_READ_TIMEOUT_S(4.5s).
 
 # ── 소프트웨어 PID / 제어 안전 ──────────────────────────────────────────
 # tick 주기(초). Artisan이 Giesen 프로파일에서 쓰는 샘플 주기와 같다(Delay=1000).

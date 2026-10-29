@@ -932,18 +932,42 @@ class HangingAdapter:
 
 
 class TestReadTimeout:
-    async def test_hanging_read_times_out(self, manager, monkeypatch):
+    @pytest.mark.parametrize("protocol", ["virtual", "s7"])
+    async def test_hanging_read_times_out(self, manager, monkeypatch, protocol):
         import config
 
         monkeypatch.setattr(config, "READ_TIMEOUT", 0.05)
+        monkeypatch.setattr(config, "S7_READ_TIMEOUT_S", 0.05)
         manager._adapter = HangingAdapter()
         manager._connected = True
-        manager._protocol = "virtual"
+        manager._protocol = protocol
         manager._merged_params = {}
 
         data = await asyncio.wait_for(manager.read_temperatures(), timeout=1.0)
         assert data["bt"] is None
         assert manager._connected is False
+        if manager._reconnect_task is not None:
+            manager._reconnect_task.cancel()
+
+    @pytest.mark.parametrize("protocol, succeeds", [("s7", True), ("virtual", False)])
+    async def test_longer_read_deadline_applies_only_to_s7(self, manager, monkeypatch, protocol, succeeds):
+        import config
+
+        class SlowAdapter(HangingAdapter):
+            async def read(self):
+                await asyncio.sleep(0.06)
+                return make_reading(bt=180.0)
+
+        monkeypatch.setattr(config, "READ_TIMEOUT", 0.02)
+        monkeypatch.setattr(config, "S7_READ_TIMEOUT_S", 0.2)
+        manager._adapter = SlowAdapter()
+        manager._connected = True
+        manager._protocol = protocol
+        manager._merged_params = {}
+
+        data = await manager.read_temperatures()
+        assert data["bt"] == (180.0 if succeeds else None)
+        assert manager._connected is succeeds
         if manager._reconnect_task is not None:
             manager._reconnect_task.cancel()
 

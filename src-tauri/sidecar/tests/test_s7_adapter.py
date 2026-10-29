@@ -282,11 +282,11 @@ def fast_s7_timing(monkeypatch):
 
     상수 간 부등식 자체는 TestBudgetRelation이 실제 값으로 검증한다.
     """
-    monkeypatch.setattr(config, "S7_RECV_TIMEOUT_MS", 200)
-    monkeypatch.setattr(config, "S7_READ_BUDGET_S", 0.4)
+    monkeypatch.setattr(config, "S7_RECV_TIMEOUT_MS", 600)
+    monkeypatch.setattr(config, "S7_READ_BUDGET_S", 0.8)
     monkeypatch.setattr(config, "S7_IO_LOCK_TIMEOUT_S", 0.1)
-    monkeypatch.setattr(config, "S7_TEARDOWN_LOCK_TIMEOUT_S", 0.6)
-    monkeypatch.setattr(config, "READ_TIMEOUT", 0.6)
+    monkeypatch.setattr(config, "S7_TEARDOWN_LOCK_TIMEOUT_S", 1.0)
+    monkeypatch.setattr(config, "S7_READ_TIMEOUT_S", 0.9)
 
 
 def _unresponsive_read(delay: float | None = None):
@@ -312,7 +312,7 @@ def _slow_ok_read(delay: float | None = None):
 @pytest.mark.usefixtures("fast_s7_timing")
 class TestReadBudget:
     async def test_unresponsive_plc_returns_within_budget(self, adapter):
-        """manager의 READ_TIMEOUT(3.0) 만료 전에 스레드가 스스로 락을 놓아야 한다."""
+        """manager의 S7 읽기 제한 만료 전에 스레드가 스스로 락을 놓아야 한다."""
         adapter._plc.db_read.side_effect = _unresponsive_read()
 
         t0 = time.monotonic()
@@ -320,7 +320,7 @@ class TestReadBudget:
             await adapter.read()
         elapsed = time.monotonic() - t0
 
-        assert elapsed < config.READ_TIMEOUT, f"예산 초과: {elapsed:.2f}s"
+        assert elapsed < config.S7_READ_TIMEOUT_S, f"예산 초과: {elapsed:.2f}s"
         assert elapsed < config.S7_READ_BUDGET_S + config.S7_MIN_REQUEST_INTERVAL + _recv_s()
         # 락이 반납됐어야 다음 요청이 대기 없이 들어온다 (좀비 없음)
         assert adapter._io_lock.acquire(timeout=0.0) is True
@@ -335,7 +335,7 @@ class TestReadBudget:
             await adapter.read()
         elapsed = time.monotonic() - t0
 
-        assert elapsed < config.READ_TIMEOUT
+        assert elapsed < config.S7_READ_TIMEOUT_S
         # 5채널 × retry 포함 2회 = 10회가 무제한일 때의 값
         assert adapter._plc.db_read.call_count < 10
 
@@ -379,10 +379,10 @@ class TestBudgetRelation:
             + config.S7_RECV_TIMEOUT_MS / 1000.0
         )
         assert first_attempt < config.S7_READ_BUDGET_S
-        assert config.S7_READ_BUDGET_S < config.READ_TIMEOUT
+        assert config.S7_READ_BUDGET_S < config.S7_READ_TIMEOUT_S
         assert config.S7_READ_BUDGET_S < config.S7_TEARDOWN_LOCK_TIMEOUT_S
 
-    @pytest.mark.parametrize("response_s, expected_calls", [(0.1, 5), (0.6, 2), (0.99, 1)])
+    @pytest.mark.parametrize("response_s, expected_calls", [(0.1, 5), (0.6, 2), (2.99, 1)])
     async def test_default_budget_reserves_receive_timeout_before_each_request(
         self, adapter, monkeypatch, response_s, expected_calls,
     ):
@@ -411,7 +411,7 @@ class TestBudgetRelation:
 
         assert len(starts) == expected_calls
         assert all(start + adapter._attempt_cost() <= 100.0 + config.S7_READ_BUDGET_S for start in starts)
-        assert now - 100.0 < config.READ_TIMEOUT
+        assert now - 100.0 < config.S7_READ_TIMEOUT_S
         assert adapter._io_lock.acquire(blocking=False)
         adapter._io_lock.release()
 
@@ -541,13 +541,13 @@ class TestPlcRebind:
 
 
 class TestConnectProbe:
-    async def test_sets_one_second_receive_timeout_before_connect(self, adapter):
+    async def test_sets_three_second_receive_timeout_before_connect(self, adapter):
         from snap7.type import Parameter
 
         client = MagicMock()
         client.get_cpu_state.return_value = "S7CpuStatusRun"
         client.connect.side_effect = lambda *args: client.set_param.assert_called_once_with(
-            Parameter.RecvTimeout, 1000,
+            Parameter.RecvTimeout, 3000,
         )
         with patch("snap7.client.Client", return_value=client):
             await adapter.connect()

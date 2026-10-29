@@ -370,7 +370,8 @@ Notes:
 
 읽기 실패 판정 (manager 공통 경로):
 
-- `adapter.read()`는 `config.READ_TIMEOUT`(3.0s) 전역 타임아웃 안에서 await한다. 초과하면 읽기 실패로 처리한다. 단, executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다 — HTTP 핸들러만 풀려난다.
+- `adapter.read()`는 S7에서 `config.S7_READ_TIMEOUT_S`(4.5s), 다른 프로토콜에서 `config.READ_TIMEOUT`(3.0s) 안에서 await한다. S7은 별도 읽기 예산4초 안에 수신 상한3초를 확보할 수 있을 때만 다음 I/O를 시작한다. 초과하면 읽기 실패로 처리한다. 단, executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다 — HTTP 핸들러만 풀려난다.
+- 웹뷰의 `/temperatures` HTTP 대기는10초로, PID/UI의 직렬 읽기 대기를 포함한다. 이는 폴링 주기가 아니다. 각 채널의 응답이 늦어 읽기 예산을 소진하면 수신 타임아웃 이전에도 전체 읽기는 실패할 수 있다.
 - BT가 `config.BT_VALID_MIN_C` 이하이거나 `config.BT_VALID_MAX_C` 이상, 또는 NaN/Inf면 **예외 없이 반환됐더라도 읽기 실패로 승격**한다. 어댑터가 실패를 `-1.0` 같은 센티넬로 인코딩하는 경우(Phidget 분리, Kaleido 핸드셰이크 유실, Probat 노드 누락)를 잡기 위한 것이다.
 - ET는 검증하지 않는다. ET 미장착 머신에서 `-1.0`은 정상적인 "채널 없음" 값이다.
 - 실패가 `STALE_TOLERANCE_READS`회 이하이고 직전 성공 값이 있으면 그 값을 `stale=true`로 반환한다. 초과하면 `connected=false` + 재연결 루프로 전환하고 `bt=null`을 반환한다.
@@ -823,4 +824,6 @@ On successful delivery, `wrote` is the requested command code and `command_befor
 
 Like Artisan, an individual I/O error does not skip subsequent command tokens in the same session. FC reports the failure as HTTP 502 after attempting the remaining tokens, including the final zero. A connection/session change or lock acquisition timeout aborts the request immediately; remaining commands are never transferred to a replacement connection. Controls are not retried or reconnected automatically by this path.
 
-The parity scope is the eight button command sequences, not full application or wire timing. FC retains its monotonic clock, 1000ms receive timeout, bounded lock wait, session fencing and its own polling schedule. These safeguards and actual hardware behavior are not claimed identical to Artisan.
+The S7 receive timeout is 3000ms, matching the local Snap7 default left unchanged by Artisan. Each response can complete earlier; this does not change polling cadence or the 40ms request interval. Webview requests for actuator controls, numeric controls, PID on/off and roast reset wait up to 30s for multi-I/O operations; they are not automatically resent on timeout.
+
+The parity scope is the eight button command sequences, not full application or wire timing. FC retains its monotonic clock, bounded lock wait, session fencing and its own polling schedule. These safeguards and actual hardware behavior are not claimed identical to Artisan.

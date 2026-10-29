@@ -166,9 +166,7 @@ class S7Adapter:
         def _connect() -> Any:
             _probe_tcp(self._host, self._port, config.S7_PROBE_TIMEOUT_S)
             client = snap7.client.Client()
-            # RecvTimeout 기본 3s → config 값. PLC가 응답 없이 hang하면 manager의
-            # wait_for(3s)는 만료돼도 snap7 동기 호출이 잡은 executor 스레드는
-            # 남는다 — 폴링마다 쌓이지 않게 블로킹 상한을 짧게 제한.
+            # manager 제한보다 짧게 끝나도록 수신 상한과 읽기 전체 예산을 함께 둔다.
             client.set_param(snap7.type.Parameter.RecvTimeout, config.S7_RECV_TIMEOUT_MS)
             client.connect(self._host, self._rack, self._slot, self._port)
             time.sleep(0.2)  # Artisan: wait after connect for slow PLCs
