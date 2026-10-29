@@ -55,7 +55,7 @@ export interface ProtocolTraceEntry {
     data?: string | number | boolean | null | Record<string, unknown>;
 }
 
-/** POST /door-probe. Writes follow Artisan without readback; unobserved fields are null. */
+/** POST /door-probe. Each write is read back. A byte mismatch retries that write once. */
 export interface DoorProbeResult {
     action: DoorProbeAction;
     wrote: number | null;

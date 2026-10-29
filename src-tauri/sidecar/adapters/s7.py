@@ -508,10 +508,49 @@ class S7Adapter:
                         else:
                             result[f"{bit_name}_before"] = bool(get_bool(payload, 0, bit))
                             set_bool(payload, 0, bit, bool(value))
-                        self._throttle()
-                        check_session()
-                        TRACE.record("tx", "s7", f"actuator write_area db={db} offset={offset}", bytes(payload))
-                        plc.write_area(Area.DB, db, offset, payload)
+
+                        def write_cell() -> None:
+                            self._throttle()
+                            check_session()
+                            TRACE.record("tx", "s7", f"actuator write_area db={db} offset={offset}", bytes(payload))
+                            plc.write_area(Area.DB, db, offset, payload)
+
+                        def read_back() -> bytearray:
+                            self._throttle()
+                            check_session()
+                            TRACE.record("tx", "s7", f"actuator readback db={db} offset={offset} size={size}")
+                            observed_payload = plc.read_area(Area.DB, db, offset, size)
+                            TRACE.record(
+                                "rx", "s7", f"actuator readback db={db} offset={offset}", bytes(observed_payload),
+                            )
+                            if len(observed_payload) != size:
+                                raise IOError(
+                                    f"read_area(DB,{db},{offset},{size}) returned {len(observed_payload)} bytes"
+                                )
+                            return observed_payload
+
+                        write_cell()
+                        observed = read_back()
+                        if bytes(observed) != bytes(payload):
+                            # A lost or overwritten cell may be sent once more. A failed read is not a mismatch.
+                            TRACE.record(
+                                "err", "s7", f"actuator readback mismatch db={db} offset={offset}", force=True,
+                            )
+                            write_cell()
+                            observed = read_back()
+                            if bytes(observed) != bytes(payload):
+                                TRACE.record(
+                                    "err", "s7", f"actuator readback mismatch db={db} offset={offset}", force=True,
+                                )
+                                raise CommandReadbackMismatch(
+                                    f"S7 actuator readback mismatch: db={db} offset={offset}"
+                                )
+                        if bit is None:
+                            result["command_after"] = int(get_int(observed, 0))
+                            result["command_held"] = True
+                        else:
+                            result[f"{bit_name}_after"] = bool(get_bool(observed, 0, bit))
+                            result[f"{bit_name}_held"] = True
                     except Exception as exc:
                         # Artisan continues subsequent tokens; FC still reports delivery failure after the sequence.
                         TRACE.record(

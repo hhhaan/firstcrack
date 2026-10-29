@@ -1,4 +1,4 @@
-"""W60A actuator traffic matches the pinned Artisan preset without extra reads."""
+"""W60A actuator traffic matches the pinned Artisan preset, then reads the written cell."""
 
 import logging
 import threading
@@ -67,14 +67,24 @@ class TestDoorProbe:
             traffic.extend([
                 ("read_area", (Area.DB, db, offset, len(payload))),
                 ("write_area", (Area.DB, db, offset, bytearray(payload))),
+                ("read_area", (Area.DB, db, offset, len(payload))),
             ])
         assert calls == traffic
         assert result["wrote"] == int.from_bytes(expected[0][2], "big")
         assert result["command_before"] == 0
-        for key in ("command_after", "command_held", "discharge_open_before", "discharge_open_after"):
-            assert result[key] is None
-        for key in ("cool_fan_after", "cool_fan_held", "stirrer_after", "stirrer_held"):
-            assert result.get(key) is None
+        assert result["command_held"] is True
+        if method == "door_probe":
+            assert result["command_after"] == value
+        else:
+            assert result["command_after"] == 0
+        if method == "cooling_fan_probe":
+            assert result["cool_fan_before"] is True
+            assert result["cool_fan_after"] is value
+            assert result["cool_fan_held"] is True
+        if method == "stirrer_probe":
+            assert result["stirrer_before"] is True
+            assert result["stirrer_after"] is value
+            assert result["stirrer_held"] is True
 
     async def test_write_uses_the_same_buffer_read_by_artisan(self):
         command = _int_bytes(7)
@@ -115,8 +125,8 @@ class TestDoorProbe:
         adapter._plc.read_area.side_effect = checked_read
         adapter._plc.write_area.side_effect = checked_write
         await adapter.stirrer_probe(True)
-        assert acquisitions == [0, 2, 4]
-        assert releases == [2, 4, 6]
+        assert acquisitions == [0, 3, 6]
+        assert releases == [3, 6, 9]
         assert not lock.locked()
 
     @pytest.mark.parametrize("latency,spacing", [(0.0, 0.04), (0.06, 0.06)])
@@ -128,43 +138,55 @@ class TestDoorProbe:
         monkeypatch.setattr("adapters.s7.time.monotonic", lambda: now[0])
         monkeypatch.setattr("adapters.s7.time.sleep", lambda seconds: now.__setitem__(0, now[0] + seconds))
 
-        def read(_area, _db, _offset, size):
-            starts.append(now[0])
-            now[0] += latency
-            return bytearray(size)
+        stored: dict[tuple[int, int], bytearray] = {}
 
-        def write(*_args):
+        def read(_area, db, offset, size):
             starts.append(now[0])
             now[0] += latency
+            return bytearray(stored.get((db, offset), bytearray(size))[:size])
+
+        def write(_area, db, offset, payload):
+            starts.append(now[0])
+            now[0] += latency
+            stored[(db, offset)] = bytearray(payload)
 
         adapter._plc.read_area.side_effect = read
         adapter._plc.write_area.side_effect = write
         await adapter.stirrer_probe(True)
-        assert starts == pytest.approx([100 + i * spacing for i in range(6)])
+        assert starts == pytest.approx([100 + i * spacing for i in range(9)])
 
-    @pytest.mark.parametrize("failure_at", range(6))
+    @pytest.mark.parametrize("failure_at", range(9))
     async def test_io_error_continues_artisan_tokens_but_reports_failure(self, failure_at):
         adapter = _adapter({})
         calls = []
+        stored: dict[tuple[int, int], bytearray] = {}
 
         def io(kind, db, offset, value):
             calls.append((kind, db, offset))
             if len(calls) - 1 == failure_at:
                 raise OSError("test delivery failure")
-            return bytearray(value) if kind == "R" else None
+            if kind == "W":
+                stored[(db, offset)] = bytearray(value)
+                return None
+            remembered = stored.get((db, offset))
+            if remembered is not None:
+                return bytearray(remembered[:value])
+            return bytearray(value)
 
         adapter._plc.read_area.side_effect = lambda area, db, offset, size: io("R", db, offset, size)
         adapter._plc.write_area.side_effect = lambda area, db, offset, data: io("W", db, offset, data)
         with pytest.raises(OSError, match="test delivery failure"):
             await adapter.stirrer_probe(True)
-        # Failure in an RMW read skips only that write, not the next Artisan token.
-        expected = [("R", 2, 30), ("W", 2, 30), ("R", 2, 83), ("W", 2, 83), ("R", 2, 30), ("W", 2, 30)]
-        if failure_at % 2 == 0:
-            expected.pop(failure_at + 1)
+        expected: list[tuple[str, int, int]] = []
+        for db, offset in ((2, 30), (2, 83), (2, 30)):
+            for step in ("R", "W", "R"):
+                expected.append((step, db, offset))
+                if len(expected) - 1 == failure_at:
+                    break
         assert calls == expected
         assert not adapter._io_lock.locked()
 
-    @pytest.mark.parametrize("change_at", [1, 2, 3, 4, 5, 6])
+    @pytest.mark.parametrize("change_at", range(1, 10))
     async def test_session_change_stops_remaining_commands_before_io(self, change_at):
         adapter = _adapter({})
         original = adapter._plc
@@ -185,20 +207,27 @@ class TestDoorProbe:
         assert replacement.mock_calls == []
         assert not adapter._io_lock.locked()
 
-    @pytest.mark.parametrize("change_at", range(6))
+    @pytest.mark.parametrize("change_at", range(9))
     async def test_session_change_during_native_io_aborts_old_and_new_client(self, change_at):
         adapter = _adapter({})
         original = adapter._plc
         replacement = MagicMock()
         calls = 0
+        stored: dict[tuple[int, int], bytearray] = {}
 
-        def io(_area, _db, _offset, value):
+        def io(_area, db, offset, value):
             nonlocal calls
             if calls == change_at:
                 adapter._session += 1
                 adapter._plc = replacement
             calls += 1
-            return bytearray(value) if isinstance(value, int) else None
+            if isinstance(value, int):
+                remembered = stored.get((db, offset))
+                if remembered is not None:
+                    return bytearray(remembered[:value])
+                return bytearray(value)
+            stored[(db, offset)] = bytearray(value)
+            return None
 
         original.read_area.side_effect = io
         original.write_area.side_effect = io
@@ -207,6 +236,39 @@ class TestDoorProbe:
         assert calls == change_at + 1
         assert replacement.mock_calls == []
         assert not adapter._io_lock.locked()
+
+    async def test_readback_mismatch_rewrites_that_token_once(self):
+        adapter = _adapter({})
+        reads = 0
+
+        def read(_area, _db, _offset, size):
+            nonlocal reads
+            reads += 1
+            if reads < 3:
+                return bytearray(size)
+            return _int_bytes(5)
+
+        adapter._plc.read_area.side_effect = read
+        result = await adapter.door_probe(5)
+        assert adapter._plc.write_area.call_count == 2
+        assert result["command_after"] == 5
+        assert result["command_held"] is True
+
+    async def test_readback_failure_does_not_rewrite(self):
+        adapter = _adapter({})
+        reads = 0
+
+        def read(_area, _db, _offset, size):
+            nonlocal reads
+            reads += 1
+            if reads == 2:
+                raise OSError("readback failed")
+            return bytearray(size)
+
+        adapter._plc.read_area.side_effect = read
+        with pytest.raises(OSError, match="readback failed"):
+            await adapter.door_probe(5)
+        assert adapter._plc.write_area.call_count == 1
 
     async def test_short_read_does_not_write_invalid_buffer(self):
         adapter = _adapter({})
@@ -221,21 +283,24 @@ class TestDoorProbe:
         adapter = VirtualMachineAdapter()
         await adapter.connect()
         opened = await adapter.door_probe(5)
-        assert opened["command_after"] is None
-        assert opened["command_held"] is None
-        assert opened["discharge_open_after"] is None
+        assert opened["command_after"] == 5
+        assert opened["command_held"] is True
+        assert opened["discharge_open_after"] is True
         read = await adapter.door_probe(None)
         assert read["command_before"] == 5
         assert read["wrote"] is None
+        assert read["command_held"] is None
         assert read["discharge_open_after"] is True
         cooled = await adapter.cooling_fan_probe(True)
-        assert cooled["command_after"] is None
-        assert cooled["cool_fan_after"] is None
-        assert cooled["cool_fan_held"] is None
+        assert cooled["command_after"] == 0
+        assert cooled["command_held"] is True
+        assert cooled["cool_fan_after"] is True
+        assert cooled["cool_fan_held"] is True
         stirred = await adapter.stirrer_probe(True)
         assert stirred["wrote"] == 7
-        assert stirred["command_after"] is None
-        assert stirred["stirrer_after"] is None
+        assert stirred["command_after"] == 0
+        assert stirred["stirrer_after"] is True
+        assert stirred["stirrer_held"] is True
         fan = await adapter.cooling_fan_probe(None)
         assert fan["cool_fan_after"] is True
 
