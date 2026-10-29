@@ -1,5 +1,5 @@
-/** A4 landscape in PDF points (1/72 in). 297mm × 210mm. */
-export const A4_LANDSCAPE_PT = { width: 841.89, height: 595.28 } as const;
+/** A4 portrait in PDF points (1/72 in). 210mm × 297mm. */
+export const A4_PORTRAIT_PT = { width: 595.28, height: 841.89 } as const;
 
 const encoder = new TextEncoder();
 
@@ -21,20 +21,20 @@ const streamObj = (n: number, dict: string, data: Uint8Array): Uint8Array =>
     concat([encoder.encode(`${n} 0 obj\n${dict}\nstream\n`), data, encoder.encode('\nendstream\nendobj\n')]);
 
 /**
- * Wrap a JPEG as a single-page landscape A4 PDF. The image fills the page
+ * Wrap a JPEG as a single-page portrait A4 PDF. The image fills the page
  * (caller must compose at the A4 aspect so it is not stretched).
  *
  * Helvetica cannot paint CJK, so the page is an image XObject only.
  */
-export const jpegToLandscapeA4Pdf = (jpeg: Uint8Array, imgWidth: number, imgHeight: number): Uint8Array => {
+export const jpegToPortraitA4Pdf = (jpeg: Uint8Array, imgWidth: number, imgHeight: number): Uint8Array => {
     if (jpeg.byteLength < 2 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
-        throw new Error('jpegToLandscapeA4Pdf: expected a JPEG');
+        throw new Error('jpegToPortraitA4Pdf: expected a JPEG');
     }
     if (imgWidth < 1 || imgHeight < 1) {
-        throw new Error('jpegToLandscapeA4Pdf: image size must be positive');
+        throw new Error('jpegToPortraitA4Pdf: image size must be positive');
     }
 
-    const { width: pageW, height: pageH } = A4_LANDSCAPE_PT;
+    const { width: pageW, height: pageH } = A4_PORTRAIT_PT;
     const contents = encoder.encode(`q\n${pageW} 0 0 ${pageH} 0 0 cm\n/Im1 Do\nQ\n`);
 
     const objects = [

@@ -1592,7 +1592,7 @@
         "exportOkLabel": "エクスポート",
         "exportCancelLabel": "キャンセル",
         "exportPdf": "PDF",
-        "exportPdfConfirm": "保存先: {{path}}\nこの焙煎グラフをA4横向き1ページのPDFに書き出しますか？",
+        "exportPdfConfirm": "保存先: {{path}}\nこの焙煎グラフをA4縦向き1ページのPDFに書き出しますか？",
         "exportPdfUnavailable": "書き出せるチャートがありません。",
         "exportPdfFailed": "焙煎グラフPDFを書き出せませんでした。",
         "exportCsvFailed": "CSVファイルを保存できませんでした。",

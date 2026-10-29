@@ -1,6 +1,6 @@
 import { downloadPdf } from '@shared/lib/download';
 import { logger } from '@shared/lib/logger';
-import { jpegToLandscapeA4Pdf } from '@shared/lib/pdf-page';
+import { jpegToPortraitA4Pdf } from '@shared/lib/pdf-page';
 import { useToastStore } from '@shared/store/toast';
 import { downloadDir, join } from '@tauri-apps/api/path';
 import { confirm } from '@tauri-apps/plugin-dialog';
@@ -41,7 +41,7 @@ export const runExportHistoryPdf = async (
     labels: HistoryPdfExportLabels,
 ): Promise<boolean> => {
     const page = await composeHistoryPdfJpeg(input);
-    const pdf = jpegToLandscapeA4Pdf(page.jpeg, page.width, page.height);
+    const pdf = jpegToPortraitA4Pdf(page.jpeg, page.width, page.height);
     if (!(await confirmSave(input.filename, labels))) return false;
     downloadPdf(pdf, input.filename);
     return true;

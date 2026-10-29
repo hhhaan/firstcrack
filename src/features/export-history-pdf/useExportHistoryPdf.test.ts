@@ -14,7 +14,7 @@ const { confirm, downloadPdf, compose, jpegToPdf, join, downloadDir } = vi.hoist
 vi.mock('@tauri-apps/plugin-dialog', () => ({ confirm }));
 vi.mock('@tauri-apps/api/path', () => ({ join, downloadDir }));
 vi.mock('@shared/lib/download', () => ({ downloadPdf }));
-vi.mock('@shared/lib/pdf-page', () => ({ jpegToLandscapeA4Pdf: jpegToPdf }));
+vi.mock('@shared/lib/pdf-page', () => ({ jpegToPortraitA4Pdf: jpegToPdf }));
 vi.mock('./lib/compose', () => ({ composeHistoryPdfJpeg: compose }));
 
 const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
@@ -46,7 +46,7 @@ describe('runExportHistoryPdf', () => {
         jpegToPdf.mockReset();
         join.mockReset();
         downloadDir.mockReset();
-        compose.mockResolvedValue({ jpeg, width: 2339, height: 1654 });
+        compose.mockResolvedValue({ jpeg, width: 1654, height: 2339 });
         jpegToPdf.mockReturnValue(pdf);
         downloadDir.mockResolvedValue('/downloads');
         join.mockResolvedValue('/downloads/roast-graph-ethiopia-26-09-20.pdf');
@@ -69,7 +69,7 @@ describe('runExportHistoryPdf', () => {
         markTauri();
         confirm.mockResolvedValue(true);
         await expect(runExportHistoryPdf(input, labels)).resolves.toBe(true);
-        expect(jpegToPdf).toHaveBeenCalledWith(jpeg, 2339, 1654);
+        expect(jpegToPdf).toHaveBeenCalledWith(jpeg, 1654, 2339);
         expect(confirm).toHaveBeenCalledWith('save /downloads/roast-graph-ethiopia-26-09-20.pdf', {
             title: 'First Crack',
             kind: 'info',

@@ -1592,7 +1592,7 @@
         "exportOkLabel": "导出",
         "exportCancelLabel": "取消",
         "exportPdf": "PDF",
-        "exportPdfConfirm": "保存到：{{path}}\n将此烘焙曲线导出为横向 A4 单页 PDF？",
+        "exportPdfConfirm": "保存到：{{path}}\n将此烘焙曲线导出为纵向 A4 单页 PDF？",
         "exportPdfUnavailable": "没有可导出的图表。",
         "exportPdfFailed": "无法导出烘焙曲线 PDF。",
         "exportCsvFailed": "无法保存 CSV 文件。",

@@ -1,7 +1,7 @@
 import { dataUrlToBytes } from '@shared/lib/pdf-page';
 
-/** 200 dpi A4 landscape (297mm × 210mm). */
-export const HISTORY_PDF_PAGE_PX = { width: 2339, height: 1654 } as const;
+/** 200 dpi A4 portrait (210mm × 297mm). */
+export const HISTORY_PDF_PAGE_PX = { width: 1654, height: 2339 } as const;
 /** 12mm at 200 dpi. */
 export const HISTORY_PDF_MARGIN_PX = 94;
 
@@ -68,26 +68,23 @@ const fitText = (ctx: CanvasRenderingContext2D, value: string, width: number) =>
     return `${chars.join('')}…`;
 };
 
-export const HISTORY_PDF_HEADER_PX = 280;
-export const HISTORY_PDF_LEGEND_PX = 64;
+export const HISTORY_PDF_HEADER_PX = 340;
+export const HISTORY_PDF_LEGEND_PX = 104;
 export const HISTORY_PDF_FOOTER_PX = 64;
 
 export const historyPdfChartBox = (hasLegend: boolean) => {
-    const { width, height } = HISTORY_PDF_PAGE_PX;
+    const { width } = HISTORY_PDF_PAGE_PX;
     const margin = HISTORY_PDF_MARGIN_PX;
+    const innerW = width - margin * 2;
     return {
-        width: width - margin * 2,
-        height:
-            height -
-            margin * 2 -
-            HISTORY_PDF_HEADER_PX -
-            HISTORY_PDF_FOOTER_PX -
-            (hasLegend ? HISTORY_PDF_LEGEND_PX : 0),
+        width: innerW,
+        // Preserve the reference plot proportions instead of filling the tall page.
+        height: Math.round(innerW * 0.8) - (hasLegend ? HISTORY_PDF_LEGEND_PX : 0),
     };
 };
 
 /**
- * Paint a header, chart and optional series legend onto an A4 landscape JPEG.
+ * Paint a header, chart and optional series legend onto an A4 portrait JPEG.
  * Unicode comes from canvas, not PDF fonts.
  */
 export const composeHistoryPdfJpeg = async (
@@ -162,17 +159,18 @@ export const composeHistoryPdfJpeg = async (
         { label: input.header.labels.charge, value: input.header.charge },
         { label: input.header.labels.drop, value: input.header.drop },
     ];
-    const colW = innerW / fields.length;
+    const colW = innerW / 2;
     fields.forEach((field, i) => {
-        const x = margin + i * colW;
+        const x = margin + (i % 2) * colW;
+        const y = margin + 226 + Math.floor(i / 2) * 60;
         ctx.fillStyle = COLOR_MUTED;
         ctx.font = FONT_UI;
         const label = fitText(ctx, field.label, colW / 3);
-        ctx.fillText(label, x, margin + 230);
+        ctx.fillText(label, x, y + 4);
         const valueX = x + ctx.measureText(label).width + 16;
         ctx.fillStyle = COLOR_PRIMARY;
         ctx.font = FONT_VALUE;
-        ctx.fillText(fitText(ctx, field.value, x + colW - 24 - valueX), valueX, margin + 226);
+        ctx.fillText(fitText(ctx, field.value, x + colW - 24 - valueX), valueX, y);
     });
     line(margin + HISTORY_PDF_HEADER_PX - 4);
 
@@ -184,13 +182,15 @@ export const composeHistoryPdfJpeg = async (
 
     if (input.legend?.length) {
         let lx = margin;
-        const ly = chartTop + chartBox.height + 16;
+        let ly = chartTop + chartBox.height + 16;
         ctx.font = FONT_UI;
-        const labelWidths = input.legend.map((item) => ctx.measureText(item.label).width);
-        const labelSpace = innerW - input.legend.length * 52 - (input.legend.length - 1) * 40;
-        const labelScale = Math.min(1, labelSpace / labelWidths.reduce((sum, value) => sum + value, 0));
-        for (const [i, item] of input.legend.entries()) {
-            const labelWidth = labelWidths[i] * labelScale;
+        for (const item of input.legend) {
+            const label = fitText(ctx, item.label, innerW - 52);
+            const labelWidth = ctx.measureText(label).width;
+            if (lx > margin && lx + 52 + labelWidth > width - margin) {
+                lx = margin;
+                ly += 50;
+            }
             ctx.save();
             ctx.globalAlpha = item.opacity ?? 1;
             ctx.strokeStyle = item.color;
@@ -202,7 +202,7 @@ export const composeHistoryPdfJpeg = async (
             ctx.stroke();
             ctx.restore();
             ctx.fillStyle = COLOR_MUTED;
-            ctx.fillText(fitText(ctx, item.label, labelWidth), lx + 52, ly);
+            ctx.fillText(label, lx + 52, ly);
             lx += 52 + labelWidth + 40;
         }
     }

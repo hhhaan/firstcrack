@@ -11,19 +11,21 @@ import {
 } from './compose';
 
 describe('historyPdfChartBox', () => {
-    it('sizes the leftover A4 area for temp + control grids', () => {
+    it('keeps the chart proportions on a portrait A4 page', () => {
         const withLegend = historyPdfChartBox(true);
         const without = historyPdfChartBox(false);
         expect(withLegend.width).toBe(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2);
         expect(without.height - withLegend.height).toBe(HISTORY_PDF_LEGEND_PX);
         expect(withLegend.height).toBeGreaterThan(900);
+        expect(HISTORY_PDF_PAGE_PX).toEqual({ width: 1654, height: 2339 });
+        expect(withLegend.height / withLegend.width).toBeLessThan(0.8);
         expect(
             withLegend.height +
                 HISTORY_PDF_MARGIN_PX * 2 +
                 HISTORY_PDF_HEADER_PX +
                 HISTORY_PDF_LEGEND_PX +
                 HISTORY_PDF_FOOTER_PX,
-        ).toBe(HISTORY_PDF_PAGE_PX.height);
+        ).toBeLessThanOrEqual(HISTORY_PDF_PAGE_PX.height);
     });
 });
 
@@ -108,7 +110,6 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
     if (hasTitle) {
         expect(ctx.fillText).toHaveBeenCalledWith('Green B', expect.any(Number), expect.any(Number));
     }
-    expect(historyPdfChartBox(true).height).toBeGreaterThan(HISTORY_PDF_PAGE_PX.height * 0.6);
     const headerRuleY = HISTORY_PDF_MARGIN_PX + HISTORY_PDF_HEADER_PX - 4;
     const metadata = ctx.fillText.mock.calls.filter(([, , y]) => y >= HISTORY_PDF_MARGIN_PX + 226 && y < headerRuleY);
     expect(metadata).toHaveLength(8);
@@ -117,7 +118,7 @@ it.each([false, true])('wraps the heading and keeps A4 bounds with an independen
         const [value, valueX] = metadata[i + 1];
         expect(valueX).toBeGreaterThan(x + ctx.measureText(label).width);
         expect(valueX + ctx.measureText(value).width).toBeLessThanOrEqual(
-            x + (HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2) / 4,
+            x + (HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX * 2) / 2,
         );
     }
     for (const [text, x, y] of ctx.fillText.mock.calls) {
@@ -195,11 +196,14 @@ it('keeps a wide translated legend label readable beside shorter series labels',
         expect(ctx.fillText).toHaveBeenCalledWith(label, expect.any(Number), expect.any(Number));
     }
     const legendY = HISTORY_PDF_MARGIN_PX + HISTORY_PDF_HEADER_PX + historyPdfChartBox(true).height + 16;
-    const entries = ctx.fillText.mock.calls.filter(([, , y]) => y === legendY);
-    let end = HISTORY_PDF_MARGIN_PX;
-    for (const [text, x] of entries) {
+    const entries = ctx.fillText.mock.calls.filter(([, , y]) => y >= legendY && y < legendY + HISTORY_PDF_LEGEND_PX);
+    expect(new Set(entries.map(([, , y]) => y)).size).toBe(2);
+    const rowEnds = new Map<number, number>();
+    for (const [text, x, y] of entries) {
+        const end = rowEnds.get(y) ?? HISTORY_PDF_MARGIN_PX;
         expect(x).toBeGreaterThan(end);
-        end = x + ctx.measureText(text).width;
-        expect(end).toBeLessThanOrEqual(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX);
+        const nextEnd = x + ctx.measureText(text).width;
+        expect(nextEnd).toBeLessThanOrEqual(HISTORY_PDF_PAGE_PX.width - HISTORY_PDF_MARGIN_PX);
+        rowEnds.set(y, nextEnd);
     }
 });

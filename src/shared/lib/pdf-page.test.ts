@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { A4_LANDSCAPE_PT, dataUrlToBytes, jpegToLandscapeA4Pdf } from './pdf-page';
+import { A4_PORTRAIT_PT, dataUrlToBytes, jpegToPortraitA4Pdf } from './pdf-page';
 
 /** 1×1 JPEG (SOI … EOI). Enough to satisfy the JPEG magic check. */
 const TINY_JPEG = Uint8Array.from([
@@ -13,21 +13,22 @@ const TINY_JPEG = Uint8Array.from([
     0x00, 0x7f, 0x3f, 0xff, 0xd9,
 ]);
 
-describe('jpegToLandscapeA4Pdf', () => {
-    it('writes a one-page landscape A4 PDF with the JPEG as the page image', () => {
-        const pdf = jpegToLandscapeA4Pdf(TINY_JPEG, 1, 1);
+describe('jpegToPortraitA4Pdf', () => {
+    it('writes a one-page portrait A4 PDF with the JPEG as the page image', () => {
+        const pdf = jpegToPortraitA4Pdf(TINY_JPEG, 1, 1);
         const ascii = new TextDecoder('latin1').decode(pdf);
         expect(ascii.startsWith('%PDF-1.4')).toBe(true);
-        expect(ascii).toContain(`/MediaBox [0 0 ${A4_LANDSCAPE_PT.width} ${A4_LANDSCAPE_PT.height}]`);
+        expect(ascii).toContain('/MediaBox [0 0 595.28 841.89]');
+        expect(ascii).toContain('595.28 0 0 841.89 0 0 cm');
         expect(ascii).toContain('/DCTDecode');
         expect(ascii).toContain('/Count 1');
         expect(ascii.endsWith('%%EOF\n')).toBe(true);
-        expect(A4_LANDSCAPE_PT.width).toBeGreaterThan(A4_LANDSCAPE_PT.height);
+        expect(A4_PORTRAIT_PT.width).toBeLessThan(A4_PORTRAIT_PT.height);
         expect(ascii).toContain(String.fromCharCode(0xff, 0xd8));
     });
 
     it('rejects non-JPEG bytes', () => {
-        expect(() => jpegToLandscapeA4Pdf(new Uint8Array([0x89, 0x50]), 1, 1)).toThrow(/JPEG/i);
+        expect(() => jpegToPortraitA4Pdf(new Uint8Array([0x89, 0x50]), 1, 1)).toThrow(/JPEG/i);
     });
 });
 

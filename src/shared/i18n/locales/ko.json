@@ -1255,7 +1255,7 @@
         "exportOkLabel": "내보내기",
         "exportCancelLabel": "취소",
         "exportPdf": "PDF",
-        "exportPdfConfirm": "저장 위치: {{path}}\n이 로스팅 그래프를 가로 A4 한 장 PDF로 저장할까요?",
+        "exportPdfConfirm": "저장 위치: {{path}}\n이 로스팅 그래프를 세로 A4 한 장 PDF로 저장할까요?",
         "exportPdfUnavailable": "내보낼 차트가 없습니다.",
         "exportPdfFailed": "로스팅 그래프 PDF를 저장하지 못했습니다.",
         "exportCsvFailed": "CSV 파일을 저장하지 못했습니다.",
