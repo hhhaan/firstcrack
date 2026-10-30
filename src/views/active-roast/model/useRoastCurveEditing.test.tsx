@@ -8,6 +8,7 @@ import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTimelineEditing } from '../lib/timeline-editing';
 import { useRoastCurveEditing } from './useRoastCurveEditing';
 
 vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
@@ -41,13 +42,33 @@ describe('roast curve editing', () => {
     let root: Root;
     let api: ReturnType<typeof useRoastCurveEditing> | undefined;
     let savedEntries: LogEntry[];
-    let bbp: Parameters<typeof useRoastCurveEditing>[0]['bbp'];
+    let bbp: { active: boolean; nowSec: number; origin: number; points: LiveRoastPoint[] };
     let dropWaitOffset: number | null;
     const applyReviewLog = vi.fn((entries: LogEntry[]) => {
         savedEntries = entries;
     });
     const recordDropWaitEvent = vi.fn<Parameters<typeof useRoastCurveEditing>[0]['recordDropWaitEvent']>();
     const moveTurningPoint = vi.fn();
+    const readTimeline = () => {
+        const state = useRoastingStore.getState();
+        const snapshot = selectReviewSnapshot(state);
+        const source = snapshot
+            ? createTimelineEditing({ kind: 'review', snapshot }, 'C', state.liveData?.bt ?? null)
+            : bbp.active
+              ? createTimelineEditing({ kind: 'bbp', ...bbp }, 'C', state.liveData?.bt ?? null)
+              : createTimelineEditing(
+                    {
+                        kind: 'live',
+                        phase: state.phase,
+                        points: state.livePoints,
+                        elapsed: state.elapsed,
+                        waitOffset: dropWaitOffset,
+                    },
+                    'C',
+                    state.liveData?.bt ?? null,
+                );
+        return source;
+    };
     const Probe = () => {
         const state = useRoastingStore();
         const log = useRoastLog('C', state.liveData?.bt ?? null, state.elapsed);
@@ -56,8 +77,7 @@ describe('roast curve editing', () => {
             log,
             review: { applyReviewLog, getReviewLog: () => savedEntries },
             turningPoint: { confirmedTP: null, turningPoints: [], moveTurningPoint },
-            bbp,
-            dropWaitOffset,
+            timeline: { current: readTimeline(), read: readTimeline },
             recordDropWaitEvent,
         });
         return null;
@@ -219,6 +239,8 @@ describe('roast curve editing', () => {
             expect(editing().logEditOptions).toBeUndefined();
         }
         bbp.active = true;
+        await render();
+        expect(Object.values(editing().chartHandlers).every((handler) => handler === undefined)).toBe(true);
         useRoastingStore.setState({ phase: 'standby' });
         await render();
         expect(editing().chartHandlers.onAddNote).toBeDefined();

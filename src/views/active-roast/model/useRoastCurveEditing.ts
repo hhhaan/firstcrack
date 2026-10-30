@@ -1,15 +1,7 @@
-import {
-    bbpEventsForDisplay,
-    bbpEventsFromDisplay,
-    bbpStoredTime,
-    makeBbpLogEntry,
-} from '@features/active-roast/lib/bbp-events';
-import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
+import { makeBbpLogEntry } from '@features/active-roast/lib/bbp-events';
 import { isRemovableLogEvent, isToggleableLogEvent, TP_MARKER_ID } from '@features/active-roast/lib/constants';
 import {
-    applyEventMarkerEdit,
     type EventMarkerPatch,
-    type MarkerDragLivePoint,
     nearestLivePointAt,
     upsertReviewTurningPoint,
 } from '@features/active-roast/lib/event-marker-drag';
@@ -20,26 +12,22 @@ import {
     isReviewEditableEvent,
     reviewMarkToAdd,
 } from '@features/active-roast/lib/review-record-events';
-import { type CompletedRoastSnapshot, selectReviewSnapshot } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import type { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
 import type { useRoastLog } from '@features/active-roast/model/useRoastLog';
-import { formatElapsed } from '@shared/lib/format';
 import type { RoastNoteControls } from '@shared/types/roast';
 import { useCallback } from 'react';
+import type { DisplayedRoastTimeline } from './useDisplayedRoastTimeline';
 import { appendReviewEntry, type useReviewCurveEdit } from './useReviewCurveEdit';
-
-type EditTarget = { kind: 'review'; snapshot: CompletedRoastSnapshot } | { kind: 'bbp' } | { kind: 'live' };
 
 type Params = {
     unit: TemperatureUnit;
-    dropWaitOffset?: number | null;
+    timeline: DisplayedRoastTimeline['editing'];
     log: Pick<ReturnType<typeof useRoastLog>, 'markEvent' | 'setLogEntries' | 'removeLogEntry'>;
     review: Pick<ReturnType<typeof useReviewCurveEdit>, 'applyReviewLog' | 'getReviewLog'>;
     turningPoint: Pick<ReturnType<typeof useAutoDetection>, 'confirmedTP' | 'turningPoints' | 'moveTurningPoint'>;
-    bbp: { active: boolean; nowSec: number; origin: number; points: MarkerDragLivePoint[] };
     recordDropWaitEvent: (
         event: string,
         note: string,
@@ -48,201 +36,93 @@ type Params = {
     ) => boolean;
 };
 
-const temperatureAt = (points: readonly MarkerDragLivePoint[], timeSec: number): number | null => {
-    const nearest = nearestLivePointAt(points, timeSec);
-    return nearest && Math.abs(nearest.time - timeSec) <= NEAREST_BT_MAX_SEC ? nearest.bt : null;
-};
-
-export const useRoastCurveEditing = ({
-    unit,
-    log,
-    review,
-    turningPoint,
-    bbp,
-    recordDropWaitEvent,
-    dropWaitOffset = null,
-}: Params) => {
-    const livePoints = useRoastingStore((state) => state.livePoints);
-    const elapsed = useRoastingStore((state) => state.elapsed);
-    const phase = useRoastingStore((state) => state.phase);
-    const rawBT = useRoastingStore((state) => state.liveData?.bt ?? null);
-    const snapshot = useRoastingStore(selectReviewSnapshot);
+export const useRoastCurveEditing = ({ unit, timeline, log, review, turningPoint, recordDropWaitEvent }: Params) => {
     const { markEvent, setLogEntries, removeLogEntry } = log;
     const { applyReviewLog, getReviewLog } = review;
     const { confirmedTP, turningPoints, moveTurningPoint } = turningPoint;
-    const { active: bbpActive, nowSec: bbpNowSec, origin, points: bbpPoints } = bbp;
-
-    const readTarget = useCallback((): EditTarget => {
-        const current = selectReviewSnapshot(useRoastingStore.getState());
-        if (current) return { kind: 'review', snapshot: current };
-        return bbpActive ? { kind: 'bbp' } : { kind: 'live' };
-    }, [bbpActive]);
+    const readTarget = timeline.read;
+    const current = timeline.current;
+    const phase = useRoastingStore((state) => state.phase);
 
     const editMarker = useCallback(
         (logId: string, patch: EventMarkerPatch) => {
             const target = readTarget();
             if (target.kind === 'review') {
-                const frozen = target.snapshot;
                 if (logId === TP_MARKER_ID) {
-                    if (patch.timeSec != null) {
+                    if (patch.timeSec != null)
                         applyReviewLog(
                             upsertReviewTurningPoint(
                                 getReviewLog(),
                                 patch.timeSec,
-                                frozen.livePoints,
+                                target.points,
                                 unit,
-                                frozen.elapsed,
+                                target.maxTimeSec,
                             ),
                         );
-                    }
                     return;
                 }
                 const rowId = parseControlMarkerLogId(logId)?.id ?? logId;
                 const entry = getReviewLog().find((row) => row.id === rowId);
                 if (!entry || !isReviewEditableEvent(entry.event)) return;
-                applyReviewLog(
-                    applyEventMarkerEdit(getReviewLog(), logId, patch, frozen.livePoints, unit, frozen.elapsed),
-                );
+                applyReviewLog(target.editEntries(getReviewLog(), logId, patch));
                 return;
             }
             if (logId === TP_MARKER_ID) {
                 if (patch.timeSec == null) return;
-                const nearest = nearestLivePointAt(livePoints, patch.timeSec);
+                const nearest = nearestLivePointAt(target.points, patch.timeSec);
                 const temp =
                     nearest?.bt ?? confirmedTP?.temp ?? (turningPoints.length > 0 ? turningPoints[0].temp : null);
                 if (temp != null && Number.isFinite(temp)) moveTurningPoint(patch.timeSec, temp);
                 return;
             }
             if (target.kind === 'bbp') {
-                const display = bbpEventsForDisplay(useBbpStore.getState().events, origin);
-                const next = applyEventMarkerEdit(
-                    display,
-                    logId,
-                    patch,
-                    bbpPoints,
-                    unit,
-                    Math.max(0, bbpNowSec - origin),
-                );
-                useBbpStore
-                    .getState()
-                    .setEvents((prev) => [
-                        ...prev.filter((entry) => entry.timeSec != null && entry.timeSec < origin),
-                        ...bbpEventsFromDisplay(next, origin),
-                    ]);
+                useBbpStore.getState().setEvents((prev) => target.editEntries(prev, logId, patch));
                 return;
             }
-            if (dropWaitOffset != null) {
-                setLogEntries((prev) => [
-                    ...prev.filter((entry) => entry.timeSec == null || entry.timeSec < dropWaitOffset),
-                    ...applyEventMarkerEdit(
-                        bbpEventsForDisplay(prev, dropWaitOffset),
-                        logId,
-                        patch,
-                        livePoints,
-                        unit,
-                        livePoints[livePoints.length - 1]?.time ?? 0,
-                    ).map((entry) => {
-                        const timeSec = (entry.timeSec ?? 0) + dropWaitOffset;
-                        return { ...entry, timeSec, time: formatElapsed(timeSec) };
-                    }),
-                ]);
-                return;
-            }
-            setLogEntries((prev) => applyEventMarkerEdit(prev, logId, patch, livePoints, unit, elapsed));
+            setLogEntries((prev) => target.editEntries(prev, logId, patch));
         },
-        [
-            readTarget,
-            applyReviewLog,
-            getReviewLog,
-            unit,
-            livePoints,
-            confirmedTP,
-            turningPoints,
-            moveTurningPoint,
-            origin,
-            bbpPoints,
-            bbpNowSec,
-            setLogEntries,
-            elapsed,
-            dropWaitOffset,
-        ],
+        [readTarget, applyReviewLog, getReviewLog, unit, confirmedTP, turningPoints, moveTurningPoint, setLogEntries],
     );
     const dragMarker = useCallback((logId: string, timeSec: number) => editMarker(logId, { timeSec }), [editMarker]);
 
     const addNote = useCallback(
         (body: string, timeSec: number, controls?: RoastNoteControls) => {
             const target = readTarget();
+            const location = target.noteAt(timeSec);
             if (target.kind === 'review') {
                 applyReviewLog(
-                    appendReviewEntry(
-                        getReviewLog(),
-                        'Note',
-                        body,
-                        timeSec,
-                        temperatureAt(target.snapshot.livePoints, timeSec),
-                        unit,
-                        controls,
-                    ),
+                    appendReviewEntry(getReviewLog(), 'Note', body, location.timeSec, location.tempC, unit, controls),
                 );
                 return;
             }
             if (target.kind === 'bbp') {
-                const entry = makeBbpLogEntry(
-                    'Note',
-                    body,
-                    bbpStoredTime(timeSec, origin),
-                    temperatureAt(bbpPoints, timeSec),
-                    unit,
-                    controls,
-                );
+                const entry = makeBbpLogEntry('Note', body, location.timeSec, location.tempC, unit, controls);
                 if (entry) useBbpStore.getState().setEvents((prev) => [...prev, entry]);
                 return;
             }
-            const historical = { timeSec, tempC: temperatureAt(livePoints, timeSec) };
-            if (!recordDropWaitEvent('Note', body, controls, historical)) {
-                markEvent('Note', body, undefined, historical, controls);
-            }
+            if (!recordDropWaitEvent('Note', body, controls, location))
+                markEvent('Note', body, undefined, location, controls);
         },
-        [readTarget, applyReviewLog, getReviewLog, unit, origin, bbpPoints, livePoints, recordDropWaitEvent, markEvent],
+        [readTarget, applyReviewLog, getReviewLog, unit, recordDropWaitEvent, markEvent],
     );
 
     const addNoteNow = useCallback(
         (body: string) => {
             const target = readTarget();
             if (target.kind === 'review') {
-                const timeSec = Math.max(0, target.snapshot.elapsed);
-                applyReviewLog(
-                    appendReviewEntry(
-                        getReviewLog(),
-                        'Note',
-                        body,
-                        timeSec,
-                        temperatureAt(target.snapshot.livePoints, timeSec),
-                        unit,
-                    ),
-                );
+                const location = target.noteNow();
+                applyReviewLog(appendReviewEntry(getReviewLog(), 'Note', body, location.timeSec, location.tempC, unit));
                 return;
             }
             if (target.kind === 'bbp') {
-                const nearest = nearestLivePointAt(bbpPoints, Math.max(0, bbpNowSec - origin));
-                const entry = makeBbpLogEntry('Note', body, bbpNowSec, nearest?.bt ?? rawBT, unit);
+                const location = target.noteNow();
+                const entry = makeBbpLogEntry('Note', body, location.timeSec, location.tempC, unit);
                 if (entry) useBbpStore.getState().setEvents((prev) => [...prev, entry]);
                 return;
             }
             if (!recordDropWaitEvent('Note', body)) markEvent('Note', body);
         },
-        [
-            readTarget,
-            applyReviewLog,
-            getReviewLog,
-            unit,
-            bbpPoints,
-            bbpNowSec,
-            origin,
-            rawBT,
-            recordDropWaitEvent,
-            markEvent,
-        ],
+        [readTarget, applyReviewLog, getReviewLog, unit, recordDropWaitEvent, markEvent],
     );
 
     const addEvent = useCallback(
@@ -250,14 +130,16 @@ export const useRoastCurveEditing = ({
             const target = readTarget();
             if (target.kind === 'review') {
                 if (!reviewMarkToAdd(getReviewLog(), event, false)) return;
-                const tempC = enteredTempC ?? temperatureAt(target.snapshot.livePoints, timeSec);
-                applyReviewLog(appendReviewEntry(getReviewLog(), event, '', timeSec, tempC, unit));
+                const location = target.noteAt(timeSec);
+                applyReviewLog(
+                    appendReviewEntry(getReviewLog(), event, '', timeSec, enteredTempC ?? location.tempC, unit),
+                );
                 return;
             }
-            if (!isChargedPhase(phase) || phase === 'ended' || target.kind === 'bbp') return;
-            markEvent(event, '', undefined, { timeSec, tempC: temperatureAt(livePoints, timeSec) });
+            if (target.kind !== 'live' || !isChargedPhase(target.phase) || target.phase === 'ended') return;
+            markEvent(event, '', undefined, target.noteAt(timeSec));
         },
-        [readTarget, getReviewLog, applyReviewLog, unit, phase, markEvent, livePoints],
+        [readTarget, getReviewLog, applyReviewLog, unit, markEvent],
     );
 
     const moveEvent = useCallback(
@@ -266,18 +148,9 @@ export const useRoastCurveEditing = ({
             if (target.kind !== 'review' || !isReviewEditableEvent(event)) return;
             const entry = getReviewLog().find((row) => row.event === event && row.id);
             if (!entry?.id) return;
-            applyReviewLog(
-                applyEventMarkerEdit(
-                    getReviewLog(),
-                    entry.id,
-                    { timeSec },
-                    target.snapshot.livePoints,
-                    unit,
-                    target.snapshot.elapsed,
-                ),
-            );
+            applyReviewLog(target.editEntries(getReviewLog(), entry.id, { timeSec }));
         },
-        [readTarget, getReviewLog, applyReviewLog, unit],
+        [readTarget, getReviewLog, applyReviewLog],
     );
 
     const removeEntry = useCallback(
@@ -317,27 +190,22 @@ export const useRoastCurveEditing = ({
     );
 
     const canEdit =
-        snapshot != null || (phase !== 'ended' && (bbpActive || dropWaitOffset != null || isChargedPhase(phase)));
+        current.kind === 'review' ||
+        (phase !== 'ended' && (current.kind === 'bbp' || current.waiting || isChargedPhase(phase)));
     return {
         chartHandlers: {
             onEventMarkerDrag: canEdit ? dragMarker : undefined,
             onEventMarkerEdit: canEdit ? editMarker : undefined,
             onEventMarkerDelete: canEdit ? removeEntry : undefined,
             onAddNote: canEdit ? addNote : undefined,
-            onAddEvent: canEdit && (snapshot != null || !bbpActive) ? addEvent : undefined,
-            onMoveEvent: snapshot ? moveEvent : undefined,
+            onAddEvent: canEdit && current.kind !== 'bbp' ? addEvent : undefined,
+            onMoveEvent: current.kind === 'review' ? moveEvent : undefined,
         },
         logEditOptions: canEdit
             ? {
                   unit,
-                  livePoints: snapshot?.livePoints ?? (bbpActive ? bbpPoints : livePoints),
-                  maxTimeSec:
-                      snapshot?.elapsed ??
-                      (bbpActive
-                          ? Math.max(0, bbpNowSec - origin)
-                          : dropWaitOffset != null
-                            ? (livePoints[livePoints.length - 1]?.time ?? 0)
-                            : elapsed),
+                  livePoints: current.points,
+                  maxTimeSec: current.maxTimeSec,
                   onEditEntry: editMarker,
               }
             : undefined,

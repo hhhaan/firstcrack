@@ -216,15 +216,13 @@ export const buildChartFrame = <TTurningPoint>(input: {
     referenceDrum: (number | null)[];
     referenceHeater: (number | null)[];
     referenceFan: (number | null)[];
-    elapsed: number;
     charged: boolean;
     eventMarkers: RoastEventMarker[];
     turningPoints: TTurningPoint[];
     phaseSegments: PhaseSegment[];
     showFcBand: boolean;
-    eventTimeOrigin?: number;
+    displayedElapsed: number;
 }) => {
-    const origin = input.eventTimeOrigin ?? 0;
     return {
         className: `bg-(--color-roast-bg) flex flex-col min-h-0 overflow-hidden ${
             input.isFullscreen ? FULLSCREEN_CHART_CLASS : WINDOWED_CHART_CLASS
@@ -248,7 +246,7 @@ export const buildChartFrame = <TTurningPoint>(input: {
             !!input.targetProfileId &&
             input.targetCurvePointCount > 0,
         controlData: chartControlData(input),
-        elapsed: input.bbpActive ? Math.max(0, input.bbpNowSec - origin) : input.elapsed,
+        elapsed: input.displayedElapsed,
         charged: input.charged && !input.bbpActive,
         eventMarkers: input.eventMarkers,
         turningPoints: listUnlessBbp(input.bbpActive, input.turningPoints),

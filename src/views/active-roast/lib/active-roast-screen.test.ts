@@ -41,7 +41,7 @@ const chartInput = {
     referenceDrum: [] as (number | null)[],
     referenceHeater: [] as (number | null)[],
     referenceFan: [] as (number | null)[],
-    elapsed: 90,
+    displayedElapsed: 90,
     charged: true,
     eventMarkers: [{ timeSec: 1, event: 'Note', color: '#fff', timeStr: '0:01', temp: '100' }],
     turningPoints: [{ timeSec: 1, temp: 2 }],
@@ -64,6 +64,7 @@ describe('buildChartFrame', () => {
             ...chartInput,
             bbpActive: true,
             bbpRecording: true,
+            displayedElapsed: 12.8,
             charged: false,
         });
         expect(frame.testId).toBe('bbp-target-status');
