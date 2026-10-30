@@ -1,20 +1,19 @@
-"""가상 머신은 한 배치의 BBP와 Charge 이후 곡선을 이어서 재생한다."""
+"""가상 머신은 BBP 뒤에 Charge 하락을 이어 재생한다. 자동 Charge가 그 하락을 본다."""
 
 import pytest
 
 from adapters.virtual import VirtualMachineAdapter, _BBP_END, _BBP_PROFILE, _ROAST_PROFILE
 
 
-def test_bbp_runs_into_the_charge_crash():
+def test_bbp_meets_charge_without_including_the_roast():
     assert _BBP_PROFILE["timex"][-1] > 300
     assert _BBP_PROFILE["bt"][0] == pytest.approx(200.9)
     assert _BBP_PROFILE["bt"][-1] == pytest.approx(_ROAST_PROFILE["bt"][0], abs=1)
-    assert min(_BBP_PROFILE["bt"]) < 160
     assert min(_ROAST_PROFILE["bt"]) < 120
     assert _ROAST_PROFILE["bt"][-1] > 190
 
 
-def test_waiting_plays_bbp_then_the_roast_crash(monkeypatch):
+def test_preheat_plays_the_charge_drop_after_bbp(monkeypatch):
     monkeypatch.setattr("adapters.virtual.random.random", lambda: 0.5)
     now = {"t": 5_000.0}
     monkeypatch.setattr("adapters.virtual.time.monotonic", lambda: now["t"])
@@ -74,7 +73,7 @@ async def test_heater_command_does_not_move_bean_temperature(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_charge_does_not_restart_the_crash(monkeypatch):
+async def test_charge_during_the_drop_does_not_restart_it(monkeypatch):
     monkeypatch.setattr("adapters.virtual.random.random", lambda: 0.5)
     now = {"t": 8_000.0}
     monkeypatch.setattr("adapters.virtual.time.monotonic", lambda: now["t"])

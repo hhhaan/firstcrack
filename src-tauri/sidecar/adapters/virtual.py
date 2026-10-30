@@ -1,10 +1,9 @@
 """
 가상 로스팅 머신 시뮬레이터 — 개발/테스트용.
 
-세 단계로 동작한다:
-  1. 연결 직후: 실측 BBP를 재생한다
-  2. BBP가 끝나면 Charge 하락이 이어지고, 그 하락으로 자동 Charge가 걸린다
-  3. Charge 이후: 같은 실측의 Charge→Drop을 이어서 재생한다
+두 구간을 이어서 재생한다:
+  1. Charge 전: 실측 BBP를 재생하고, 끝나면 같은 배치의 Charge 하락을 이어 재생한다
+  2. 그 하락을 자동 Charge가 감지한다. 감지되면 곡선을 처음부터 다시 틀지 않는다
 """
 
 import dataclasses
@@ -82,8 +81,8 @@ def _noise(scale: float = 0.3) -> float:
 class VirtualMachineAdapter:
     """개발/테스트용 가상 머신 어댑터.
 
-    connect() → 실측 BBP 재생
-    start_roast() → 이미 시작된 Charge 하락을 끊지 않고 로스팅 곡선을 잇는다
+    connect() → 실측 BBP, 이어서 Charge 하락
+    start_roast() → 이미 시작된 하락은 이어서, BBP 도중이면 하락의 처음부터
     """
 
     def __init__(
@@ -126,7 +125,7 @@ class VirtualMachineAdapter:
         return time.monotonic() - self._connect_time
 
     def _read_preheat(self) -> Reading:
-        """Charge 전: 실측 BBP, 그 뒤는 같은 배치의 Charge 하락."""
+        """Charge 전: 실측 BBP, 그 뒤는 자동 Charge가 볼 하락."""
         elapsed = self._since_connect()
         if elapsed < _BBP_END:
             bt, et = _sample(_BBP_PROFILE, elapsed)
@@ -170,7 +169,7 @@ class VirtualMachineAdapter:
         )
 
     async def start_roast(self) -> None:
-        """Charge. BBP가 이미 끝났으면 그 시각의 로스팅 곡선을 이어서 재생한다."""
+        """Charge. 하락이 이미 시작됐으면 그 시각을 유지한다."""
         elapsed = self._since_connect()
         if elapsed >= _BBP_END:
             self._roast_start_time = self._connect_time + _BBP_END

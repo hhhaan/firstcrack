@@ -118,6 +118,7 @@ react-doctor-report.json
 test-results/
 e2e-report/
 playwright-report/
+.cursor/skills/verify-first-crack/proof/
 
 # Local generated artifacts
 output/
