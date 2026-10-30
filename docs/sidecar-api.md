@@ -804,3 +804,25 @@ The first line stays the column header. Columns 9–13 are `et_raw`, `bt_raw`, `
 `# processing\t{JSON}` lines describe the calculation settings for following samples. They are written at the first archived sample with known settings and whenever settings change, and retained during Drop clipping and BBP saving. `# processing\tnull` clears the context when a sidecar supplies no settings. The archive reader validates these records and skips malformed metadata without discarding temperature samples. External TSV readers must skip comment lines.
 
 The metadata records the actual sidecar RoR window, BT RoR EMA, ET RoR EMA, display EMA alphas, warmup read count, units, timestamp clock, and algorithm version. Older archives omit `et_ror_ema_alpha`; those curves used `ror_ema_alpha` for both rates. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.
+
+
+## POST /door-probe — W60A manual actuator commands
+
+Requires a connected `giesen_w45a_w60a` S7 machine (or the simulator). Body: `{ "action": "fill_open" }`.
+
+| action | Artisan W60A command sequence |
+| --- | --- |
+| `fill_open` / `fill_close` | `setDBint(2,30,1/2)` |
+| `discharge_open` / `discharge_close` | `setDBint(2,30,5/6)` |
+| `cooling_on` / `cooling_off` | `setDBint(2,30,8/10)` → `setDBbool(3,0,0,1/0)` → `setDBint(2,30,0)` |
+| `stirrer_on` / `stirrer_off` | `setDBint(2,30,7/9)` → `setDBbool(2,83,1,1/0)` → `setDBint(2,30,0)` |
+| `read` | Explicit DB2.30 and DB2.82.6 diagnostic reads, no writes |
+
+Reference: Artisan commit `5be39f640bced5e1e555d645f864daeae66ac11f`, `src/includes/Machines/Giesen/W60A.aset:113` and `src/artisanlib/s7port.py:407–502`.
+Each command uses `read_area(Area.DB, ...)` then `write_area(Area.DB, ...)` under one I/O lock. The lock is released between commands, allowing polling between them. Every request uses the shared 40ms start-based throttle. INT writes preserve the same two-byte buffer; BOOL writes modify one bit of the one-byte buffer. No additional preflight or readback requests run on command actions. Door actions do not reset the command to zero. MACHINE ON is not implicitly sent.
+
+On successful delivery, `wrote` is the requested command code and `command_before` comes from the first mandatory RMW read. Cooling/stirrer `*_before` comes from that command's RMW read, not a simultaneous preflight snapshot. Unobserved `command_after`, `command_held`, `discharge_open_before/after`, and cooling/stirrer `*_after/held` are `null`; a 200 response does not confirm physical movement. The explicit `read` action returns observations. The simulator follows the same response contract.
+
+Like Artisan, an individual I/O error does not skip subsequent command tokens in the same session. FC reports the failure as HTTP 502 after attempting the remaining tokens, including the final zero. A connection/session change or lock acquisition timeout aborts the request immediately; remaining commands are never transferred to a replacement connection. Controls are not retried or reconnected automatically by this path.
+
+The parity scope is the eight button command sequences, not full application or wire timing. FC retains its monotonic clock, 500ms receive timeout, bounded lock wait, session fencing and its own polling schedule. These safeguards and actual hardware behavior are not claimed identical to Artisan.

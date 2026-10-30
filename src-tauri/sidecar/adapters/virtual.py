@@ -195,10 +195,10 @@ class VirtualMachineAdapter:
         return {
             "wrote": write,
             "command_before": command_before,
-            "command_after": self._door_command,
-            "command_held": None if write is None else True,
-            "discharge_open_before": discharge_open_before,
-            "discharge_open_after": self._discharge_open,
+            "command_after": self._door_command if write is None else None,
+            "command_held": None,
+            "discharge_open_before": discharge_open_before if write is None else None,
+            "discharge_open_after": self._discharge_open if write is None else None,
         }
 
     async def cooling_fan_probe(self, on: bool | None) -> dict[str, Any]:
@@ -215,13 +215,13 @@ class VirtualMachineAdapter:
         return {
             "wrote": pulse,
             "command_before": command_before,
-            "command_after": self._door_command,
-            "command_held": None if on is None else self._door_command == 0,
-            "discharge_open_before": self._discharge_open,
-            "discharge_open_after": self._discharge_open,
+            "command_after": self._door_command if on is None else None,
+            "command_held": None,
+            "discharge_open_before": None,
+            "discharge_open_after": None,
             "cool_fan_before": fan_before,
-            "cool_fan_after": self._cool_fan,
-            "cool_fan_held": None if on is None else self._cool_fan is on,
+            "cool_fan_after": self._cool_fan if on is None else None,
+            "cool_fan_held": None,
         }
 
     async def stirrer_probe(self, on: bool | None) -> dict[str, Any]:
@@ -238,13 +238,13 @@ class VirtualMachineAdapter:
         return {
             "wrote": pulse,
             "command_before": command_before,
-            "command_after": self._door_command,
-            "command_held": None if on is None else self._door_command == 0,
-            "discharge_open_before": self._discharge_open,
-            "discharge_open_after": self._discharge_open,
+            "command_after": self._door_command if on is None else None,
+            "command_held": None,
+            "discharge_open_before": None,
+            "discharge_open_after": None,
             "stirrer_before": stirrer_before,
-            "stirrer_after": self._stirrer,
-            "stirrer_held": None if on is None else self._stirrer is on,
+            "stirrer_after": self._stirrer if on is None else None,
+            "stirrer_held": None,
         }
 
     async def control(

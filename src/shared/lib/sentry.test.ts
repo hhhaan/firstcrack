@@ -437,6 +437,25 @@ describe('captureDoorProbe', () => {
         });
     });
 
+    it('keeps unobserved readback null after Artisan command delivery', () => {
+        captureDoorProbe(
+            result({
+                command_after: null,
+                command_held: null,
+                discharge_open_before: null,
+                discharge_open_after: null,
+            }),
+        );
+        expect(Sentry.captureMessage).toHaveBeenCalledWith(
+            'w60a door probe',
+            expect.objectContaining({
+                level: 'info',
+                tags: expect.objectContaining({ command_held: 'none', wrote: '5' }),
+                extra: expect.objectContaining({ command_after: null, discharge_open_after: null }),
+            }),
+        );
+    });
+
     it('records a failed button without a PLC result', () => {
         captureDoorProbeFailure('fill_open', '문 명령 확인에 실패했습니다.');
         expect(Sentry.captureMessage).toHaveBeenCalledWith('w60a door probe failed', {

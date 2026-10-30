@@ -399,7 +399,7 @@ const doorProbeTags = (result: Pick<DoorProbeResult, 'action' | 'command_held' |
     };
 };
 
-/** 사이드카가 측정한 문 명령 확인. 문 이동은 넣지 않는다. */
+/** 명령 전송 결과와 명시적으로 읽은 값만 기록한다. null은 미측정이다. */
 export const captureDoorProbe = (result: DoorProbeResult) => {
     const tags = doorProbeTags(result);
     Sentry.captureMessage('w60a door probe', {

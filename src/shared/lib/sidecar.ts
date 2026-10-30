@@ -212,7 +212,7 @@ export const sidecar = {
      * 머신 제어값 쓰기. 사이드카가 write_map 범위로 자른 뒤 `applied`로 실제 값을 돌려준다.
      * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
      */
-    /** W60A DB2.30 probe. The response says whether the integer stayed, not whether a door moved. */
+    /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
     doorProbe: (action: DoorProbeAction) =>
         request<DoorProbeResult>('/door-probe', {
             method: 'POST',
