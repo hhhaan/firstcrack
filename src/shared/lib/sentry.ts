@@ -9,7 +9,7 @@
  * - 앱 내 ErrorBoundary는 캡처하지 않는다. React 19 root 핸들러(reactRootOptions)가 유일한 경로다.
  */
 import * as Sentry from '@sentry/react';
-import type { DoorProbeResult, ProtocolTraceEntry } from '@shared/types/sidecar';
+import type { DoorProbeResult } from '@shared/types/sidecar';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf, isClientSqlStateWarning, isDeterministicClientError, isExpectedRefusal } from './httpStatus';
@@ -399,7 +399,7 @@ const doorProbeTags = (result: Pick<DoorProbeResult, 'action' | 'command_held' |
     };
 };
 
-/** 명령 전송 결과와 명시적으로 읽은 값만 기록한다. null은 미측정이다. */
+/** 사이드카가 측정한 문 명령 확인. 문 이동은 넣지 않는다. */
 export const captureDoorProbe = (result: DoorProbeResult) => {
     const tags = doorProbeTags(result);
     Sentry.captureMessage('w60a door probe', {
@@ -425,17 +425,16 @@ export const captureDoorProbe = (result: DoorProbeResult) => {
                       stirrer_after: result.stirrer_after,
                       stirrer_held: result.stirrer_held,
                   }),
-            ...(result.trace ? { trace: result.trace } : {}),
         },
     });
 };
 
-export const captureDoorProbeFailure = (action: string, message: string, trace?: ProtocolTraceEntry[]) => {
+export const captureDoorProbeFailure = (action: string, message: string) => {
     Sentry.captureMessage('w60a door probe failed', {
         level: 'error',
         fingerprint: ['door-probe', action, 'failed'],
         tags: { feature: 'w60a-door-probe', action },
-        extra: trace ? { message, trace } : { message },
+        extra: { message },
     });
 };
 

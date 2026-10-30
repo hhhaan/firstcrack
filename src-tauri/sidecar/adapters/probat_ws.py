@@ -167,7 +167,6 @@ class ProbatWSAdapter:
             TRACE.record("tx", "probat_ws", payload.get("command", ""), raw)
             await self._ws.send(raw)
         except Exception as exc:
-            TRACE.record("err", "probat_ws", f"send {type(exc).__name__}", force=True)
             raise await self._on_ws_error(exc) from exc
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:

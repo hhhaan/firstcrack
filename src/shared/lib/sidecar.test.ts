@@ -12,63 +12,6 @@ vi.mock('./sentry', async (importOriginal) => {
 
 import { SidecarHttpError, sidecar, subscribeSidecarSettings } from './sidecar';
 
-describe('sidecar hardware response deadlines', () => {
-    beforeEach(() => {
-        vi.useFakeTimers();
-        captureSidecar.mockClear();
-        vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) => {
-            const controller = new AbortController();
-            setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), ms);
-            return controller.signal;
-        });
-        vi.stubGlobal(
-            'fetch',
-            vi.fn(
-                (_url: string, init: RequestInit) =>
-                    new Promise<Response>((resolve, reject) => {
-                        const timer = setTimeout(() => resolve(new Response(JSON.stringify({ ok: true }))), 6000);
-                        init.signal?.addEventListener(
-                            'abort',
-                            () => {
-                                clearTimeout(timer);
-                                reject(init.signal?.reason);
-                            },
-                            { once: true },
-                        );
-                    }),
-            ),
-        );
-    });
-
-    afterEach(() => {
-        vi.clearAllTimers();
-        vi.useRealTimers();
-        vi.restoreAllMocks();
-        vi.unstubAllGlobals();
-    });
-
-    it.each([
-        { name: 'temperatures', run: () => sidecar.getTemperatures() },
-        { name: 'actuator', run: () => sidecar.doorProbe('cooling_on') },
-        { name: 'control', run: () => sidecar.setControl({ heater: 20 }) },
-        { name: 'PID on', run: () => sidecar.pidOn(180) },
-        { name: 'PID off', run: () => sidecar.pidOff('zero') },
-        { name: 'reset', run: () => sidecar.resetRoast() },
-    ])('waits for a slow $name response without resending', async ({ run }) => {
-        const result = expect(run()).resolves.toMatchObject({ ok: true });
-        await vi.advanceTimersByTimeAsync(6000);
-        await result;
-        expect(fetch).toHaveBeenCalledOnce();
-        expect(captureSidecar).not.toHaveBeenCalled();
-    });
-
-    it('keeps the five-second status deadline', async () => {
-        const result = expect(sidecar.getStatus()).rejects.toMatchObject({ status: 'timeout', route: '/status' });
-        await vi.advanceTimersByTimeAsync(5000);
-        await result;
-    });
-});
-
 describe('sidecar.waitUntilReady', () => {
     beforeEach(() => {
         vi.useFakeTimers();

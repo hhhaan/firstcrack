@@ -255,36 +255,24 @@ async def handle_control(request: web.Request) -> web.Response:
     except Exception:
         return web.Response(status=400, text="invalid json")
     manager: RoasterManager = request.app["manager"]
-    from protocol_trace import TRACE
-
-    started = TRACE.begin()
     try:
-        try:
-            # 빈 요청은 연결 여부와 무관하게 no-op — 검증은 쓸 값이 있을 때만 의미가 있다.
-            cmd = control_guard.parse_command(body)
-            if not cmd:
-                return web.json_response({"ok": True, "applied": {}})
-            retry_epoch = control_guard.parse_retry_epoch(body)
-            applied = await manager.control(**cmd, retry_epoch=retry_epoch)
-        except control_guard.ControlRangeError as exc:
-            return web.json_response({"error": str(exc)}, status=400)
-        except control_guard.ControlUnavailable as exc:
-            return web.json_response({"error": str(exc)}, status=409)
-        except Exception as exc:
-            # exc_info=True 먼저 쓰면 LoggingIntegration이 태그 없는 이벤트를 만들고 dedupe가
-            # 아래 tagged capture를 삭제한다 (#771).
-            traffic = TRACE.end(started)
-            started = None
-            manager._capture_hardware_error(exc, "control_write_failed", once=True, traffic=traffic)
-            _log.warning("control 실패 (%s)", type(exc).__name__, exc_info=True)
-            return web.json_response(
-                {"error": "제어 명령 전송에 실패했습니다.", "trace": traffic},
-                status=502,
-            )
-        return web.json_response({"ok": True, "applied": applied})
-    finally:
-        if started is not None:
-            TRACE.end(started)
+        # 빈 요청은 연결 여부와 무관하게 no-op — 검증은 쓸 값이 있을 때만 의미가 있다.
+        cmd = control_guard.parse_command(body)
+        if not cmd:
+            return web.json_response({"ok": True, "applied": {}})
+        retry_epoch = control_guard.parse_retry_epoch(body)
+        applied = await manager.control(**cmd, retry_epoch=retry_epoch)
+    except control_guard.ControlRangeError as exc:
+        return web.json_response({"error": str(exc)}, status=400)
+    except control_guard.ControlUnavailable as exc:
+        return web.json_response({"error": str(exc)}, status=409)
+    except Exception as exc:
+        # exc_info=True 먼저 쓰면 LoggingIntegration이 태그 없는 이벤트를 만들고 dedupe가
+        # 아래 tagged capture를 삭제한다 (#771).
+        manager._capture_hardware_error(exc, "control_write_failed", once=True)
+        _log.warning("control 실패 (%s)", type(exc).__name__, exc_info=True)
+        return web.json_response({"error": "제어 명령 전송에 실패했습니다."}, status=502)
+    return web.json_response({"ok": True, "applied": applied})
 
 
 async def handle_door_probe(request: web.Request) -> web.Response:
@@ -308,16 +296,8 @@ async def handle_door_probe(request: web.Request) -> web.Response:
             type(exc).__name__,
             exc_info=True,
         )
-        traffic = getattr(exc, "traffic", None)
-        if not isinstance(traffic, list):
-            traffic = []
-        manager._capture_hardware_error(
-            exc, "door_probe", traffic=traffic, action=str(body.get("action")),
-        )
-        return web.json_response(
-            {"error": "문 명령 확인에 실패했습니다.", "trace": traffic},
-            status=502,
-        )
+        manager._capture_hardware_error(exc, "door_probe", action=str(body.get("action")))
+        return web.json_response({"error": "문 명령 확인에 실패했습니다."}, status=502)
     return web.json_response(result)
 
 

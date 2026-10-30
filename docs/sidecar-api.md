@@ -370,8 +370,7 @@ Notes:
 
 읽기 실패 판정 (manager 공통 경로):
 
-- `adapter.read()`는 S7에서 `config.S7_READ_TIMEOUT_S`(4.5s), 다른 프로토콜에서 `config.READ_TIMEOUT`(3.0s) 안에서 await한다. S7은 별도 읽기 예산4초 안에 수신 상한3초를 확보할 수 있을 때만 다음 I/O를 시작한다. 초과하면 읽기 실패로 처리한다. 단, executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다 — HTTP 핸들러만 풀려난다.
-- 웹뷰의 `/temperatures` HTTP 대기는10초로, PID/UI의 직렬 읽기 대기를 포함한다. 이는 폴링 주기가 아니다. 각 채널의 응답이 늦어 읽기 예산을 소진하면 수신 타임아웃 이전에도 전체 읽기는 실패할 수 있다.
+- `adapter.read()`는 `config.READ_TIMEOUT`(3.0s) 전역 타임아웃 안에서 await한다. 초과하면 읽기 실패로 처리한다. 단, executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다 — HTTP 핸들러만 풀려난다.
 - BT가 `config.BT_VALID_MIN_C` 이하이거나 `config.BT_VALID_MAX_C` 이상, 또는 NaN/Inf면 **예외 없이 반환됐더라도 읽기 실패로 승격**한다. 어댑터가 실패를 `-1.0` 같은 센티넬로 인코딩하는 경우(Phidget 분리, Kaleido 핸드셰이크 유실, Probat 노드 누락)를 잡기 위한 것이다.
 - ET는 검증하지 않는다. ET 미장착 머신에서 `-1.0`은 정상적인 "채널 없음" 값이다.
 - 실패가 `STALE_TOLERANCE_READS`회 이하이고 직전 성공 값이 있으면 그 값을 `stale=true`로 반환한다. 초과하면 `connected=false` + 재연결 루프로 전환하고 `bt=null`을 반환한다.
@@ -669,7 +668,7 @@ Notes:
 
 ### GET /debug/trace
 
-프로토콜 트레이스 버퍼를 덤프한다. 프로세스가 켜지면 기록은 기본으로 켜져 있고, `POST /debug/trace`로 끌 수 있다. S7, Modbus, Probat WS, Kaleido, Phidget 송수신과 오류가 링버퍼에 쌓인다. 호스트와 시리얼 번호는 일부러 넣지 않는다.
+프로토콜 트레이스 버퍼를 덤프한다.
 
 Response:
 
@@ -786,6 +785,8 @@ npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 | `scripts/build-sidecar.sh` | `pyinstaller sidecar.spec` 실행 후 rustc target triple 이름으로 `src-tauri/binaries/`에 복사 |
 | `src-tauri/src/lib.rs` | Tauri 앱 시작 시 `tauri_plugin_shell`로 sidecar 프로세스 spawn, stdout/stderr drain. spawn 실패는 비치명 — 앱은 정상 기동하고 워치독이 백오프 재시도하며, 모두 실패하면 `sidecar-dead` 이벤트를 emit한다 |
 
+Rust Sentry는 `apply_defaults`로 전송 기능을 활성화한다. 사이드카 최초 실행 실패와 재시도 소진은 `runtime=tauri` 오류로 보고한다. 재시도 중 종료 코드(10진수·16진수), 시그널, 생존 시간, 이전 실패 횟수는 같은 Hub의 breadcrumb에 모아 최종 오류에 첨부한다. 프로세스 감시 오류와 종료 상태 없이 이벤트 스트림이 닫힌 경우도 구분해서 기록한다.
+
 바이너리(`src-tauri/binaries/sidecar-*`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `npm run build:sidecar`를 먼저 실행해야 한다.
 
 ## Known Behavior To Preserve
@@ -803,27 +804,3 @@ The first line stays the column header. Columns 9–13 are `et_raw`, `bt_raw`, `
 `# processing\t{JSON}` lines describe the calculation settings for following samples. They are written at the first archived sample with known settings and whenever settings change, and retained during Drop clipping and BBP saving. `# processing\tnull` clears the context when a sidecar supplies no settings. The archive reader validates these records and skips malformed metadata without discarding temperature samples. External TSV readers must skip comment lines.
 
 The metadata records the actual sidecar RoR window, BT RoR EMA, ET RoR EMA, display EMA alphas, warmup read count, units, timestamp clock, and algorithm version. Older archives omit `et_ror_ema_alpha`; those curves used `ror_ema_alpha` for both rates. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.
-
-
-## POST /door-probe — W60A manual actuator commands
-
-Requires a connected `giesen_w45a_w60a` S7 machine (or the simulator). Body: `{ "action": "fill_open" }`.
-
-| action | Artisan W60A command sequence |
-| --- | --- |
-| `fill_open` / `fill_close` | `setDBint(2,30,1/2)` |
-| `discharge_open` / `discharge_close` | `setDBint(2,30,5/6)` |
-| `cooling_on` / `cooling_off` | `setDBint(2,30,8/10)` → `setDBbool(3,0,0,1/0)` → `setDBint(2,30,0)` |
-| `stirrer_on` / `stirrer_off` | `setDBint(2,30,7/9)` → `setDBbool(2,83,1,1/0)` → `setDBint(2,30,0)` |
-| `read` | Explicit DB2.30 and DB2.82.6 diagnostic reads, no writes |
-
-Reference: Artisan commit `5be39f640bced5e1e555d645f864daeae66ac11f`, `src/includes/Machines/Giesen/W60A.aset:113` and `src/artisanlib/s7port.py:407–502`.
-Each command uses `read_area(Area.DB, ...)` then `write_area(Area.DB, ...)` under one I/O lock, then reads that same cell again before the lock is released. The lock is released between commands, allowing polling between them. Every request uses the shared 40ms start-based throttle. INT writes preserve the same two-byte buffer; BOOL writes modify one bit of the one-byte buffer. If the readback bytes differ, that token is written and read once more. A failed read is not a mismatch and is not rewritten. Door actions do not reset the command to zero. MACHINE ON is not implicitly sent.
-
-On successful delivery, `wrote` is the requested command code and `command_before` comes from the first mandatory RMW read. `command_after` and `command_held` come from the read after the last command-word write in that action. Cooling and stirrer `*_before` come from that bit's RMW read; `*_after` and `*_held` come from the read after that bit write. A 200 response means those bytes matched. It does not confirm physical movement. The explicit `read` action returns observations without writing. The simulator follows the same response contract.
-
-Like Artisan, an individual I/O error does not skip subsequent command tokens in the same session. FC reports the failure as HTTP 502 after attempting the remaining tokens, including the final zero. The 502 body includes `trace`, the protocol records captured during that request, including token errors. A connection/session change or lock acquisition timeout aborts the request immediately; remaining commands are never transferred to a replacement connection. Controls are not retried or reconnected automatically by this path. A failed `POST /control` body also includes `trace`.
-
-The S7 receive timeout is 3000ms, matching the local Snap7 default left unchanged by Artisan. Each response can complete earlier; this does not change polling cadence or the 40ms request interval. Webview requests for actuator controls, numeric controls, PID on/off and roast reset wait up to 45s for multi-I/O operations; they are not automatically resent on timeout.
-
-The parity scope is the eight button command sequences, not full application or wire timing. FC retains its monotonic clock, bounded lock wait, session fencing and its own polling schedule. These safeguards and actual hardware behavior are not claimed identical to Artisan.

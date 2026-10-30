@@ -356,6 +356,8 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
     std::thread::sleep(std::time::Duration::from_millis(200));
 
     let app_handle = app.handle().clone();
+    // Keep startup and retry evidence together even when Tokio changes worker threads.
+    let sidecar_hub = sentry::Hub::new_from_top(sentry::Hub::main());
     let initial_rx = match spawn_sidecar(&app_handle) {
         Ok((rx, child)) => {
             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(child);
@@ -364,7 +366,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
         }
         Err(e) => {
             eprintln!("[sidecar] 최초 spawn 실패 (앱은 계속 기동): {e}");
-            sentry::capture_message(
+            sidecar_hub.capture_message(
                 &format!("[sidecar-spawn-failed] 최초 spawn 실패: {e}"),
                 sentry::Level::Error,
             );
@@ -382,6 +384,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
 
         loop {
             if let Some(rx) = current_rx.as_mut() {
+                let mut saw_termination = false;
                 while let Some(event) = rx.recv().await {
                     match event {
                         CommandEvent::Stdout(line) => {
@@ -391,11 +394,15 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                             eprint!("[sidecar] {}", String::from_utf8_lossy(&line));
                         }
                         CommandEvent::Terminated(payload) => {
-                            eprintln!("[sidecar] terminated: code={:?}", payload.code);
+                            saw_termination = true;
+                            eprintln!(
+                                "[sidecar] terminated: code={:?} signal={:?}",
+                                payload.code, payload.signal,
+                            );
                             // 이슈로 만들지 않는다 — 정상 종료·앱 종료·재시작으로 회복되는
                             // 경우가 대부분이다. 조치가 필요한 건 아래 sidecar-dead뿐이고,
                             // 그 이벤트에 이 breadcrumb들이 붙어 경위를 보여준다.
-                            sentry::add_breadcrumb(sentry::Breadcrumb {
+                            sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
                                 category: Some("sidecar".into()),
                                 level: sentry::Level::Warning,
                                 message: Some(format!(
@@ -403,12 +410,41 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                                     payload.code,
                                     spawned_at.elapsed().as_secs_f64(),
                                 )),
+                                data: [
+                                    ("exit_code".into(), serde_json::json!(payload.code)),
+                                    (
+                                        "exit_code_hex".into(),
+                                        serde_json::json!(payload.code.map(|code| format!("0x{:08X}", code as u32))),
+                                    ),
+                                    ("signal".into(), serde_json::json!(payload.signal)),
+                                    (
+                                        "uptime_ms".into(),
+                                        serde_json::json!(spawned_at.elapsed().as_millis() as u64),
+                                    ),
+                                    ("previous_failures".into(), serde_json::json!(attempts)),
+                                ].into_iter().collect(),
                                 ..Default::default()
                             });
                             break;
                         }
+                        CommandEvent::Error(error) => {
+                            sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
+                                category: Some("sidecar".into()),
+                                level: sentry::Level::Error,
+                                message: Some(format!("process supervision error: {error}")),
+                                ..Default::default()
+                            });
+                        }
                         _ => {}
                     }
+                }
+                if !saw_termination {
+                    sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
+                        category: Some("sidecar".into()),
+                        level: sentry::Level::Error,
+                        message: Some("event stream closed without a termination status".into()),
+                        ..Default::default()
+                    });
                 }
 
                 // 30초 미만 생존 = 빠른 사망 → 실패로 카운트. 충분히 살았으면 리셋.
@@ -425,7 +461,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                     "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
                     RESTART_BACKOFFS_SECS.len()
                 );
-                sentry::capture_message(
+                sidecar_hub.capture_message(
                     &format!(
                         "[sidecar-dead] {}회 재시작 모두 실패 — 복구 포기",
                         RESTART_BACKOFFS_SECS.len()
@@ -462,7 +498,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                 Err(e) => {
                     eprintln!("[sidecar-restart] spawn 실패: {e}");
                     // 중간 재시도 실패는 아직 조치 대상이 아니다 — 소진돼야 이슈다.
-                    sentry::add_breadcrumb(sentry::Breadcrumb {
+                    sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
                         category: Some("sidecar".into()),
                         level: sentry::Level::Error,
                         message: Some(format!("restart spawn failed ({attempts}): {e}")),

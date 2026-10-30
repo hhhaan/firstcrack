@@ -148,6 +148,7 @@ fn scrub_paths(text: &str) -> String {
 fn scrub_event(
     mut event: sentry::protocol::Event<'static>,
 ) -> Option<sentry::protocol::Event<'static>> {
+    event.server_name = None;
     // runtime 태그는 여기서 붙인다 — scope는 훅/스레드마다 갈릴 수 있지만
     // before_send는 나가는 모든 이벤트가 반드시 통과한다.
     event.tags.insert("runtime".to_owned(), "tauri".to_owned());
@@ -174,7 +175,7 @@ pub fn init(version: &str) -> Option<Arc<sentry::Client>> {
         return None;
     }
 
-    let client = sentry::Client::from((
+    let options = (
         SENTRY_DSN,
         sentry::ClientOptions {
             release: Some(Cow::Owned(release_name(version))),
@@ -190,7 +191,8 @@ pub fn init(version: &str) -> Option<Arc<sentry::Client>> {
             })),
             ..Default::default()
         },
-    ));
+    ).into();
+    let client = sentry::Client::from(sentry::apply_defaults(options));
 
     let client = Arc::new(client);
     sentry::Hub::main().bind_client(Some(client.clone()));
@@ -202,8 +204,50 @@ mod tests {
     use super::*;
 
     #[test]
+    fn initialization_enables_event_transport() {
+        if std::env::var_os("FC_SENTRY_INIT_TEST_CHILD").is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "sentry_config::tests::initialization_enables_event_transport",
+                    "--nocapture",
+                ])
+                .env("FC_SENTRY_INIT_TEST_CHILD", "1")
+                .env("SENTRY_SMOKE", "1")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr),
+            );
+            return;
+        }
+
+        let client = init("1.3.10").expect("smoke mode enables the client");
+        let enabled = client.is_enabled();
+        let has_transport = client.options().transport.is_some();
+        // Assertions must not report test failures to production through the panic integration.
+        client.close(Some(std::time::Duration::ZERO));
+        sentry::Hub::main().bind_client(None);
+        assert!(enabled, "a DSN without a transport silently drops events");
+        assert!(has_transport);
+        assert_eq!(client.options().release.as_deref(), Some("first-crack@1.3.10"));
+    }
+
+    #[test]
     fn release_uses_app_name_not_crate_name() {
         assert_eq!(release_name("1.1.32"), "first-crack@1.1.32");
+    }
+
+    #[test]
+    fn excludes_computer_name_from_event() {
+        let event = sentry::protocol::Event {
+            server_name: Some("customer-pc".into()),
+            ..Default::default()
+        };
+        assert!(scrub_event(event).unwrap().server_name.is_none());
     }
 
     #[test]

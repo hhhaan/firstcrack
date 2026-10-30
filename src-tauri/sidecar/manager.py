@@ -418,7 +418,6 @@ class RoasterManager:
         event: str = "hardware_error",
         *,
         once: bool = False,
-        traffic: list[dict[str, Any]] | None = None,
         **extra_tags: str,
     ) -> None:
         """하드웨어 에러를 Sentry/Slack에 캡처 — 프로토콜/로스터 정보 포함.
@@ -457,8 +456,6 @@ class RoasterManager:
                         "reconnect_attempt": self._reconnect_attempt,
                     },
                 )
-                if traffic:
-                    scope.set_context("traffic", {"entries": traffic})
                 # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
                 # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
                 if self._merged_params:
@@ -775,8 +772,7 @@ class RoasterManager:
         try:
             # 어댑터 hang 시 /temperatures가 무기한 pending 되지 않도록 전역 타임아웃 (H7).
             # 주의: executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다.
-            read_timeout = config.S7_READ_TIMEOUT_S if self._protocol == "s7" else config.READ_TIMEOUT
-            reading = await asyncio.wait_for(adapter.read(), timeout=read_timeout)
+            reading = await asyncio.wait_for(adapter.read(), timeout=config.READ_TIMEOUT)
             # 예외 없이 돌아온 센티넬/NaN도 실패로 승격 — 아래 except가 stale/재연결을 담당 (H1)
             _validate_bt(reading.bt)
             for role in ("heater", "fan", "drum"):
@@ -1277,7 +1273,7 @@ class RoasterManager:
         }
 
     async def door_probe(self, action: str) -> dict[str, Any]:
-        """W60A Artisan 명령/명시적 읽기. 전송 완료는 물리 동작 확인이 아니다."""
+        """W60A 문 명령 확인. 쓰기 성공을 문 이동으로 보고하지 않는다."""
         commands = {
             "read": None,
             "fill_open": 1,
@@ -1302,33 +1298,6 @@ class RoasterManager:
             or not hasattr(adapter, "door_probe")
         ):
             raise ControlUnavailable("W60A 또는 가상 머신 연결에서만 문 명령을 확인합니다.")
-        from protocol_trace import TRACE
-
-        started = TRACE.begin()
-        try:
-            try:
-                result = await self._door_probe_action(adapter, action, commands, cooling, stirrer)
-            except Exception as exc:
-                exc.traffic = TRACE.end(started)  # type: ignore[attr-defined]
-                started = None
-                raise
-            result["trace"] = TRACE.end(started)
-            started = None
-            result["action"] = action
-            self._record_door_probe(action, result)
-            return result
-        finally:
-            if started is not None:
-                TRACE.end(started)
-
-    async def _door_probe_action(
-        self,
-        adapter: Any,
-        action: str,
-        commands: dict[str, int | None],
-        cooling: dict[str, bool],
-        stirrer: dict[str, bool],
-    ) -> dict[str, Any]:
         if action in cooling:
             if not hasattr(adapter, "cooling_fan_probe"):
                 raise ControlUnavailable("이 연결은 쿨링팬 명령을 확인하지 않습니다.")
@@ -1339,6 +1308,8 @@ class RoasterManager:
             result = await adapter.stirrer_probe(stirrer[action])
         else:
             result = await adapter.door_probe(commands[action])
+        result["action"] = action
+        self._record_door_probe(action, result)
         return result
 
     def _record_door_probe(self, action: str, result: dict[str, Any]) -> None:
@@ -1357,7 +1328,6 @@ class RoasterManager:
             "stirrer_before": result.get("stirrer_before"),
             "stirrer_after": result.get("stirrer_after"),
             "stirrer_held": result.get("stirrer_held"),
-            "trace": result.get("trace") or [],
         }
         held = facts["command_held"]
         fan_held = facts["cool_fan_held"]

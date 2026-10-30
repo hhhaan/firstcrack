@@ -58,14 +58,13 @@ export const DoorCommandProbe = ({ roaster, disabled }: { roaster: string | null
         setSending(true);
         setError(null);
         try {
-            const result = await sidecar.doorProbe(action);
-            captureDoorProbe(result);
+            captureDoorProbe(await sidecar.doorProbe(action));
             const pair = PAIR[action];
             if (pair) setLatched((current) => ({ ...current, [pair]: action }));
         } catch (caught) {
             const message = isSidecarHttpError(caught) ? caught.message : t('machines.doorProbe.failed');
             setError(message);
-            captureDoorProbeFailure(action, message, isSidecarHttpError(caught) ? caught.trace : undefined);
+            captureDoorProbeFailure(action, message);
         } finally {
             setSending(false);
             setPending(null);

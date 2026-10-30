@@ -1,14 +1,12 @@
-"""W60A actuator traffic matches the pinned Artisan preset, then reads the written cell."""
+"""W60A door probe reports the command cell and the discharge status bit."""
 
 import logging
-import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
-from snap7.type import Area
-from snap7.util.getters import get_int
+from snap7.util.getters import get_bool, get_int
 from snap7.util.setters import set_int
 
 from adapters.s7 import S7Adapter
@@ -27,8 +25,6 @@ def _adapter(registers: dict[tuple[int, int], bytearray]) -> S7Adapter:
     plc = MagicMock()
     plc.db_write.side_effect = lambda db, offset, payload: registers.update({(db, offset): bytearray(payload)})
     plc.db_read.side_effect = lambda db, offset, size: registers.get((db, offset), bytearray(size))[:size]
-    plc.read_area.side_effect = lambda area, db, offset, size: registers.get((db, offset), bytearray(size))[:size]
-    plc.write_area.side_effect = lambda area, db, offset, payload: registers.update({(db, offset): bytearray(payload)})
     adapter._plc = plc
     adapter._min_interval = 0.0
     return adapter
@@ -47,235 +43,78 @@ class TestDoorProbe:
         assert result["discharge_open_before"] is True
         assert result["discharge_open_after"] is True
 
-    # Artisan 5be39f640bced5e1e555d645f864daeae66ac11f, W60A.aset:113.
-    @pytest.mark.parametrize("method,value,expected", [
-        ("door_probe", 1, [(2, 30, b"\x00\x01")]),
-        ("door_probe", 2, [(2, 30, b"\x00\x02")]),
-        ("door_probe", 5, [(2, 30, b"\x00\x05")]),
-        ("door_probe", 6, [(2, 30, b"\x00\x06")]),
-        ("cooling_fan_probe", True, [(2, 30, b"\x00\x08"), (3, 0, b"\xa5"), (2, 30, b"\x00\x00")]),
-        ("cooling_fan_probe", False, [(2, 30, b"\x00\x0a"), (3, 0, b"\xa4"), (2, 30, b"\x00\x00")]),
-        ("stirrer_probe", True, [(2, 30, b"\x00\x07"), (2, 83, b"\xa6"), (2, 30, b"\x00\x00")]),
-        ("stirrer_probe", False, [(2, 30, b"\x00\x09"), (2, 83, b"\xa4"), (2, 30, b"\x00\x00")]),
-    ])
-    async def test_exact_artisan_io_and_unobserved_feedback(self, method, value, expected):
-        adapter = _adapter({(3, 0): bytearray(b"\xa5"), (2, 83): bytearray(b"\xa6")})
-        result = await getattr(adapter, method)(value)
-        calls = [(c[0], c.args) for c in adapter._plc.mock_calls]
-        traffic = []
-        for db, offset, payload in expected:
-            traffic.extend([
-                ("read_area", (Area.DB, db, offset, len(payload))),
-                ("write_area", (Area.DB, db, offset, bytearray(payload))),
-                ("read_area", (Area.DB, db, offset, len(payload))),
-            ])
-        assert calls == traffic
-        assert result["wrote"] == int.from_bytes(expected[0][2], "big")
-        assert result["command_before"] == 0
-        assert result["command_held"] is True
-        if method == "door_probe":
-            assert result["command_after"] == value
-        else:
-            assert result["command_after"] == 0
-        if method == "cooling_fan_probe":
-            assert result["cool_fan_before"] is True
-            assert result["cool_fan_after"] is value
-            assert result["cool_fan_held"] is True
-        if method == "stirrer_probe":
-            assert result["stirrer_before"] is True
-            assert result["stirrer_after"] is value
-            assert result["stirrer_held"] is True
-
-    async def test_write_uses_the_same_buffer_read_by_artisan(self):
-        command = _int_bytes(7)
+    async def test_write_sets_the_two_bytes_just_read(self):
+        command = bytearray(b"\x00\x07")
+        written: list[bytearray] = []
         adapter = _adapter({})
-        adapter._plc.read_area.return_value = command
-        adapter._plc.read_area.side_effect = None
-        await adapter.door_probe(5)
-        assert adapter._plc.write_area.call_args.args[3] is command
-        assert get_int(command, 0) == 5
 
-    async def test_locks_each_rmw_and_allows_polling_between_commands(self):
-        adapter = _adapter({})
-        lock = threading.Lock()
-        acquisitions = []
-        releases = []
-
-        class ObservedLock:
-            def acquire(self, timeout):
-                acquisitions.append(len(adapter._plc.mock_calls))
-                return lock.acquire(timeout=timeout)
-
-            def release(self):
-                releases.append(len(adapter._plc.mock_calls))
-                lock.release()
-
-        adapter._io_lock = ObservedLock()
-        read = adapter._plc.read_area.side_effect
-        write = adapter._plc.write_area.side_effect
-
-        def checked_read(*args):
-            assert lock.locked()
-            return read(*args)
-
-        def checked_write(*args):
-            assert lock.locked()
-            write(*args)
-
-        adapter._plc.read_area.side_effect = checked_read
-        adapter._plc.write_area.side_effect = checked_write
-        await adapter.stirrer_probe(True)
-        assert acquisitions == [0, 3, 6]
-        assert releases == [3, 6, 9]
-        assert not lock.locked()
-
-    @pytest.mark.parametrize("latency,spacing", [(0.0, 0.04), (0.06, 0.06)])
-    async def test_request_start_spacing_includes_rmw_reads(self, monkeypatch, latency, spacing):
-        adapter = _adapter({})
-        adapter._min_interval = 0.04
-        now = [100.0]
-        starts = []
-        monkeypatch.setattr("adapters.s7.time.monotonic", lambda: now[0])
-        monkeypatch.setattr("adapters.s7.time.sleep", lambda seconds: now.__setitem__(0, now[0] + seconds))
-
-        stored: dict[tuple[int, int], bytearray] = {}
-
-        def read(_area, db, offset, size):
-            starts.append(now[0])
-            now[0] += latency
-            return bytearray(stored.get((db, offset), bytearray(size))[:size])
-
-        def write(_area, db, offset, payload):
-            starts.append(now[0])
-            now[0] += latency
-            stored[(db, offset)] = bytearray(payload)
-
-        adapter._plc.read_area.side_effect = read
-        adapter._plc.write_area.side_effect = write
-        await adapter.stirrer_probe(True)
-        assert starts == pytest.approx([100 + i * spacing for i in range(9)])
-
-    @pytest.mark.parametrize("failure_at", range(9))
-    async def test_io_error_continues_artisan_tokens_but_reports_failure(self, failure_at):
-        adapter = _adapter({})
-        calls = []
-        stored: dict[tuple[int, int], bytearray] = {}
-
-        def io(kind, db, offset, value):
-            calls.append((kind, db, offset))
-            if len(calls) - 1 == failure_at:
-                raise OSError("test delivery failure")
-            if kind == "W":
-                stored[(db, offset)] = bytearray(value)
-                return None
-            remembered = stored.get((db, offset))
-            if remembered is not None:
-                return bytearray(remembered[:value])
-            return bytearray(value)
-
-        adapter._plc.read_area.side_effect = lambda area, db, offset, size: io("R", db, offset, size)
-        adapter._plc.write_area.side_effect = lambda area, db, offset, data: io("W", db, offset, data)
-        with pytest.raises(OSError, match="test delivery failure"):
-            await adapter.stirrer_probe(True)
-        expected: list[tuple[str, int, int]] = []
-        for db, offset in ((2, 30), (2, 83), (2, 30)):
-            for step in ("R", "W", "R"):
-                expected.append((step, db, offset))
-                if len(expected) - 1 == failure_at:
-                    break
-        assert calls == expected
-        assert not adapter._io_lock.locked()
-
-    @pytest.mark.parametrize("change_at", range(1, 10))
-    async def test_session_change_stops_remaining_commands_before_io(self, change_at):
-        adapter = _adapter({})
-        original = adapter._plc
-        replacement = MagicMock()
-        waits = 0
-
-        def throttle():
-            nonlocal waits
-            waits += 1
-            if waits == change_at:
-                adapter._session += 1
-                adapter._plc = replacement
-
-        adapter._throttle = throttle
-        with pytest.raises(ConnectionError, match="connection changed"):
-            await adapter.stirrer_probe(True)
-        assert len(original.mock_calls) == change_at - 1
-        assert replacement.mock_calls == []
-        assert not adapter._io_lock.locked()
-
-    @pytest.mark.parametrize("change_at", range(9))
-    async def test_session_change_during_native_io_aborts_old_and_new_client(self, change_at):
-        adapter = _adapter({})
-        original = adapter._plc
-        replacement = MagicMock()
-        calls = 0
-        stored: dict[tuple[int, int], bytearray] = {}
-
-        def io(_area, db, offset, value):
-            nonlocal calls
-            if calls == change_at:
-                adapter._session += 1
-                adapter._plc = replacement
-            calls += 1
-            if isinstance(value, int):
-                remembered = stored.get((db, offset))
-                if remembered is not None:
-                    return bytearray(remembered[:value])
-                return bytearray(value)
-            stored[(db, offset)] = bytearray(value)
-            return None
-
-        original.read_area.side_effect = io
-        original.write_area.side_effect = io
-        with pytest.raises(ConnectionError, match="connection changed"):
-            await adapter.stirrer_probe(True)
-        assert calls == change_at + 1
-        assert replacement.mock_calls == []
-        assert not adapter._io_lock.locked()
-
-    async def test_readback_mismatch_rewrites_that_token_once(self):
-        adapter = _adapter({})
-        reads = 0
-
-        def read(_area, _db, _offset, size):
-            nonlocal reads
-            reads += 1
-            if reads < 3:
-                return bytearray(size)
-            return _int_bytes(5)
-
-        adapter._plc.read_area.side_effect = read
-        result = await adapter.door_probe(5)
-        assert adapter._plc.write_area.call_count == 2
-        assert result["command_after"] == 5
-        assert result["command_held"] is True
-
-    async def test_readback_failure_does_not_rewrite(self):
-        adapter = _adapter({})
-        reads = 0
-
-        def read(_area, _db, _offset, size):
-            nonlocal reads
-            reads += 1
-            if reads == 2:
-                raise OSError("readback failed")
+        def read(_db: int, offset: int, size: int) -> bytearray:
+            if offset == 30:
+                return command
             return bytearray(size)
 
-        adapter._plc.read_area.side_effect = read
-        with pytest.raises(OSError, match="readback failed"):
-            await adapter.door_probe(5)
-        assert adapter._plc.write_area.call_count == 1
+        adapter._plc.db_read.side_effect = read
+        adapter._plc.db_write.side_effect = lambda _db, _offset, payload: written.append(payload)
+        result = await adapter.door_probe(5)
+        assert written == [command]
+        assert get_int(command, 0) == 5
+        assert result["command_before"] == 7
+        assert result["command_after"] == 5
+        assert adapter._plc.db_write.call_count == 1
 
-    async def test_short_read_does_not_write_invalid_buffer(self):
+    async def test_discharge_open_reports_when_the_command_stays(self):
+        adapter = _adapter({(2, 82): bytearray([0])})
+        result = await adapter.door_probe(5)
+        assert result["wrote"] == 5
+        assert result["command_before"] == 0
+        assert result["command_after"] == 5
+        assert result["command_held"] is True
+        assert result["discharge_open_after"] is False
+
+    async def test_reports_when_the_command_does_not_stay(self):
         adapter = _adapter({})
-        adapter._plc.read_area.side_effect = lambda *args: bytearray()
-        with pytest.raises(IOError, match="returned 0 bytes"):
-            await adapter.door_probe(1)
-        adapter._plc.write_area.assert_not_called()
+        adapter._plc.db_read.side_effect = lambda db, offset, size: bytearray(size)
+        result = await adapter.door_probe(5)
+        assert result["command_after"] == 0
+        assert result["command_held"] is False
+
+    async def test_cooling_on_follows_the_artisan_sequence(self):
+        writes: list[tuple[int, int, bytes]] = []
+        adapter = _adapter({})
+        store = adapter._plc.db_write.side_effect
+
+        def write(db: int, offset: int, payload: bytearray) -> None:
+            writes.append((db, offset, bytes(payload)))
+            store(db, offset, payload)
+
+        adapter._plc.db_write.side_effect = write
+        result = await adapter.cooling_fan_probe(True)
+        assert [(db, offset) for db, offset, _payload in writes] == [(2, 30), (3, 0), (2, 30)]
+        assert get_int(bytearray(writes[0][2]), 0) == 8
+        assert get_bool(bytearray(writes[1][2]), 0, 0) is True
+        assert get_int(bytearray(writes[2][2]), 0) == 0
+        assert result["wrote"] == 8
+        assert result["command_after"] == 0
+        assert result["cool_fan_held"] is True
+
+    async def test_stirrer_on_follows_the_artisan_sequence(self):
+        writes: list[tuple[int, int, bytes]] = []
+        adapter = _adapter({})
+        store = adapter._plc.db_write.side_effect
+
+        def write(db: int, offset: int, payload: bytearray) -> None:
+            writes.append((db, offset, bytes(payload)))
+            store(db, offset, payload)
+
+        adapter._plc.db_write.side_effect = write
+        result = await adapter.stirrer_probe(True)
+        assert [(db, offset) for db, offset, _payload in writes] == [(2, 30), (2, 83), (2, 30)]
+        assert get_int(bytearray(writes[0][2]), 0) == 7
+        assert get_bool(bytearray(writes[1][2]), 0, 1) is True
+        assert get_int(bytearray(writes[2][2]), 0) == 0
+        assert result["wrote"] == 7
+        assert result["command_after"] == 0
+        assert result["stirrer_held"] is True
 
     async def test_virtual_machine_keeps_the_command(self):
         from adapters.virtual import VirtualMachineAdapter
@@ -289,18 +128,14 @@ class TestDoorProbe:
         read = await adapter.door_probe(None)
         assert read["command_before"] == 5
         assert read["wrote"] is None
-        assert read["command_held"] is None
-        assert read["discharge_open_after"] is True
         cooled = await adapter.cooling_fan_probe(True)
         assert cooled["command_after"] == 0
-        assert cooled["command_held"] is True
         assert cooled["cool_fan_after"] is True
         assert cooled["cool_fan_held"] is True
         stirred = await adapter.stirrer_probe(True)
         assert stirred["wrote"] == 7
         assert stirred["command_after"] == 0
         assert stirred["stirrer_after"] is True
-        assert stirred["stirrer_held"] is True
         fan = await adapter.cooling_fan_probe(None)
         assert fan["cool_fan_after"] is True
 
@@ -402,31 +237,6 @@ class TestDoorProbeRoute:
         assert response.status == 200
         assert seen["action"] == "discharge_open"
         assert (await response.json())["command_held"] is True
-
-    async def test_partial_delivery_runs_remaining_tokens_and_returns_502(self, client):
-        adapter = _adapter({})
-        store = adapter._plc.write_area.side_effect
-
-        def write(area, db, offset, payload):
-            if offset == 83:
-                raise OSError("test bit write failure")
-            store(area, db, offset, payload)
-
-        adapter._plc.write_area.side_effect = write
-        manager = client.server.app["manager"]
-        manager._adapter = adapter
-        manager._connected = True
-        manager._protocol = "s7"
-        manager._roaster_key = "giesen_w45a_w60a"
-        manager._capture_hardware_error = MagicMock()
-        response = await client.post("/door-probe", json={"action": "stirrer_on"})
-        assert response.status == 502
-        body = await response.json()
-        assert any(entry["dir"] == "err" and entry["protocol"] == "s7" for entry in body["trace"])
-        assert adapter._plc.write_area.call_args.args[1:] == (2, 30, bytearray(2))
-        assert manager._capture_hardware_error.call_args.kwargs["traffic"] == body["trace"]
-        assert adapter._plc.write_area.call_count == 3
-        manager._capture_hardware_error.assert_called_once()
 
     async def test_missing_action_is_400(self, client):
         response = await client.post("/door-probe", json={})

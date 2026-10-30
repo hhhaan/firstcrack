@@ -81,11 +81,9 @@ def reset_trace():
     """Reset global TRACE singleton before/after each test to prevent state leakage."""
     from protocol_trace import TRACE
     TRACE.enabled = False
-    TRACE._depth = 0
     TRACE.clear()
     yield
     TRACE.enabled = False
-    TRACE._depth = 0
     TRACE.clear()
 
 

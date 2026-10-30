@@ -32,10 +32,10 @@ const report = (overrides: Partial<DoorProbeResult> = {}): DoorProbeResult => ({
     action: 'discharge_open',
     wrote: 5,
     command_before: 0,
-    command_after: null,
-    command_held: null,
-    discharge_open_before: null,
-    discharge_open_after: null,
+    command_after: 5,
+    command_held: true,
+    discharge_open_before: false,
+    discharge_open_after: false,
     ...overrides,
 });
 
@@ -266,7 +266,7 @@ describe('DoorCommandProbe', () => {
         await act(async () => {
             button?.click();
         });
-        expect(captureDoorProbeFailure).toHaveBeenCalledWith('fill_open', '문 명령 확인에 실패했습니다.', undefined);
+        expect(captureDoorProbeFailure).toHaveBeenCalledWith('fill_open', '문 명령 확인에 실패했습니다.');
         expect(captureDoorProbe).not.toHaveBeenCalled();
     });
 });

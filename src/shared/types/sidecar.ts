@@ -46,34 +46,23 @@ export type DoorProbeAction =
     | 'stirrer_on'
     | 'stirrer_off';
 
-/** One protocol trace line. Hosts and serial numbers are not recorded. */
-export interface ProtocolTraceEntry {
-    ts: number;
-    dir: 'tx' | 'rx' | 'err' | 'info';
-    protocol: string;
-    detail: string;
-    data?: string | number | boolean | null | Record<string, unknown>;
-}
-
-/** POST /door-probe. Each write is read back. A byte mismatch retries that write once. */
+/** POST /door-probe. command_held is null on a read. It is not door or fan motion. */
 export interface DoorProbeResult {
     action: DoorProbeAction;
     wrote: number | null;
-    command_before: number | null;
-    command_after: number | null;
+    command_before: number;
+    command_after: number;
     command_held: boolean | null;
-    discharge_open_before: boolean | null;
-    discharge_open_after: boolean | null;
+    discharge_open_before: boolean;
+    discharge_open_after: boolean;
     /** Present for cooling actions. DB3 byte 0 bit 0. */
-    cool_fan_before?: boolean | null;
-    cool_fan_after?: boolean | null;
+    cool_fan_before?: boolean;
+    cool_fan_after?: boolean;
     cool_fan_held?: boolean | null;
     /** Present for stirrer actions. DB2 byte 83 bit 1. */
-    stirrer_before?: boolean | null;
-    stirrer_after?: boolean | null;
+    stirrer_before?: boolean;
+    stirrer_after?: boolean;
     stirrer_held?: boolean | null;
-    /** Records captured while this command ran, including a failed attempt. */
-    trace?: ProtocolTraceEntry[];
 }
 
 // GET /status 응답

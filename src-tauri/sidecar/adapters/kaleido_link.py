@@ -10,8 +10,6 @@ from collections.abc import Awaitable, Callable
 from contextlib import suppress
 from typing import Any, Protocol
 
-from protocol_trace import TRACE
-
 _log = logging.getLogger(__name__)
 
 _TEXT_TAGS = frozenset({"TU", "SC", "CL", "SN"})
@@ -81,24 +79,13 @@ class SocketPipe:
         self._socket = socket
 
     async def send_line(self, line: str) -> None:
-        TRACE.record("tx", "kaleido", "socket", line)
-        try:
-            await self._socket.send(line)
-        except Exception as exc:
-            TRACE.record("err", "kaleido", f"socket send {type(exc).__name__}", force=True)
-            raise
+        await self._socket.send(line)
 
     async def next_line(self) -> str:
-        try:
-            incoming = await self._socket.recv()
-        except Exception as exc:
-            TRACE.record("err", "kaleido", f"socket recv {type(exc).__name__}", force=True)
-            raise
+        incoming = await self._socket.recv()
         if isinstance(incoming, bytes):
             incoming = incoming.decode("utf-8")
-        text = str(incoming).strip()
-        TRACE.record("rx", "kaleido", "socket", text)
-        return text
+        return str(incoming).strip()
 
     async def aclose(self) -> None:
         await self._socket.close()
@@ -110,12 +97,7 @@ class SerialPipe:
         self._closed = False
 
     async def send_line(self, line: str) -> None:
-        TRACE.record("tx", "kaleido", "serial", line)
-        try:
-            await asyncio.to_thread(self._port.write, line.encode("ascii"))
-        except Exception as exc:
-            TRACE.record("err", "kaleido", f"serial send {type(exc).__name__}", force=True)
-            raise
+        await asyncio.to_thread(self._port.write, line.encode("ascii"))
 
     async def next_line(self) -> str:
         def read() -> str:
@@ -125,13 +107,7 @@ class SerialPipe:
                     return bytes(raw).decode("utf-8", "replace").strip()
             raise ConnectionError("Kaleido 시리얼이 닫혔습니다.")
 
-        try:
-            text = await asyncio.to_thread(read)
-        except Exception as exc:
-            TRACE.record("err", "kaleido", f"serial recv {type(exc).__name__}", force=True)
-            raise
-        TRACE.record("rx", "kaleido", "serial", text)
-        return text
+        return await asyncio.to_thread(read)
 
     async def aclose(self) -> None:
         self._closed = True
@@ -289,11 +265,7 @@ class KaleidoLink:
                     raise ConnectionError("Kaleido 세션이 닫혔습니다.")
                 await self._pipe.send_line(frame(tag, argument))
                 await asyncio.sleep(_PACE_SECONDS)
-            try:
-                await asyncio.wait_for(event.wait(), timeout)
-            except TimeoutError:
-                TRACE.record("err", "kaleido", f"timeout tag={tag}", force=True)
-                raise
+            await asyncio.wait_for(event.wait(), timeout)
         finally:
             pending = self._waiters.get(wait_key, [])
             if event in pending:

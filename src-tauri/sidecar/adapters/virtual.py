@@ -216,12 +216,12 @@ class VirtualMachineAdapter:
             "wrote": pulse,
             "command_before": command_before,
             "command_after": self._door_command,
-            "command_held": None if on is None else True,
-            "discharge_open_before": None,
-            "discharge_open_after": None,
+            "command_held": None if on is None else self._door_command == 0,
+            "discharge_open_before": self._discharge_open,
+            "discharge_open_after": self._discharge_open,
             "cool_fan_before": fan_before,
             "cool_fan_after": self._cool_fan,
-            "cool_fan_held": None if on is None else True,
+            "cool_fan_held": None if on is None else self._cool_fan is on,
         }
 
     async def stirrer_probe(self, on: bool | None) -> dict[str, Any]:
@@ -239,12 +239,12 @@ class VirtualMachineAdapter:
             "wrote": pulse,
             "command_before": command_before,
             "command_after": self._door_command,
-            "command_held": None if on is None else True,
-            "discharge_open_before": None,
-            "discharge_open_after": None,
+            "command_held": None if on is None else self._door_command == 0,
+            "discharge_open_before": self._discharge_open,
+            "discharge_open_after": self._discharge_open,
             "stirrer_before": stirrer_before,
             "stirrer_after": self._stirrer,
-            "stirrer_held": None if on is None else True,
+            "stirrer_held": None if on is None else self._stirrer is on,
         }
 
     async def control(
