@@ -823,6 +823,57 @@ export type Database = {
                     },
                 ];
             };
+            order_fulfillment_holds: {
+                Row: {
+                    connection_id: string | null;
+                    created_at: string;
+                    id: string;
+                    order_id: string;
+                    reason: string;
+                    resolved_at: string | null;
+                    shortages: Json;
+                    updated_at: string;
+                    user_id: string;
+                };
+                Insert: {
+                    connection_id?: string | null;
+                    created_at?: string;
+                    id?: string;
+                    order_id: string;
+                    reason?: string;
+                    resolved_at?: string | null;
+                    shortages: Json;
+                    updated_at?: string;
+                    user_id: string;
+                };
+                Update: {
+                    connection_id?: string | null;
+                    created_at?: string;
+                    id?: string;
+                    order_id?: string;
+                    reason?: string;
+                    resolved_at?: string | null;
+                    shortages?: Json;
+                    updated_at?: string;
+                    user_id?: string;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'order_fulfillment_holds_order_id_fkey';
+                        columns: ['order_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'orders';
+                        referencedColumns: ['id'];
+                    },
+                    {
+                        foreignKeyName: 'order_fulfillment_holds_connection_id_fkey';
+                        columns: ['connection_id'];
+                        isOneToOne: false;
+                        referencedRelation: 'sales_channel_connections';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             order_lines: {
                 Row: {
                     created_at: string;
@@ -2392,6 +2443,8 @@ export type Database = {
                 Returns: boolean;
             };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
+            resolve_order_fulfillment_hold: { Args: { p_order_id: string }; Returns: undefined };
+            retry_order_fulfillment: { Args: { p_order_id: string }; Returns: undefined };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_effective_stock: {

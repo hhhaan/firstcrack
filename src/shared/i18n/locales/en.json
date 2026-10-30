@@ -2154,6 +2154,10 @@
             "quantityMin": "Quantity must be at least 1",
             "fulfill": "Fulfill",
             "fulfilled": "Fulfilled",
+            "retryFulfillment": "Retry shipment",
+            "stockHoldBadge": "On hold (insufficient stock)",
+            "stockHoldLine": "{{product}} — required {{required}} / available {{available}}",
+            "stockHoldUnknownProduct": "Product",
             "col": {
                 "date": "Date",
                 "buyer": "Buyer",

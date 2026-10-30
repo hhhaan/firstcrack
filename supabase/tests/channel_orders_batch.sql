@@ -3,23 +3,75 @@
 BEGIN;
 SELECT set_config('test.owner', :'owner', true);
 
+CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_line(
+  p_platform_line_id text,
+  p_product_id uuid,
+  p_quantity integer,
+  p_title text DEFAULT 'Coffee',
+  p_unit_price integer DEFAULT 1,
+  p_line_status text DEFAULT 'active',
+  p_platform_product_id text DEFAULT NULL,
+  p_platform_variant_id text DEFAULT NULL
+) RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT jsonb_build_object(
+    'platformLineId', p_platform_line_id,
+    'platformProductId', p_platform_product_id,
+    'platformVariantId', p_platform_variant_id,
+    'productId', p_product_id,
+    'title', p_title,
+    'quantity', p_quantity,
+    'unitPrice', p_unit_price,
+    'status', p_line_status
+  );
+$$;
+
+CREATE OR REPLACE FUNCTION pg_temp.channel_fixture_order(
+  p_platform_order_id text,
+  p_status text,
+  p_ordered_at text,
+  p_total_amount integer,
+  p_lines jsonb
+) RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT jsonb_build_object(
+    'platformOrderId', p_platform_order_id,
+    'status', p_status,
+    'orderedAt', p_ordered_at,
+    'buyerName', null,
+    'currency', 'KRW',
+    'totalAmount', p_total_amount,
+    'raw', '{}'::jsonb,
+    'lines', p_lines
+  );
+$$;
+
 DO $$
 DECLARE
   owner_id uuid := current_setting('test.owner')::uuid;
   connection_id uuid := gen_random_uuid();
-  product_id uuid := gen_random_uuid();
+  v_product_id uuid := gen_random_uuid();
   result jsonb;
   v_saved_order_id uuid;
   event_count integer;
+  stranger_id uuid;
+  hold_count integer;
+  v_hold_b_order_id uuid;
+  v_manual_hold_order_id uuid;
 BEGIN
   INSERT INTO sales_channel_connections(id, user_id, platform, shop_identifier, status, auto_fulfill_on_shipped)
   VALUES (connection_id, owner_id, 'shopify', 'batch-fixture', 'active', true);
   INSERT INTO products(id, user_id, name, sku, net_weight_grams)
-  VALUES (product_id, owner_id, 'Batch fixture', 'BATCH-1', 200);
+  VALUES (v_product_id, owner_id, 'Batch fixture', 'BATCH-1', 200);
   INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
-  VALUES (owner_id, product_id, 100, 'roast_inbound');
+  VALUES (owner_id, v_product_id, 100, 'roast_inbound');
 
   SET LOCAL ROLE service_role;
+  PERFORM set_config('request.jwt.claims', json_build_object('role','service_role')::text, true);
 
   -- Repeated order ids are applied sequentially: paid → shipped, and the earliest timestamp wins.
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
@@ -28,7 +80,7 @@ BEGIN
       'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 2000, 'raw', '{}'::jsonb,
       'lines', jsonb_build_array(jsonb_build_object(
         'platformLineId', 'same-line', 'platformProductId', 'external-1', 'platformVariantId', null,
-        'productId', product_id, 'title', 'Coffee', 'quantity', 2, 'unitPrice', 1000, 'status', 'active'
+        'productId', v_product_id, 'title', 'Coffee', 'quantity', 2, 'unitPrice', 1000, 'status', 'active'
       ))
     ),
     jsonb_build_object(
@@ -36,7 +88,7 @@ BEGIN
       'buyerName', 'A', 'currency', 'KRW', 'totalAmount', 2000, 'raw', '{}'::jsonb,
       'lines', jsonb_build_array(jsonb_build_object(
         'platformLineId', 'same-line', 'platformProductId', 'external-1', 'platformVariantId', null,
-        'productId', product_id, 'title', 'Coffee', 'quantity', 2, 'unitPrice', 1000, 'status', 'active'
+        'productId', v_product_id, 'title', 'Coffee', 'quantity', 2, 'unitPrice', 1000, 'status', 'active'
       ))
     )
   ));
@@ -59,7 +111,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 2000, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'same-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', 'Coffee', 'quantity', 2, 'unitPrice', 1000, 'status', 'active'
+      'productId', v_product_id, 'title', 'Coffee', 'quantity', 2, 'unitPrice', 1000, 'status', 'active'
     ))
   )));
   ASSERT (SELECT status FROM orders WHERE id = v_saved_order_id) = 'shipped', 'status does not regress';
@@ -72,16 +124,16 @@ BEGIN
       'platformOrderId', 'partial-1', 'status', 'paid', 'orderedAt', '2026-10-10T02:00:00Z',
       'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
       'lines', jsonb_build_array(
-        jsonb_build_object('platformLineId','partial-a','productId',product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
-        jsonb_build_object('platformLineId','partial-b','productId',product_id,'title','B','quantity',1,'unitPrice',1,'status','active')
+        jsonb_build_object('platformLineId','partial-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
+        jsonb_build_object('platformLineId','partial-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',1,'status','active')
       )
     ),
     jsonb_build_object(
       'platformOrderId', 'partial-1', 'status', 'shipped', 'orderedAt', '2026-10-10T02:00:00Z',
       'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
       'lines', jsonb_build_array(
-        jsonb_build_object('platformLineId','partial-a','productId',product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
-        jsonb_build_object('platformLineId','partial-b','productId',product_id,'title','B','quantity',1,'unitPrice',1,'status','active')
+        jsonb_build_object('platformLineId','partial-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
+        jsonb_build_object('platformLineId','partial-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',1,'status','active')
       )
     )
   ));
@@ -90,8 +142,8 @@ BEGIN
     'platformOrderId','partial-1','status','refunded','orderedAt','2026-10-10T02:00:00Z',
     'buyerName',null,'currency','KRW','totalAmount',1,'raw','{}'::jsonb,
     'lines',jsonb_build_array(
-      jsonb_build_object('platformLineId','partial-a','productId',product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
-      jsonb_build_object('platformLineId','partial-b','productId',product_id,'title','B','quantity',1,'unitPrice',1,'status','refunded')
+      jsonb_build_object('platformLineId','partial-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1,'status','active'),
+      jsonb_build_object('platformLineId','partial-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',1,'status','refunded')
     )
   )));
   ASSERT result->>'cancelledCompensations' = '1', 'partial refund restored one line';
@@ -110,15 +162,15 @@ BEGIN
     'platformOrderId', 'split-1', 'status', 'paid', 'orderedAt', '2026-10-10T03:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 5500, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(
-      jsonb_build_object('platformLineId','split-a','productId',product_id,'title','A','quantity',1,'unitPrice',2000,'status','active'),
-      jsonb_build_object('platformLineId','split-b','productId',product_id,'title','B','quantity',1,'unitPrice',3000,'status','active')
+      jsonb_build_object('platformLineId','split-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',2000,'status','active'),
+      jsonb_build_object('platformLineId','split-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',3000,'status','active')
     )
   )));
   result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
     'platformOrderId', 'split-1', 'status', 'cancelled', 'orderedAt', '2026-10-10T03:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','split-b','productId',product_id,'title','B','quantity',1,'unitPrice',0,'status','cancelled'
+      'platformLineId','split-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',0,'status','cancelled'
     ))
   )));
   ASSERT (SELECT status = 'paid' AND total_amount = 5500 AND fulfilled_at IS NULL
@@ -141,7 +193,7 @@ BEGIN
     'platformOrderId', 'split-1', 'status', 'shipped', 'orderedAt', '2026-10-10T03:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','split-a','productId',product_id,'title','A','quantity',1,'unitPrice',2000,'status','active'
+      'platformLineId','split-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',2000,'status','active'
     ))
   )));
   ASSERT result->>'autoFulfillments' = '1', 'partial cancel still fulfills the active line';
@@ -151,7 +203,7 @@ BEGIN
     'platformOrderId', 'split-1', 'status', 'cancelled', 'orderedAt', '2026-10-10T03:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','split-a','productId',product_id,'title','A','quantity',1,'unitPrice',0,'status','cancelled'
+      'platformLineId','split-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',0,'status','cancelled'
     ))
   )));
   ASSERT result->>'cancelledCompensations' = '1', 'last line cancel restores only that line';
@@ -163,7 +215,7 @@ BEGIN
     'platformOrderId', 'reopen-1', 'status', 'cancelled', 'orderedAt', '2026-10-10T04:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','reopen-b','productId',product_id,'title','B','quantity',1,'unitPrice',1000,'status','cancelled'
+      'platformLineId','reopen-b','productId',v_product_id,'title','B','quantity',1,'unitPrice',1000,'status','cancelled'
     ))
   )));
   ASSERT (SELECT status = 'cancelled' FROM orders WHERE platform_order_id='reopen-1'),
@@ -172,7 +224,7 @@ BEGIN
     'platformOrderId', 'reopen-1', 'status', 'paid', 'orderedAt', '2026-10-10T04:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 4000, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','reopen-a','productId',product_id,'title','A','quantity',1,'unitPrice',4000,'status','active'
+      'platformLineId','reopen-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',4000,'status','active'
     ))
   )));
   ASSERT (SELECT status = 'paid' AND total_amount = 5000 FROM orders WHERE platform_order_id='reopen-1'),
@@ -187,7 +239,7 @@ BEGIN
     'platformOrderId', 'local-1', 'status', 'paid', 'orderedAt', '2026-10-10T05:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','local-a','productId',product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
+      'platformLineId','local-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
     ))
   )));
   PERFORM cancel_order((SELECT id FROM orders WHERE platform_order_id='local-1'));
@@ -195,7 +247,7 @@ BEGIN
     'platformOrderId', 'local-1', 'status', 'shipped', 'orderedAt', '2026-10-10T05:00:00Z',
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
-      'platformLineId','local-a','productId',product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
+      'platformLineId','local-a','productId',v_product_id,'title','A','quantity',1,'unitPrice',1000,'status','active'
     ))
   )));
   ASSERT result->>'autoFulfillments' = '0', 'local cancel does not fulfill on a later snapshot';
@@ -208,7 +260,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'same-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', 'Coffee', 'quantity', 0 + 2, 'unitPrice', 0, 'status', 'cancelled'
+      'productId', v_product_id, 'title', 'Coffee', 'quantity', 0 + 2, 'unitPrice', 0, 'status', 'cancelled'
     ))
   )));
   ASSERT result->>'cancelledCompensations' = '1', 'cancel compensation reported';
@@ -220,7 +272,7 @@ BEGIN
     'platformOrderId','repeat-1','status','delivered','orderedAt','2026-10-12T00:00:00Z',
     'buyerName',null,'currency','KRW','totalAmount',0,'raw','{}'::jsonb,
     'lines',jsonb_build_array(jsonb_build_object(
-      'platformLineId','same-line','productId',product_id,'title','Coffee','quantity',2,'unitPrice',0,'status','active'
+      'platformLineId','same-line','productId',v_product_id,'title','Coffee','quantity',2,'unitPrice',0,'status','active'
     ))
   )));
   ASSERT (SELECT status='cancelled' AND ordered_at='2026-10-09T01:00:00Z'::timestamptz
@@ -233,7 +285,7 @@ BEGIN
     'platformOrderId','terminal-new','status','cancelled','orderedAt','2026-10-10T00:00:00Z',
     'buyerName',null,'currency','KRW','totalAmount',1,'raw','{}'::jsonb,
     'lines',jsonb_build_array(jsonb_build_object(
-      'platformLineId','terminal-line','productId',product_id,'title','Cancelled','quantity',1,'unitPrice',1,'status','cancelled'
+      'platformLineId','terminal-line','productId',v_product_id,'title','Cancelled','quantity',1,'unitPrice',1,'status','cancelled'
     ))
   )));
   ASSERT result->>'autoFulfillments'='0' AND result->>'cancelledCompensations'='0',
@@ -247,7 +299,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'late-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', 'Late mapping', 'quantity', 1, 'unitPrice', 0, 'status', 'cancelled'
+      'productId', v_product_id, 'title', 'Late mapping', 'quantity', 1, 'unitPrice', 0, 'status', 'cancelled'
     ))
   )));
   ASSERT (SELECT ol.product_id IS NULL FROM order_lines ol WHERE ol.order_id=v_saved_order_id AND ol.platform_line_id='late-line'),
@@ -259,7 +311,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1000, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'same-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
+      'productId', v_product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1000, 'status', 'active'
     ))
   )));
   ASSERT (SELECT count(*) FROM order_lines WHERE platform_line_id = 'same-line') = 2,
@@ -279,7 +331,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'mapping-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
+      'productId', v_product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
     ))
   )));
   ASSERT (SELECT ol.product_id = (SELECT p.id FROM products p WHERE p.sku='BATCH-1') FROM order_lines ol JOIN orders o ON o.id=ol.order_id
@@ -292,7 +344,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'mapping-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', '', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
+      'productId', v_product_id, 'title', '', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
     ))
   )));
   ASSERT (SELECT ol.title = '' FROM order_lines ol JOIN orders o ON o.id=ol.order_id
@@ -307,7 +359,7 @@ BEGIN
     'buyerName', null, 'currency', 'KRW', 'totalAmount', 1, 'raw', '{}'::jsonb,
     'lines', jsonb_build_array(jsonb_build_object(
       'platformLineId', 'auto-off-line', 'platformProductId', null, 'platformVariantId', null,
-      'productId', product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
+      'productId', v_product_id, 'title', 'Coffee', 'quantity', 1, 'unitPrice', 1, 'status', 'active'
     ))
   )));
   ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='auto-off'), 'auto fulfill off';
@@ -323,21 +375,176 @@ BEGIN
   ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='unmapped-shipped'),
     'fulfilled_at requires an inserted fulfillment';
 
-  -- Negative inventory aborts the whole order batch.
+  -- Same SKU on multiple lines: aggregate demand per order (stock 4, lines 2+3 held; sync does not abort).
+  DELETE FROM product_stock_events WHERE user_id=owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 4, 'roast_inbound');
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'dual-line-short', 'shipped', '2026-10-11T02:00:00Z', 5,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('dual-a', v_product_id, 2, 'A'),
+        pg_temp.channel_fixture_line('dual-b', v_product_id, 3, 'B')
+      )
+    )
+  ));
+  ASSERT result->>'heldFulfillments' = '1', 'dual-line order held';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='dual-line-short'),
+    'dual-line order not fulfilled';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='dual-line-short' AND pse.event_type='order_fulfillment'
+  ), 'dual-line short emits no fulfillment events';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    CROSS JOIN LATERAL jsonb_array_elements(h.shortages) s
+    WHERE o.platform_order_id='dual-line-short' AND h.resolved_at IS NULL
+      AND (s->>'required_units')::integer = 5 AND (s->>'available_units')::integer = 4
+  ), 'dual-line hold reports aggregate shortage';
+
+  -- Same wave: earlier multi-line order consumes stock; later order sees reduced balance.
+  DELETE FROM product_stock_events WHERE user_id=owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 5, 'roast_inbound');
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'dual-wave-early', 'shipped', '2026-10-11T03:00:00Z', 4,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('dual-wave-a', v_product_id, 2, 'A'),
+        pg_temp.channel_fixture_line('dual-wave-b', v_product_id, 2, 'B')
+      )
+    ),
+    pg_temp.channel_fixture_order(
+      'dual-wave-late', 'shipped', '2026-10-11T04:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('dual-wave-late-line', v_product_id, 2, 'Late'))
+    )
+  ));
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='dual-wave-early'),
+    'earlier dual-line order fulfilled';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='dual-wave-late'),
+    'later order held after aggregate consumption';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    CROSS JOIN LATERAL jsonb_array_elements(h.shortages) s
+    WHERE o.platform_order_id='dual-wave-late' AND h.resolved_at IS NULL
+      AND (s->>'required_units')::integer = 2 AND (s->>'available_units')::integer = 1
+  ), 'later order shortage reflects remaining stock';
+
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 10, 'adjustment');
+  PERFORM retry_order_fulfillment((SELECT id FROM orders WHERE platform_order_id='dual-line-short'));
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='dual-line-short'),
+    'retry fulfills dual-line held order';
+  ASSERT (SELECT count(*) FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='dual-line-short' AND pse.event_type='order_fulfillment') = 2,
+    'dual-line retry deducts every active line';
+
+  -- Scenario 3: one in-stock + one short in the same batch — short order is held, not rolled back.
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'hold-a', 'shipped', '2026-10-11T00:00:00Z', 1,
+      jsonb_build_array(pg_temp.channel_fixture_line('hold-a-line', v_product_id, 1, 'A'))
+    ),
+    pg_temp.channel_fixture_order(
+      'hold-b', 'shipped', '2026-10-11T01:00:00Z', 999999,
+      jsonb_build_array(pg_temp.channel_fixture_line('hold-b-line', v_product_id, 999999, 'B'))
+    )
+  ));
+  ASSERT result->>'heldFulfillments' = '1', 'one held fulfillment';
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='hold-a'), 'in-stock order fulfilled';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='hold-b'), 'short order not fulfilled';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    WHERE o.platform_order_id='hold-b' AND h.resolved_at IS NULL AND jsonb_array_length(h.shortages)>0
+  ), 'open hold with shortages';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM product_stock_events pse
+    JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id
+    WHERE o.platform_order_id='hold-b' AND pse.event_type='order_fulfillment'
+  ), 'short order has no fulfillment events';
+  SELECT id INTO v_hold_b_order_id FROM orders WHERE platform_order_id='hold-b';
+
+  -- Two orders compete for limited stock: earlier ordered_at wins.
+  DELETE FROM product_stock_events WHERE user_id=owner_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 3, 'roast_inbound');
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'race-early', 'shipped', '2026-10-12T00:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('race-early-line', v_product_id, 2, 'Early'))
+    ),
+    pg_temp.channel_fixture_order(
+      'race-late', 'shipped', '2026-10-12T01:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('race-late-line', v_product_id, 2, 'Late'))
+    )
+  ));
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='race-early'), 'earlier order fulfilled';
+  ASSERT (SELECT fulfilled_at IS NULL FROM orders WHERE platform_order_id='race-late'), 'later order held';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h JOIN orders o ON o.id=h.order_id
+    WHERE o.platform_order_id='race-late' AND h.resolved_at IS NULL
+  ), 'later order has open hold';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h
+    JOIN orders o ON o.id=h.order_id
+    CROSS JOIN LATERAL jsonb_array_elements(h.shortages) s
+    WHERE o.platform_order_id='race-late' AND h.resolved_at IS NULL
+      AND (s->>'required_units')::integer = 2 AND (s->>'available_units')::integer = 1
+  ), 'competing-order hold shortages use post-batch balance';
+
+  -- Resync same payloads is idempotent (no duplicate events or holds).
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'race-late', 'shipped', '2026-10-12T01:00:00Z', 2,
+      jsonb_build_array(pg_temp.channel_fixture_line('race-late-line', v_product_id, 2, 'Late'))
+    )
+  ));
+  ASSERT (SELECT count(*) FROM order_fulfillment_holds h JOIN orders o ON o.id=h.order_id
+    WHERE o.platform_order_id='race-late' AND h.resolved_at IS NULL) = 1, 'single open hold';
+  ASSERT (SELECT count(*) FROM product_stock_events pse JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id WHERE o.platform_order_id='race-early' AND pse.event_type='order_fulfillment') = 1,
+    'no duplicate fulfillment events';
+
+  -- Restock + retry fulfills once; second retry is a no-op on stock.
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 10, 'adjustment');
+  PERFORM retry_order_fulfillment((SELECT id FROM orders WHERE platform_order_id='race-late'));
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE platform_order_id='race-late'), 'retry fulfilled';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h JOIN orders o ON o.id=h.order_id
+    WHERE o.platform_order_id='race-late' AND h.resolved_at IS NULL
+  ), 'hold resolved';
+  ASSERT (SELECT count(*) FROM product_stock_events pse JOIN order_lines ol ON ol.id=pse.reference_id
+    JOIN orders o ON o.id=ol.order_id WHERE o.platform_order_id='race-late' AND pse.event_type='order_fulfillment') = 1,
+    'one fulfillment event per line';
   BEGIN
-    PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
-      'platformOrderId', 'negative-1', 'status', 'shipped', 'orderedAt', '2026-10-10T00:00:00Z',
-      'buyerName', null, 'currency', 'KRW', 'totalAmount', 999999, 'raw', '{}'::jsonb,
-      'lines', jsonb_build_array(jsonb_build_object(
-        'platformLineId', 'negative-line', 'platformProductId', null, 'platformVariantId', null,
-        'productId', product_id, 'title', 'Too many', 'quantity', 999999, 'unitPrice', 1, 'status', 'active'
-      ))
-    )));
-    RAISE EXCEPTION 'negative stock accepted';
-  EXCEPTION WHEN check_violation THEN
-    ASSERT SQLERRM = 'insufficient_product_stock', 'unexpected negative stock error';
+    PERFORM retry_order_fulfillment((SELECT id FROM orders WHERE platform_order_id='race-late'));
+    RAISE EXCEPTION 'retry after success accepted';
+  EXCEPTION WHEN SQLSTATE 'P0002' OR check_violation THEN NULL;
   END;
-  ASSERT NOT EXISTS (SELECT 1 FROM orders WHERE platform_order_id='negative-1'), 'negative stock batch rolled back';
+
+  -- Cancel after hold resolves the hold without cancel compensation.
+  result := sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(
+    pg_temp.channel_fixture_order(
+      'hold-b', 'cancelled', '2026-10-11T01:00:00Z', 0,
+      jsonb_build_array(
+        pg_temp.channel_fixture_line('hold-b-line', v_product_id, 999999, 'B', 0, 'cancelled')
+      )
+    )
+  ));
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h JOIN orders o ON o.id=h.order_id
+    WHERE o.platform_order_id='hold-b' AND h.resolved_at IS NULL
+  ), 'cancel resolved hold';
+  ASSERT result->>'cancelledCompensations' = '0', 'no cancel compensation for unfulfilled hold';
 
   -- One RPC can persist more rows than PostgREST's default response cap.
   PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
@@ -372,7 +579,7 @@ BEGIN
       'buyerName', null, 'currency', 'KRW', 'totalAmount', 0, 'raw', '{}'::jsonb,
       'lines', jsonb_build_array(jsonb_build_object(
         'platformLineId', 'zero-line', 'platformProductId', null, 'platformVariantId', null,
-        'productId', product_id, 'title', 'Removed', 'quantity', 0, 'unitPrice', 0, 'status', 'cancelled'
+        'productId', v_product_id, 'title', 'Removed', 'quantity', 0, 'unitPrice', 0, 'status', 'cancelled'
       ))
     )));
     RAISE EXCEPTION 'zero quantity accepted';
@@ -380,13 +587,54 @@ BEGIN
   END;
   ASSERT NOT EXISTS (SELECT 1 FROM orders WHERE platform_order_id='zero-1'), 'zero quantity wrote no order/event';
 
+  -- fulfill_order as authenticated resolves an open hold (hold row is not user-updatable).
+  DELETE FROM product_stock_events WHERE user_id=owner_id AND product_id=v_product_id;
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 1, 'roast_inbound');
+  PERFORM sync_channel_orders_batch(owner_id, connection_id, jsonb_build_array(jsonb_build_object(
+    'platformOrderId', 'manual-hold', 'status', 'shipped', 'orderedAt', '2026-10-13T00:00:00Z',
+    'buyerName', null, 'currency', 'KRW', 'totalAmount', 2, 'raw', '{}'::jsonb,
+    'lines', jsonb_build_array(jsonb_build_object(
+      'platformLineId', 'manual-hold-line', 'productId', v_product_id, 'title', 'Manual', 'quantity', 2, 'unitPrice', 1, 'status', 'active'
+    ))
+  )));
+  SELECT id INTO v_manual_hold_order_id FROM orders WHERE platform_order_id='manual-hold';
+  ASSERT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=v_manual_hold_order_id AND h.resolved_at IS NULL
+  ), 'manual-hold has open hold';
+  INSERT INTO product_stock_events(user_id, product_id, delta_units, event_type)
+  VALUES (owner_id, v_product_id, 10, 'adjustment');
+  PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  SET LOCAL ROLE authenticated;
+  PERFORM fulfill_order(v_manual_hold_order_id);
+  ASSERT (SELECT fulfilled_at IS NOT NULL FROM orders WHERE id=v_manual_hold_order_id), 'authenticated fulfill succeeded';
+  ASSERT NOT EXISTS (
+    SELECT 1 FROM order_fulfillment_holds h WHERE h.order_id=v_manual_hold_order_id AND h.resolved_at IS NULL
+  ), 'authenticated fulfill resolved hold';
   RESET ROLE;
+
+  stranger_id := gen_random_uuid();
+  INSERT INTO auth.users (id) VALUES (stranger_id) ON CONFLICT DO NOTHING;
   SET LOCAL ROLE authenticated;
   BEGIN
     PERFORM sync_channel_orders_batch(owner_id, connection_id, '[]'::jsonb);
     RAISE EXCEPTION 'authenticated execute unexpectedly allowed';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
+  PERFORM set_config('request.jwt.claim.sub', stranger_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', stranger_id, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO hold_count FROM order_fulfillment_holds;
+  ASSERT hold_count = 0, 'stranger cannot read holds';
+  BEGIN
+    PERFORM retry_order_fulfillment(v_hold_b_order_id);
+    RAISE EXCEPTION 'stranger retry allowed';
+  EXCEPTION WHEN SQLSTATE 'P0002' OR check_violation THEN NULL;
+  END;
+  PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
+  PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  SELECT count(*) INTO hold_count FROM order_fulfillment_holds;
+  ASSERT hold_count > 0, 'owner can read holds';
 END $$;
 
 ROLLBACK;

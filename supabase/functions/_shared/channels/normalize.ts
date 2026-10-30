@@ -22,12 +22,27 @@ export interface StockEventSkip {
     reason: string;
 }
 
+export interface FulfillmentHoldShortage {
+    productId: string;
+    orderLineId: string;
+    requiredUnits: number;
+    availableUnits: number;
+}
+
+export interface FulfillmentHold {
+    orderId: string;
+    platformOrderId: string;
+    shortages: FulfillmentHoldShortage[];
+}
+
 export interface UpsertResult {
     upserted: number;
     cancelledCompensations: number;
     autoFulfillments: number;
     /** Never silent: every skip the RPC reported, surfaced into the sync result and logged. */
     stockEventSkips: StockEventSkip[];
+    fulfillmentHolds: FulfillmentHold[];
+    heldFulfillments: number;
 }
 
 type BatchSyncReturn = {
@@ -40,6 +55,17 @@ type BatchSyncReturn = {
         order_status?: string;
         reason?: string;
     }>;
+    held?: Array<{
+        order_id?: string;
+        platform_order_id?: string;
+        shortages?: Array<{
+            product_id?: string;
+            order_line_id?: string;
+            required_units?: number;
+            available_units?: number;
+        }>;
+    }>;
+    heldFulfillments?: number;
 };
 
 function parseBatchResult(data: unknown): UpsertResult {
@@ -61,6 +87,40 @@ function parseBatchResult(data: unknown): UpsertResult {
     ) {
         throw new Error('invalid sync_channel_orders_batch result');
     }
+    const heldRaw = Array.isArray(result.held) ? result.held : [];
+    const heldFulfillmentsOut: number =
+        typeof result.heldFulfillments === 'number' && Number.isInteger(result.heldFulfillments)
+            ? result.heldFulfillments
+            : 0;
+    if (
+        heldRaw.some(
+            (hold) =>
+                !hold ||
+                typeof hold.order_id !== 'string' ||
+                typeof hold.platform_order_id !== 'string' ||
+                !Array.isArray(hold.shortages) ||
+                hold.shortages.some(
+                    (s) =>
+                        !s ||
+                        typeof s.product_id !== 'string' ||
+                        typeof s.order_line_id !== 'string' ||
+                        !Number.isInteger(s.required_units) ||
+                        !Number.isInteger(s.available_units),
+                ),
+        )
+    ) {
+        throw new Error('invalid sync_channel_orders_batch result');
+    }
+    const held = heldRaw as Array<{
+        order_id: string;
+        platform_order_id: string;
+        shortages: Array<{
+            product_id: string;
+            order_line_id: string;
+            required_units: number;
+            available_units: number;
+        }>;
+    }>;
     const valid = result as {
         upserted: number;
         cancelledCompensations: number;
@@ -77,6 +137,17 @@ function parseBatchResult(data: unknown): UpsertResult {
             orderStatus: s.order_status,
             reason: s.reason,
         })),
+        fulfillmentHolds: held.map((h) => ({
+            orderId: h.order_id,
+            platformOrderId: h.platform_order_id,
+            shortages: h.shortages.map((s) => ({
+                productId: s.product_id,
+                orderLineId: s.order_line_id,
+                requiredUnits: s.required_units,
+                availableUnits: s.available_units,
+            })),
+        })),
+        heldFulfillments: heldFulfillmentsOut,
     };
 }
 
@@ -181,19 +252,37 @@ export async function upsertCanonicalOrders(
     orders: CanonicalOrder[],
 ): Promise<UpsertResult> {
     if (!orders.length) {
-        return { upserted: 0, cancelledCompensations: 0, autoFulfillments: 0, stockEventSkips: [] };
+        return {
+            upserted: 0,
+            cancelledCompensations: 0,
+            autoFulfillments: 0,
+            stockEventSkips: [],
+            fulfillmentHolds: [],
+            heldFulfillments: 0,
+        };
     }
 
     const productMap = await buildProductMap(supabase, ctx.userId, ctx.platform, orders);
+    const ordersByFulfillmentPriority = [...orders].sort((a, b) => {
+        const at = Date.parse(a.orderedAt);
+        const bt = Date.parse(b.orderedAt);
+        const aTime = Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
+        const bTime = Number.isFinite(bt) ? bt : Number.POSITIVE_INFINITY;
+        if (aTime !== bTime) return aTime - bTime;
+        return a.platformOrderId.localeCompare(b.platformOrderId);
+    });
     const result: UpsertResult = {
         upserted: 0,
         cancelledCompensations: 0,
         autoFulfillments: 0,
         stockEventSkips: [],
+        fulfillmentHolds: [],
+        heldFulfillments: 0,
     };
     const stockEventSkips: StockEventSkip[] = [];
-    for (let i = 0; i < orders.length; i += 100) {
-        const batch = orders.slice(i, i + 100).map((order) => ({
+    const fulfillmentHolds: FulfillmentHold[] = [];
+    for (let i = 0; i < ordersByFulfillmentPriority.length; i += 100) {
+        const batch = ordersByFulfillmentPriority.slice(i, i + 100).map((order) => ({
             ...order,
             lines: order.lines.map((line) => ({ ...line, productId: resolveProductId(productMap, line) })),
         }));
@@ -207,7 +296,9 @@ export async function upsertCanonicalOrders(
         result.upserted += batchResult.upserted;
         result.cancelledCompensations += batchResult.cancelledCompensations;
         result.autoFulfillments += batchResult.autoFulfillments;
+        result.heldFulfillments += batchResult.heldFulfillments;
         stockEventSkips.push(...batchResult.stockEventSkips);
+        fulfillmentHolds.push(...batchResult.fulfillmentHolds);
 
         if (batchResult.stockEventSkips.length) {
             console.error(
@@ -231,5 +322,6 @@ export async function upsertCanonicalOrders(
         }
     }
     result.stockEventSkips = stockEventSkips;
+    result.fulfillmentHolds = fulfillmentHolds;
     return result;
 }

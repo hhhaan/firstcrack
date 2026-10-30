@@ -9,6 +9,15 @@ export type OrderLineInsert = Database['public']['Tables']['order_lines']['Inser
 
 export type OrderWithLines = Order & { order_lines: OrderLine[] };
 
+export type OrderFulfillmentHold = Database['public']['Tables']['order_fulfillment_holds']['Row'];
+
+export type FulfillmentHoldShortage = {
+    product_id: string;
+    order_line_id: string;
+    required_units: number;
+    available_units: number;
+};
+
 export interface RoastingRequirements {
     products: {
         product_id: string;
@@ -150,6 +159,21 @@ export const orderApi = {
     /** Atomic RPC: deducts stock for active mapped lines + stamps fulfilled_at in one transaction. */
     fulfill: async (orderId: string): Promise<void> => {
         const { error } = await supabase.rpc('fulfill_order', { p_order_id: orderId });
+        if (error) throw error;
+    },
+
+    listOpenFulfillmentHolds: async (userId: string): Promise<OrderFulfillmentHold[]> => {
+        const { data, error } = await supabase
+            .from('order_fulfillment_holds')
+            .select('*')
+            .eq('user_id', userId)
+            .is('resolved_at', null);
+        if (error) throw error;
+        return data ?? [];
+    },
+
+    retryFulfillment: async (orderId: string): Promise<void> => {
+        const { error } = await supabase.rpc('retry_order_fulfillment', { p_order_id: orderId });
         if (error) throw error;
     },
 

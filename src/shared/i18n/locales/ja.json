@@ -2154,6 +2154,10 @@
             "quantityMin": "数量は1以上にしてください",
             "fulfill": "出荷処理",
             "fulfilled": "出荷済み",
+            "retryFulfillment": "再出荷",
+            "stockHoldBadge": "在庫不足で出荷保留",
+            "stockHoldLine": "{{product}} — 必要 {{required}} / 在庫 {{available}}",
+            "stockHoldUnknownProduct": "商品",
             "col": {
                 "date": "日付",
                 "buyer": "購入者",

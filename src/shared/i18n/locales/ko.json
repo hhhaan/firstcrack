@@ -2154,6 +2154,10 @@
             "quantityMin": "수량은 1 이상이어야 합니다",
             "fulfill": "출고",
             "fulfilled": "출고 완료",
+            "retryFulfillment": "재출고",
+            "stockHoldBadge": "재고 부족으로 출고 보류",
+            "stockHoldLine": "{{product}} — 필요 {{required}} / 가용 {{available}}",
+            "stockHoldUnknownProduct": "상품",
             "col": {
                 "date": "일자",
                 "buyer": "주문자",
