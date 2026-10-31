@@ -2364,6 +2364,7 @@
             "componentInputs": "组分投入量",
             "available": "库存 {{kg}}kg",
             "insufficientHint": "超出账面库存 — 仍可继续，余额可能记为负数",
+            "outputExceedsInput": "产出不能超过投入合计",
             "actualOutput": "实测产出量",
             "submit": "记录拼配",
             "note": "备注（可选）"
@@ -2392,7 +2393,8 @@
             "history": "历史",
             "order_fulfillment": "订单履约",
             "order_cancel": "订单取消"
-        }
+        },
+        "alertRefreshFailed": "入库已保存。库存提醒未能重新计算。"
     },
     "inventoryAsset": {
         "totalLabel": "生豆库存资产合计",

@@ -2364,6 +2364,7 @@
             "componentInputs": "コンポーネント投入量",
             "available": "残量 {{kg}}kg",
             "insufficientHint": "帳簿残量超過 — 進行可能で残量が負数として記録されます",
+            "outputExceedsInput": "産出量は投入合計を超えられません",
             "actualOutput": "実測産出量",
             "submit": "ブレンドを記録",
             "note": "メモ（任意）"
@@ -2392,7 +2393,8 @@
             "history": "履歴",
             "order_fulfillment": "注文履行",
             "order_cancel": "注文キャンセル"
-        }
+        },
+        "alertRefreshFailed": "入庫は保存されました。在庫アラートは再計算できませんでした。"
     },
     "inventoryAsset": {
         "totalLabel": "生豆在庫資産合計",

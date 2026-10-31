@@ -1,5 +1,5 @@
 import {
-    buildGreenInventoryAssets,
+    buildGreenInventoryAssetsFromWac,
     type GreenInventoryAssetSummary,
     useBeanPurchaseCosts,
     useBeanStockSummaries,
@@ -17,11 +17,14 @@ const EMPTY: GreenInventoryAssetSummary = {
 
 export const useGreenInventoryAssets = (userId: string, beans: Bean[]) => {
     const { data: stockSummaries = {}, isLoading: stockLoading } = useBeanStockSummaries(userId);
-    const { data: purchaseCosts = [], isLoading: costsLoading, isError: costsError } = useBeanPurchaseCosts(userId);
+    const { data: wacByBean = {}, isLoading: costsLoading, isError: costsError } = useBeanPurchaseCosts(userId);
 
     const summary = useMemo(
-        () => (beans.length === 0 ? EMPTY : buildGreenInventoryAssets(beans, stockSummaries, purchaseCosts)),
-        [beans, stockSummaries, purchaseCosts],
+        () =>
+            costsError || beans.length === 0
+                ? EMPTY
+                : buildGreenInventoryAssetsFromWac(beans, stockSummaries, wacByBean),
+        [beans, costsError, stockSummaries, wacByBean],
     );
 
     return {

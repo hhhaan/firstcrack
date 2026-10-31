@@ -13,6 +13,8 @@ import {
     useUpdateFromThis,
     useUpdateSingleBatch,
 } from '@entities/plan';
+import { roastedStockKeys } from '@entities/roasted-stock-event';
+import { inventoryQueryRoots } from '@shared/lib/query-keys';
 import { buildRRule } from '@shared/lib/rrule';
 import type { PlanBatchHandoff, PlanBatchInsert, PlanBatchWithProgress } from '@shared/types/database.types';
 import { useQueryClient } from '@tanstack/react-query';
@@ -32,8 +34,7 @@ import type { EditScope, NewBatchData } from '../lib/types';
  *
  * The view keeps modal state and user prompts (confirm/alert) and calls in here;
  * nothing here prompts, so each write is a plain promise the caller can wrap.
- * Green deduction on complete is injected (`deduct`) because it lives in
- * `features/active-roast` and features must not import features.
+ * Batch completion deducts inside `complete_plan_batch`.
  */
 export const usePlanDayWrites = ({
     userId,
@@ -68,15 +69,6 @@ export const usePlanDayWrites = ({
         [userId],
     );
 
-    const commitStatus = useCallback(
-        async (_batch: PlanBatchWithProgress, target: BatchTarget, status: 'in-progress' | 'done') => {
-            if (!target.batch) throw new Error('resolved plan batch required');
-            await planBatchApi.updateRoastStatus(target.batch, status);
-            invalidatePlanScope(qc, userId);
-        },
-        [qc, userId],
-    );
-
     const startBatch = useCallback(
         async (batch: PlanBatchWithProgress): Promise<PlanBatchHandoff> => {
             const latest = await planBatchApi.startForRoast(userId, batch);
@@ -97,9 +89,22 @@ export const usePlanDayWrites = ({
     );
 
     const completeBatch = useCallback(
-        (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'deduct' | 'notify'>) =>
-            runCompleteBatchFlow({ ensureMaterialized, commitStatus, ...deps }, batch, deductStock),
-        [ensureMaterialized, commitStatus],
+        (batch: PlanBatchWithProgress, deductStock: boolean, deps: Pick<CompleteBatchFlowDeps, 'notify'>) =>
+            runCompleteBatchFlow(
+                {
+                    ensureMaterialized,
+                    notify: deps.notify,
+                    complete: async (batchId, deduct) => {
+                        await planBatchApi.complete(batchId, deduct);
+                        invalidatePlanScope(qc, userId);
+                        void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries });
+                        void qc.invalidateQueries({ queryKey: roastedStockKeys.byUser(userId) });
+                    },
+                },
+                batch,
+                deductStock,
+            ),
+        [ensureMaterialized, qc, userId],
     );
 
     const createOneOffOrRecurring = useCallback(

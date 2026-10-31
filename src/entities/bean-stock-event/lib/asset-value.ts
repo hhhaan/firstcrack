@@ -111,6 +111,17 @@ export const sumGreenInventoryAssets = (lines: BeanAssetLine[]): GreenInventoryA
     };
 };
 
+export const buildGreenInventoryAssetsFromWac = (
+    beans: { id: string; cost_per_kg: number | null }[],
+    stockByBeanId: Record<string, { currentGrams: number } | undefined>,
+    wacByBean: Record<string, number>,
+): GreenInventoryAssetSummary => {
+    const lines = beans.map((b) =>
+        calcBeanAssetLine(b.id, stockByBeanId[b.id]?.currentGrams ?? 0, wacByBean[b.id] ?? null, b.cost_per_kg),
+    );
+    return sumGreenInventoryAssets(lines);
+};
+
 export const buildGreenInventoryAssets = (
     beans: { id: string; cost_per_kg: number | null }[],
     stockByBeanId: Record<string, { currentGrams: number } | undefined>,

@@ -2364,6 +2364,7 @@
             "componentInputs": "Component inputs",
             "available": "On hand {{kg}}kg",
             "insufficientHint": "Over book stock — you can still proceed; balance may go negative",
+            "outputExceedsInput": "Output cannot exceed the input total",
             "actualOutput": "Measured output (g)",
             "submit": "Record blend",
             "note": "Note (optional)"
@@ -2392,7 +2393,8 @@
             "history": "History",
             "order_fulfillment": "Order fulfillment",
             "order_cancel": "Order cancel"
-        }
+        },
+        "alertRefreshFailed": "Stock was saved. The low-stock alert could not be refreshed."
     },
     "inventoryAsset": {
         "totalLabel": "Total green inventory value",

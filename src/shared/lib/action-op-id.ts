@@ -4,8 +4,8 @@
  * A new id is issued only after a successful commit (or explicit reset).
  */
 export type ActionOpIdSession = {
-    /** Current id, creating one if needed. */
-    getOrCreate: () => string;
+    /** Current id, creating one if needed. A different key starts a new id. */
+    getOrCreate: (key?: string) => string;
     /** Call after successful RPC — next getOrCreate yields a fresh id. */
     markSucceeded: () => void;
     /** Drop pending id (e.g. modal close without submit). */
@@ -15,11 +15,11 @@ export type ActionOpIdSession = {
 };
 
 export function createActionOpIdSession(createId: () => string = () => crypto.randomUUID()): ActionOpIdSession {
-    let current: string | null = null;
+    let current: { key: string; id: string } | null = null;
     return {
-        getOrCreate: () => {
-            if (current == null) current = createId();
-            return current;
+        getOrCreate: (key = '') => {
+            if (current?.key !== key) current = { key, id: createId() };
+            return current.id;
         },
         markSucceeded: () => {
             current = null;
@@ -27,6 +27,6 @@ export function createActionOpIdSession(createId: () => string = () => crypto.ra
         reset: () => {
             current = null;
         },
-        peek: () => current,
+        peek: () => current?.id ?? null,
     };
 }

@@ -1,7 +1,7 @@
 import { useBeanStockSummaries } from '@entities/bean-stock-event';
 import { useActiveWorkspace } from '@entities/organization';
 import { useDayBatches, useDayPlan } from '@entities/plan';
-import { type RoastPhase, useDeductRoastStock, useRoastingStore } from '@features/active-roast';
+import { type RoastPhase, useRoastingStore } from '@features/active-roast';
 import { type EditScope, type NewBatchData, usePlanDayWrites } from '@features/schedule';
 import { getDateFnsLocale, i18n } from '@shared/i18n';
 import { batchGreenNeededGramsFromBatch, isBatchStockShort } from '@shared/lib/batch-stock';
@@ -19,9 +19,7 @@ export function isRoastBlockingScheduleStart(phase: RoastPhase): boolean {
 
 /**
  * Day view state: queries, modal flags, and the user prompts (confirm/alert) around
- * each write. The writes themselves live in `features/schedule` (`usePlanDayWrites`);
- * green deduction is composed in from `features/active-roast` here because features
- * must not import features.
+ * each write. The writes themselves live in `features/schedule` (`usePlanDayWrites`).
  */
 export const useScheduleDayView = ({
     userId,
@@ -42,8 +40,6 @@ export const useScheduleDayView = ({
     const [completingBatch, setCompletingBatch] = useState<PlanBatchWithProgress | null>(null);
     const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
 
-    const deductRoastStock = useDeductRoastStock();
-    // Deduct throws while the workspace is loading — keep confirm disabled until ready.
     const { isWorkspaceReady } = useActiveWorkspace();
 
     const { data: dayPlan, isLoading: isDayPlanLoading } = useDayPlan(userId, dateKey);
@@ -181,7 +177,6 @@ export const useScheduleDayView = ({
             if (!batch) return;
             try {
                 await writes.completeBatch(batch, deductStock, {
-                    deduct: deductRoastStock,
                     notify: (key) => alert(i18n.t(key)),
                 });
             } catch (err) {
@@ -191,7 +186,7 @@ export const useScheduleDayView = ({
                 handleCompleteClose();
             }
         },
-        [completingBatch, writes.completeBatch, deductRoastStock, handleCompleteClose],
+        [completingBatch, writes.completeBatch, handleCompleteClose],
     );
 
     const isRecurringStockShort = useCallback(

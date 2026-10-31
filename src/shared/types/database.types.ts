@@ -2391,6 +2391,7 @@ export type Database = {
                 };
                 Returns: boolean;
             };
+            complete_plan_batch: { Args: { p_batch_id: string; p_deduct: boolean }; Returns: undefined };
             fulfill_order: { Args: { p_order_id: string }; Returns: undefined };
             get_bean_available_stock: { Args: { p_bean_id: string }; Returns: number };
             get_bean_current_stock: { Args: { p_bean_id: string }; Returns: number };
@@ -2406,6 +2407,7 @@ export type Database = {
                 Args: { p_bean_id: string; p_horizon_days?: number };
                 Returns: Json;
             };
+            get_purchase_wac: { Args: { p_user_id: string }; Returns: Json };
             get_product_current_stock: {
                 Args: { p_product_id: string };
                 Returns: number;
@@ -2429,6 +2431,7 @@ export type Database = {
                 Returns: Json;
             };
             has_workspace_access: { Args: { target_owner: string }; Returns: boolean };
+            insert_blending_op: { Args: { p_events: Json }; Returns: undefined };
             insert_packaging_op: {
                 Args: { p_product_events: Json; p_roasted_events: Json };
                 Returns: undefined;
