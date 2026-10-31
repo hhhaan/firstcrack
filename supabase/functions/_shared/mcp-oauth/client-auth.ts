@@ -7,11 +7,14 @@ type ClientDocument = {
     token_endpoint_auth_methods_supported?: unknown;
 };
 type Claims = { iss?: unknown; sub?: unknown; aud?: unknown; exp?: unknown; nbf?: unknown };
+type RsaJwk = JsonWebKey & { kid?: string };
 
-function bytes(value: string): Uint8Array {
+function bytes(value: string): Uint8Array<ArrayBuffer> {
     const padded = value.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (value.length % 4)) % 4);
     const binary = atob(padded);
-    return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const out = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+    return out;
 }
 function json(segment: string): Record<string, unknown> {
     return JSON.parse(new TextDecoder().decode(bytes(segment)));
@@ -19,7 +22,14 @@ function json(segment: string): Record<string, unknown> {
 function httpsUrl(value: string, hosts: Set<string>): URL | null {
     try {
         const url = new URL(value);
-        if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !hosts.has(url.hostname))
+        if (
+            url.protocol !== 'https:' ||
+            url.username ||
+            url.password ||
+            url.search ||
+            url.hash ||
+            !hosts.has(url.hostname)
+        )
             return null;
         return url;
     } catch {
@@ -74,16 +84,12 @@ export async function privateKeyJwtError(
         ];
         const jwksUrl = typeof document.jwks_uri === 'string' ? httpsUrl(document.jwks_uri, CLIENT_HOSTS) : null;
         if (!methods.includes('private_key_jwt') || !jwksUrl) return 'invalid_client';
-        const jwks = (await (await fetcher(jwksUrl)).json()) as { keys?: JsonWebKey[] };
+        const jwks = (await (await fetcher(jwksUrl)).json()) as { keys?: RsaJwk[] };
         const jwk = jwks.keys?.find((key) => key.kid === header.kid && key.kty === 'RSA');
         if (!jwk) return 'invalid_client';
-        const key = await crypto.subtle.importKey(
-            'jwk',
-            jwk,
-            { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-            false,
-            ['verify'],
-        );
+        const key = await crypto.subtle.importKey('jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
+            'verify',
+        ]);
         const valid = await crypto.subtle.verify(
             'RSASSA-PKCS1-v1_5',
             key,
