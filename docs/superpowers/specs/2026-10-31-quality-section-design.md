@@ -20,7 +20,25 @@ Header badges show `roast_level` and the inventory bean name (`beans.name`). The
 
 Absent values render as an em dash. A missing roast level or bean name omits that badge.
 
-These screenshot fields are out of scope because the session has no column for them: bulk density, screen size, sample weight, Agtron variance, roast standard, pressure, altitude, color histogram, color segments.
+## Color distribution
+
+The detail draws one distribution from `color_whole`. It is not stored. `parseRoastColorReadings` supplies the numbers. Text that does not parse hides the chart. No readings hide the chart.
+
+Bins are 5 Agtron points wide, from 25 through 95. A reading outside that range falls in the nearest end bin. Bar height is the count in the bin. Color runs from dark at the low end to light at the high end. Empty bins stay visible at a minimum height so the scale does not collapse.
+
+Segments use the existing roast level names:
+
+| Level | Whole-bean Agtron |
+|-------|-------------------|
+| Dark | under 40 |
+| Medium-Dark | 40 up to 50 |
+| Medium | 50 up to 60 |
+| Medium-Light | 60 up to 70 |
+| Light | 70 and above |
+
+The percent is that band's count divided by the number of readings, rounded to the nearest percent. A band with no readings still shows 0%. `color_ground` stays a field and does not feed the chart.
+
+These screenshot fields stay out of scope: bulk density, screen size, sample weight, Agtron variance, roast standard, pressure, altitude, and a histogram stored on the session.
 
 ## Navigation
 
@@ -60,9 +78,10 @@ No completed sessions: the list shows an empty state. Cupping without the featur
 - Sidebar: Quality group contains `quality` and `cupping`. Roasting does not contain `cupping`. A saved order that previously placed `cupping` in roasting normalizes it into Quality.
 - List renders moisture, density, and whole-bean color from a session row.
 - Detail renders the three cards. Clearing moisture calls the existing session update with `moisture_pct: null`.
+- Readings `58.4, 59.6` fill one bin and show Medium at 100%. Unparseable color text hides the chart.
 - History detail still renders the same editors.
 - Cupping nav stays locked when `FEATURE.cupping` is off.
 
 ## Out of scope
 
-Device import. A measurement entity separate from `roast_sessions`. New QC columns. Removing the history editors. Changing cupping screens beyond their sidebar group.
+Device import. A measurement entity separate from `roast_sessions`. New QC columns. A stored histogram. Removing the history editors. Changing cupping screens beyond their sidebar group.
