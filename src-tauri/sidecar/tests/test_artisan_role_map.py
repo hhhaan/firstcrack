@@ -66,10 +66,39 @@ def test_toper_plc_input1_is_bt() -> None:
         assert regs[role]["float"] is False
 
 
-def test_loring_778_is_heater_not_drum() -> None:
-    """Smart_Roast.aset: input3=778은 {3}=Burner — heater role이 맞다."""
+_LORING_READ = {
+    "BT": {"register": 768, "func": 3, "bcd": True, "bcd_as_int": False, "div": 1, "mode": "F"},
+    "ET": {"register": 774, "func": 3, "bcd": True, "bcd_as_int": False, "div": 1, "mode": "F"},
+    "inlet": {"register": 770, "func": 3, "bcd": True, "bcd_as_int": False, "div": 1, "mode": "F"},
+    "stack": {"register": 772, "func": 3, "bcd": True, "bcd_as_int": False, "div": 1, "mode": "F"},
+    "heater": {"register": 778, "func": 3, "bcd": False, "bcd_as_int": True, "div": 0, "mode": ""},
+}
+
+
+def test_loring_registers_match_artisan_aset() -> None:
+    """Smart_Roast.aset / Smart_Roast_Auto.aset 읽기 맵. 778은 Burner, 쓰기는 없다."""
     for key in ("loring_smart_roast", "loring_smart_roast_auto"):
-        regs = ROASTER_REGISTRY[key]["default_params"]["modbus_registers"]
+        entry = ROASTER_REGISTRY[key]
+        regs = entry["default_params"]["modbus_registers"]
+        assert entry["protocol"] == "modbus"
+        assert entry["default_params"]["host"] == "192.168.1.199"
+        assert entry["default_params"]["port"] == 502
+        assert "write_map" not in entry["default_params"]
         assert "drum" not in regs
-        assert regs["heater"]["register"] == 778
-        assert ROASTER_REGISTRY[key]["capabilities"] == ["heater"]
+        assert entry["capabilities"] == ["heater"]
+        for role, expect in _LORING_READ.items():
+            got = regs[role]
+            for field, value in expect.items():
+                assert got.get(field, False if field == "bcd_as_int" else None) == value, f"{key}.{role}.{field}"
+            assert got["unit_id"] == 1
+    auto = ROASTER_REGISTRY["loring_smart_roast_auto"]["default_params"]["modbus_registers"]
+    assert auto["auto_status"] == {
+        "register": 284,
+        "func": 2,
+        "unit_id": 1,
+        "float": False,
+        "bcd": False,
+        "div": 0,
+        "mode": "",
+    }
+    assert "auto_status" not in ROASTER_REGISTRY["loring_smart_roast"]["default_params"]["modbus_registers"]

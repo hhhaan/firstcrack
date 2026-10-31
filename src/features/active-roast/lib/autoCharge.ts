@@ -7,6 +7,11 @@ export type RawTemperatureSample = {
     timestamp: number; // sidecar monotonic seconds; never Unix time
     receivedAtMs: number; // frontend Date.now(), captured on response
     bt: number;
+    /**
+     * Loring Smart Roast Auto discrete input.
+     * Omitted when the connected machine has no such channel. `null` means unread this tick.
+     */
+    autoStatus?: number | null;
 };
 
 type BtBreakKind = 'charge' | 'drop';

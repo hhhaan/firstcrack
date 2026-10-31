@@ -232,42 +232,66 @@ export const Machines = ({
                                 </div>
 
                                 {/* Temperature cards — 항상 표시, 선택된 머신이 연결된 머신일 때만 실제 값 표시 */}
-                                <div className="grid grid-cols-2 gap-3.5 mb-6">
-                                    {[
-                                        {
-                                            label: t('machines.temperature.bean'),
-                                            value: isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
-                                            sub: 'BT',
-                                        },
-                                        {
-                                            label: t('machines.temperature.environment'),
-                                            value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
-                                            sub: 'ET',
-                                        },
-                                        ...(isSelectedConnected ? (temps?.extra_readings ?? []) : []).map(
-                                            (reading) => ({
-                                                label: reading.label,
-                                                value:
-                                                    reading.value != null
-                                                        ? `${reading.value}${reading.unit ? ` ${reading.unit}` : ''}`
-                                                        : '—',
-                                                sub: reading.id,
-                                            }),
-                                        ),
-                                    ].map((s) => (
-                                        <div
-                                            key={s.sub}
-                                            className="bg-surface dark:bg-surface-elevated px-4 py-3.5 rounded-lg"
-                                        >
-                                            <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
-                                                {s.label}
+                                <div className="mb-6">
+                                    <div className="grid grid-cols-2 gap-3.5">
+                                        {[
+                                            {
+                                                key: 'bt',
+                                                label: t('machines.temperature.bean'),
+                                                value: isSelectedConnected && temps?.bt != null ? `${temps.bt}°C` : '—',
+                                                sub: 'BT',
+                                            },
+                                            {
+                                                key: 'et',
+                                                label: t('machines.temperature.environment'),
+                                                value: isSelectedConnected && temps?.et != null ? `${temps.et}°C` : '—',
+                                                sub: 'ET',
+                                            },
+                                            ...(isSelectedConnected ? (temps?.extra_readings ?? []) : []).map(
+                                                (reading) => ({
+                                                    key: reading.id,
+                                                    label:
+                                                        reading.id === 'auto_status'
+                                                            ? t('machines.loringAuto.label')
+                                                            : reading.label,
+                                                    value:
+                                                        reading.id === 'auto_status'
+                                                            ? reading.value == null
+                                                                ? '—'
+                                                                : t(
+                                                                      reading.value > 0
+                                                                          ? 'machines.loringAuto.on'
+                                                                          : 'machines.loringAuto.off',
+                                                                  )
+                                                            : reading.value != null
+                                                              ? `${reading.value}${reading.unit ? ` ${reading.unit}` : ''}`
+                                                              : '—',
+                                                    sub: reading.id === 'auto_status' ? '' : reading.id,
+                                                }),
+                                            ),
+                                        ].map((s) => (
+                                            <div
+                                                key={s.key}
+                                                className="bg-surface dark:bg-surface-elevated px-4 py-3.5 rounded-lg"
+                                            >
+                                                <div className="text-[10px] font-semibold text-muted uppercase tracking-[0.5px] mb-1.5">
+                                                    {s.label}
+                                                </div>
+                                                <div className="text-[22px] font-light text-primary tracking-[0.24px] whitespace-nowrap tabular-nums">
+                                                    {s.value}
+                                                </div>
+                                                {s.sub ? (
+                                                    <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
+                                                ) : null}
                                             </div>
-                                            <div className="text-[22px] font-light text-primary tracking-[0.24px] whitespace-nowrap tabular-nums">
-                                                {s.value}
-                                            </div>
-                                            <div className="text-[11px] text-muted mt-0.5">{s.sub}</div>
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
+                                    {isSelectedConnected &&
+                                    temps?.extra_readings?.some((reading) => reading.id === 'auto_status') ? (
+                                        <p className="mt-3 mb-0 text-[12px] leading-5 text-muted">
+                                            {t('machines.loringAuto.hint')}
+                                        </p>
+                                    ) : null}
                                 </div>
 
                                 {/* Connection params */}

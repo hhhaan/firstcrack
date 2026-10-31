@@ -795,3 +795,63 @@ describe('raw BT observation regressions', () => {
         expect(props.markEvent).not.toHaveBeenCalled();
     });
 });
+
+describe('Loring Smart Roast Auto bit', () => {
+    const origin = 1_800_000_000_000;
+    const bit = (t: number, bt: number, autoStatus: number | null) => {
+        act(() =>
+            useRoastingStore.getState().updateRawTemperature({
+                bt,
+                timestamp: t,
+                receivedAtMs: origin + t * 1000,
+                autoStatus,
+            }),
+        );
+    };
+    const connect = (phase: 'standby' | 'roasting', elapsed = 0) => {
+        act(() =>
+            useRoastingStore.setState({
+                phase,
+                elapsed,
+                roastStartMs: origin,
+                sidecarConnected: true,
+                machineSnapshot: { machine_roaster_key: 'loring_smart_roast_auto' } as never,
+            }),
+        );
+    };
+
+    it('charges on the bit and drops when it falls, before the temperature gate', () => {
+        connect('standby');
+        const onAutoCharge = vi.fn();
+        const onAutoDrop = vi.fn();
+        const props: Props = { livePoints: [], markEvent: noop, onAutoCharge, onAutoDrop };
+        renderAutoDetection(props);
+        bit(1, 190, 0);
+        bit(2, 190, 1);
+        expect(onAutoCharge).toHaveBeenCalledExactlyOnceWith(190, origin + 2000);
+        act(() => useRoastingStore.setState({ phase: 'roasting', elapsed: 30 }));
+        bit(3, 200, 1);
+        bit(4, 200, 0);
+        expect(onAutoDrop).toHaveBeenCalledExactlyOnceWith({ timeSec: 4, bt: 200 });
+    });
+
+    it('holds a BT drop while the bit stays on, then drops on the fall', () => {
+        connect('roasting', 430);
+        const onAutoDrop = vi.fn();
+        const props: Props = { livePoints: [], markEvent: noop, onAutoDrop };
+        renderAutoDetection(props);
+        for (let i = 0; i <= 16; i++) bit(i, 200 - Math.max(0, i - 10), 1);
+        expect(onAutoDrop).not.toHaveBeenCalled();
+        bit(17, 190, 0);
+        expect(onAutoDrop).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the BT dip when the auto channel stays off', () => {
+        connect('standby');
+        const onAutoCharge = vi.fn();
+        const props: Props = { livePoints: [], markEvent: noop, onAutoCharge };
+        renderAutoDetection(props);
+        for (let i = 0; i <= 16; i++) bit(i / 2, 200 - Math.max(0, i - 8), 0);
+        expect(onAutoCharge).toHaveBeenCalledTimes(1);
+    });
+});

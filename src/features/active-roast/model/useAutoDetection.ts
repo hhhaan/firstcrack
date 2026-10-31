@@ -8,7 +8,9 @@ import {
     type AutoDropMode,
     createAutoChargeDetector,
     createAutoDropDetector,
+    type RawTemperatureSample,
 } from '../lib/autoCharge';
+import { createMachineAutoDetector, type MachineAutoDecision } from '../lib/machineAutoEvent';
 import { detectTurningPoints, type TurningPoint } from '../lib/turningPoints';
 import type { PollIntervalMs, TemperatureUnit } from './settings';
 import { useRoastingStore } from './status';
@@ -25,6 +27,26 @@ type RawPoint = {
     sensorClock?: string | null;
 };
 const YELLOW_CONFIRM_S = 1;
+
+const noteMachineSample = (
+    detector: ReturnType<typeof createMachineAutoDetector>,
+    noted: { current: { sample: RawTemperatureSample | null; decision: MachineAutoDecision } | null },
+    state: {
+        rawTemperature: RawTemperatureSample | null;
+        machineSnapshot: { machine_roaster_key: string | null } | null;
+        phase: string;
+    },
+): MachineAutoDecision => {
+    const sample = state.rawTemperature;
+    if (noted.current?.sample === sample) return noted.current.decision;
+    const decision = detector.push({
+        roasterKey: state.machineSnapshot?.machine_roaster_key,
+        autoStatus: sample?.autoStatus,
+        phase: state.phase,
+    });
+    noted.current = { sample, decision };
+    return decision;
+};
 
 /**
  * Keep discontinuities as NaN so neither TP nor Yellow bridges missing observations.
@@ -144,6 +166,8 @@ export const useAutoDetection = ({
     const autoChargedRef = useRef(false);
     const chargeCooldownRef = useRef<{ minBt: number; lastTimestamp: number; recoverySamples: number } | null>(null);
     const autoDroppedRef = useRef(false);
+    const machineAutoRef = useRef(createMachineAutoDetector());
+    const machineNotedRef = useRef<{ sample: RawTemperatureSample | null; decision: MachineAutoDecision } | null>(null);
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
     const tpFiredRef = useRef<TurningPoint | null>(null);
     const yellowFiredRef = useRef(false);
@@ -169,13 +193,14 @@ export const useAutoDetection = ({
         const detector = createAutoChargeDetector(autoChargeMode, pollIntervalMs);
         chargeDetectorRef.current = detector;
         const unsubscribe = useRoastingStore.subscribe((state, previous) => {
-            if (
-                state.phase !== previous.phase ||
+            const linkChanged =
                 state.sidecarConnected !== previous.sidecarConnected ||
                 state.reconnecting !== previous.reconnecting ||
-                state.machineSnapshot !== previous.machineSnapshot
-            ) {
-                detector.reset();
+                state.machineSnapshot !== previous.machineSnapshot;
+            if (linkChanged || state.phase !== previous.phase) detector.reset();
+            if (linkChanged) {
+                machineAutoRef.current.reset();
+                machineNotedRef.current = null;
             }
             const sample = state.rawTemperature;
             const cooldown = chargeCooldownRef.current;
@@ -204,17 +229,34 @@ export const useAutoDetection = ({
                     cooldown.recoverySamples = 0;
                 }
             }
+            if (state.rawTemperature === previous.rawTemperature) return;
+            const machine = noteMachineSample(machineAutoRef.current, machineNotedRef, state);
+            if (
+                machine.event === 'charge' &&
+                autoChargeEnabled &&
+                state.phase === 'standby' &&
+                state.sidecarConnected &&
+                !state.reconnecting &&
+                !autoChargedRef.current &&
+                sample &&
+                Number.isFinite(sample.bt)
+            ) {
+                autoChargedRef.current = true;
+                detector.reset();
+                onAutoChargeRef.current(sample.bt, sample.receivedAtMs);
+                return;
+            }
             if (
                 !autoChargeEnabled ||
                 state.phase !== 'standby' ||
                 !state.sidecarConnected ||
                 state.reconnecting ||
-                autoChargedRef.current
+                autoChargedRef.current ||
+                machine.suppressTemperatureCharge
             ) {
                 detector.reset();
                 return;
             }
-            if (state.rawTemperature === previous.rawTemperature) return;
             const onset = detector.push(sample);
             if (!sample || !onset) return;
             autoChargedRef.current = true;
@@ -244,23 +286,44 @@ export const useAutoDetection = ({
             ) {
                 detector.reset();
             }
+            if (state.rawTemperature === previous.rawTemperature) return;
+            const sample = state.rawTemperature;
+            const machine = noteMachineSample(machineAutoRef.current, machineNotedRef, state);
+            if (
+                machine.event === 'drop' &&
+                autoDropEnabled &&
+                state.phase === 'roasting' &&
+                state.sidecarConnected &&
+                !state.reconnecting &&
+                !autoDroppedRef.current &&
+                sample &&
+                Number.isFinite(sample.bt)
+            ) {
+                autoDroppedRef.current = true;
+                detector.reset();
+                const start = state.roastStartMs;
+                onAutoDropRef.current({
+                    timeSec: start > 0 ? Math.max(0, (sample.receivedAtMs - start) / 1000) : state.elapsed,
+                    bt: sample.bt,
+                });
+                return;
+            }
             if (
                 !autoDropEnabled ||
                 state.phase !== 'roasting' ||
                 !state.sidecarConnected ||
                 state.reconnecting ||
-                autoDroppedRef.current
+                autoDroppedRef.current ||
+                machine.suppressTemperatureDrop
             ) {
                 detector.reset();
                 return;
             }
-            if (state.rawTemperature === previous.rawTemperature) return;
             // Samples at or before the start minute must not confirm once the gate opens.
             if (state.elapsed <= minElapsedS) {
                 detector.reset();
                 return;
             }
-            const sample = state.rawTemperature;
             const onset = detector.push(sample);
             if (!sample || !onset) return;
             autoDroppedRef.current = true;
@@ -363,6 +426,8 @@ export const useAutoDetection = ({
     const resetAutoDetection = useCallback(() => {
         chargeDetectorRef.current?.reset();
         dropDetectorRef.current?.reset();
+        machineAutoRef.current.reset();
+        machineNotedRef.current = null;
         autoChargedRef.current = false;
         chargeCooldownRef.current = null;
         autoDroppedRef.current = false;

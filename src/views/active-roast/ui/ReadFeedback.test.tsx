@@ -73,3 +73,13 @@ it('shows read-only extra sensors without control feedback metadata', () => {
     expect([...container.querySelectorAll('dd')].map((node) => node.textContent)).toEqual(['187.5 °C', '—']);
     expect(container.querySelector('button, input')).toBeNull();
 });
+
+it('explains the Loring auto bit instead of showing auto_status', () => {
+    if (!state.liveData) throw new Error('Missing fixture');
+    state.liveData.processing = undefined;
+    state.liveData.extra_readings = [{ id: 'auto_status', label: 'auto_status', unit: '', value: 1 }];
+    render();
+    expect(container.textContent).toContain('machines.loringAuto.hint');
+    expect(container.textContent).toContain('machines.loringAuto.on');
+    expect(container.textContent).not.toContain('auto_status');
+});

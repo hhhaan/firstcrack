@@ -796,6 +796,12 @@
             "ror": "RoR",
             "rateOfRise": "상승률"
         },
+        "loringAuto": {
+            "label": "자동 투입·배출",
+            "on": "켜짐",
+            "off": "꺼짐",
+            "hint": "켜지면 호퍼가 열린 투입으로 기록합니다. 로스팅 중에 꺼지면 배출구가 열린 배출로 기록합니다. 신호가 없으면 온도로 판단합니다."
+        },
         "notConnectedHint": "연결되지 않았습니다. 연결을 눌러 시작하세요.",
         "connection": "연결",
         "connectionDetails": "상세 연결 정보",

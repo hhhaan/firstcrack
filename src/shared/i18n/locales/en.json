@@ -796,6 +796,12 @@
             "ror": "RoR",
             "rateOfRise": "Rate of Rise"
         },
+        "loringAuto": {
+            "label": "Auto charge and drop",
+            "on": "On",
+            "off": "Off",
+            "hint": "On records a charge when the hopper opens. Off during the roast records a drop when the discharge door opens. If this signal is missing, charge and drop follow bean temperature."
+        },
         "notConnectedHint": "Not connected. Press Connect to start.",
         "connection": "Connection",
         "connectionDetails": "Connection details",

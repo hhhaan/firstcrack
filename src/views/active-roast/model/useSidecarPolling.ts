@@ -1,6 +1,7 @@
 import { snapshotFromSidecar, useMachines } from '@entities/machine';
 import type { RawTemperatureSample } from '@features/active-roast';
 import { splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
+import { autoStatusFromReadings } from '@features/active-roast/lib/machineAutoEvent';
 import { reduceSensorObservation, sensorObservationTick } from '@features/active-roast/lib/sensorObservation';
 import { BBP_INPROGRESS_ID, bbpPointsToTsv, useBbpStore } from '@features/active-roast/model/bbp';
 import { useRoastingStore } from '@features/active-roast/model/status';
@@ -402,7 +403,13 @@ export const useSidecarPolling = ({
                         ...over,
                     });
                 if (!data.stale && !data.reconnecting && data.bt != null && data.bt_raw != null) {
-                    rawSample = { timestamp: data.timestamp, receivedAtMs, bt: data.bt_raw };
+                    const autoStatus = autoStatusFromReadings(data.extra_readings);
+                    rawSample = {
+                        timestamp: data.timestamp,
+                        receivedAtMs,
+                        bt: data.bt_raw,
+                        ...(autoStatus !== undefined ? { autoStatus } : {}),
+                    };
                 }
                 // bt가 null이면 연결 끊김 가능성 → /status로 이중 확인
                 if (data.bt === null || data.bt === undefined) {

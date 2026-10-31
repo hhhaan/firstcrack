@@ -796,6 +796,12 @@
             "ror": "RoR",
             "rateOfRise": "升温率"
         },
+        "loringAuto": {
+            "label": "自动入豆与出豆",
+            "on": "开",
+            "off": "关",
+            "hint": "开表示料斗打开并记为入豆。烘焙中变为关表示出料口打开并记为出豆。没有这个信号时，按豆温判断。"
+        },
         "notConnectedHint": "未连接。点击「连接」开始。",
         "connection": "连接",
         "connectionDetails": "连接详情",

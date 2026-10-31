@@ -1629,21 +1629,22 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
     },
     # -----------------------------------------------------------------------
     # Loring — MODBUS TCP (2개 항목: Smart Roast / Smart Roast Auto)
-    # 출처: Loring/Smart_Roast.aset, Smart_Roast_Auto.aset
-    # 모델: S7, S15, S35, S70, S135 (동일 프로토콜)
-    # PID: 없음 (Loring 자체 PID 사용)
+    # 출처: artisan Machines/Loring/Smart_Roast.aset, Smart_Roast_Auto.aset
+    # Artisan MODBUS()는 input1을 BT(temp2), input2를 ET(temp1)로 둔다.
+    # 모델: S7, S15, S35, S70, S135 (동일 프로토콜). aset 기본 크기는 S7.
+    # PID/slider/button 쓰기 없음. host 192.168.1.199:502, wordorderLittle.
     # 주의:
-    #   - 온도값은 BCD 인코딩 → ModbusAdapter에서 BCD 디코딩 후 div=1(÷10) 적용
-    #   - 모든 온도 채널이 °F로 읽힘 → ModbusAdapter에서 °C 변환 필요
-    #   - wordorderLittle=true (word order little-endian)
-    #   - drum 채널은 bcd_as_int=true (BCD 값을 정수 그대로 읽음, % 단위)
+    #   - 온도는 32-bit BCD, div=1(÷10), mode=F → °C
+    #   - 778은 {3}=Burner. 16-bit BCD 정수, div=0. 드럼이 아니다.
+    # Smart Roast Auto만 input6=284 func=2. extra "auto"는 bit(0,x).
+    # 알람: START 이후 비트>0 → CHARGE(action 16), CHARGE 이후 비트<1 → DROP(action 13).
+    # 호퍼·배출구 별도 레지스터는 aset에 없다.
     # -----------------------------------------------------------------------
-    # Smart Roast (표준) — BT/ET + Inlet/Stack 온도 + Drum 속도
-    # BT:    register=768, func=3(Holding), unit_id=1, bcd=true, div=1, mode=F
-    # ET:    register=774, func=3, unit_id=1, bcd=true, div=1, mode=F
-    # inlet: register=770, func=3, unit_id=1, bcd=true, div=1, mode=F
-    # stack: register=772, func=3, unit_id=1, bcd=true, div=1, mode=F
-    # drum:  register=778, func=3, unit_id=1, bcd_as_int=true, div=0 (%)
+    # BT:    768 holding, unit 1, bcd, div 1, mode F
+    # ET:    774 holding, unit 1, bcd, div 1, mode F
+    # inlet: 770 holding, unit 1, bcd, div 1, mode F   (extra Inlet)
+    # stack: 772 holding, unit 1, bcd, div 1, mode F   (extra Stack)
+    # heater: 778 holding, unit 1, bcd_as_int, div 0   (extra Burner)
     "loring_smart_roast": {
         "display_name": "Loring Smart Roast",
         "brand": "Loring",
