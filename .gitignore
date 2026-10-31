@@ -107,6 +107,9 @@ artifacts/
 .omo/
 memory.jsonl
 
+# Local scratch (previews, notes). Not shipped.
+work/
+
 # Code review / scratch diffs (do not pack or ship)
 code_review.txt
 code_review.*
