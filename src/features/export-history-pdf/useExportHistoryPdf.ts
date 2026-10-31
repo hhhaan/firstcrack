@@ -1,12 +1,12 @@
 import { downloadPdf } from '@shared/lib/download';
 import { logger } from '@shared/lib/logger';
-import { jpegToPortraitA4Pdf } from '@shared/lib/pdf-page';
 import { useToastStore } from '@shared/store/toast';
 import { downloadDir, join } from '@tauri-apps/api/path';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ComposeHistoryPdfInput, composeHistoryPdfJpeg } from './lib/compose';
+import { composeHistoryPdf } from './lib/compose';
+import type { ComposeHistoryPdfInput } from './lib/types';
 
 export type ExportHistoryPdfInput = ComposeHistoryPdfInput & { filename: string };
 
@@ -40,9 +40,8 @@ export const runExportHistoryPdf = async (
     input: ExportHistoryPdfInput,
     labels: HistoryPdfExportLabels,
 ): Promise<boolean> => {
-    const page = await composeHistoryPdfJpeg(input);
-    const pdf = jpegToPortraitA4Pdf(page.jpeg, page.width, page.height);
     if (!(await confirmSave(input.filename, labels))) return false;
+    const pdf = await composeHistoryPdf(input);
     downloadPdf(pdf, input.filename);
     return true;
 };

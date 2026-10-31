@@ -354,6 +354,12 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 
 ---
 
+## History PDF
+
+- `@react-pdf/renderer`, A4 portrait, white paper. Title and date above the chart, compact BT/ET/RoR legend below; no logo, summary cards, notes, or footer.
+- Print the saved roast from Charge to Drop with FC/Drop labels. Omit reference curves, phase fills, drum and fan. Gas uses recorded Heat set when present; otherwise label measured heating as Heat. Never substitute measured heating for a recorded command.
+- Use bundled static SUIT with Noto CJK fallback for PDF text. Load the renderer only when exporting; keep the existing raster chart and native save flow.
+
 ## Dark Mode
 
 `html.dark` 클래스. `@custom-variant dark (&:where(.dark, .dark *));`

@@ -30,7 +30,7 @@ vi.mock('@features/export-history-pdf', async () => ({
 }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-it('exports the selected batch title in the filename and PDF header while retaining the actual bean', async () => {
+it('exports the selected batch title and date without report metadata', async () => {
     const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
     const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
     const session = {
@@ -42,7 +42,7 @@ it('exports the selected batch title in the filename and PDF header while retain
     } as unknown as RoastSessionWithRelations;
     let latest!: ReturnType<typeof useHistoryPdfExport>;
     const Probe = ({ value }: { value: RoastSessionWithRelations }) => {
-        latest = useHistoryPdfExport({ session: value, chartRef, hasControls: false, unit: 'C', canCapture: true });
+        latest = useHistoryPdfExport({ session: value, chartRef, unit: 'C', canCapture: true });
         return null;
     };
     const root = createRoot(document.createElement('div'));
@@ -53,13 +53,8 @@ it('exports the selected batch title in the filename and PDF header while retain
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('batch-a'),
-                header: expect.objectContaining({
-                    roastTitle: 'Batch A',
-                    bean: 'Green B',
-                    batchNumbers: '#9 · PR13',
-                    date: '26-10-19 14:35',
-                    labels: expect.objectContaining({ roastTitle: en.history.recordText.title }),
-                }),
+                title: 'Batch A',
+                date: '26-10-19 14:35',
             }),
         );
         await act(async () => root.render(createElement(Probe, { value: { ...session, batch_name: 'Batch B' } })));
@@ -67,11 +62,7 @@ it('exports the selected batch title in the filename and PDF header while retain
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('batch-b'),
-                header: expect.objectContaining({
-                    roastTitle: 'Batch B',
-                    bean: 'Green B',
-                    batchNumbers: '#9 · PR13',
-                }),
+                title: 'Batch B',
             }),
         );
         await act(async () =>
@@ -81,15 +72,12 @@ it('exports the selected batch title in the filename and PDF header while retain
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('green-b'),
-                header: expect.objectContaining({
-                    bean: 'Green B',
-                    labels: expect.not.objectContaining({ roastTitle: expect.anything() }),
-                }),
+                title: 'Green B',
             }),
         );
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                header: expect.not.objectContaining({ roastTitle: expect.anything() }),
+                title: 'Green B',
             }),
         );
         for (const value of [
@@ -100,7 +88,7 @@ it('exports the selected batch title in the filename and PDF header while retain
             await act(async () => latest.onExportPdf());
             expect(mocks.exportPdf).toHaveBeenLastCalledWith(
                 expect.objectContaining({
-                    header: expect.not.objectContaining({ roastTitle: expect.anything() }),
+                    title: 'Green B',
                 }),
             );
         }
@@ -108,7 +96,7 @@ it('exports the selected batch title in the filename and PDF header while retain
         await act(async () => latest.onExportPdf());
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
-                header: expect.not.objectContaining({ roastTitle: expect.anything() }),
+                title: 'Green B',
             }),
         );
     } finally {
@@ -126,7 +114,6 @@ it('disables PDF export while a roast is in progress', async () => {
         latest = useHistoryPdfExport({
             session,
             chartRef,
-            hasControls: false,
             unit: 'C',
             canCapture: true,
             roasting,

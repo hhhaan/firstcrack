@@ -33,6 +33,47 @@ export { compareChannels, isCompareControlChannel } from './compare-channels';
 export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMarker } from './types';
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
+    const printEnd = params.eventMarkers.find((marker) => marker.event === 'Drop')?.timeSec;
+    const printRor = { min: 0, max: 5 };
+    if (params.print) {
+        params.rorActual.forEach((value, index) => {
+            const time = params.xs[index];
+            if (value == null || !Number.isFinite(value) || time < 0 || (printEnd != null && time > printEnd)) return;
+            printRor.min = Math.min(printRor.min, value);
+            printRor.max = Math.max(printRor.max, value);
+        });
+    }
+    const paper = params.print
+        ? {
+              ...params,
+              axisSettings: undefined,
+              fontScale: 1,
+              showET: true,
+              showRoR: true,
+              rorYMin: Math.floor(printRor.min / 5) * 5,
+              rorYMax: Math.ceil(printRor.max / 5) * 5,
+              showRoRET: false,
+              showTargetCurve: false,
+              showTargetDeltaLabel: false,
+              showControlDrum: false,
+              showControlFan: false,
+              showControlHeat: Boolean(
+                  params.controlData?.heatSet?.some((value) => value != null) ||
+                      params.controlData?.heatPower.some((value) => value != null),
+              ),
+              eventMarkerStyle: 'point' as const,
+              eventMarkers: params.eventMarkers.filter((marker) => ['FC Start', 'Drop'].includes(marker.event)),
+              turningPoints: [],
+              phaseSegments: [],
+              showFcBand: false,
+              bbpRange: undefined,
+              xViewMin: 0,
+              xViewMax: printEnd ?? params.xs[params.xs.length - 1],
+              controlData: params.controlData
+                  ? { ...params.controlData, reference: undefined, heatTarget: undefined, drumTemp: [], fanSpeed: [] }
+                  : undefined,
+          }
+        : params;
     const {
         report: configuredReport = false,
         print = false,
@@ -85,7 +126,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         fontScale: fontScaleRaw,
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
-    } = params;
+    } = paper;
     const report = print || configuredReport;
     const mergeControlChart = !print && configuredMergeControlChart;
     const controlChartHeightPct = print ? 24 : configuredControlChartHeightPct;
@@ -123,10 +164,10 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
 
     const xMin = xViewMin ?? xs[0] ?? 0;
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
-    const reportGridInterval = params.axisSettings ? TEMP_Y_INTERVAL : undefined;
+    const reportGridInterval = paper.axisSettings ? TEMP_Y_INTERVAL : undefined;
     const tuneAxes = (axes: Parameters<typeof applyChartAxisSettings>[0]) => {
         if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, reportGridInterval);
-        applyChartAxisSettings(axes, params.axisSettings, temperatureUnit);
+        applyChartAxisSettings(axes, paper.axisSettings, temperatureUnit);
     };
 
     const bbpBackground = (control: boolean) => ({
@@ -277,6 +318,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             yAxisPointer,
         });
 
+        const printedHeat = controlData.heatSet?.some((value) => value != null) ? 'Heat set' : 'Heat';
         const controlSeries = buildControlSeries({
             controlData,
             showTargetCurve,
@@ -289,7 +331,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             curves,
             controlGuideMarkLines: mergeControlChart ? [] : controlGuideMarkLines,
             fontScale,
-        });
+        }).filter((series) => !print || ('name' in series && series.name === printedHeat));
 
         tuneAxes({ xAxis, yAxis });
         if (print && Array.isArray(yAxis)) {
@@ -305,11 +347,28 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 }
             }
             yAxis[2].splitLine = { show: true, lineStyle: { color: colors.gridLine } };
+            yAxis[3].axisLabel = { show: false };
         }
 
         return {
             backgroundColor: 'transparent',
             animation: false,
+            ...(print
+                ? {
+                      graphic: [
+                          {
+                              type: 'text',
+                              left: 56,
+                              top: '71%',
+                              style: {
+                                  text: printedHeat === 'Heat set' ? 'Gas' : 'Heat',
+                                  fill: colors.axisLabel,
+                                  font: '11px Inter, SUIT, sans-serif',
+                              },
+                          },
+                      ],
+                  }
+                : {}),
             axisPointer: {
                 link: [{ xAxisIndex: mergeControlChart ? [0] : [0, 1] }],
                 animation: false,

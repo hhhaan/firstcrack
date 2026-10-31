@@ -39,25 +39,11 @@ describe('historyPdfLegend', () => {
 
     it('uses resolved curve styles so legend matches the chart image', () => {
         updateCurveStyle('bt', { color: '#e53935' });
-        const items = historyPdfLegend({
-            unit: 'F',
-            hasTarget: true,
-            hasControls: true,
-            t: (key) => key,
-        });
+        const items = historyPdfLegend('F');
         expect(items).toEqual([
             { color: '#e53935', label: 'BT (°F)', lineType: 'solid' },
             { color: '#et-live', label: 'ET (°F)', lineType: 'solid' },
             { color: '#ror-live', label: 'RoR (°F/min)', lineType: 'solid' },
-            {
-                color: '#e53935',
-                label: 'settings.tabs.roast.showTargetCurve',
-                lineType: 'solid',
-                opacity: 0.3,
-            },
-            { color: '#drum-live', label: 'Drum', lineType: 'solid' },
-            { color: '#aa4400', label: 'Heat', lineType: 'dotted' },
-            { color: '#fan-live', label: 'Fan', lineType: 'solid' },
         ]);
         expect(getRoastSettings().curveStyles.heat.lineType).toBe('dotted');
     });

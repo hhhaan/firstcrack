@@ -44,6 +44,49 @@ const baseParams = (): ChartOptionParams => ({
     colors: mockColors,
 });
 
+it('prints only temperature, RoR and recorded gas while keeping the screen controls intact', () => {
+    const params: ChartOptionParams = {
+        ...baseParams(),
+        xs: [0, 60, 600, 640],
+        btActual: [190, 95, 210, 180],
+        etActual: [200, 210, 240, 230],
+        rorActual: [null, 28, 4, 99],
+        eventMarkers: [
+            { event: 'FC Start', timeSec: 480, timeStr: '8:00', temp: '195°C', color: '#777' },
+            { event: 'Drop', timeSec: 600, timeStr: '10:00', temp: '210°C', color: '#777' },
+        ],
+        controlData: {
+            xs: [0, 60, 600],
+            drumTemp: [50, 50, 50],
+            heatPower: [65, 60, 0],
+            heatSet: [70, 60, 0],
+            fanSpeed: [30, 40, 50],
+        },
+    };
+    const paper = buildRoastChartOption({ ...params, print: true });
+    const screen = buildRoastChartOption(params);
+    const paperSeries = Array.isArray(paper.series) ? paper.series : [];
+    const screenSeries = Array.isArray(screen.series) ? screen.series : [];
+    expect(paperSeries.map((series) => series.name)).toEqual([
+        'BT Actual',
+        'ET Actual',
+        'RoR',
+        'Heat set',
+        'Event curve labels',
+    ]);
+    expect(screenSeries.map((series) => series.name)).toEqual(expect.arrayContaining(['Drum', 'Heat', 'Fan']));
+    expect(paper.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 600 })]));
+    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 30 })]));
+    expect(paperSeries.find((series) => series.name === 'BT Actual')).toMatchObject({
+        data: [
+            [0, 190],
+            [60, 95],
+            [600, 210],
+            [640, 180],
+        ],
+    });
+});
+
 describe('imported chart ticks', () => {
     it.each([false, true])('renders minor ticks on every time axis (controls: %s)', (controls) => {
         const option = buildRoastChartOption({
@@ -124,7 +167,7 @@ describe('buildRoastChartOption', () => {
             { gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: false } },
         ]);
         expect(paper.series).toEqual(
-            expect.arrayContaining([expect.objectContaining({ name: 'Drum', xAxisIndex: 1, markPoint: { data: [] } })]),
+            expect.arrayContaining([expect.objectContaining({ name: 'Heat', xAxisIndex: 1, markPoint: { data: [] } })]),
         );
     });
 

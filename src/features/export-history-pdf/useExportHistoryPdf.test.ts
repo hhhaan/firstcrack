@@ -2,11 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { runExportHistoryPdf } from './useExportHistoryPdf';
 
-const { confirm, downloadPdf, compose, jpegToPdf, join, downloadDir } = vi.hoisted(() => ({
+const { confirm, downloadPdf, compose, join, downloadDir } = vi.hoisted(() => ({
     confirm: vi.fn(),
     downloadPdf: vi.fn(),
     compose: vi.fn(),
-    jpegToPdf: vi.fn(),
     join: vi.fn(),
     downloadDir: vi.fn(),
 }));
@@ -14,22 +13,15 @@ const { confirm, downloadPdf, compose, jpegToPdf, join, downloadDir } = vi.hoist
 vi.mock('@tauri-apps/plugin-dialog', () => ({ confirm }));
 vi.mock('@tauri-apps/api/path', () => ({ join, downloadDir }));
 vi.mock('@shared/lib/download', () => ({ downloadPdf }));
-vi.mock('@shared/lib/pdf-page', () => ({ jpegToPortraitA4Pdf: jpegToPdf }));
-vi.mock('./lib/compose', () => ({ composeHistoryPdfJpeg: compose }));
+vi.mock('./lib/compose', () => ({ composeHistoryPdf: compose }));
 
-const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
 const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
 const input = {
     filename: 'roast-graph-ethiopia-26-09-20.pdf',
     chartDataUrl: 'data:image/jpeg;base64,xx',
-    header: {
-        bean: 'Ethiopia',
-        date: '26-09-20',
-        duration: '11:20',
-        charge: '185.0°C',
-        drop: '210.0°C',
-        labels: { bean: 'Bean', date: 'Date', duration: 'Duration', charge: 'Charge', drop: 'Drop' },
-    },
+    title: 'Ethiopia',
+    date: '26-09-20',
+    legend: [],
 };
 const labels = {
     title: 'First Crack',
@@ -43,11 +35,9 @@ describe('runExportHistoryPdf', () => {
         confirm.mockReset();
         downloadPdf.mockReset();
         compose.mockReset();
-        jpegToPdf.mockReset();
         join.mockReset();
         downloadDir.mockReset();
-        compose.mockResolvedValue({ jpeg, width: 1654, height: 2339 });
-        jpegToPdf.mockReturnValue(pdf);
+        compose.mockResolvedValue(pdf);
         downloadDir.mockResolvedValue('/downloads');
         join.mockResolvedValue('/downloads/roast-graph-ethiopia-26-09-20.pdf');
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
@@ -69,7 +59,7 @@ describe('runExportHistoryPdf', () => {
         markTauri();
         confirm.mockResolvedValue(true);
         await expect(runExportHistoryPdf(input, labels)).resolves.toBe(true);
-        expect(jpegToPdf).toHaveBeenCalledWith(jpeg, 1654, 2339);
+        expect(compose).toHaveBeenCalledWith(input);
         expect(confirm).toHaveBeenCalledWith('save /downloads/roast-graph-ethiopia-26-09-20.pdf', {
             title: 'First Crack',
             kind: 'info',
@@ -83,6 +73,7 @@ describe('runExportHistoryPdf', () => {
         markTauri();
         confirm.mockResolvedValue(false);
         await expect(runExportHistoryPdf(input, labels)).resolves.toBe(false);
+        expect(compose).not.toHaveBeenCalled();
         expect(downloadPdf).not.toHaveBeenCalled();
     });
 
