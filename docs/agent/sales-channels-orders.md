@@ -157,7 +157,11 @@ Optional: inbound shipped + `auto_fulfill_on_shipped` can auto-run fulfill (defa
 
 ## Manual orders
 
-`orderApi.create` inserts order + lines; on line failure it best-effort deletes the orphan order (`src/entities/order/api.ts`). Still uses workspace `user_id` = owner.
+`orderApi.create` calls `create_order` (header + lines, one transaction; a failing line rolls the header back). Workspace `user_id` is the owner.
+
+The follow-up read of the new row is not the save. If it fails, `create` resolves with `refetchFailed` and `useCreateOrder` still invalidates the orders list and roasting requirements. The add-order modal shows a non-blocking notice and closes.
+
+One open of the modal uses one `platform_order_id` and `ordered_at`, taken on the first submit and reused on retry and double-click. The key is cleared when the modal closes or opens again. `create_order` returns the existing order for the same workspace + platform + key when the written payload matches, and raises `order_key_payload_mismatch` (stored row unchanged) when it does not. See `supabase/migrations/20260928140500_create_order_idempotent.sql`.
 
 Roasting needs: RPC `get_roasting_requirements` / `orderKeys.requirements(userId)`.
 

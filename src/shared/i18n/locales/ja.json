@@ -2152,6 +2152,7 @@
             "addLine": "+ 商品を追加",
             "quantity": "数量",
             "quantityMin": "数量は1以上にしてください",
+            "savedUnread": "注文を保存しました。一覧を更新します。",
             "fulfill": "出荷処理",
             "fulfilled": "出荷済み",
             "col": {

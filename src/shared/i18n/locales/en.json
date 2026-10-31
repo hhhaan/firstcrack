@@ -2152,6 +2152,7 @@
             "addLine": "+ Add item",
             "quantity": "Quantity",
             "quantityMin": "Quantity must be at least 1",
+            "savedUnread": "Order saved. Refreshing the list.",
             "fulfill": "Fulfill",
             "fulfilled": "Fulfilled",
             "col": {

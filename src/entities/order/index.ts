@@ -1,4 +1,5 @@
 export type {
+    CreateOrderResult,
     Order,
     OrderInsert,
     OrderLine,
