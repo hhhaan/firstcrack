@@ -297,8 +297,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             }
         }
         const { grid, xAxis, yAxis } = buildDualGridLayout({
-            leftMargin: print ? 56 : leftMargin,
-            rightMargin: print ? 56 : rightMargin,
+            leftMargin: print ? 40 : leftMargin,
+            rightMargin: print ? 40 : rightMargin,
             topMargin,
             controlChartHeightPct,
             mergeControlChart,
@@ -358,7 +358,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                       graphic: [
                           {
                               type: 'text',
-                              left: 56,
+                              left: 40,
                               top: '71%',
                               style: {
                                   text: printedHeat === 'Heat set' ? 'Gas' : 'Heat',

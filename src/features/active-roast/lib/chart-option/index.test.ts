@@ -153,8 +153,8 @@ describe('buildRoastChartOption', () => {
         const paper = buildRoastChartOption({ ...params, print: true });
         expect(screen.grid).toMatchObject([{ bottom: 30 }]);
         expect(paper.grid).toMatchObject([
-            { height: '65%', left: 56, right: 56 },
-            { top: '76%', left: 56, right: 56 },
+            { height: '65%', left: 40, right: 40 },
+            { top: '76%', left: 40, right: 40 },
         ]);
         expect(paper.xAxis).toMatchObject([
             { gridIndex: 0, axisLabel: { formatter: expect.any(Function) }, splitLine: { show: false } },

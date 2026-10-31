@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import type { ComposeHistoryPdfInput } from './types';
 
 /** Rasterize only the chart at 200 dpi; the document text stays vector. */
-export const historyPdfChartBox = () => ({ width: 1409, height: 1444 });
+export const historyPdfChartBox = () => ({ width: 1520, height: 1833 });
 
 export const composeHistoryPdf = async (input: ComposeHistoryPdfInput): Promise<Uint8Array> => {
     const [{ pdf }, { HistoryPdfDocument }] = await Promise.all([
