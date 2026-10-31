@@ -29,6 +29,14 @@ const load = () => {
     }
 };
 
+/** Saved rows only need sync. Call the list unsaved only when every row is. */
+const recoveryDialogTitleKey = (items: readonly Pick<PendingRoastSave, 'db'>[]): string => {
+    const saved = items.filter((item) => item.db === 'saved').length;
+    if (saved === 0) return 'activeRoast.recovery.title';
+    if (saved === items.length) return 'activeRoast.recovery.syncTitle';
+    return 'activeRoast.recovery.mixedTitle';
+};
+
 /** Pending items stay visible until synchronized or explicitly discarded. */
 export const PendingRoastRecovery = () => {
     const { t } = useTranslation();
@@ -116,7 +124,7 @@ export const PendingRoastRecovery = () => {
                     contentClassName={modalPanel.sm}
                 >
                     <h2 id="pending-roasts-title" className="mb-4 text-lg font-semibold">
-                        {t('activeRoast.recovery.title')}
+                        {t(recoveryDialogTitleKey(items))}
                     </h2>
                     {state.error && <p role="alert">{state.error}</p>}
                     <div className="max-h-[70vh] space-y-4 overflow-auto">
@@ -227,7 +235,9 @@ const RecoveryItem = ({
     return (
         <section className="space-y-2 rounded-lg border border-border-subtle p-3">
             <p className="text-sm font-medium">
-                {pending.params.handoffBeanName ?? pending.params.formData.beanLabel ?? t('activeRoast.recovery.title')}
+                {pending.params.handoffBeanName ??
+                    pending.params.formData.beanLabel ??
+                    t(pending.db === 'saved' ? 'activeRoast.recovery.savedName' : 'activeRoast.recovery.title')}
             </p>
             <p className="text-xs text-muted">
                 {pending.db === 'saved' ? t('activeRoast.recovery.syncPending') : t('activeRoast.recovery.failed')}
