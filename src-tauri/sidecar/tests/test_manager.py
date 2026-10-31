@@ -9,9 +9,46 @@ import pytest
 
 import config
 from adapters.base import Reading
-from manager import RoasterManager, _merge_connect_params
+from manager import RoasterManager, _format_connection_error, _merge_connect_params
 from roaster_registry import ROASTER_REGISTRY
 from tests.conftest import FakeAdapter, make_reading
+
+
+def test_empty_serial_port_asks_for_a_port_and_skips_the_blank_rtu_message():
+    """FC-1Y: 포트를 고르지 않은 RTU는 'MODBUS RTU 연결 실패 ()'가 되면 안 된다."""
+    exc = ValueError("MODBUS serial: comport가 비어 있음.")
+    for params in (
+        {"mode": "rtu", "comport": ""},
+        {"mode": "ascii", "comport": "   "},
+        {"mode": "rtu", "comport": None},
+        {"mode": "serial"},
+    ):
+        message = _format_connection_error(exc, "modbus" if params["mode"] != "serial" else "kaleido", params)
+        assert "선택되지 않았습니다" in message
+        assert "머신 설정" in message
+        assert "()" not in message
+    legacy = _format_connection_error(
+        ConnectionError("MODBUS 연결 실패: "),
+        "modbus",
+        {"mode": "rtu", "comport": ""},
+    )
+    assert "선택되지 않았습니다" in legacy
+    assert "()" not in legacy
+
+
+def test_configured_serial_failures_still_name_the_port():
+    missing = _format_connection_error(
+        OSError("could not open port /dev/ttyUSB0: [Errno 2] No such file or directory"),
+        "modbus",
+        {"mode": "rtu", "comport": "/dev/ttyUSB0"},
+    )
+    refused = _format_connection_error(
+        ConnectionError("MODBUS 연결 실패: /dev/ttyUSB0"),
+        "modbus",
+        {"mode": "rtu", "comport": "/dev/ttyUSB0"},
+    )
+    assert missing == "시리얼 포트 '/dev/ttyUSB0'를 찾을 수 없습니다. 포트 이름과 케이블 연결을 확인하세요."
+    assert refused == "MODBUS RTU 연결 실패 (/dev/ttyUSB0). 시리얼 포트를 확인하세요."
 
 
 def test_supported_address_overrides_keep_other_channels_and_registry_defaults():

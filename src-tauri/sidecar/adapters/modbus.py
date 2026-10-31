@@ -177,6 +177,10 @@ class ModbusAdapter:
                 config.MODBUS_TCP_TIMEOUT,
             )
         else:
+            # Kaleido serial과 같이, 빈 포트는 pymodbus에 넘기지 않는다.
+            # 레지스트리 기본값이 ""라서 포트를 고르지 않은 RTU/ASCII가 여기로 온다.
+            if not isinstance(self._comport, str) or not self._comport.strip():
+                raise ValueError("MODBUS serial: comport가 비어 있음.")
             framer = FramerType.ASCII if self._mode == "ascii" else FramerType.RTU
             self._client = AsyncModbusSerialClient(
                 port=self._comport,
