@@ -53,6 +53,10 @@ it('prints only temperature, RoR and recorded gas while keeping the screen contr
         etActual: [200, 210, 240, 230],
         rorActual: [null, 28, 4, 99],
         rorEtActual: [null, -8, 36, 200],
+        curveStyles: {
+            ...DEFAULT_CURVE_STYLES,
+            bt: { ...DEFAULT_CURVE_STYLES.bt, lineType: 'dotted' },
+        },
         eventMarkers: [
             { event: 'FC Start', timeSec: 480, timeStr: '8:00', temp: '195°C', color: '#777' },
             { event: 'Drop', timeSec: 600, timeStr: '10:00', temp: '210°C', color: '#777' },
@@ -80,7 +84,17 @@ it('prints only temperature, RoR and recorded gas while keeping the screen contr
     expect(screenSeries.map((series) => series.name)).toEqual(expect.arrayContaining(['Drum', 'Heat', 'Fan']));
     expect(paper.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 600 })]));
     expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
-    expect(paperSeries.find((series) => series.name === 'ET RoR')).toMatchObject({ lineStyle: { type: 'dashed' } });
+    for (const name of ['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Heat set']) {
+        expect(paperSeries.find((series) => series.name === name)).toMatchObject({ lineStyle: { type: 'solid' } });
+    }
+    expect(screenSeries.find((series) => series.name === 'BT Actual')).toMatchObject({ lineStyle: { type: 'dotted' } });
+    expect(paper.yAxis).toEqual(
+        expect.arrayContaining([
+            expect.objectContaining({
+                splitLine: expect.objectContaining({ lineStyle: expect.objectContaining({ type: 'dashed' }) }),
+            }),
+        ]),
+    );
     const fahrenheit = buildRoastChartOption({ ...params, print: true, temperatureUnit: 'F' });
     expect(fahrenheit.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
     expect(paperSeries.find((series) => series.name === 'BT Actual')).toMatchObject({

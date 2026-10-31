@@ -133,7 +133,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const mergeControlChart = !print && configuredMergeControlChart;
     const controlChartHeightPct = print ? 24 : configuredControlChartHeightPct;
     const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
-    if (print) curves.etRor.current.type = 'dashed';
+    if (print) for (const curve of Object.values(curves)) curve.current.type = 'solid';
 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
@@ -340,7 +340,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             curves,
             controlGuideMarkLines: mergeControlChart ? [] : controlGuideMarkLines,
             fontScale,
-        }).filter((series) => !print || ('name' in series && series.name === printedHeat));
+        })
+            .filter((series) => !print || ('name' in series && series.name === printedHeat))
+            .map((series) => (print ? { ...series, lineStyle: { ...curves.heat.current } } : series));
 
         tuneAxes({ xAxis, yAxis });
         if (print && Array.isArray(yAxis)) {

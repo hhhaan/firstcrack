@@ -31,13 +31,21 @@ const styles = StyleSheet.create({
     legend: { marginTop: 9.6, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 16.8 },
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7.2 },
     legendText: { fontSize: 9, color: '#525252' },
+    background: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        width: roastPdfLayout.pageWidth,
+        height: roastPdfLayout.pageHeight,
+    },
     watermark: {
         position: 'absolute',
+        zIndex: -1,
         left: (roastPdfLayout.pageWidth - 260) / 2,
         top: (roastPdfLayout.pageHeight - 260) / 2,
         width: 260,
         height: 260,
-        opacity: 0.2,
+        opacity: 0.05,
     },
 });
 
@@ -50,7 +58,10 @@ export const HistoryPdfDocument = ({
 }: ComposeHistoryPdfInput & { logoSrc: string }) => (
     <Document title={title} author="First Crack">
         <Page size="A4" orientation="portrait" style={styles.page} wrap={false}>
-            <Image src={logoSrc} style={styles.watermark} />
+            {/* Isolate the background so sibling z-index sorting cannot paint it over the chart. */}
+            <View style={styles.background}>
+                <Image src={logoSrc} style={styles.watermark} />
+            </View>
             <View style={styles.header}>
                 <Text style={styles.title}>{title}</Text>
                 <Text style={styles.date}>{date}</Text>

@@ -356,9 +356,9 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 
 ## History PDF
 
-- `@react-pdf/renderer`, A4 portrait, white paper. Title and date above the chart, compact BT/ET/BT RoR/ET RoR legend below; no summary cards, notes, or footer. Center the logo on the paper as a 20% opacity watermark behind transparent chart imagery.
+- `@react-pdf/renderer`, A4 portrait, white paper. Title and date above the chart, compact BT/ET/BT RoR/ET RoR legend below; no summary cards, notes, or footer. Center the logo on the paper as a 5% opacity watermark in a separate background layer behind transparent chart imagery.
 - Print axes and event labels use SUIT at 8pt. Label both time axes and the temperature, RoR, and heating axes. The plot-to-plot gap equals half the horizontal page margin; shared point dimensions live in `src/shared/lib/roast-pdf-layout.ts`.
-- Include stored ET RoR when available, with a dashed line; do not reconstruct missing historical samples. Fit both RoR channels in the shared display-unit range.
+- Include stored ET RoR when available; do not reconstruct missing historical samples. Fit both RoR channels in the shared display-unit range. Export all graph curves and matching legend swatches as solid lines; retain the grid-line style.
 - Print the saved roast from Charge to Drop with FC/Drop labels. Omit reference curves, phase fills, drum and fan. Gas uses recorded Heat set when present; otherwise label measured heating as Heat. Never substitute measured heating for a recorded command.
 - Use bundled static SUIT with Noto CJK fallback for PDF text. Load the renderer only when exporting; keep the existing raster chart and native save flow.
 

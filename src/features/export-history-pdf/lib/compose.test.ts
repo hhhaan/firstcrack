@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { inflateSync } from 'node:zlib';
 import { pdf as createPdf, Font } from '@react-pdf/renderer';
 import { createElement } from 'react';
 import { expect, it } from 'vitest';
@@ -38,7 +39,7 @@ it('renders a long Korean title, chart and legend on one portrait A4 page', asyn
         }),
     ).toBlob();
     const bytes = new Uint8Array(await blob.arrayBuffer());
-    const pdf = new TextDecoder('latin1').decode(bytes);
+    const pdf = Buffer.from(bytes).toString('latin1');
     const fallback = Font.getFont({ fontFamily: 'Noto PDF' }).data;
     for (const character of '日本中国エチオピアéñ') {
         expect(fallback?.hasGlyphForCodePoint(character.codePointAt(0) ?? 0)).toBe(true);
@@ -49,6 +50,13 @@ it('renders a long Korean title, chart and legend on one portrait A4 page', asyn
     expect(Number(mediaBox?.[1])).toBeCloseTo(595.28, 2);
     expect(Number(mediaBox?.[2])).toBeCloseTo(841.89, 2);
     expect(pdf).toContain('/FontFile2');
-    expect(pdf).toContain('/ca 0.2');
+    expect(pdf).toContain('/ca 0.05');
     expect(pdf).toContain('/Subtype /Image');
+    const contentId = /\/Contents (\d+) 0 R/.exec(pdf)?.[1];
+    const contentObject = pdf.split(`\n${contentId} 0 obj\n`)[1]?.split('\nendobj')[0];
+    const compressed = /stream\n([\s\S]*?)\nendstream/.exec(contentObject ?? '')?.[1];
+    const paint = inflateSync(Buffer.from(compressed ?? '', 'latin1')).toString('latin1');
+    const firstImage = paint.search(/\/I\d+ Do/);
+    expect(firstImage).toBeGreaterThanOrEqual(0);
+    expect(firstImage).toBeLessThan(paint.indexOf('\nBT\n'));
 });

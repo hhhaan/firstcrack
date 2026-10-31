@@ -8,15 +8,15 @@ export const historyPdfLegend = (unit: TemperatureUnit, hasEtRor = false): Histo
     const colors = getResolvedChartColors(true);
     const curves = resolveCurveStyles(getRoastSettings().curveStyles, canvasCurveTokens(colors));
     return [
-        { color: curves.bt.current.color, label: `BT (°${unit})`, lineType: curves.bt.current.type },
-        { color: curves.et.current.color, label: `ET (°${unit})`, lineType: curves.et.current.type },
-        { color: curves.ror.current.color, label: `BT RoR (°${unit}/min)`, lineType: curves.ror.current.type },
+        { color: curves.bt.current.color, label: `BT (°${unit})`, lineType: 'solid' },
+        { color: curves.et.current.color, label: `ET (°${unit})`, lineType: 'solid' },
+        { color: curves.ror.current.color, label: `BT RoR (°${unit}/min)`, lineType: 'solid' },
         ...(hasEtRor
             ? [
                   {
                       color: curves.etRor.current.color,
                       label: `ET RoR (°${unit}/min)`,
-                      lineType: 'dashed' as const,
+                      lineType: 'solid' as const,
                   },
               ]
             : []),

@@ -39,13 +39,13 @@ describe('historyPdfLegend', () => {
     });
 
     it('uses resolved curve styles so legend matches the chart image', () => {
-        updateCurveStyle('bt', { color: '#e53935' });
+        updateCurveStyle('bt', { color: '#e53935', lineType: 'dotted' });
         const items = historyPdfLegend('F', true);
         expect(items).toEqual([
             { color: '#e53935', label: 'BT (°F)', lineType: 'solid' },
             { color: '#et-live', label: 'ET (°F)', lineType: 'solid' },
             { color: '#ror-live', label: 'BT RoR (°F/min)', lineType: 'solid' },
-            { color: '#et-live', label: 'ET RoR (°F/min)', lineType: 'dashed' },
+            { color: '#et-live', label: 'ET RoR (°F/min)', lineType: 'solid' },
         ]);
         expect(getRoastSettings().curveStyles.heat.lineType).toBe('dotted');
     });
