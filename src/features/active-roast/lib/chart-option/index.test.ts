@@ -209,7 +209,8 @@ it.each([
         ['Heat set', 'Heat', 'Fan', 'Drum', 'Fan set', 'Drum set'].includes(String(item.name)),
     );
     expect(series.map((item) => item.name)).toEqual(names);
-    if (names.includes('Drum')) {
+    const printedNames: readonly string[] = names;
+    if (printedNames.includes('Drum')) {
         expect(series.find((item) => item.name === 'Fan')).toMatchObject({
             data: [
                 [0, 700],
@@ -223,7 +224,7 @@ it.each([
             ]),
         );
     }
-    if (names.includes('Fan set')) {
+    if (printedNames.includes('Fan set')) {
         expect(series.find((item) => item.name === 'Fan set')).toMatchObject({
             data: [
                 [10, 0],
