@@ -56,9 +56,18 @@ pub(crate) fn create_window(
     let loaded = Arc::new(AtomicBool::new(false));
     let navigation_loaded = loaded.clone();
 
-    let window = tauri::WebviewWindowBuilder::from_config(app, config)?
+    let builder = tauri::WebviewWindowBuilder::from_config(app, config)?
         .devtools(cfg!(debug_assertions))
-        .on_download(|_, _| true)
+        .on_download(|_, _| true);
+
+    #[cfg(target_os = "windows")]
+    let builder = if config.label == "roast-monitor" {
+        builder.additional_browser_args(crate::webview_environment::roast_monitor_additional_browser_args())
+    } else {
+        builder
+    };
+
+    let window = builder
         .on_navigation(move |url| {
             // Only the configured startup document may load; SPA view changes do not navigate.
             if allows_startup_navigation(

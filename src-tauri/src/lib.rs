@@ -2,6 +2,7 @@ mod app_nap;
 #[cfg(desktop)]
 mod menu_bar_metrics;
 mod browser_defaults;
+mod webview_environment;
 #[cfg(desktop)]
 mod roast_monitor;
 #[cfg(desktop)]
