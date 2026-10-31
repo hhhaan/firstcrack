@@ -16,18 +16,18 @@ Font.register({
 
 const styles = StyleSheet.create({
     page: {
-        padding: 24,
+        padding: 28.8,
         height: 841.89,
         minHeight: 841.89,
         fontFamily: ['SUIT PDF', 'Noto PDF'],
         color: '#262626',
     },
-    header: { marginBottom: 14 },
+    header: { marginBottom: 16.8 },
     title: { fontSize: 19, fontWeight: 600, lineHeight: 1.35, maxLines: 3, textOverflow: 'ellipsis' },
-    date: { marginTop: 5, fontSize: 9, color: '#737373' },
-    chart: { width: 547.28, height: 660, objectFit: 'contain' },
-    legend: { marginTop: 8, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 14 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    date: { marginTop: 6, fontSize: 9, color: '#737373' },
+    chart: { width: 537.68, height: 624.84, objectFit: 'contain' },
+    legend: { marginTop: 9.6, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 16.8 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7.2 },
     legendText: { fontSize: 9, color: '#525252' },
 });
 
