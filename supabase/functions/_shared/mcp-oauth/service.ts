@@ -1,3 +1,4 @@
+import { privateKeyJwtError } from './client-auth.ts';
 import { type IssuerConfig, MCP_SCOPE } from './config.ts';
 import { digest, isOpaque, opaque, pkce } from './crypto.ts';
 
@@ -31,8 +32,8 @@ export class IssuerService {
             grant_types_supported: ['authorization_code', 'refresh_token'],
             scopes_supported: [MCP_SCOPE],
             code_challenge_methods_supported: ['S256'],
-            token_endpoint_auth_methods_supported: ['none'],
-            revocation_endpoint_auth_methods_supported: ['none'],
+            token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
+            revocation_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
         };
     }
     private async call(action: string, args: JsonRecord) {
@@ -146,9 +147,11 @@ export class IssuerService {
         this.only(
             params,
             codeGrant
-                ? ['grant_type', 'client_id', 'code', 'redirect_uri', 'code_verifier', 'resource']
-                : ['grant_type', 'client_id', 'refresh_token', 'resource', 'scope'],
+                ? ['grant_type', 'client_id', 'code', 'redirect_uri', 'code_verifier', 'resource', 'client_assertion', 'client_assertion_type']
+                : ['grant_type', 'client_id', 'refresh_token', 'resource', 'scope', 'client_assertion', 'client_assertion_type'],
         );
+        if (await privateKeyJwtError(params, [this.config.issuer, `${this.config.issuer}/token`]))
+            throw new OAuthFailure('invalid_client', 401);
         if (
             !params.get('client_id') ||
             params.get('resource') !== this.config.resource ||
@@ -179,7 +182,9 @@ export class IssuerService {
         };
     }
     async revoke(params: URLSearchParams) {
-        this.only(params, ['client_id', 'token', 'token_type_hint']);
+        this.only(params, ['client_id', 'token', 'token_type_hint', 'client_assertion', 'client_assertion_type']);
+        if (await privateKeyJwtError(params, [this.config.issuer, `${this.config.issuer}/revoke`]))
+            throw new OAuthFailure('invalid_client', 401);
         const token = params.get('token') ?? '';
         if (!params.get('client_id')) throw new OAuthFailure('invalid_request');
         if (isOpaque(token, 'at') || isOpaque(token, 'rt'))
