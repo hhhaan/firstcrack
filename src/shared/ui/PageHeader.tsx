@@ -13,7 +13,7 @@ export const PageHeader = ({ title, subtitle, actions, className = '' }: PageHea
     <div className={`${subtitle ? 'mb-8' : 'mb-6'} flex flex-wrap items-end justify-between gap-4 ${className}`}>
         <div className="min-w-0">
             <h1
-                className={`${subtitle ? 'mb-2' : 'mb-0'} font-(--font-display) text-3xl font-normal leading-9 tracking-[0.24px] text-primary`}
+                className={`${subtitle ? 'mb-2' : 'mb-0'} font-(--font-display) text-4xl font-normal leading-10 tracking-[0.24px] text-primary`}
             >
                 {title}
             </h1>

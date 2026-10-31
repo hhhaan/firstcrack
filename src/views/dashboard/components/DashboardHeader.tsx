@@ -32,7 +32,7 @@ export const DashboardHeader = ({ month, onMonthChange, onNavigate }: DashboardH
             <div>
                 <h1
                     data-testid="dashboard-greeting"
-                    className="mb-2 font-(--font-display) text-3xl font-normal leading-9 tracking-[0.24px] text-primary"
+                    className="mb-2 font-(--font-display) text-4xl font-normal leading-10 tracking-[0.24px] text-primary"
                 >
                     {t(`dashboard.greeting.${getGreeting()}`)}
                 </h1>
