@@ -22,7 +22,11 @@ Absent values render as an em dash. A missing roast level or bean name omits tha
 
 ## Color distribution
 
-The detail draws one distribution from `color_whole`. It is not stored. `parseRoastColorReadings` supplies the numbers. Text that does not parse hides the chart. No readings hide the chart.
+The Measurements page draws one distribution from every completed session, above the table. It does not follow the table page. A session whose `color_whole` does not parse is left out. No parseable readings hide the chart.
+
+The detail draws the same chart from that session only.
+
+Neither chart is stored. `parseRoastColorReadings` supplies the numbers.
 
 Bins are 5 Agtron points wide, from 25 through 95. A reading outside that range falls in the nearest end bin. Bar height is the count in the bin. Color runs from dark at the low end to light at the high end. Empty bins stay visible at a minimum height so the scale does not collapse.
 
@@ -78,7 +82,7 @@ No completed sessions: the list shows an empty state. Cupping without the featur
 - Sidebar: Quality group contains `quality` and `cupping`. Roasting does not contain `cupping`. A saved order that previously placed `cupping` in roasting normalizes it into Quality.
 - List renders moisture, density, and whole-bean color from a session row.
 - Detail renders the three cards. Clearing moisture calls the existing session update with `moisture_pct: null`.
-- Readings `58.4, 59.6` fill one bin and show Medium at 100%. Unparseable color text hides the chart.
+- The list chart pools every completed session. Readings `58.4, 59.6` on one session fill one bin and show Medium at 100%. Unparseable color text is left out of the pool.
 - History detail still renders the same editors.
 - Cupping nav stays locked when `FEATURE.cupping` is off.
 
