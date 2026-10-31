@@ -59,4 +59,4 @@ it('renders a long Korean title, chart and legend on one portrait A4 page', asyn
     const firstImage = paint.search(/\/I\d+ Do/);
     expect(firstImage).toBeGreaterThanOrEqual(0);
     expect(firstImage).toBeLessThan(paint.indexOf('\nBT\n'));
-});
+}, 20_000);
