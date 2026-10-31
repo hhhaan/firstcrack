@@ -422,11 +422,13 @@ describe('ActiveRoast running clock (#627)', () => {
     });
 
     it.each([
-        { heaterEvents: [{ t: 0, bt: 180, heater: 50 }], expectedHeat: 50 },
-        { heaterEvents: null, expectedHeat: 70 },
+        { heaterEvents: [{ t: 0, bt: 180, heater: 50 }], expectedHeat: 50, invalid: false },
+        { heaterEvents: null, expectedHeat: 70, invalid: false },
+        { heaterEvents: [], expectedHeat: undefined, invalid: true },
+        { heaterEvents: { malformed: true }, expectedHeat: undefined, invalid: true },
     ])(
         'uses the selected record Heat set ($expectedHeat), not the profile plan',
-        async ({ heaterEvents, expectedHeat }) => {
+        async ({ heaterEvents, expectedHeat, invalid }) => {
             const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
             const header = vi.spyOn(roastHeader, 'RoastHeader');
             const picker = vi.spyOn(historyReferenceWidget, 'HistoryReferencePicker');
@@ -479,6 +481,38 @@ describe('ActiveRoast running clock (#627)', () => {
                 const result = composition.mock.results[composition.mock.results.length - 1];
                 if (result.type !== 'return') throw new Error('Machine control composition did not render');
                 expect(result.value.replay.plan?.events[0].heater).toBe(expectedHeat);
+                expect(result.value.replay.overrideInvalid).toBe(invalid);
+                await act(async () => {
+                    queryClient.setQueryData(roastSessionKeys.detail('', 'history-a'), {
+                        id: 'history-a',
+                        heater_events: [{ t: 0, bt: 180, heater: 99 }],
+                        events: [{ type: 'Drop', time_sec: 999 }],
+                        duration_seconds: 999,
+                    });
+                    queryClient.setQueryData(roastProfileKeys.all(''), []);
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
+                expect(composition).toHaveBeenLastCalledWith(
+                    expect.objectContaining({
+                        replayHeaterEvents: heaterEvents ?? undefined,
+                        replayDropTime: 130,
+                    }),
+                );
+                const retained = composition.mock.results[composition.mock.results.length - 1];
+                if (retained.type !== 'return') throw new Error('Machine control composition did not render');
+                expect(retained.value.replay.plan?.events[0].heater).toBe(expectedHeat);
+                expect(retained.value.replay.overrideInvalid).toBe(invalid);
+                await act(async () => {
+                    queryClient.setQueryData(roastProfileKeys.all(''), [
+                        {
+                            id: 'profile-b',
+                            user_id: '',
+                            name: 'Profile B',
+                            source_session: { tsv_path: 'source.tsv', heater_events: sourceHeat },
+                        },
+                    ]);
+                    await new Promise((resolve) => setTimeout(resolve, 0));
+                });
                 act(() => header.mock.lastCall?.[0].onClearHistoryReference?.());
                 expect(composition).toHaveBeenLastCalledWith(
                     expect.objectContaining({ replayHeaterEvents: sourceHeat }),

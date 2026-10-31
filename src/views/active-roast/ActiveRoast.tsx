@@ -1,13 +1,6 @@
 import { useBeans } from '@entities/bean/queries';
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile, useUpdateProfile } from '@entities/profile';
-import { useBbpCurve } from '@entities/roast';
-import {
-    resolveSourceSession,
-    useResolvedProfileCurve,
-    useRoastProfileCurve,
-    useRoastProfiles,
-} from '@entities/roast-profile';
 import {
     btSmoothingToAlpha,
     computePhaseSegments,
@@ -23,7 +16,7 @@ import {
 } from '@features/active-roast';
 import { makeBbpLogEntry } from '@features/active-roast/lib/bbp-events';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
-import { logEntryTimeSec, parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
+import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
@@ -34,7 +27,7 @@ import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useRoastMonitorBridge } from '@features/active-roast/model/useRoastMonitorBridge';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
-import { editedHeatSet, profileHeatTarget } from '@features/machine-control/lib/heater-events';
+import { editedHeatSet } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
 import { subscribeExplicitMachineDisconnect } from '@shared/lib/explicitMachineDisconnect';
@@ -61,12 +54,10 @@ import {
     buildChartFrame,
     cycleFcWhenEnabled,
     formatDisplayRoR,
-    isReplayMachineMismatch,
     liveWindowTitle,
     orEmpty,
     orNull,
     profileSelectionEpoch,
-    replayPointsForProfile,
     showPendingSummary,
 } from './lib/active-roast-screen';
 import {
@@ -84,10 +75,10 @@ import {
 } from './lib/display-derivatives';
 import { applyExplicitDisconnectReset } from './lib/explicit-disconnect-reset';
 import { useLeadingLock } from './lib/leading-gate';
-import { buildProfileReferenceLog, buildReferenceLog } from './lib/reference-log';
 import { getRoastPhaseColor, getRoastPhaseName } from './lib/roast-phase';
 import { useChartKeyboard } from './model/useChartKeyboard';
 import { useDisplayedRoastTimeline } from './model/useDisplayedRoastTimeline';
+import { useReferenceRoast } from './model/useReferenceRoast';
 import { useReviewCurveEdit } from './model/useReviewCurveEdit';
 import { useRoastCurveEditing } from './model/useRoastCurveEditing';
 import { useRoastLifecycle } from './model/useRoastLifecycle';
@@ -181,9 +172,6 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
     const { workspaceOwnerId } = useActiveWorkspace();
     const [historyReference, setHistoryReference] = useState<HistoryReference | null>(null);
     const [referencePickerOpen, setReferencePickerOpen] = useState(false);
-    const reference = historyReference?.ownerId === workspaceOwnerId ? historyReference : null;
-    const historyCurve = useRoastProfileCurve(reference?.tsvPath);
-    const { data: dbProfiles = [] } = useRoastProfiles(workspaceOwnerId);
     const { data: userProfile } = useProfile(user?.id ?? '');
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
     const saveDefaultProfile = useCallback(
@@ -263,88 +251,21 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
     const curveElapsed = reviewSnapshot?.elapsed ?? elapsed;
 
     // ── 차트 데이터 준비 ──────────────────────────────────────────
-    const targetProfile = useMemo(
-        () => dbProfiles.find((p) => p.id === targetProfileId && p.user_id === workspaceOwnerId) ?? null,
-        [dbProfiles, targetProfileId, workspaceOwnerId],
-    );
     const {
-        points: targetCurvePoints,
-        isLoading: curveLoading,
-        isError: curveError,
-    } = useResolvedProfileCurve(targetProfile);
-    const historyPoints = historyCurve.data ?? [];
-    const backgroundCurvePoints = reference ? historyPoints : targetCurvePoints;
-    const replayPoints = replayPointsForProfile(
-        reference?.id ?? targetProfileId,
-        reference ? historyCurve.isLoading : curveLoading,
-        backgroundCurvePoints,
-    );
-    const sourceSession = resolveSourceSession(targetProfile?.source_session);
-    const bbpTarget = useBbpCurve(
-        workspaceOwnerId,
-        reference?.id ?? targetProfile?.source_session_id ?? null,
-        reference ? reference.bbpPath : sourceSession?.bbp_tsv_path,
-        bbpEnabled,
-    );
-    // Replay 컷오프는 기준 로스트의 Drop 마크다. 마크가 없으면 그 기록의 duration_seconds.
-    // 프로파일 행의 duration_sec, 머신 키는 목록용 복사본이라 재생에 쓰지 않는다.
-    const sourceEvents = useMemo(
-        () =>
-            parseStoredRoastEvents(
-                reference ? reference.events : resolveSourceSession(targetProfile?.source_session)?.events,
-            ),
-        [reference, targetProfile],
-    );
-    const replayDropTime = useMemo(
-        () =>
-            sourceEvents.find((e) => e.type === 'Drop')?.time_sec ??
-            (reference ? reference.durationSec : sourceSession?.duration_seconds) ??
-            null,
-        [sourceEvents, reference, sourceSession?.duration_seconds],
-    );
-    const referenceTpTime = useMemo(() => sourceEvents.find((e) => e.type === 'TP')?.time_sec ?? null, [sourceEvents]);
-    const storedHeat = reference ? reference.heaterEvents : sourceSession?.heater_events;
-    const heatEvents = storedHeat ?? undefined;
-    const referenceLog = useMemo(() => {
-        const name = reference?.name ?? targetProfile?.name;
-        if (!name) return undefined;
-        return {
-            name,
-            entries: reference
-                ? buildReferenceLog(sourceEvents, backgroundCurvePoints, unit, reference.heaterEvents)
-                : buildProfileReferenceLog(targetProfile, backgroundCurvePoints, unit),
-            loading: reference ? historyCurve.isLoading : curveLoading,
-            error: reference ? historyCurve.isError : curveError,
-        };
-    }, [
         reference,
-        targetProfile,
-        sourceEvents,
+        referenceId,
+        historyReferenceFailed,
         backgroundCurvePoints,
-        unit,
-        historyCurve.isLoading,
-        historyCurve.isError,
-        curveLoading,
-        curveError,
-    ]);
-    const heatTarget = useMemo(() => {
-        if (!reference && !targetProfile) return undefined;
-        return profileHeatTarget(backgroundCurvePoints, replayDropTime, heatEvents, referenceTpTime);
-    }, [reference, targetProfile, backgroundCurvePoints, replayDropTime, heatEvents, referenceTpTime]);
-    const referenceFcStartSec = useMemo(
-        () => sourceEvents.find((e) => e.type === 'FC Start')?.time_sec ?? null,
-        [sourceEvents],
-    );
-
-    // 기존 Standard 기록은 같은 머신 ID의 W60 키 마이그레이션 뒤에도 재생한다.
-    const referenceKey = (reference ? reference.machineKey : sourceSession?.machine_roaster_key) ?? null;
-    const currentKey = machineSnapshot?.machine_roaster_key ?? null;
-    const replayMachineMismatch = isReplayMachineMismatch(
-        referenceKey,
-        currentKey,
-        reference ? reference.machineId : sourceSession?.machine_id,
-        machineSnapshot?.machine_id,
-    );
+        referenceTimeline,
+        replayPoints,
+        replayDropTime,
+        referenceTpTime,
+        heatEvents,
+        referenceLog,
+        heatTarget,
+        referenceFcStartSec,
+        replayMachineMismatch,
+    } = useReferenceRoast({ workspaceOwnerId, targetProfileId, historyReference, unit, bbpEnabled, machineSnapshot });
     // biome-ignore lint/correctness/useExhaustiveDependencies: identity for in-flight Replay profile confirm
     useEffect(() => {
         profileChangeGenRef.current += 1;
@@ -374,7 +295,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
     const timeline = useDisplayedRoastTimeline({
         bbpEnabled,
         settings: roastSettings,
-        reference: { roast: backgroundCurvePoints, bbp: bbpTarget.data ?? [], bbpError: bbpTarget.isError },
+        reference: referenceTimeline,
         reviewEntries: reviewLogEntries,
     });
     const { chart, entries: bbpChartEntries } = timeline;
@@ -1033,7 +954,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         bbpRecorded: timeline.frame.bbpRecorded,
         awaitingNextCharge,
         showTargetCurve: roastSettings.showTargetCurve,
-        targetProfileId: reference?.id ?? targetProfileId,
+        targetProfileId: referenceId,
         targetPointCount: timeline.frame.targetPointCount,
         showTargetDeltaLabel: roastSettings.showTargetDeltaLabel,
         targetCurvePointCount: backgroundCurvePoints.length,
@@ -1091,7 +1012,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                 onBeanChange={setSelectedBeanId}
                 onOpenRoastSettings={onOpenRoastSettings}
                 historyReferenceName={reference?.name ?? null}
-                historyReferenceFailed={Boolean(reference && historyCurve.isError)}
+                historyReferenceFailed={historyReferenceFailed}
                 onChooseHistoryReference={() => setReferencePickerOpen(true)}
                 onClearHistoryReference={() => setHistoryReference(null)}
             />

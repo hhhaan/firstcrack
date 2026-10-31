@@ -1,22 +1,8 @@
-import { resolveSourceSession } from '@entities/roast-profile';
-import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
+import { storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import type { TsvPoint } from '@shared/lib/tsv';
 import type { LogEntry, StoredRoastEvent } from '@shared/types/roast';
-
-/** Profile replay conditions are instructions, not the source record's event coordinates. */
-export const buildProfileReferenceLog = (
-    profile:
-        | { source_session?: Parameters<typeof resolveSourceSession>[0]; heater_events?: unknown }
-        | null
-        | undefined,
-    points: ReadonlyArray<Pick<TsvPoint, 't' | 'bt' | 'heaterSet' | 'processing'>>,
-    unit: TemperatureUnit,
-): LogEntry[] => {
-    const source = resolveSourceSession(profile?.source_session);
-    return buildReferenceLog(parseStoredRoastEvents(source?.events), points, unit, source?.heater_events);
-};
 
 /** Reference data only. Reading it never changes the live log or the running Replay plan. */
 export const buildReferenceLog = (
