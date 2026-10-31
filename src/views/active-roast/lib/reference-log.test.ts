@@ -68,4 +68,25 @@ describe('reference log', () => {
         });
         expect(events[0].note).toBe('50%');
     });
+
+    it('keeps BBP commands without suppressing the roast TSV command fallback', () => {
+        const events = [{ id: 'bbp-heat', type: 'Heater', time_sec: -30, temp_c: 190, note: '70%' }];
+        const points = [
+            { t: 0, bt: 190, heaterSet: 70 },
+            { t: 40, bt: 120, heaterSet: 0 },
+        ];
+
+        expect(buildReferenceLog(events, points, 'C')).toMatchObject([
+            { id: 'bbp-heat', timeSec: -30, note: '70%' },
+            { timeSec: 0, note: '70' },
+            { timeSec: 40, note: '0' },
+        ]);
+    });
+
+    it('does not substitute TSV commands for an empty saved override and keeps BBP commands', () => {
+        const events = [{ id: 'bbp-heat', type: 'Heater', time_sec: -30, temp_c: 190, note: '70%' }];
+        expect(buildReferenceLog(events, [{ t: 0, bt: 190, heaterSet: 70 }], 'C', [])).toMatchObject([
+            { id: 'bbp-heat', timeSec: -30, note: '70%' },
+        ]);
+    });
 });

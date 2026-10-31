@@ -3,7 +3,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 
 export type RoastSessionPatch = (row: RoastSessionWithRelations) => RoastSessionWithRelations;
 type CachePatch = (value: unknown, key: QueryKey) => unknown;
-type Snapshot = Array<[QueryKey, unknown]>;
+type Snapshot = Map<string, [QueryKey, unknown]>;
 
 export type OptimisticRoastSessionEdit = { readonly id: symbol; readonly userId: string };
 
@@ -12,7 +12,7 @@ type Group = {
     baseline: Snapshot;
     operations: Operation[];
     replaying: boolean;
-    reconciledKeys: Array<[QueryKey, string]>;
+    reconciledKeys: Set<string>;
     reconciliations: Array<() => Promise<void>>;
     unsubscribe: () => void;
     reconciliation?: Promise<void>;
@@ -51,10 +51,10 @@ const patchRowsInCache = (value: unknown, patch: RoastSessionPatch): unknown => 
     return isRow(value) ? patch(value) : value;
 };
 
-const replay = (qc: QueryClient, group: Group) => {
+const replay = (qc: QueryClient, group: Group, entries: Iterable<[QueryKey, unknown]> = group.baseline.values()) => {
     group.replaying = true;
     try {
-        for (const [key, value] of group.baseline) {
+        for (const [key, value] of entries) {
             qc.setQueryData(
                 key,
                 group.operations.reduce((current, operation) => operation.patch(current, key), value),
@@ -95,29 +95,33 @@ const beginOptimisticRoastSessionCacheEdit = async (
     let group = map.get(userId);
     if (!group) {
         group = {
-            baseline: qc.getQueriesData({ queryKey: root(userId) }),
+            baseline: new Map(
+                qc
+                    .getQueryCache()
+                    .findAll({ queryKey: root(userId) })
+                    .map((query) => [query.queryHash, [query.queryKey, query.state.data]]),
+            ),
             operations: [],
             replaying: false,
-            reconciledKeys: [],
+            reconciledKeys: new Set(),
             reconciliations: [],
             unsubscribe: () => undefined,
         };
         const current = group;
         group.unsubscribe = qc.getQueryCache().subscribe((event) => {
-            if (current.replaying || event.type !== 'updated' || event.action.type !== 'success' || event.action.manual)
-                return;
+            if (current.replaying) return;
             const key = event.query.queryKey;
             if (key[0] !== 'roast_sessions' || key[1] !== userId) return;
-            const index = current.baseline.findIndex(
-                ([baselineKey]) =>
-                    event.query.queryHash ===
-                    qc.getQueryCache().find({ queryKey: baselineKey, exact: true })?.queryHash,
-            );
-            const entry: [QueryKey, unknown] = [key, event.query.state.data];
-            if (index === -1) current.baseline.push(entry);
-            else current.baseline[index] = entry;
-            if (current.reconciliation) current.reconciledKeys.push([key, event.query.queryHash]);
-            replay(qc, current);
+            const hash = event.query.queryHash;
+            if (event.type === 'removed') {
+                current.baseline.delete(hash);
+                current.reconciledKeys.delete(hash);
+                return;
+            }
+            if (event.type !== 'updated' || event.action.type !== 'success' || event.action.manual) return;
+            current.baseline.set(hash, [key, event.query.state.data]);
+            if (current.reconciliation) current.reconciledKeys.add(hash);
+            replay(qc, current, [[key, event.query.state.data]]);
         });
         map.set(userId, group);
     }
@@ -162,12 +166,9 @@ export const finishOptimisticRoastSessionEdit = async (
         await group.reconciliation;
     } finally {
         group.replaying = true;
-        for (const [key, queryHash] of group.reconciledKeys) {
-            const entry = group.baseline.find(
-                ([baselineKey]) =>
-                    qc.getQueryCache().find({ queryKey: baselineKey, exact: true })?.queryHash === queryHash,
-            );
-            if (entry) qc.setQueryData(key, entry[1]);
+        for (const hash of group.reconciledKeys) {
+            const entry = group.baseline.get(hash);
+            if (entry && qc.getQueryCache().get(hash)) qc.setQueryData(entry[0], entry[1]);
         }
         group.unsubscribe();
         map?.delete(userId);
@@ -195,7 +196,9 @@ export const patchOptimisticRoastSessionBaseline = (qc: QueryClient, userId: str
         qc.setQueriesData({ queryKey: root(userId) }, (value) => patchRowsInCache(value, patch));
         return;
     }
-    group.baseline = group.baseline.map(([key, value]) => [key, patchRowsInCache(value, patch)]);
+    for (const [hash, [key, value]] of group.baseline) {
+        group.baseline.set(hash, [key, patchRowsInCache(value, patch)]);
+    }
     replay(qc, group);
 };
 

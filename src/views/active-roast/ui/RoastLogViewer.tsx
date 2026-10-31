@@ -46,9 +46,10 @@ export const RoastLogViewer = ({
             {active ? (
                 <>
                     <p className="mb-2 break-words text-[11px] text-secondary">{reference.name}</p>
-                    {reference.entries.length > 0 ? (
+                    {reference.entries.length > 0 && (
                         <RoastLog variant={current.variant} entries={reference.entries} showHeading={false} />
-                    ) : (
+                    )}
+                    {(reference.loading || reference.error || reference.entries.length === 0) && (
                         <p role="status" className="py-3 text-[11px] text-muted">
                             {t(
                                 reference.loading
