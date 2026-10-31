@@ -1273,7 +1273,19 @@ describe('RoastTempChart interactions', () => {
         });
     });
 
-    it('re-renders at print density with legible light colors and both grids, without changing the screen theme', () => {
+    it('exports saved controls without adding an empty on-screen feedback plot', () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() =>
+            root.render(createElement(RoastTempChart, { ...baseProps, ref, printControlData: controlData([60, 0]) })),
+        );
+        const screen = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
+        expect(screen.grid).toHaveLength(1);
+        ref.current?.getDataURL({ width: 2000, height: 1200 });
+        const paper = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
+        expect(paper.grid).toHaveLength(4);
+    });
+
+    it('re-renders at print density with legible light colors and separate controls, without changing the screen theme', () => {
         document.documentElement.style.setProperty('--color-sensor-bt', '#ffffff');
         const ref = createRef<RoastTempChartHandle>();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref, controlData: controlData([]) })));
@@ -1286,11 +1298,11 @@ describe('RoastTempChart interactions', () => {
         expect(element?.style.height).toBe('600px');
         expect(element?.isConnected).toBe(false);
         const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
-        expect(printOption.grid).toHaveLength(2);
-        expect(printOption.grid[0].height).toBeGreaterThan(400);
+        expect(printOption.grid).toHaveLength(4);
+        expect(printOption.grid[0].height).toBeGreaterThan(200);
         expect(
             Number(printOption.grid[1].top) - Number(printOption.grid[0].top) - Number(printOption.grid[0].height),
-        ).toBeCloseTo(14.4);
+        ).toBeCloseTo(14.4 + 32);
         expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
             '#009d4c',
         );

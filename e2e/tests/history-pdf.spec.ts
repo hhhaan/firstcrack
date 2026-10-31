@@ -37,7 +37,11 @@ test('exports a completed roast as PDF', async ({ authedPage: page, db }) => {
         },
         events: [
             { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+            { id: 'tp', type: 'TP', time_sec: 70, temp_c: 95 },
+            { id: 'y', type: 'Yellow', time_sec: 230, temp_c: 152.8 },
             { id: 'f', type: 'FC Start', time_sec: 480, temp_c: 199.3 },
+            { id: 'fr', type: 'FC Rolling', time_sec: 520, temp_c: 204 },
+            { id: 'fe', type: 'FC End', time_sec: 560, temp_c: 208 },
             { id: 'd', type: 'Drop', time_sec: 600, temp_c: 211.1 },
             { id: 'e', type: 'End', time_sec: 640, temp_c: 205 },
         ],

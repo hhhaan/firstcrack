@@ -133,6 +133,8 @@ interface Props {
     showRoRET?: boolean;
     rorEtActual?: (number | null)[];
     controlData?: ControlData;
+    /** Saved commands can be exported without adding an empty on-screen feedback plot. */
+    printControlData?: ControlData;
     showControlDrum?: boolean;
     showControlHeat?: boolean;
     showControlFan?: boolean;
@@ -327,6 +329,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         showRoRET = false,
         rorEtActual = [],
         controlData,
+        printControlData,
         showControlDrum = true,
         showControlHeat = true,
         showControlFan = true,
@@ -470,7 +473,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 showRoR,
                 showRoRET,
                 rorEtActual,
-                controlData,
+                controlData: print ? (printControlData ?? controlData) : controlData,
                 showControlDrum,
                 showControlHeat,
                 showControlFan,
@@ -525,6 +528,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             showRoRET,
             rorEtActual,
             controlData,
+            printControlData,
             showControlDrum,
             showControlHeat,
             showControlFan,

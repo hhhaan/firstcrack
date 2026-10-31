@@ -24,13 +24,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff',
         color: '#262626',
     },
-    header: { marginBottom: 16.8 },
-    title: { fontSize: 19, fontWeight: 600, lineHeight: 1.35, maxLines: 3, textOverflow: 'ellipsis' },
-    date: { marginTop: 6, fontSize: 9, color: '#737373' },
+    header: { marginBottom: 16.8, flexDirection: 'row', alignItems: 'center', gap: 16.8 },
+    title: { flex: 1, fontSize: 19, fontWeight: 600, lineHeight: 1.35, maxLines: 3, textOverflow: 'ellipsis' },
+    date: { flexShrink: 0, fontSize: 9, color: '#737373' },
+    chartFrame: { position: 'relative' },
     chart: { width: roastPdfLayout.chartWidth, height: roastPdfLayout.chartHeight, objectFit: 'contain' },
-    legend: { marginTop: 9.6, flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: 16.8 },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 7.2 },
-    legendText: { fontSize: 9, color: '#525252' },
+    legend: {
+        position: 'absolute',
+        top: 22,
+        left: 48,
+        right: 48,
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#ffffff' },
+    legendText: { fontSize: 7, color: '#525252' },
     background: {
         position: 'absolute',
         left: 0,
@@ -66,26 +76,32 @@ export const HistoryPdfDocument = ({
                 <Text style={styles.title}>{title}</Text>
                 <Text style={styles.date}>{date}</Text>
             </View>
-            <Image src={chartDataUrl} style={styles.chart} />
-            <View style={styles.legend}>
-                {legend.map((item) => (
-                    <View key={item.label} style={styles.legendItem}>
-                        <Svg width={20} height={6}>
-                            <Line
-                                x1={0}
-                                y1={3}
-                                x2={20}
-                                y2={3}
-                                stroke={item.color}
-                                strokeWidth={1}
-                                strokeDasharray={
-                                    item.lineType === 'dashed' ? '4 3' : item.lineType === 'dotted' ? '1 2' : undefined
-                                }
-                            />
-                        </Svg>
-                        <Text style={styles.legendText}>{item.label}</Text>
-                    </View>
-                ))}
+            <View style={styles.chartFrame}>
+                <Image src={chartDataUrl} style={styles.chart} />
+                <View style={styles.legend}>
+                    {legend.map((item) => (
+                        <View key={item.label} style={styles.legendItem}>
+                            <Svg width={14} height={6}>
+                                <Line
+                                    x1={0}
+                                    y1={3}
+                                    x2={14}
+                                    y2={3}
+                                    stroke={item.color}
+                                    strokeWidth={1}
+                                    strokeDasharray={
+                                        item.lineType === 'dashed'
+                                            ? '4 3'
+                                            : item.lineType === 'dotted'
+                                              ? '1 2'
+                                              : undefined
+                                    }
+                                />
+                            </Svg>
+                            <Text style={styles.legendText}>{item.label}</Text>
+                        </View>
+                    ))}
+                </View>
             </View>
         </Page>
     </Document>

@@ -1,7 +1,6 @@
 import { chartFontScale, scaleChartPx, TEMP_Y_INTERVAL } from '@features/active-roast/lib/chart-config';
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
-import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
 import type { EChartsOption } from 'echarts';
 import {
     applyChartAxisSettings,
@@ -18,6 +17,8 @@ import {
     computeTempYRange,
 } from './axes';
 import { buildMarkers } from './markers';
+import { buildPrintControls } from './print-controls';
+import { buildPrintEventLabels } from './print-event-labels';
 import { buildControlSeries, buildCurveLabelSeries, buildPhaseSeries, buildTempSeries } from './series';
 import { createAxisTooltipFormatter, lastDrawnSampleSec } from './tooltip';
 import type { ChartOptionParams } from './types';
@@ -57,23 +58,17 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
               showRoRET: params.rorEtActual.some((value) => value != null),
               showTargetCurve: false,
               showTargetDeltaLabel: false,
-              showControlDrum: false,
-              showControlFan: false,
-              showControlHeat: Boolean(
-                  params.controlData?.heatSet?.some((value) => value != null) ||
-                      params.controlData?.heatPower.some((value) => value != null),
+              eventMarkerStyle: 'callout' as const,
+              eventMarkers: params.eventMarkers.filter(
+                  (marker) =>
+                      !marker.reference &&
+                      ['Charge', 'TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End', 'Drop'].includes(marker.event),
               ),
-              eventMarkerStyle: 'point' as const,
-              eventMarkers: params.eventMarkers.filter((marker) => ['FC Start', 'Drop'].includes(marker.event)),
-              turningPoints: [],
               phaseSegments: [],
               showFcBand: false,
               bbpRange: undefined,
               xViewMin: 0,
               xViewMax: printEnd ?? params.xs[params.xs.length - 1],
-              controlData: params.controlData
-                  ? { ...params.controlData, reference: undefined, heatTarget: undefined, drumTemp: [], fanSpeed: [] }
-                  : undefined,
           }
         : params;
     const {
@@ -273,12 +268,44 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         : null;
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
-    const curveLabelSeries = buildCurveLabelSeries(
-        curveLabels,
-        fontScale,
-        print ? '#ffffff' : undefined,
-        print ? `400 ${roastPdfLayout.tickFontSize}px ${roastPdfLayout.fontFamily}` : undefined,
-    );
+    const curveLabelSeries = print
+        ? buildPrintEventLabels(curveLabels, [
+              { axis: 'temperature', xs, values: btActual },
+              { axis: 'temperature', xs, values: etActual },
+              { axis: 'ror', xs, values: rorActual, min: rorYMinDisp, max: rorYMaxDisp },
+              { axis: 'ror', xs, values: rorEtActual, min: rorYMinDisp, max: rorYMaxDisp },
+          ])
+        : buildCurveLabelSeries(curveLabels, fontScale);
+
+    if (print && controlData) {
+        const controls = buildPrintControls({
+            leftMargin: 40,
+            rightMargin: 40,
+            topMargin: 20,
+            xMin,
+            xMax,
+            tempYMin,
+            tempYMax,
+            rorYMin: rorYMinDisp,
+            rorYMax: rorYMaxDisp,
+            colors,
+            axisLabelStyle,
+            axisNameStyle,
+            rightYAxisLabel,
+            xAxisPointer,
+            yAxisPointer,
+            controlData,
+            curves,
+            temperatureUnit,
+        });
+        return {
+            ...controls,
+            backgroundColor: 'transparent',
+            animation: false,
+            dataZoom: [],
+            series: [...tempSeries, ...controls.series, curveLabelSeries],
+        };
+    }
 
     if (hasControlSeries && controlData) {
         // Controls keep their own value axes, including when sharing the temperature grid.
@@ -306,8 +333,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             }
         }
         const { grid, xAxis, yAxis } = buildDualGridLayout({
-            leftMargin: print ? 40 : leftMargin,
-            rightMargin: print ? 40 : rightMargin,
+            leftMargin,
+            rightMargin,
             topMargin,
             controlChartHeightPct,
             mergeControlChart,
@@ -327,7 +354,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             yAxisPointer,
         });
 
-        const printedHeat = controlData.heatSet?.some((value) => value != null) ? 'Heat set' : 'Heat';
         const controlSeries = buildControlSeries({
             controlData,
             showTargetCurve,
@@ -340,27 +366,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             curves,
             controlGuideMarkLines: mergeControlChart ? [] : controlGuideMarkLines,
             fontScale,
-        })
-            .filter((series) => !print || ('name' in series && series.name === printedHeat))
-            .map((series) => (print ? { ...series, lineStyle: { ...curves.heat.current } } : series));
+        });
 
         tuneAxes({ xAxis, yAxis });
-        if (print && Array.isArray(yAxis)) {
-            const controlHeight = roastPdfLayout.chartHeight * 0.2;
-            const controlTop = roastPdfLayout.chartHeight - 36 - controlHeight;
-            grid[0] = { ...grid[0], top: 20, height: controlTop - roastPdfLayout.plotGap - 20 };
-            grid[1] = { ...grid[1], top: controlTop, height: controlHeight, bottom: undefined };
-            for (const axis of yAxis.slice(2)) {
-                axis.axisLabel = { ...axisLabelStyle };
-                if (axis.type === 'value') {
-                    axis.interval = undefined;
-                    axis.splitNumber = 2;
-                }
-            }
-            yAxis[2].splitLine = { show: true, lineStyle: { color: colors.gridLine } };
-            yAxis[3].axisLabel = { show: false };
-            applyPrintAxes({ xAxis, yAxis }, temperatureUnit, printedHeat === 'Heat set' ? 'Gas' : 'Heat');
-        }
 
         return {
             backgroundColor: 'transparent',
@@ -389,7 +397,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 ...controlSeries.map((series) => ({
                     ...series,
                     xAxisIndex: mergeControlChart ? 0 : 1,
-                    ...(print ? { markPoint: { data: [] } } : {}),
                 })),
                 curveLabelSeries,
                 ...(phaseSeries ? [phaseSeries] : []),

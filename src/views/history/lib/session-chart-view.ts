@@ -62,6 +62,7 @@ export const historyControls = (input: {
         drum: number | null;
     }[];
     heatSet: (number | null)[];
+    heatSetUnit?: string;
     referenceControls: boolean;
     displayedTarget: {
         readUnits?: ControlData['readUnits'];
@@ -77,7 +78,11 @@ export const historyControls = (input: {
         ),
     );
     const hasControls = sessionHasControls || input.referenceControls;
-    if (!hasControls) return { hasControls, controlData: undefined };
+    const hasRecordedCommands =
+        input.changes?.some((change) =>
+            Object.values(change.values).some((value) => value != null && Number.isFinite(value)),
+        ) || input.heatSet.some((value) => value != null && Number.isFinite(value));
+    if (!hasControls && !hasRecordedCommands) return { hasControls, controlData: undefined };
     return {
         hasControls,
         controlData: {
@@ -88,6 +93,7 @@ export const historyControls = (input: {
             heatPower: input.points.map((point) => feedbackValue(point.heater, 'heater', point.processing?.read_units)),
             fanSpeed: input.points.map((point) => feedbackValue(point.fan, 'fan', point.processing?.read_units)),
             heatSet: input.heatSet,
+            heatSetUnit: input.heatSetUnit,
             reference: input.referenceControls
                 ? {
                       readUnits: input.displayedTarget.readUnits,

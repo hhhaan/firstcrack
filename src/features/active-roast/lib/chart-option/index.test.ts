@@ -12,7 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../curve-style';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
-import type { ChartOptionParams } from './types';
+import type { ChartOptionParams, ControlData } from './types';
 
 const baseParams = (): ChartOptionParams => ({
     xs: [],
@@ -45,7 +45,7 @@ const baseParams = (): ChartOptionParams => ({
     colors: mockColors,
 });
 
-it('prints only temperature, RoR and recorded gas while keeping the screen controls intact', () => {
+it('prints each recorded control in its own plot while keeping screen controls intact', () => {
     const params: ChartOptionParams = {
         ...baseParams(),
         xs: [0, 60, 600, 640],
@@ -79,12 +79,14 @@ it('prints only temperature, RoR and recorded gas while keeping the screen contr
         'RoR',
         'ET RoR',
         'Heat set',
+        'Fan',
+        'Drum',
         'Event curve labels',
     ]);
     expect(screenSeries.map((series) => series.name)).toEqual(expect.arrayContaining(['Drum', 'Heat', 'Fan']));
     expect(paper.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 600 })]));
     expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
-    for (const name of ['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Heat set']) {
+    for (const name of ['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Heat set', 'Fan', 'Drum']) {
         expect(paperSeries.find((series) => series.name === name)).toMatchObject({ lineStyle: { type: 'solid' } });
     }
     expect(screenSeries.find((series) => series.name === 'BT Actual')).toMatchObject({ lineStyle: { type: 'dotted' } });
@@ -105,6 +107,132 @@ it('prints only temperature, RoR and recorded gas while keeping the screen contr
             [640, 180],
         ],
     });
+});
+
+it.each([true, false])('prints major roast events including TP (stored TP: %s)', (storedTp) => {
+    const times = [0, 70, 230, 480, 520, 560, 600, 640];
+    const temperatures = [200, 95, 153, 199, 204, 208, 211, 205];
+    const events = ['Charge', 'TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End', 'Drop', 'End'];
+    const option = buildRoastChartOption({
+        ...baseParams(),
+        print: true,
+        xs: times,
+        btActual: temperatures,
+        turningPoints: storedTp ? [] : [{ timeSec: 70, temp: 95 }],
+        eventMarkers: [
+            ...events.flatMap((event, index) =>
+                event === 'TP' && !storedTp
+                    ? []
+                    : [{ event, timeSec: times[index], tempC: temperatures[index], temp: '', timeStr: '', color: '' }],
+            ),
+            { event: 'Note', timeSec: 230, tempC: 153, temp: '', timeStr: '', color: '', note: 'Private note' },
+        ],
+    });
+    const chart = echarts.init(null, undefined, { renderer: 'svg', ssr: true, width: 538, height: 625 });
+    try {
+        chart.setOption(option);
+        const svg = chart.renderToSVGString();
+        for (const event of events.slice(0, -1)) expect(svg).toContain(`${event}|`);
+        expect(svg).not.toContain('End|10:40');
+        expect(svg).not.toContain('Private note');
+        expect(svg.match(/TP\|/g)).toHaveLength(1);
+    } finally {
+        chart.dispose();
+    }
+});
+
+it.each([
+    {
+        label: 'no recorded controls',
+        values: { heatPower: [null, null, null], fanSpeed: [null, null, null], drumTemp: [null, null, null] },
+        names: [],
+    },
+    {
+        label: 'a recorded zero fan value',
+        values: { heatPower: [null, null, null], fanSpeed: [0, 0, null], drumTemp: [null, null, null] },
+        names: ['Fan'],
+    },
+    {
+        label: 'gas commands without feedback',
+        values: {
+            heatPower: [null, null, null],
+            heatSet: [0, null, null],
+            fanSpeed: [null, null, null],
+            drumTemp: [null, null, null],
+        },
+        names: ['Heat set'],
+    },
+    {
+        label: 'separate physical-unit controls',
+        values: { heatPower: [null, null, null], fanSpeed: [700, 900, 5_000_000], drumTemp: [1200, 1350, 9999] },
+        names: ['Fan', 'Drum'],
+    },
+    {
+        label: 'controls recorded only after Drop',
+        values: { heatPower: [null, null, 50], fanSpeed: [null, null, 30], drumTemp: [null, null, 60] },
+        names: [],
+    },
+    {
+        label: 'acknowledged commands without feedback',
+        values: {
+            heatPower: [null, null, null],
+            fanSpeed: [null, null, null],
+            drumTemp: [null, null, null],
+            changes: [
+                { timeSec: 10, values: { heater: 25, fan: 0, drum: 60 } },
+                { timeSec: 40, values: { fan: 30 } },
+            ],
+        },
+        names: ['Heat set', 'Fan set', 'Drum set'],
+    },
+])('prints only $label', ({ values, names }) => {
+    const controlData: ControlData = {
+        xs: [0, 30, 90],
+        ...values,
+        readUnits: [
+            { fan: 'Pa', drum: 'RPM' },
+            { fan: 'Pa', drum: 'RPM' },
+        ],
+    };
+    const option = buildRoastChartOption({
+        ...baseParams(),
+        print: true,
+        xs: [0, 30, 90],
+        controlData,
+        showControlDrum: false,
+        showControlHeat: false,
+        showControlFan: false,
+        eventMarkers: [{ event: 'Drop', timeSec: 60, timeStr: '1:00', temp: '185°C', color: '#777' }],
+    });
+    expect(option.grid).toHaveLength(names.length + 1);
+    const series = (Array.isArray(option.series) ? option.series : []).filter((item) =>
+        ['Heat set', 'Heat', 'Fan', 'Drum', 'Fan set', 'Drum set'].includes(String(item.name)),
+    );
+    expect(series.map((item) => item.name)).toEqual(names);
+    if (names.includes('Drum')) {
+        expect(series.find((item) => item.name === 'Fan')).toMatchObject({
+            data: [
+                [0, 700],
+                [30, 900],
+            ],
+        });
+        expect(option.yAxis).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ name: 'Fan (Pa)', gridIndex: 1 }),
+                expect.objectContaining({ name: 'Drum (RPM)', gridIndex: 2 }),
+            ]),
+        );
+    }
+    if (names.includes('Fan set')) {
+        expect(series.find((item) => item.name === 'Fan set')).toMatchObject({
+            data: [
+                [10, 0],
+                [40, 30],
+                [60, 30],
+            ],
+            step: 'end',
+        });
+    }
 });
 
 describe('imported chart ticks', () => {
@@ -163,7 +291,7 @@ describe('buildRoastChartOption font scale', () => {
 });
 
 describe('buildRoastChartOption', () => {
-    it('prints a separate control band with both timelines even when screen controls are merged', () => {
+    it('separates three recorded control plots even when screen controls are merged', () => {
         const params = {
             ...baseParams(),
             mergeControlChart: true,
@@ -175,33 +303,61 @@ describe('buildRoastChartOption', () => {
         expect(paper.grid).toMatchObject([
             { left: 40, right: 40 },
             { left: 40, right: 40 },
+            { left: 40, right: 40 },
+            { left: 40, right: 40 },
         ]);
         const grids = Array.isArray(paper.grid) ? paper.grid : [];
-        expect(Number(grids[1].top) - Number(grids[0].top) - Number(grids[0].height)).toBeCloseTo(
-            roastPdfLayout.margin / 2,
-        );
+        expect(Number(grids[1].height)).toBeGreaterThan(Number(grids[2].height));
+        for (let index = 1; index < grids.length; index++) {
+            expect(grids[index].show).not.toBe(true);
+            expect(
+                Number(grids[index].top) - Number(grids[index - 1].top) - Number(grids[index - 1].height),
+            ).toBeCloseTo(roastPdfLayout.margin / 2 + 32);
+        }
         expect(paper.xAxis).toMatchObject([
             {
                 gridIndex: 0,
-                name: 'Time (mm:ss)',
-                axisLabel: { show: false, fontFamily: 'SUIT', fontSize: 8 },
+                name: 'Time',
+                axisLabel: { show: true, fontFamily: 'SUIT', fontSize: 8 },
                 splitLine: { show: false },
             },
             {
                 gridIndex: 1,
-                name: 'Time (mm:ss)',
-                axisLabel: { formatter: expect.any(Function), fontFamily: 'SUIT', fontSize: 8 },
+                name: 'Time',
+                axisLabel: { show: true, fontFamily: 'SUIT', fontSize: 8 },
+                splitLine: { show: false },
+            },
+            {
+                gridIndex: 2,
+                name: 'Time',
+                axisLabel: { show: true, fontFamily: 'SUIT', fontSize: 8 },
+                splitLine: { show: false },
+            },
+            {
+                gridIndex: 3,
+                name: 'Time',
+                axisLabel: { show: true, formatter: expect.any(Function), fontFamily: 'SUIT', fontSize: 8 },
                 splitLine: { show: false },
             },
         ]);
         expect(paper.yAxis).toMatchObject([
             { name: 'BT / ET (°C)', splitLine: { show: true }, axisLabel: { fontFamily: 'SUIT', fontSize: 8 } },
             { name: 'RoR (°C/min)', splitLine: { show: false } },
-            { name: 'Heat', gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: true } },
-            { gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: false } },
+            {
+                name: 'Heat',
+                gridIndex: 1,
+                interval: 10,
+                splitLine: { show: true, lineStyle: { type: 'dashed', opacity: 0.5 } },
+            },
+            { name: 'Fan', gridIndex: 2, interval: 10, splitLine: { show: true } },
+            { name: 'Drum', gridIndex: 3, interval: 10, splitLine: { show: true } },
         ]);
         expect(paper.series).toEqual(
-            expect.arrayContaining([expect.objectContaining({ name: 'Heat', xAxisIndex: 1, markPoint: { data: [] } })]),
+            expect.arrayContaining([
+                expect.objectContaining({ name: 'Heat', xAxisIndex: 1, yAxisIndex: 2 }),
+                expect.objectContaining({ name: 'Fan', xAxisIndex: 2, yAxisIndex: 3 }),
+                expect.objectContaining({ name: 'Drum', xAxisIndex: 3, yAxisIndex: 4 }),
+            ]),
         );
     });
 
@@ -958,12 +1114,13 @@ describe('buildRoastChartOption', () => {
         expect(series.some((item) => item.name === 'Event marker lines')).toBe(false);
     });
 
-    it('draws major event labels beside BT with a leader', () => {
+    it.each([false, true])('draws major event labels beside BT with a leader (print: %s)', (print) => {
         const option = buildRoastChartOption({
             ...baseParams(),
             xs: [0, 60],
             btActual: [100, 185],
-            eventMarkerStyle: 'callout',
+            print,
+            eventMarkerStyle: print ? 'line' : 'callout',
             eventMarkers: [{ timeSec: 60, event: 'FC Start', color: '#old', timeStr: '', temp: '185°C' }],
         });
         const labelSeries = (
@@ -984,7 +1141,13 @@ describe('buildRoastChartOption', () => {
             { coord: (value: number[]) => [value[0] * 2, 250 - value[1]], getWidth: () => 440 },
         );
         const text = result?.children.find((child) => child.type === 'text');
-        expect(text).toMatchObject({ type: 'text', x: 136, y: 43, style: { font: MARKER_LABEL_FONT } });
+        expect(text).toMatchObject({
+            type: 'text',
+            x: print ? 138 : 136,
+            y: print ? 39 : 43,
+            style: { font: print ? '400 8px SUIT' : MARKER_LABEL_FONT },
+        });
+        expect(result?.children.some((child) => child.type === 'line')).toBe(true);
         expect(result?.children.some((child) => child.type === 'circle')).toBe(false);
     });
 

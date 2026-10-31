@@ -268,23 +268,31 @@ export const computeGridMargins = (hasRightYAxis: boolean) => {
 export const applyPrintAxes = (
     axes: Pick<EChartsOption, 'xAxis' | 'yAxis'>,
     unit: TemperatureUnit,
-    controlName?: string,
+    controlNames: readonly string[] = [],
 ) => {
     const font = { fontFamily: roastPdfLayout.fontFamily, fontSize: roastPdfLayout.tickFontSize, fontWeight: 400 };
-    for (const [index, axis] of (Array.isArray(axes.xAxis) ? axes.xAxis : []).entries()) {
-        axis.name = 'Time (mm:ss)';
+    for (const axis of Array.isArray(axes.xAxis) ? axes.xAxis : []) {
+        axis.name = 'Time';
         axis.nameLocation = 'middle';
-        axis.nameGap = controlName && index === 0 ? 4 : 20;
-        axis.nameTextStyle = font;
-        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: !controlName || index > 0 };
+        axis.nameGap = 20;
+        axis.nameTextStyle = { ...font, verticalAlign: 'top' };
+        axis.axisLine = { show: false, onZero: false };
+        axis.axisTick = { show: false };
+        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: true };
     }
     for (const [index, axis] of (Array.isArray(axes.yAxis) ? axes.yAxis : []).entries()) {
         axis.name =
-            index === 0 ? `BT / ET (°${unit})` : index === 1 ? `RoR (°${unit}/min)` : index === 2 ? controlName : '';
+            index === 0 ? `BT / ET (°${unit})` : index === 1 ? `RoR (°${unit}/min)` : (controlNames[index - 2] ?? '');
         axis.nameLocation = 'middle';
         axis.nameGap = 26;
         axis.nameTextStyle = font;
-        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: index < 3 };
+        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: true };
+        if (axis.splitLine?.show) {
+            axis.splitLine = {
+                ...axis.splitLine,
+                lineStyle: { ...axis.splitLine.lineStyle, type: 'dashed', opacity: 0.5, width: 0.6 },
+            };
+        }
     }
 };
 
@@ -497,7 +505,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
         yAxisPointer,
     } = params;
 
-    const grid = [
+    const grid: GridComponentOption[] = [
         {
             left: leftMargin,
             right: rightMargin,

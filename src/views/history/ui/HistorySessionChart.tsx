@@ -316,6 +316,7 @@ export function HistorySessionChart({
         changes: storedEventsToControlChanges(storedEvents),
         points,
         heatSet,
+        heatSetUnit: heaterUnit,
         referenceControls,
         displayedTarget,
     });
@@ -415,7 +416,8 @@ export function HistorySessionChart({
                     xViewMin={xView.min}
                     xViewMax={xView.max}
                     bbpRange={bbpRange}
-                    controlData={controlData}
+                    controlData={hasControls ? controlData : undefined}
+                    printControlData={controlData}
                     controlChartHeightPct={24}
                     height={hasControls ? 440 : 360}
                 />
