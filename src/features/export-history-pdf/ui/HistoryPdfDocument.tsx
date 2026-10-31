@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
         top: (roastPdfLayout.pageHeight - 260) / 2,
         width: 260,
         height: 260,
-        opacity: 0.5,
+        opacity: 0.2,
     },
 });
 

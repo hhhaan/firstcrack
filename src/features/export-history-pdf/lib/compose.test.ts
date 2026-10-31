@@ -49,6 +49,6 @@ it('renders a long Korean title, chart and legend on one portrait A4 page', asyn
     expect(Number(mediaBox?.[1])).toBeCloseTo(595.28, 2);
     expect(Number(mediaBox?.[2])).toBeCloseTo(841.89, 2);
     expect(pdf).toContain('/FontFile2');
-    expect(pdf).toContain('/ca 0.5');
+    expect(pdf).toContain('/ca 0.2');
     expect(pdf).toContain('/Subtype /Image');
 });

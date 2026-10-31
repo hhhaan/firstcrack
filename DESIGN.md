@@ -225,7 +225,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 
 | 요소 | Size | Weight | Tracking | 기타 |
 |---|---|---|---|---|
-| Page Title (h1) | `24px` | Medium (`500`) | `0.24px` | `line-height: 32px` |
+| Page Title (h1) | `36px` | Normal (`400`) | `0.24px` | `line-height: 40px`. Settings page title stays `24px` / `32px` |
 | 패널 타이틀 | `16px` | `450` | `0.24px` | `line-height: 24px` |
 | Dashboard KPI Value | `30px`, xl `48px` | `450`, xl `350` | `0.24px` | `36px`, xl `48px` line-height |
 | 본문 | `14–16px` | Regular/Medium | `+0.14px` | |
@@ -265,7 +265,7 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 
 - **PageLayout:** `mx-auto w-full px-6 py-8 sm:px-8`, maxWidth 기본 `1280` (inline style — 동적 값 예외)
 - **PageHeader:** `mb-8 flex flex-wrap items-end justify-between gap-4`
-  - h1: `mb-2 font-(--font-display) text-2xl font-medium leading-8 tracking-[0.24px] text-primary`
+  - h1: `font-(--font-display) text-4xl font-normal leading-10 tracking-[0.24px] text-primary` (`mb-2` with a subtitle, `mb-0` without)
   - subtitle: `text-sm font-[450] leading-5 text-muted`
   - actions: `flex flex-wrap items-center gap-2`
 
@@ -356,7 +356,7 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 
 ## History PDF
 
-- `@react-pdf/renderer`, A4 portrait, white paper. Title and date above the chart, compact BT/ET/BT RoR/ET RoR legend below; no summary cards, notes, or footer. Center the logo on the paper as a 50% opacity watermark behind transparent chart imagery.
+- `@react-pdf/renderer`, A4 portrait, white paper. Title and date above the chart, compact BT/ET/BT RoR/ET RoR legend below; no summary cards, notes, or footer. Center the logo on the paper as a 20% opacity watermark behind transparent chart imagery.
 - Print axes and event labels use SUIT at 8pt. Label both time axes and the temperature, RoR, and heating axes. The plot-to-plot gap equals half the horizontal page margin; shared point dimensions live in `src/shared/lib/roast-pdf-layout.ts`.
 - Include stored ET RoR when available, with a dashed line; do not reconstruct missing historical samples. Fit both RoR channels in the shared display-unit range.
 - Print the saved roast from Charge to Drop with FC/Drop labels. Omit reference curves, phase fills, drum and fan. Gas uses recorded Heat set when present; otherwise label measured heating as Heat. Never substitute measured heating for a recorded command.
