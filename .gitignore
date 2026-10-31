@@ -76,6 +76,7 @@ docs/superpowers/*
 !docs/superpowers/specs/
 docs/superpowers/specs/*
 !docs/superpowers/specs/2026-07-21-green-inventory-asset-valuation-design.md
+!docs/superpowers/specs/2026-10-31-quality-section-design.md
 
 extern/
 screenshots/
