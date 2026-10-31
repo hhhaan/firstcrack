@@ -4,15 +4,23 @@ import { E2E_USER } from '../fixtures/constants';
 
 test('exports a completed roast as PDF', async ({ authedPage: page, db }) => {
     const key = `profiles/${E2E_USER.id}/history-pdf.tsv`;
-    const rows = ['time\tbt\tet\tror\theater\tfan\tdrum\theater_set'];
+    const rows = ['time\tbt\tet\tror\theater\tfan\tdrum\theater_set\tet_raw\tbt_raw\tet_ror'];
     for (let t = 0; t <= 640; t += 5) {
         const bt = t <= 70 ? 95 + 105 * (1 - t / 70) ** 2 : 95 + 140 * (1 - Math.exp(-(t - 70) / 300));
         const et =
             225 - 25 * Math.exp(-((t - 60) ** 2) / 4000) + 22 * (1 - Math.exp(-t / 180)) - Math.max(0, t - 450) * 0.06;
         const ror = t <= 70 ? '' : (28 * Math.exp(-(t - 70) / 300) + 0.3 * Math.sin(t / 13)).toFixed(1);
+        const etRor = (
+            60 *
+            ((25 * Math.exp(-((t - 60) ** 2) / 4000) * (t - 60)) / 2000 +
+                (22 / 180) * Math.exp(-t / 180) -
+                (t > 450 ? 0.06 : 0))
+        ).toFixed(1);
         const heat =
             t < 70 ? 70 : t < 190 ? 85 : t < 280 ? 70 : t < 370 ? 60 : t < 460 ? 50 : t < 530 ? 40 : t < 600 ? 30 : 0;
-        rows.push([t, bt.toFixed(1), et.toFixed(1), ror, heat, 40, 50, heat].join('\t'));
+        rows.push(
+            [t, bt.toFixed(1), et.toFixed(1), ror, heat, 40, 50, heat, et.toFixed(1), bt.toFixed(1), etRor].join('\t'),
+        );
     }
     db.tsvFiles.set(key, `${rows.join('\n')}\n`);
     db.seedCompletedSession({

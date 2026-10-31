@@ -864,7 +864,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const clone = echarts.init(el, undefined, { renderer: 'canvas', devicePixelRatio: pixelRatio });
             try {
                 clone.setOption(makeOption(getResolvedChartColors(true), true), true);
-                return clone.getDataURL({ ...opts, pixelRatio });
+                return clone.getDataURL({ ...opts, backgroundColor: 'rgba(0,0,0,0)', pixelRatio });
             } finally {
                 if (clone !== chart) clone.dispose();
                 el.remove();

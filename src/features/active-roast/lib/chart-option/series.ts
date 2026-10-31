@@ -390,7 +390,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
 };
 
 /** BT 축 위에 이벤트 라벨. 한 번에 배치해서 박스가 겹치면 위/아래로 밀어낸다. */
-export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgroundColor?: string) => ({
+export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgroundColor?: string, font?: string) => ({
     id: 'event-curve-labels',
     name: 'Event curve labels',
     type: 'custom' as const,
@@ -435,7 +435,7 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgr
                     backgroundColor,
                     fill: box.color,
                     opacity: box.opacity,
-                    font: markerLabelFont(scale),
+                    font: font ?? markerLabelFont(scale),
                     lineHeight: scaleChartPx(MARKER_LABEL_STACK_PX, scale),
                     textAlign: 'left',
                     textVerticalAlign: box.below ? 'top' : 'bottom',

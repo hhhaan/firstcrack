@@ -17,7 +17,8 @@ import {
 } from '@features/active-roast/lib/chart-config';
 import { toDisplayRoR, toDisplayTemp, toDisplayTempDelta } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
-import type { EChartsOption } from 'echarts';
+import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
+import type { EChartsOption, GridComponentOption } from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
 
@@ -264,6 +265,29 @@ export const computeGridMargins = (hasRightYAxis: boolean) => {
     return { leftMargin, rightMargin, topMargin };
 };
 
+export const applyPrintAxes = (
+    axes: Pick<EChartsOption, 'xAxis' | 'yAxis'>,
+    unit: TemperatureUnit,
+    controlName?: string,
+) => {
+    const font = { fontFamily: roastPdfLayout.fontFamily, fontSize: roastPdfLayout.tickFontSize, fontWeight: 400 };
+    for (const [index, axis] of (Array.isArray(axes.xAxis) ? axes.xAxis : []).entries()) {
+        axis.name = 'Time (mm:ss)';
+        axis.nameLocation = 'middle';
+        axis.nameGap = controlName && index === 0 ? 4 : 20;
+        axis.nameTextStyle = font;
+        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: !controlName || index > 0 };
+    }
+    for (const [index, axis] of (Array.isArray(axes.yAxis) ? axes.yAxis : []).entries()) {
+        axis.name =
+            index === 0 ? `BT / ET (°${unit})` : index === 1 ? `RoR (°${unit}/min)` : index === 2 ? controlName : '';
+        axis.nameLocation = 'middle';
+        axis.nameGap = 26;
+        axis.nameTextStyle = font;
+        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: index < 3 };
+    }
+};
+
 export interface DualGridAxesParams {
     leftMargin: number;
     rightMargin: number;
@@ -314,7 +338,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
         ? controlYMin + (controlYMax - controlYMin) / MERGED_CONTROL_HEIGHT_RATIO
         : controlYMax;
 
-    const grid = [
+    const grid: GridComponentOption[] = [
         {
             left: leftMargin,
             right: rightMargin,

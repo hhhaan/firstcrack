@@ -6,6 +6,7 @@ import {
     REFERENCE_CURVE_OPACITY,
     TEMP_CURVE_WIDTH,
 } from '@features/active-roast/lib/chart-config';
+import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../curve-style';
@@ -51,6 +52,7 @@ it('prints only temperature, RoR and recorded gas while keeping the screen contr
         btActual: [190, 95, 210, 180],
         etActual: [200, 210, 240, 230],
         rorActual: [null, 28, 4, 99],
+        rorEtActual: [null, -8, 36, 200],
         eventMarkers: [
             { event: 'FC Start', timeSec: 480, timeStr: '8:00', temp: '195°C', color: '#777' },
             { event: 'Drop', timeSec: 600, timeStr: '10:00', temp: '210°C', color: '#777' },
@@ -71,12 +73,16 @@ it('prints only temperature, RoR and recorded gas while keeping the screen contr
         'BT Actual',
         'ET Actual',
         'RoR',
+        'ET RoR',
         'Heat set',
         'Event curve labels',
     ]);
     expect(screenSeries.map((series) => series.name)).toEqual(expect.arrayContaining(['Drum', 'Heat', 'Fan']));
     expect(paper.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 600 })]));
-    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 30 })]));
+    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
+    expect(paperSeries.find((series) => series.name === 'ET RoR')).toMatchObject({ lineStyle: { type: 'dashed' } });
+    const fahrenheit = buildRoastChartOption({ ...params, print: true, temperatureUnit: 'F' });
+    expect(fahrenheit.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
     expect(paperSeries.find((series) => series.name === 'BT Actual')).toMatchObject({
         data: [
             [0, 190],
@@ -153,17 +159,31 @@ describe('buildRoastChartOption', () => {
         const paper = buildRoastChartOption({ ...params, print: true });
         expect(screen.grid).toMatchObject([{ bottom: 30 }]);
         expect(paper.grid).toMatchObject([
-            { height: '65%', left: 40, right: 40 },
-            { top: '76%', left: 40, right: 40 },
+            { left: 40, right: 40 },
+            { left: 40, right: 40 },
         ]);
+        const grids = Array.isArray(paper.grid) ? paper.grid : [];
+        expect(Number(grids[1].top) - Number(grids[0].top) - Number(grids[0].height)).toBeCloseTo(
+            roastPdfLayout.margin / 2,
+        );
         expect(paper.xAxis).toMatchObject([
-            { gridIndex: 0, axisLabel: { formatter: expect.any(Function) }, splitLine: { show: false } },
-            { gridIndex: 1, axisLabel: { formatter: expect.any(Function) }, splitLine: { show: false } },
+            {
+                gridIndex: 0,
+                name: 'Time (mm:ss)',
+                axisLabel: { show: false, fontFamily: 'SUIT', fontSize: 8 },
+                splitLine: { show: false },
+            },
+            {
+                gridIndex: 1,
+                name: 'Time (mm:ss)',
+                axisLabel: { formatter: expect.any(Function), fontFamily: 'SUIT', fontSize: 8 },
+                splitLine: { show: false },
+            },
         ]);
         expect(paper.yAxis).toMatchObject([
-            { splitLine: { show: true } },
-            { splitLine: { show: false } },
-            { gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: true } },
+            { name: 'BT / ET (°C)', splitLine: { show: true }, axisLabel: { fontFamily: 'SUIT', fontSize: 8 } },
+            { name: 'RoR (°C/min)', splitLine: { show: false } },
+            { name: 'Heat', gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: true } },
             { gridIndex: 1, interval: undefined, splitNumber: 2, splitLine: { show: false } },
         ]);
         expect(paper.series).toEqual(

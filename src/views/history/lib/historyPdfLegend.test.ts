@@ -13,6 +13,7 @@ vi.mock('@features/active-roast/lib/chart-config', async (importOriginal) => {
             etActual: '#et-live',
             etTarget: '#et-ref',
             rorActual: '#ror-live',
+            rorEtActual: '#et-ror-live',
             rorTarget: '#ror-ref',
             controlDrum: '#drum-live',
             controlDrumTarget: '#drum-ref',
@@ -39,11 +40,12 @@ describe('historyPdfLegend', () => {
 
     it('uses resolved curve styles so legend matches the chart image', () => {
         updateCurveStyle('bt', { color: '#e53935' });
-        const items = historyPdfLegend('F');
+        const items = historyPdfLegend('F', true);
         expect(items).toEqual([
             { color: '#e53935', label: 'BT (°F)', lineType: 'solid' },
             { color: '#et-live', label: 'ET (°F)', lineType: 'solid' },
-            { color: '#ror-live', label: 'RoR (°F/min)', lineType: 'solid' },
+            { color: '#ror-live', label: 'BT RoR (°F/min)', lineType: 'solid' },
+            { color: '#et-live', label: 'ET RoR (°F/min)', lineType: 'dashed' },
         ]);
         expect(getRoastSettings().curveStyles.heat.lineType).toBe('dotted');
     });

@@ -1287,8 +1287,10 @@ describe('RoastTempChart interactions', () => {
         expect(element?.isConnected).toBe(false);
         const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
         expect(printOption.grid).toHaveLength(2);
-        expect(printOption.grid[0].height).toBe('65%');
-        expect(printOption.grid[1].top).toBe('76%');
+        expect(printOption.grid[0].height).toBeGreaterThan(400);
+        expect(
+            Number(printOption.grid[1].top) - Number(printOption.grid[0].top) - Number(printOption.grid[0].height),
+        ).toBeCloseTo(14.4);
         expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
             '#009d4c',
         );
@@ -1297,7 +1299,7 @@ describe('RoastTempChart interactions', () => {
         expect(chart.getDataURL).toHaveBeenLastCalledWith({
             type: 'png',
             pixelRatio: 2,
-            backgroundColor: '#ffffff',
+            backgroundColor: 'rgba(0,0,0,0)',
         });
     });
 });

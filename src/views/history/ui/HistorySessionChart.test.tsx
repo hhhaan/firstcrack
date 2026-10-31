@@ -3,7 +3,7 @@ import { toDisplayRoR, toDisplayTemp } from '@features/active-roast/lib/temperat
 import type { TsvPoint } from '@shared/lib/tsv';
 import { act, type ComponentProps } from 'react';
 import { createRoot } from 'react-dom/client';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { HistorySessionChart } from './HistorySessionChart';
 
 const mocks = vi.hoisted(() => ({
@@ -231,4 +231,8 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
         }),
     );
     await act(async () => root.unmount());
+});
+
+beforeEach(() => {
+    Object.defineProperty(document, 'fonts', { configurable: true, value: { load: vi.fn().mockResolvedValue([]) } });
 });

@@ -3,7 +3,7 @@ import en from '@shared/i18n/locales/en.json';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { useHistoryPdfExport } from './useHistoryPdfExport';
 
 const mocks = vi.hoisted(() => ({ exportPdf: vi.fn(async () => true) }));
@@ -132,4 +132,8 @@ it('disables PDF export while a roast is in progress', async () => {
     } finally {
         act(() => root.unmount());
     }
+});
+
+beforeEach(() => {
+    Object.defineProperty(document, 'fonts', { configurable: true, value: { load: vi.fn().mockResolvedValue([]) } });
 });
