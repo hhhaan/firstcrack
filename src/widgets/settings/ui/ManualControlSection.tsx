@@ -6,6 +6,7 @@ import {
 } from '@features/active-roast/lib/manual-controls';
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { useTranslation } from 'react-i18next';
+import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
 const fieldCls =
@@ -17,7 +18,7 @@ const builtinKey = (id: ManualControlId) =>
 export function ManualControlSection() {
     const { t } = useTranslation();
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
-    const controls = useRoastSettings().manualControls;
+    const { manualControls: controls, recordVirtualControls } = useRoastSettings();
 
     const save = (next: ManualControlSetting[]) => updateRoastSettings({ manualControls: next });
     const patch = (id: ManualControlId, row: Partial<ManualControlSetting>) =>
@@ -27,6 +28,12 @@ export function ManualControlSection() {
         <SettingsSection group="events">
             <SettingsSection.Header title={tk('manualControls')} description={tk('manualControlsDescription')} />
             <SettingsSection.Body>
+                <SettingsCheckRow
+                    checked={recordVirtualControls}
+                    label={tk('recordVirtualControls')}
+                    description={tk('recordVirtualControlsDescription')}
+                    onChange={() => updateRoastSettings({ recordVirtualControls: !recordVirtualControls })}
+                />
                 {controls.map((row) => {
                     const builtin = t(builtinKey(row.id));
                     return (

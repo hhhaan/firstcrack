@@ -221,6 +221,7 @@ export function HistorySessionChart({
         showProfileHeat,
         showProfileFan,
         bbpJoinCharge,
+        recordVirtualControls,
     } = useRoastSettings();
     const joinBbp = bbpJoinCharge !== false;
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
@@ -316,15 +317,17 @@ export function HistorySessionChart({
     const { hasControls, controlData } = historyControls({
         changes: [
             ...storedEventsToControlChanges(storedEvents),
-            ...manualNotesToControlChanges(
-                storedEvents.map((event) => ({
-                    event: event.type,
-                    timeSec: event.time_sec,
-                    gas: event.gas,
-                    airflow: event.airflow,
-                    drum: event.drum,
-                })),
-            ),
+            ...(recordVirtualControls
+                ? manualNotesToControlChanges(
+                      storedEvents.map((event) => ({
+                          event: event.type,
+                          timeSec: event.time_sec,
+                          gas: event.gas,
+                          airflow: event.airflow,
+                          drum: event.drum,
+                      })),
+                  )
+                : []),
         ],
         points,
         heatSet,

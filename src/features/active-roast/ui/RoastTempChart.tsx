@@ -1237,7 +1237,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             )}
                         </label>
                     )}
-                    {editForm.controls && (
+                    {recordManualControls && editForm.controls && (
                         <RoastNoteFields
                             values={editForm.controls}
                             onChange={(controls) => setEditForm({ ...editForm, controls })}

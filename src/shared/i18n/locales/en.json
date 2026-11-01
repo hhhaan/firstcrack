@@ -418,6 +418,8 @@
                 "eventButtonNameInvalid": "Use 1–16 characters. Existing names and built-in events are not allowed.",
                 "eventButtonLimit": "You can add up to 8 events.",
                 "eventButtonShortcutUnset": "Set",
+                "recordVirtualControls": "Right-click virtual controls",
+                "recordVirtualControlsDescription": "During a roast, numbers entered with a right-click draw on control channels the machine never reports. Nothing is sent to the machine.",
                 "manualControls": "Manual controls",
                 "manualControlsDescription": "Gas, airflow, and drum on a roast record. Rename each one and set its unit. Values are numbers only. The unit is not stored on each record, so changing it updates how earlier records read.",
                 "manualControlName": "Name",

@@ -23,6 +23,11 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
+it('leaves virtual right-click controls off until turned on', () => {
+    expect(normalizeRoastSettings({}).recordVirtualControls).toBe(false);
+    expect(normalizeRoastSettings({ recordVirtualControls: false }).recordVirtualControls).toBe(false);
+});
+
 it('drops the combined batch numbering choice', () => {
     expect(normalizeRoastSettings({ batchTitleNumbering: 'both' }).batchTitleNumbering).toBe('profile');
 });

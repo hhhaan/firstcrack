@@ -72,6 +72,11 @@ export type RoastSettings = {
     eventMarkerStyle: EventMarkerStyle;
     /** Which side-panel mark buttons are shown. Drop stays on. */
     eventButtons: RoastEventButtons;
+    /**
+     * Right-click gas, airflow, and drum during a roast.
+     * Those numbers draw only on control channels the machine never reported, and are not sent to it.
+     */
+    recordVirtualControls: boolean;
     /** Hand-entered gas, airflow, and drum. Numbers only; name and unit are the operator's. */
     manualControls: ManualControlSetting[];
     /** Per-channel line color, width, and dash for live and reference curves. */

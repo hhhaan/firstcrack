@@ -980,7 +980,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                     ? [{ timeSec: entry.timeSec ?? 0, values: entry.appliedControl }]
                     : [],
             ),
-            ...manualNotesToControlChanges(bbpChartEntries),
+            ...(roastSettings.recordVirtualControls ? manualNotesToControlChanges(bbpChartEntries) : []),
         ],
         referenceXs: chart.visibleTargetXs,
         referenceDrum: chart.visibleTargetDrum,
@@ -1105,7 +1105,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                         unit={unit}
                         onCursorIdx={handleChartCursorIdx}
                         savedReview={reviewing}
-                        recordManualControls={phase === 'roasting'}
+                        recordManualControls={phase === 'roasting' && roastSettings.recordVirtualControls}
                         {...editing.chartHandlers}
                     />
 

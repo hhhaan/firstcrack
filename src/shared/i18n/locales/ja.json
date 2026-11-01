@@ -418,6 +418,8 @@
                 "eventButtonNameInvalid": "1〜16文字で入力してください。既存の名前や標準イベントは使えません。",
                 "eventButtonLimit": "イベントは8個まで追加できます。",
                 "eventButtonShortcutUnset": "設定",
+                "recordVirtualControls": "右クリックの仮想書き込み",
+                "recordVirtualControlsDescription": "焙煎中に右クリックで入れた火力・エア・ドラムを、マシン値が無いコントロールグラフに描きます。マシンには送りません。",
                 "manualControls": "手動コントロール",
                 "manualControlsDescription": "焙煎記録のガス、排気、ドラムです。名前と単位を変えられます。値は数字だけです。単位は記録ごとに保存されないため、変えると以前の記録の表示も変わります。",
                 "manualControlName": "名前",
