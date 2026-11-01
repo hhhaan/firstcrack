@@ -60,10 +60,11 @@ export const buildPrintEventLabels = (items: CurveLabelItem[], curves: PrintCurv
                     ];
                 }),
             );
-            const legendBounds = { left: plotLeft, right, top: plotTop, bottom: plotTop + 20 };
+            const chronologicalItems = [...items].sort((a, b) => a.timeSec - b.timeSec);
+            let preferBelow = false;
             return {
                 type: 'group',
-                children: items.flatMap((item) => {
+                children: chronologicalItems.flatMap((item) => {
                     const [anchorX, anchorY] = api.coord([item.timeSec, item.y]);
                     if (
                         !Number.isFinite(anchorX) ||
@@ -78,24 +79,34 @@ export const buildPrintEventLabels = (items: CurveLabelItem[], curves: PrintCurv
                     const preferredLeft =
                         anchorX + 18 + bounds.width <= right ? anchorX + 18 : anchorX - 18 - bounds.width;
                     const left = Math.max(plotLeft + 4, Math.min(preferredLeft, right - bounds.width - 4));
-                    const preferredTop = item.below ? anchorY + 18 : anchorY - 18 - bounds.height;
+                    const preferredTop = preferBelow ? anchorY + 18 : anchorY - 18 - bounds.height;
                     const clampTop = (value: number) =>
                         Math.max(plotTop + 4, Math.min(value, bottom - bounds.height - 4));
-                    let top = clampTop(preferredTop);
-                    for (let offset = 0; offset <= items.length * 2; offset++) {
-                        const step = offset % 2 ? Math.ceil(offset / 2) : -offset / 2;
-                        top = clampTop(preferredTop + step * (bounds.height + 4));
-                        if (
-                            ![...placed, ...curveBounds, legendBounds].some(
-                                (box) =>
-                                    left < box.right + 4 &&
-                                    left + bounds.width + 4 > box.left &&
-                                    top < box.bottom + 4 &&
-                                    top + bounds.height + 4 > box.top,
-                            )
-                        )
-                            break;
-                    }
+                    const candidates = [preferBelow, !preferBelow].flatMap((below) => {
+                        const positions = Array.from({ length: items.length * 2 + 1 }, (_, offset) =>
+                            below
+                                ? anchorY + 18 + offset * (bounds.height + 4)
+                                : anchorY - 18 - bounds.height - offset * (bounds.height + 4),
+                        );
+                        const edge = below ? bottom - bounds.height - 4 : plotTop + 4;
+                        if (below ? edge >= anchorY + 18 : edge + bounds.height <= anchorY - 18) positions.push(edge);
+                        return positions;
+                    });
+                    const occupied = [...placed, ...curveBounds];
+                    const top =
+                        candidates.find(
+                            (top) =>
+                                top >= plotTop + 4 &&
+                                top + bounds.height <= bottom - 4 &&
+                                !occupied.some(
+                                    (box) =>
+                                        left < box.right + 4 &&
+                                        left + bounds.width + 4 > box.left &&
+                                        top < box.bottom + 4 &&
+                                        top + bounds.height + 4 > box.top,
+                                ),
+                        ) ?? clampTop(preferredTop);
+                    preferBelow = top < anchorY;
                     placed.push({ left, right: left + bounds.width, top, bottom: top + bounds.height });
                     return [
                         {

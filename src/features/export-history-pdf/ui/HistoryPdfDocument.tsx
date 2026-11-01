@@ -27,13 +27,10 @@ const styles = StyleSheet.create({
     header: { marginBottom: 16.8, flexDirection: 'row', alignItems: 'center', gap: 16.8 },
     title: { flex: 1, fontSize: 19, fontWeight: 600, lineHeight: 1.35, maxLines: 3, textOverflow: 'ellipsis' },
     date: { flexShrink: 0, fontSize: 9, color: '#737373' },
-    chartFrame: { position: 'relative' },
     chart: { width: roastPdfLayout.chartWidth, height: roastPdfLayout.chartHeight, objectFit: 'contain' },
     legend: {
-        position: 'absolute',
-        top: 22,
-        left: 48,
-        right: 48,
+        marginHorizontal: 40,
+        marginBottom: 6,
         flexDirection: 'row',
         justifyContent: 'flex-end',
         flexWrap: 'wrap',
@@ -76,8 +73,7 @@ export const HistoryPdfDocument = ({
                 <Text style={styles.title}>{title}</Text>
                 <Text style={styles.date}>{date}</Text>
             </View>
-            <View style={styles.chartFrame}>
-                <Image src={chartDataUrl} style={styles.chart} />
+            <View>
                 <View style={styles.legend}>
                     {legend.map((item) => (
                         <View key={item.label} style={styles.legendItem}>
@@ -102,6 +98,7 @@ export const HistoryPdfDocument = ({
                         </View>
                     ))}
                 </View>
+                <Image src={chartDataUrl} style={styles.chart} />
             </View>
         </Page>
     </Document>
