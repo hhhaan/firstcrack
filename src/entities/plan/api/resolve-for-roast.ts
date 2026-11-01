@@ -194,8 +194,8 @@ export async function updateRoastStatus(
     if (error) throw error;
     if (data) return { ...data, completed_sessions: batch.completed_sessions };
 
-    // Overlapping start: the other request already committed this status, so the
-    // revision filter matched nothing. .single() turned that into PGRST116.
+    // A repeated status write is idempotent only when the validated plan stayed
+    // the same. A concurrent source/quantity edit must go through validation again.
     const { data: latest, error: readError } = await supabase
         .from('roast_plan_batches')
         .select('*')
@@ -206,7 +206,10 @@ export async function updateRoastStatus(
         latest &&
         latest.plan_id === batch.plan_id &&
         latest.exception_type !== 'cancelled' &&
-        latest.status === status
+        latest.status === status &&
+        Object.entries(latest).every(
+            ([key, value]) => key === 'status' || key === 'updated_at' || value === batch[key as keyof PlanBatch],
+        )
     ) {
         return { ...latest, completed_sessions: batch.completed_sessions };
     }

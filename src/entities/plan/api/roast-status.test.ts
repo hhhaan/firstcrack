@@ -94,6 +94,26 @@ it('still fails when the revision misses and the row did not start', async () =>
         .mockReturnValueOnce(query(batch));
     await expect(startForRoast('owner', source)).rejects.toThrow(/changed/);
 });
+
+it.each([
+    { bean_id: null },
+    { bean_id: 'other-bean' },
+    { blend_id: 'other-blend' },
+    { batch_count: 0 },
+    { roast_profile_id: 'other-profile' },
+    { exception_type: 'cancelled' },
+    { plan_id: 'other-plan' },
+])('rejects a concurrent plan edit even if another start won: %j', async (patch) => {
+    from.mockReturnValueOnce(query(batch))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, 0))
+        .mockReturnValueOnce(query(null))
+        .mockReturnValueOnce(query({ ...batch, ...patch, status: 'in-progress', updated_at: 'next' }));
+
+    await expect(startForRoast('owner', source)).rejects.toMatchObject({
+        code: 'unresolvable_plan_batch_id',
+    });
+});
 it('sends one status write when the same start overlaps', async () => {
     const update = query({ ...batch, status: 'in-progress' });
     from.mockReturnValueOnce(query(batch))

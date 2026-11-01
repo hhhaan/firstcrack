@@ -39,6 +39,23 @@ const setup = () => {
 const listRows = (qc: QueryClient, key: readonly unknown[]) => qc.getQueryData<RoastSessionWithRelations[]>(key) ?? [];
 
 describe('roast history optimistic journal', () => {
+    it('does not recreate a removed detail query when another edit replays', async () => {
+        const { qc, list, detail } = setup();
+        const first = await beginOptimisticRoastSessionEdit(qc, userId, patch('a', { notes: 'first' }));
+        qc.removeQueries({ queryKey: detail, exact: true });
+
+        const second = await beginOptimisticRoastSessionEdit(qc, userId, patch('b', { notes: 'second' }));
+
+        expect(qc.getQueryData(detail)).toBeUndefined();
+        expect(listRows(qc, list)).toMatchObject([
+            { id: 'a', notes: 'first' },
+            { id: 'b', notes: 'second' },
+        ]);
+        await finishOptimisticRoastSessionEdit(qc, userId, first, async () => undefined);
+        await finishOptimisticRoastSessionEdit(qc, userId, second, async () => undefined);
+        expect(qc.getQueryData(detail)).toBeUndefined();
+    });
+
     it('removes two failed same-field edits without resurrecting either', async () => {
         const { qc, list } = setup();
         const a = await beginOptimisticRoastSessionEdit(qc, userId, patch('a', { notes: 'first' }));
