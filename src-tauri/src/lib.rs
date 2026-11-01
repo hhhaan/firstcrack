@@ -277,8 +277,8 @@ fn kill_zombie_sidecar() {
 }
 
 
-/// 메인 창 크기: Windows는 기본 시작 크기 축소, 모든 OS는 모니터 work area에 맞춤.
-/// `tauri.conf.json`의 min은 OS 공통(1024×680). default(1260×810)는 mac 유지.
+/// 메인 창: 맥과 같은 1260×810. 화면이 그보다 작으면 비율을 유지한 채 줄인다.
+/// `tauri.conf.json`의 min은 OS 공통(1024×680).
 #[cfg(desktop)]
 fn configure_main_window(app: &tauri::App) {
     use tauri::{LogicalSize, Size};
@@ -287,12 +287,15 @@ fn configure_main_window(app: &tauri::App) {
         return;
     };
 
-    // Windows: conf 기본값(1260×810)이 DPI 스케일에서 체감상 큼 → 시작 크기만 축소
     #[cfg(target_os = "windows")]
     {
         window_chrome::match_shell(&window);
-        let _ = window.set_size(Size::Logical(LogicalSize::new(1100.0, 720.0)));
-        let _ = window.center();
+        let zoom_window = window.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::ScaleFactorChanged { .. }) {
+                window_chrome::apply_mac_layout(&zoom_window);
+            }
+        });
     }
 
     // 고DPI / 작은 노트북: preferred가 work area를 넘으면 클램프 (전 OS)
@@ -314,6 +317,10 @@ fn configure_main_window(app: &tauri::App) {
             }
         }
     }
+
+    // 클램프가 가로·세로를 따로 줄이면 맥 비율이 깨진다. 그 다음에 1260×810 비율로 맞춘다.
+    #[cfg(target_os = "windows")]
+    window_chrome::apply_mac_layout(&window);
 }
 
 /// 사이드카 1회 스폰. 최초 spawn과 워치독 재시작이 같은 env를 쓰도록 한 곳에 모은다.

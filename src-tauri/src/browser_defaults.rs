@@ -19,6 +19,15 @@ fn allows_startup_navigation(url: &Url, app_origin: &Url, loaded: bool) -> bool 
             || url.path() == "/index.html")
 }
 
+fn apply_main_window_zoom(window: &tauri::WebviewWindow) {
+    #[cfg(target_os = "windows")]
+    if window.label() == "main" {
+        crate::window_chrome::apply_mac_layout(window);
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = window;
+}
+
 fn open_external<R: tauri::Runtime>(app: &tauri::AppHandle<R>, url: &Url, app_origin: &Url) {
     if matches!(url.scheme(), "http" | "https") && !same_origin(url, app_origin) {
         if let Err(error) = app.opener().open_url(url.as_str(), None::<&str>) {
@@ -80,11 +89,13 @@ pub(crate) fn create_window(
             open_external(&navigation_app, url, &navigation_origin);
             false
         })
-        .on_page_load(move |_, payload| {
+        .on_page_load(move |webview_window, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished
                 && allows_startup_navigation(payload.url(), &page_origin, false)
             {
                 loaded.store(true, Ordering::SeqCst);
+                // WebView2 restores a saved zoom after navigation. Re-apply after load.
+                apply_main_window_zoom(&webview_window);
             }
         })
         .on_new_window(move |url, _| {
@@ -171,10 +182,10 @@ unsafe fn configure_windows(
         VK_F5, VK_LEFT, VK_MENU, VK_RIGHT, VK_SHIFT,
     };
 
-    controller
-        .CoreWebView2()?
-        .Settings()?
-        .SetAreDefaultContextMenusEnabled(false)?;
+    let settings = controller.CoreWebView2()?.Settings()?;
+    // Ctrl+wheel zoom is saved in the WebView2 profile and comes back at 200%.
+    settings.SetIsZoomControlEnabled(false)?;
+    settings.SetAreDefaultContextMenusEnabled(false)?;
     controller
         .CoreWebView2()?
         .Settings()?
