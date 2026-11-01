@@ -167,7 +167,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const xMax = xViewMax ?? xs[xs.length - 1] ?? 1200;
     const reportGridInterval = paper.axisSettings ? TEMP_Y_INTERVAL : undefined;
     const tuneAxes = (axes: Parameters<typeof applyChartAxisSettings>[0]) => {
-        if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, reportGridInterval);
+        if (report) applyReportAxes(axes, colors, xMax - xMin, temperatureUnit, print ? 50 : reportGridInterval);
         applyChartAxisSettings(axes, paper.axisSettings, temperatureUnit);
     };
 

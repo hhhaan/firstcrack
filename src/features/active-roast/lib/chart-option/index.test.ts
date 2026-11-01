@@ -383,6 +383,36 @@ describe('phase line', () => {
 });
 
 describe('buildRoastChartOption', () => {
+    it.each(['C', 'F'] as const)(
+        'keeps print temperature ticks 50 degrees apart in °%s even for narrow ranges',
+        (temperatureUnit) => {
+            for (const controls of [false, true]) {
+                const paper = buildRoastChartOption({
+                    ...baseParams(),
+                    print: true,
+                    temperatureUnit,
+                    tempMinC: 180,
+                    tempMaxC: 210,
+                    xs: [0, 60],
+                    btActual: [185, 205],
+                    controlData: controls
+                        ? { xs: [0, 60], drumTemp: [50, 50], heatPower: [80, 60], fanSpeed: [20, 30] }
+                        : undefined,
+                });
+                expect(paper.yAxis).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            gridIndex: 0,
+                            interval: 50,
+                            min: temperatureUnit === 'F' ? 350 : 150,
+                            max: temperatureUnit === 'F' ? 450 : 250,
+                        }),
+                    ]),
+                );
+            }
+        },
+    );
+
     it('separates three recorded control plots even when screen controls are merged', () => {
         const params = {
             ...baseParams(),
