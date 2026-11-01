@@ -10,9 +10,12 @@ Render the SVG on macOS at 2× resolution, cropped to the SVG bounds. Set the
 export's resolution with `sips -s dpiWidth 144 -s dpiHeight 144 dmg-background.png`.
 The committed PNG keeps release builds independent of fonts and renderers.
 
-Only the logo, headline, arrow, and English installation instruction belong in
-the background. Finder supplies the draggable app, Applications shortcut, and
-their labels. Their positions live in `bundle.macOS.dmg` in `tauri.conf.json`.
+Only the logo, headline, and arrow belong in the background; there is no
+installation instruction or footer copy. Finder supplies the draggable app,
+Applications shortcut, and their labels. Their positions live in `bundle.macOS.dmg`
+in `tauri.conf.json`.
+The initial window is 800 × 600 points, allowing 100 points above the background
+height for Finder's native title, tab, and status bars without clipping the design.
 Copy has no sentence-ending periods and does not switch with the user's locale.
 
 The release workflow sets `TAURI_BUNDLER_DMG_IGNORE_CI=true` so Tauri runs its

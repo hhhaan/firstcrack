@@ -13,5 +13,4 @@
     <text x="88" y="46" font-size="16" font-weight="550" letter-spacing="-.4" fill="#0b0b0b">First Crack</text>
     <text x="400" y="161" text-anchor="middle" font-size="46" font-weight="350" letter-spacing="-1.8" fill="#0b0b0b">Follow the curve</text>
     <path d="M368 295H432M424 287 432 295 424 303" fill="none" stroke="#6a7282" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    <text x="400" y="420" text-anchor="middle" font-size="14" font-weight="400" fill="#4a5565">Drag First Crack to Applications</text>
 </svg>

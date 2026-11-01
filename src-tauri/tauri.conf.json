@@ -68,7 +68,7 @@
             "entitlements": "entitlements.plist",
             "dmg": {
                 "background": "dmg/dmg-background.png",
-                "windowSize": { "width": 800, "height": 500 },
+                "windowSize": { "width": 800, "height": 600 },
                 "appPosition": { "x": 242, "y": 296 },
                 "applicationFolderPosition": { "x": 558, "y": 296 }
             }
