@@ -111,6 +111,8 @@ interface Props {
     /** Saved curve. Drag stays put. Right-click labels and the roast log edit the record. */
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
+    /** Right-click gas, airflow, and drum. Only while a roast is running. */
+    recordManualControls?: boolean;
     onAddEvent?: (event: string, timeSec: number) => void;
     /** Saved curve: a right-click label that already exists moves to the clicked time. */
     onMoveEvent?: (event: string, timeSec: number) => void;
@@ -307,6 +309,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onEventMarkerDelete,
         savedReview = false,
         onAddNote,
+        recordManualControls = true,
         onAddEvent,
         onMoveEvent,
         hideChargeLabel = false,
@@ -953,9 +956,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const submitNote = useCallback(() => {
         const manual = getRoastSettings().manualControls;
         const note = noteValues.note.trim();
-        const gas = commitManualControl('gas', noteValues.gas, manual);
-        const airflow = commitManualControl('airflow', noteValues.airflow, manual);
-        const drum = commitManualControl('drum', noteValues.drum, manual);
+        const gas = recordManualControls ? commitManualControl('gas', noteValues.gas, manual) : '';
+        const airflow = recordManualControls ? commitManualControl('airflow', noteValues.airflow, manual) : '';
+        const drum = recordManualControls ? commitManualControl('drum', noteValues.drum, manual) : '';
         if (!noteForm || (!note && !gas && !airflow && !drum) || !onAddNote) return;
         if (gas || airflow || drum)
             onAddNote(note, noteForm.timeSec, {
@@ -967,7 +970,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         setNoteForm(null);
         setNoteValues(emptyNote);
         chartRef.current?.focus();
-    }, [noteValues, noteForm, onAddNote]);
+    }, [noteValues, noteForm, onAddNote, recordManualControls]);
 
     const submitEdit = useCallback(() => {
         if (!editForm || !onEventMarkerEdit) return;
@@ -1108,13 +1111,28 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             {t('activeRoast.noteEntry.futureEventHint')}
                         </p>
                     )}
-                    <RoastNoteFields
-                        values={noteValues}
-                        onChange={setNoteValues}
-                        prefix="chart-note"
-                        commentId="chart-note-input"
-                        autoFocus
-                    />
+                    {recordManualControls ? (
+                        <RoastNoteFields
+                            values={noteValues}
+                            onChange={setNoteValues}
+                            prefix="chart-note"
+                            commentId="chart-note-input"
+                            autoFocus
+                        />
+                    ) : (
+                        <label className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1 px-1 text-[11px] text-muted">
+                            <span>{t('activeRoast.noteEntry.comment')}</span>
+                            <textarea
+                                id="chart-note-input"
+                                rows={1}
+                                value={noteValues.note}
+                                autoFocus
+                                placeholder={t('activeRoast.noteEntry.commentPlaceholder')}
+                                onChange={(event) => setNoteValues({ ...noteValues, note: event.target.value })}
+                                className="min-w-0 w-full resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus:border-(--color-primary)"
+                            />
+                        </label>
+                    )}
                     <div className="flex items-center justify-between gap-1 px-1">
                         <span className="text-[11px] text-muted">{t('activeRoast.noteEntry.keyboardHint')}</span>
                         <button

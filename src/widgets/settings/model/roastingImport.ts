@@ -3,12 +3,12 @@ import {
     type CropsterMachineMapping,
     type FirescopeMachineMapping,
     firescopeFeedbackUpdate,
+    isSimulatorMachine,
     type Machine,
     mapArtisanMachine,
     mapCropsterMachine,
     mapFirescopeMachine,
     useMachines,
-    VIRTUAL_ID,
 } from '@entities/machine';
 import {
     artisanTemperatureUnit,
@@ -50,7 +50,7 @@ export type ImportCandidate = {
 
 const loaded = <T>(query: SettingsQuery<T>): T | undefined => (query.error ? undefined : query.data);
 
-const realMachineCount = (machines: Machine[]) => machines.filter((machine) => machine.id !== VIRTUAL_ID).length;
+const realMachineCount = (machines: Machine[]) => machines.filter((machine) => !isSimulatorMachine(machine.id)).length;
 
 const allowsAdditions = (plan: string, machines: Machine[], additions: number) =>
     additions === 0 || canAddMachine(plan, realMachineCount(machines) + additions - 1);

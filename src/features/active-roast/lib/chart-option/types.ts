@@ -25,8 +25,10 @@ export interface RoastEventMarker extends RoastNoteControls {
 
 export interface ControlData {
     readUnits?: (ReadUnits | undefined)[];
-    /** Successful app writes only; measured changes never create these labels. */
-    changes?: { timeSec: number; values: AppliedRoastControl }[];
+    /** App writes, plus `virtual` right-click notes. Notes draw only on channels with no machine reading. */
+    changes?: { timeSec: number; values: AppliedRoastControl; virtual?: boolean }[];
+    /** Roles whose line was filled from `changes` because the machine sent no samples. */
+    virtualRoles?: ('heater' | 'fan' | 'drum')[];
     xs: number[];
     drumTemp: (number | null)[];
     heatPower: (number | null)[];

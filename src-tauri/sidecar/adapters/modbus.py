@@ -70,6 +70,7 @@ class ModbusAdapter:
         word_order: str = "little",
         byte_order: str = "big",
         modbus_registers: dict[str, Any] | None = None,
+        write_map: dict[str, dict[str, Any]] | None = None,
         **_: Any,
     ) -> None:
         self._mode = mode.lower()
@@ -84,6 +85,7 @@ class ModbusAdapter:
         self._word_order = word_order.lower() if isinstance(word_order, str) else ""
         self._byte_order = byte_order.lower() if isinstance(byte_order, str) else ""
         self._regs: dict[str, Any] = modbus_registers or {}
+        self._write_map: dict[str, dict[str, Any]] = write_map or {}
         self._validate_registers()
         self._extra_cursor = 0
         self._client: Any = None
@@ -411,13 +413,58 @@ class ModbusAdapter:
             extra_readings=extra_readings,
         )
 
+    def _float_registers(self, value: float, spec: dict[str, Any]) -> list[int]:
+        """Artisan writeWord: FLOAT32, 2 holding registers. 읽기 워드 순서의 역."""
+        word_order = spec.get("word_order", self._word_order)
+        byte_order = spec.get("byte_order", self._byte_order)
+        packed = struct.pack("<f" if byte_order == "little" else ">f", value)
+        high, low = struct.unpack(">HH", packed)
+        return [low, high] if word_order == "little" else [high, low]
+
+    async def _write_float(self, role: str, spec: dict[str, Any], value: float) -> None:
+        register = spec["register"]
+        unit_id = spec.get("unit_id", 1)
+        lo = spec.get("min")
+        hi = spec.get("max")
+        if lo is not None:
+            value = max(float(lo), value)
+        if hi is not None:
+            value = min(float(hi), value)
+        payload = self._float_registers(value, spec)
+        TRACE.record(
+            "tx", "modbus",
+            f"write_registers register={register} unit={unit_id} role={role} value={value}",
+            payload,
+        )
+        result = await self._client.write_registers(register, payload, device_id=unit_id)
+        if result.isError():
+            raise IOError(f"MODBUS 쓰기 오류: role={role} register={register} → {result}")
+        TRACE.record("rx", "modbus", f"write_registers register={register} role={role}")
+
     async def control(
         self,
         heater: float | None = None,
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
+        """write_map에 register+float가 있는 role만 쓴다. 없으면 성공으로 빠지지 않는다."""
+        requested = {"heater": heater, "fan": fan, "drum": drum}
+        targets = [
+            (role, self._write_map[role], float(value))
+            for role, value in requested.items()
+            if value is not None
+            and isinstance(self._write_map.get(role), dict)
+            and self._write_map[role].get("float") is True
+            and isinstance(self._write_map[role].get("register"), int)
+        ]
+        if not targets:
+            raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
+        if self._client is None or not self._client.connected:
+            raise ConnectionError("MODBUS가 연결되지 않음")
+        for role, spec, value in targets:
+            if not math.isfinite(value):
+                raise ValueError(f"쓰기 값이 유한하지 않음: role={role} value={value}")
+            await self._write_float(role, spec, value)
 
     @property
     def connected(self) -> bool:

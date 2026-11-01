@@ -870,11 +870,20 @@ class RoasterManager:
             "ror_et": ror_et,
             # None = 화력 피드백 채널 없음. 0으로 바꾸면 TSV에 "측정 0"으로 남아
             # Replay가 빈 기록을 진짜 화력 0으로 재생한다.
-            "heater": (
-                reading.heater if "heater" in read_units else int(round(reading.heater))
-            ) if reading.heater is not None else None,
-            "fan": reading.fan if "fan" in read_units else int(round(reading.fan)),
-            "drum": reading.drum if "drum" in read_units else round(reading.drum, 1),
+            "heater": self._published_control(
+                "heater",
+                (
+                    reading.heater if "heater" in read_units else int(round(reading.heater))
+                ) if reading.heater is not None else None,
+            ),
+            "fan": self._published_control(
+                "fan",
+                reading.fan if "fan" in read_units else int(round(reading.fan)),
+            ),
+            "drum": self._published_control(
+                "drum",
+                reading.drum if "drum" in read_units else round(reading.drum, 1),
+            ),
             "timestamp": reading.timestamp,
             "sensor_clock": f"{self._sensor_clock_id}:{self._connection_epoch}",
             "processing": {
@@ -899,6 +908,18 @@ class RoasterManager:
         self._last_good = payload
         self._last_good_ts = time.monotonic()
         return payload
+
+    def _published_control(self, role: str, value: float | None) -> float | None:
+        """읽기 전용 가상 머신은 화력·에어·드럼 샘플을 만들지 않는다.
+
+        샘플이 있으면 우클릭으로 기록한 값이 컨트롤 그래프에 올라가지 않는다.
+        """
+        # 읽기 전용 가상 머신은 칼럼 범위만 같고, 제어 샘플은 없다.
+        if self._roaster_key == "virtual_readonly" or (
+            self._protocol == "virtual" and role not in self.write_limits()
+        ):
+            return None
+        return value
 
     def read_channels(self) -> dict[str, dict[str, Any]]:
         """Discover feedback from actual read maps, not control write permissions."""
@@ -933,16 +954,29 @@ class RoasterManager:
         probat_ws는 node가 있는 항목만 주소다. min/max만 있는 맵은 쓰기가 아니다.
         """
         raw = dict(self._merged_params.get("write_map") or {})
-        if self._protocol != "probat_ws":
-            return raw
-        return {
-            role: spec
-            for role, spec in raw.items()
-            if isinstance(spec, dict) and isinstance(spec.get("node"), str) and spec["node"]
-        }
+        if self._protocol == "probat_ws":
+            return {
+                role: spec
+                for role, spec in raw.items()
+                if isinstance(spec, dict) and isinstance(spec.get("node"), str) and spec["node"]
+            }
+        if self._protocol == "modbus":
+            # min/max만 있는 클라이언트 맵은 주소가 아니다. Artisan writeWord는 float32.
+            return {
+                role: spec
+                for role, spec in raw.items()
+                if isinstance(spec, dict)
+                and spec.get("float") is True
+                and isinstance(spec.get("register"), int)
+                and not isinstance(spec.get("register"), bool)
+                and 0 <= spec["register"] <= 65534
+            }
+        return raw
 
     def _control_writable(self) -> bool:
         """실제로 하드웨어에 쓸 수 있는지. write_map ∩ WRITABLE_PROTOCOLS."""
+        if self._roaster_key == "virtual_readonly":
+            return False
         return bool(self.write_limits()) and self._protocol in WRITABLE_PROTOCOLS
 
     async def control(

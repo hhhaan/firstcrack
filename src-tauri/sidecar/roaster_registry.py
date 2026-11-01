@@ -278,6 +278,24 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
         "pid": {"Kp": 4, "Ki": 0.3, "Kd": 2},
         "capabilities": ["heater", "fan", "drum"],
     },
+    # 읽기 전용 로스터의 우클릭 기록을 본다. 제어 칼럼은 가상 머신과 같이 열고,
+    # 샘플은 내지 않는다. 슬라이더는 전송하지 않는다.
+    "virtual_readonly": {
+        "display_name": "가상 머신 (읽기 전용)",
+        "brand": "Internal",
+        "models": ["읽기 전용"],
+        "protocol": "virtual",
+        "default_params": {
+            "mode": "C",
+            "write_map": {
+                "heater": {"min": 0, "max": 100, "unit": "%"},
+                "fan": {"min": 0, "max": 100, "unit": "%"},
+                "drum": {"min": 0, "max": 100, "unit": "%"},
+            },
+        },
+        "pid": None,
+        "capabilities": ["heater", "fan", "drum"],
+    },
     # -----------------------------------------------------------------------
     # Custom — address maps (modbus_registers / channels) from client params
     # -----------------------------------------------------------------------
@@ -1871,6 +1889,278 @@ def _giesen_variant(
 _GIESEN_DB2_COARSE_WRITE_MAP: dict[str, dict[str, Any]] = {
     "heater": {**_GIESEN_DB2_WRITE_MAP["heater"], "max": 10, "unit": "step"},
 }
+
+def _modbus_net(
+    *,
+    mode: str,
+    host: str,
+    word_order: str | None = None,
+    registers: dict[str, dict[str, Any]],
+    write_map: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    params: dict[str, Any] = {
+        "mode": mode,
+        "host": host,
+        "port": 502,
+        "comport": "COM5",
+        "baudrate": 115200,
+        "bytesize": 8,
+        "parity": "N",
+        "stopbits": 1,
+        "interval": 1,
+        "modbus_registers": registers,
+    }
+    if word_order is not None:
+        params["word_order"] = word_order
+    if write_map is not None:
+        params["write_map"] = write_map
+    return params
+
+
+def _mb(
+    register: int,
+    *,
+    code: int = 3,
+    float_: bool = False,
+    div: int = 0,
+    mode: str = "C",
+    unit: str = "",
+    label: str = "",
+) -> dict[str, Any]:
+    spec: dict[str, Any] = {
+        "register": register,
+        "func": code,
+        "unit_id": 1,
+        "float": float_,
+        "div": div,
+        "mode": mode,
+    }
+    if unit:
+        spec["unit"] = unit
+    if label:
+        spec["label"] = label
+    return spec
+
+
+def _s7(
+    *,
+    host: str,
+    channels: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "host": host,
+        "port": 102,
+        "rack": 0,
+        "slot": 1,
+        "channels": channels,
+    }
+
+
+def _factory_modbus(
+    *,
+    display_name: str,
+    brand: str,
+    models: list[str],
+    params: dict[str, Any],
+    capabilities: list[str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "display_name": display_name,
+        "brand": brand,
+        "models": models,
+        "protocol": "modbus",
+        "default_params": params,
+        "pid": None,
+        "capabilities": capabilities or [],
+    }
+
+
+def _factory_s7(
+    *,
+    display_name: str,
+    brand: str,
+    models: list[str],
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "display_name": display_name,
+        "brand": brand,
+        "models": models,
+        "protocol": "s7",
+        "default_params": params,
+        "pid": None,
+        "capabilities": [],
+    }
+
+
+# Artisan comm.py: input1=BT, input2=ET. +MODBUS 78 name2={1}=Drum, +MODBUS 910 name2={0}=Air.
+# RM_auto/RM_control 슬라이더 writeWord는 FLOAT32 2레지스터.
+#   Air {0} reg 42, 50–100%. IT SV(화력) reg 24, 0–550°C. Vortex(reg 22)는 슬라이더가 숨김.
+#   Drum reg 32는 읽기만. 쓰기 맵에 없다.
+_IMF_CONTROL_REGS = {
+    "BT": _mb(10, float_=True),
+    "ET": _mb(12, float_=True),  # ETname=IT
+    "heater": _mb(24, float_=True),  # IT SV, 슬라이더 3번째
+    "fan": _mb(42, float_=True, mode="", unit="%"),  # {0} Air
+    "drum": _mb(32, float_=True, mode="", unit="%"),  # {1} Drum
+}
+_IMF_CONTROL_WRITE = {
+    "heater": {
+        "register": 24, "unit_id": 1, "float": True, "min": 0, "max": 550, "unit": "C",
+    },
+    "fan": {
+        "register": 42, "unit_id": 1, "float": True, "min": 50, "max": 100, "unit": "%",
+    },
+}
+
+
+ROASTER_REGISTRY.update({
+    # IMF RM.aset — float holding, wordorderLittle=false. input3(reg 14)는 이름 없음.
+    "imf_rm": _factory_modbus(
+        display_name="IMF RM",
+        brand="IMF",
+        models=["RM"],
+        params=_modbus_net(
+            mode="tcp",
+            host="192.168.2.32",
+            word_order="big",
+            registers={
+                "BT": _mb(10, float_=True),
+                "ET": _mb(12, float_=True),
+            },
+        ),
+    ),
+    # IMF RM_auto.aset / RM_control.aset — 같은 읽기·쓰기 맵. Auto의 input11(reg 50)은 이름 없음.
+    "imf_rm_auto": _factory_modbus(
+        display_name="IMF RM Auto",
+        brand="IMF",
+        models=["RM Auto"],
+        capabilities=["heater", "fan"],
+        params=_modbus_net(
+            mode="tcp",
+            host="192.168.2.32",
+            word_order="big",
+            registers={role: dict(spec) for role, spec in _IMF_CONTROL_REGS.items()},
+            write_map={role: dict(spec) for role, spec in _IMF_CONTROL_WRITE.items()},
+        ),
+    ),
+    "imf_rm_control": _factory_modbus(
+        display_name="IMF RM Control",
+        brand="IMF",
+        models=["RM Control"],
+        capabilities=["heater", "fan"],
+        params=_modbus_net(
+            mode="tcp",
+            host="192.168.2.32",
+            word_order="big",
+            registers={role: dict(spec) for role, spec in _IMF_CONTROL_REGS.items()},
+            write_map={role: dict(spec) for role, spec in _IMF_CONTROL_WRITE.items()},
+        ),
+    ),
+    # IMF RM_legacy.aset — 16-bit holding, wordorderLittle=true.
+    "imf_rm_legacy": _factory_modbus(
+        display_name="IMF RM Legacy",
+        brand="IMF",
+        models=["RM Legacy"],
+        params=_modbus_net(
+            mode="tcp",
+            host="192.168.2.32",
+            registers={
+                "BT": _mb(0),
+                "ET": _mb(1),
+            },
+        ),
+    ),
+    # Petroncini TT_ASEM.aset — float holding, wordorderLittle=true. input3(10400)는 이름 없음.
+    "petroncini_asem": _factory_modbus(
+        display_name="Petroncini TT ASEM",
+        brand="Petroncini",
+        models=["TT ASEM"],
+        params=_modbus_net(
+            mode="tcp",
+            host="192.168.5.11",
+            word_order="little",
+            registers={
+                "BT": _mb(10408, float_=True),
+                "ET": _mb(10404, float_=True),
+            },
+        ),
+    ),
+    # Neuhaus Neotec Neoroast.aset — input registers, ÷10.
+    # aset host=192.268.5.89 는 유효한 IPv4가 아니다. 프리셋 문자열을 그대로 둔다.
+    "neuhaus_neoroast": _factory_modbus(
+        display_name="Neuhaus Neotec Neoroast",
+        brand="Neuhaus Neotec",
+        models=["Neoroast"],
+        params=_modbus_net(
+            mode="tcp",
+            host="192.268.5.89",
+            registers={
+                "BT": _mb(2, code=4, div=1),
+                "ET": _mb(1, code=4, div=1),
+            },
+        ),
+    ),
+    # Neuhaus Neotec RFB.aset — type=4 UDP.
+    "neuhaus_rfb": _factory_modbus(
+        display_name="Neuhaus Neotec RFB",
+        brand="Neuhaus Neotec",
+        models=["RFB"],
+        params=_modbus_net(
+            mode="udp",
+            host="192.168.111.99",
+            registers={
+                "BT": _mb(2, code=4, div=1),
+                "ET": _mb(1, code=4, div=1),
+            },
+        ),
+    ),
+    # TT_Maestro_Avantgarde.aset — area 3 = MK, INT. idx0=BT, idx1=ET.
+    "petroncini_maestro": _factory_s7(
+        display_name="Petroncini TT Maestro",
+        brand="Petroncini",
+        models=["TT Maestro"],
+        params=_s7(
+            host="192.168.100.1",
+            channels=[
+                {"role": "BT", "db": 0, "offset": 32, "area": 3, "type": 0, "div": 0, "mode": "C"},
+                {"role": "ET", "db": 0, "offset": 34, "area": 3, "type": 0, "div": 0, "mode": "C"},
+            ],
+        ),
+    ),
+    # TT_Traditional.aset — area 3 = MK. start 40, 42.
+    "petroncini_traditional": _factory_s7(
+        display_name="Petroncini TT Traditional",
+        brand="Petroncini",
+        models=["TT Traditional"],
+        params=_s7(
+            host="192.168.100.1",
+            channels=[
+                {"role": "BT", "db": 0, "offset": 40, "area": 3, "type": 0, "div": 0, "mode": "C"},
+                {"role": "ET", "db": 0, "offset": 42, "area": 3, "type": 0, "div": 0, "mode": "C"},
+            ],
+        ),
+    ),
+    # TT_Maestro_i06_Avantgarde.aset — DB31.
+    # +S7 34: Burner=idx3, Gas=idx2. +S7 56: Airflow=idx5, DrumSpeed=idx4.
+    "petroncini_maestro_i06": _factory_s7(
+        display_name="Petroncini TT Maestro i06",
+        brand="Petroncini",
+        models=["TT Maestro i06"],
+        params=_s7(
+            host="192.168.100.1",
+            channels=[
+                {"role": "BT", "db": 31, "offset": 0, "area": 6, "type": 1, "div": 0, "mode": "C"},
+                {"role": "ET", "db": 31, "offset": 8, "area": 6, "type": 1, "div": 0, "mode": "C"},
+                {"role": "gas", "label": "Gas", "db": 31, "offset": 4, "area": 6, "type": 1, "div": 0},
+                {"role": "heater", "db": 31, "offset": 32, "area": 6, "type": 0, "div": 0, "unit": "%"},
+                {"role": "drum", "db": 31, "offset": 34, "area": 6, "type": 0, "div": 0, "unit": "%"},
+                {"role": "fan", "db": 31, "offset": 36, "area": 6, "type": 0, "div": 0, "unit": "%"},
+            ],
+        ),
+    ),
+})
+
 
 ROASTER_REGISTRY.update({
     "giesen_sample": _giesen_variant(

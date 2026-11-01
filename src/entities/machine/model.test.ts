@@ -37,7 +37,7 @@ describe('saved machine migration', () => {
 
     it('persists the W60 key once while preserving identity and custom connection settings', async () => {
         localStorage.setItem('fc_machines', JSON.stringify({ state: { machines: [legacyW60] }, version: 0 }));
-        const { useMachines, VIRTUAL_ID } = await import('./model');
+        const { machinesForPicker, useMachines, VIRTUAL_ID } = await import('./model');
         const migrated = {
             ...legacyW60,
             roasterKey: 'giesen_w45a_w60a',
@@ -45,20 +45,32 @@ describe('saved machine migration', () => {
             models: ['W45A', 'W60A'],
         };
 
-        expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([migrated]);
+        expect(useMachines.getState().machines.filter((machine) => !machine.id.startsWith('__virtual'))).toEqual([
+            migrated,
+        ]);
         expect(JSON.parse(localStorage.getItem('fc_machines') ?? 'null')).toEqual({
             state: { machines: [migrated] },
             version: 1,
         });
 
         await useMachines.persist.rehydrate();
-        expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([migrated]);
+        expect(useMachines.getState().machines.filter((machine) => !machine.id.startsWith('__virtual'))).toEqual([
+            migrated,
+        ]);
         expect(useMachines.getState().machines.filter((machine) => machine.id === VIRTUAL_ID)).toHaveLength(1);
+        expect(
+            useMachines.getState().machines.filter((machine) => machine.roasterKey === 'virtual_readonly'),
+        ).toHaveLength(1);
+        const seeded = useMachines.getState().machines;
+        expect(machinesForPicker(seeded, false).some((machine) => machine.id.startsWith('__virtual'))).toBe(false);
+        expect(machinesForPicker(seeded, true).some((machine) => machine.roasterKey === 'virtual_readonly')).toBe(true);
 
         vi.resetModules();
         const { useMachines: restarted } = await import('./model');
         expect(restarted.persist.hasHydrated()).toBe(true);
-        expect(restarted.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([migrated]);
+        expect(restarted.getState().machines.filter((machine) => !machine.id.startsWith('__virtual'))).toEqual([
+            migrated,
+        ]);
         const snapshot = snapshotFromSidecar(
             { connected: true, roaster: 'giesen_w45a_w60a', machine_id: legacyW60.id },
             restarted.getState().machines,
@@ -90,8 +102,8 @@ describe('saved machine migration', () => {
             'fc_machines',
             JSON.stringify({ state: { machines: [edited, another, alreadyW60] }, version: 0 }),
         );
-        const { useMachines, VIRTUAL_ID } = await import('./model');
-        expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([
+        const { useMachines } = await import('./model');
+        expect(useMachines.getState().machines.filter((machine) => !machine.id.startsWith('__virtual'))).toEqual([
             { ...edited, roasterKey: 'giesen_w45a_w60a', displayName: 'Giesen W45A / W60A', models: ['W45A', 'W60A'] },
             { ...another, roasterKey: 'giesen_w45a_w60a', displayName: 'Giesen W45A / W60A', models: ['W45A', 'W60A'] },
             alreadyW60,
@@ -101,14 +113,18 @@ describe('saved machine migration', () => {
     it('keeps other roaster registrations unchanged', async () => {
         const other = { ...legacyW60, roasterKey: 'giesen_w6a_pro' };
         localStorage.setItem('fc_machines', JSON.stringify({ state: { machines: [other] }, version: 0 }));
-        const { useMachines, VIRTUAL_ID } = await import('./model');
-        expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([other]);
+        const { useMachines } = await import('./model');
+        expect(useMachines.getState().machines.filter((machine) => !machine.id.startsWith('__virtual'))).toEqual([
+            other,
+        ]);
     });
 
     it('does not reclassify Standard machines registered after the migration', async () => {
         localStorage.setItem('fc_machines', JSON.stringify({ state: { machines: [legacyW60] }, version: 1 }));
-        const { useMachines, VIRTUAL_ID } = await import('./model');
-        expect(useMachines.getState().machines.filter((machine) => machine.id !== VIRTUAL_ID)).toEqual([legacyW60]);
+        const { useMachines } = await import('./model');
+        expect(useMachines.getState().machines.filter((machine) => !machine.id.startsWith('__virtual'))).toEqual([
+            legacyW60,
+        ]);
     });
 });
 
@@ -138,6 +154,7 @@ describe('machine imports', () => {
         const reloaded = await import('./model');
         expect(reloaded.useMachines.getState().machines.map((machine) => machine.name)).toEqual([
             'Virtual Machine',
+            'Virtual Machine (read only)',
             'Imported',
             'Second',
         ]);

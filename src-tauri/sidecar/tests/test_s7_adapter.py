@@ -687,6 +687,20 @@ async def test_extra_read_start_rotates_when_budget_expires(monkeypatch):
     assert second.extra_readings[1]["value"] == 12.0
 
 
+def test_merker_area_reads_mk_not_db():
+    """Artisan area 3 is snap7 Area.MK. Petroncini Maestro/Traditional use it."""
+    from snap7.type import Area
+
+    channel = {"role": "BT", "db": 0, "offset": 32, "area": 3, "type": 0, "div": 0, "mode": "C"}
+    adapter = S7Adapter(channels=[channel])
+    plc = MagicMock()
+    plc.read_area.return_value = bytearray(struct.pack(">h", 180))
+
+    assert adapter._read_channel_sync(channel, plc) == 180.0
+    plc.read_area.assert_called_once_with(Area.MK, 0, 32, 2)
+    plc.db_read.assert_not_called()
+
+
 def test_channel_count_is_bounded():
     channels = [
         {"role": f"extra_{index}", "db": 1, "offset": index * 2}

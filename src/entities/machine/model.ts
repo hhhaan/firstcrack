@@ -6,11 +6,17 @@ import type { Machine } from './types';
 const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 export const VIRTUAL_ID = '__virtual__';
+export const VIRTUAL_READONLY_ID = '__virtual_readonly__';
 
-/** Machine list shown to the user. The store always keeps the virtual row. */
+const SIMULATOR_IDS = new Set([VIRTUAL_ID, VIRTUAL_READONLY_ID]);
+
+/** Seeded by the app. Shown only when profiles.simulator_enabled is on. */
+export const isSimulatorMachine = (id: string): boolean => SIMULATOR_IDS.has(id);
+
+/** Machine list shown to the user. The store always keeps the virtual rows. */
 export function machinesForPicker(machines: Machine[], simulatorEnabled: boolean): Machine[] {
     if (simulatorEnabled) return machines;
-    return machines.filter((machine) => machine.id !== VIRTUAL_ID);
+    return machines.filter((machine) => !isSimulatorMachine(machine.id));
 }
 
 const VIRTUAL_MACHINE: Machine = {
@@ -27,6 +33,22 @@ const VIRTUAL_MACHINE: Machine = {
     createdAt: '2024-01-01T00:00:00.000Z',
 };
 
+const VIRTUAL_READONLY_MACHINE: Machine = {
+    id: VIRTUAL_READONLY_ID,
+    name: 'Virtual Machine (read only)',
+    roasterKey: 'virtual_readonly',
+    displayName: 'Virtual Machine (read only)',
+    brand: 'Internal',
+    models: ['읽기 전용'],
+    protocol: 'virtual',
+    connectionParams: {},
+    capabilities: ['heater', 'fan', 'drum'],
+    pid: null,
+    createdAt: '2024-01-01T00:00:00.000Z',
+};
+
+const SEEDED_SIMULATORS = [VIRTUAL_MACHINE, VIRTUAL_READONLY_MACHINE];
+
 interface MachinesState {
     machines: Machine[];
     addMachine: (draft: Omit<Machine, 'id' | 'createdAt'> & { id?: string }) => Machine;
@@ -41,7 +63,7 @@ interface MachinesState {
 export const useMachines = create<MachinesState>()(
     persist(
         (set, get) => ({
-            machines: [VIRTUAL_MACHINE],
+            machines: SEEDED_SIMULATORS,
 
             addMachine: (draft) => {
                 const machine: Machine = {
@@ -77,7 +99,7 @@ export const useMachines = create<MachinesState>()(
             },
 
             removeMachine: (id) => {
-                if (id === VIRTUAL_ID) return;
+                if (isSimulatorMachine(id)) return;
                 set((s) => ({ machines: s.machines.filter((m) => m.id !== id) }));
             },
 
@@ -110,11 +132,11 @@ export const useMachines = create<MachinesState>()(
                 };
             },
             partialize: (state) => ({
-                machines: state.machines.filter((m) => m.id !== VIRTUAL_ID),
+                machines: state.machines.filter((m) => !isSimulatorMachine(m.id)),
             }),
             merge: (persisted, current) => ({
                 ...current,
-                machines: [VIRTUAL_MACHINE, ...((persisted as { machines: Machine[] }).machines ?? [])],
+                machines: [...SEEDED_SIMULATORS, ...((persisted as { machines: Machine[] }).machines ?? [])],
             }),
         },
     ),

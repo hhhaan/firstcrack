@@ -28,6 +28,7 @@ import {
     storedEventsToMarkers,
 } from '@features/active-roast/lib/serialize-roast-events';
 import { rorUnitLabel, tempUnitLabel } from '@features/active-roast/lib/temperature';
+import { manualNotesToControlChanges } from '@features/active-roast/lib/virtual-controls';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import {
     editedHeatSet,
@@ -313,13 +314,25 @@ export function HistorySessionChart({
         [points, session],
     );
     const { hasControls, controlData } = historyControls({
-        changes: storedEventsToControlChanges(storedEvents),
+        changes: [
+            ...storedEventsToControlChanges(storedEvents),
+            ...manualNotesToControlChanges(
+                storedEvents.map((event) => ({
+                    event: event.type,
+                    timeSec: event.time_sec,
+                    gas: event.gas,
+                    airflow: event.airflow,
+                    drum: event.drum,
+                })),
+            ),
+        ],
         points,
         heatSet,
         heatSetUnit: heaterUnit,
         referenceControls,
         displayedTarget,
     });
+    const showControlBand = hasControls || controlData != null;
     const bbpRange = mergedBbpRange(actual.bbpRange, target.bbpRange);
     const xView = historyXView({
         bbpStart: bbpRange?.start,
@@ -416,10 +429,10 @@ export function HistorySessionChart({
                     xViewMin={xView.min}
                     xViewMax={xView.max}
                     bbpRange={bbpRange}
-                    controlData={hasControls ? controlData : undefined}
+                    controlData={showControlBand ? controlData : undefined}
                     printControlData={controlData}
                     controlChartHeightPct={24}
-                    height={hasControls ? 440 : 360}
+                    height={showControlBand ? 440 : 360}
                 />
             )}
             {markerError && (

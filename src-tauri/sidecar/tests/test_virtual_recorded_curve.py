@@ -3,6 +3,7 @@
 import pytest
 
 from adapters.virtual import VirtualMachineAdapter, _BBP_END, _BBP_PROFILE, _ROAST_PROFILE
+from manager import RoasterManager
 
 
 def test_bbp_meets_charge_without_including_the_roast():
@@ -53,6 +54,27 @@ def test_roasting_plays_absolute_recorded_temperatures(monkeypatch):
     now["t"] += 10_000
     at_end = adapter._read_roasting()
     assert at_end.bt == pytest.approx(_ROAST_PROFILE["bt"][-1], abs=0.05)
+
+
+@pytest.mark.asyncio
+async def test_readonly_virtual_publishes_temperatures_without_controls():
+    """우클릭 화력 기록을 가상 곡선 위에서 보려면 제어 샘플이 없어야 한다."""
+    manager = RoasterManager()
+    await manager.connect("virtual_readonly", {})
+    sample = await manager.read_temperatures()
+    assert sample["bt"] > 0
+    assert sample["heater"] is None
+    assert sample["fan"] is None
+    assert sample["drum"] is None
+    control = manager.status()["control"]
+    assert control["writable"] is False
+    assert set(control["limits"]) == {"heater", "fan", "drum"}
+
+    writable = RoasterManager()
+    await writable.connect("virtual", {})
+    commanded = await writable.read_temperatures()
+    assert commanded["heater"] == 60
+    assert writable.status()["control"]["writable"] is True
 
 
 @pytest.mark.asyncio

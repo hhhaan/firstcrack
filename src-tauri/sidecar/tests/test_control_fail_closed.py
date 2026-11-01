@@ -65,7 +65,9 @@ class TestNoopProtocolControl:
     @pytest.mark.parametrize("roaster,protocol", NOOP_ROASTERS)
     async def test_noop_protocol_with_write_map_not_200(self, client, roaster, protocol):
         cls = _PROTOCOL_ADAPTER[protocol]
-        assert protocol not in WRITABLE_PROTOCOLS
+        # modbus는 write_map에 register가 있을 때만 쓴다. min/max만 있는 맵은 주소가 아니다.
+        if protocol != "modbus":
+            assert protocol not in WRITABLE_PROTOCOLS
         with (
             patch.object(cls, "connect", new_callable=AsyncMock),
             patch.object(cls, "disconnect", new_callable=AsyncMock),
@@ -155,6 +157,19 @@ class TestProbatWsWriteMap:
         socket.close.assert_awaited_once()
         assert adapter._ws is None
         assert adapter.connected is False
+
+
+def test_imf_control_is_writable(manager):
+    reg = ROASTER_REGISTRY["imf_rm_control"]
+    manager._connected = True
+    manager._protocol = "modbus"
+    manager._roaster_key = "imf_rm_control"
+    manager._merged_params = dict(reg["default_params"])
+    limits = manager.write_limits()
+    assert limits["heater"]["register"] == 24
+    assert limits["fan"]["register"] == 42
+    assert "drum" not in limits
+    assert manager.status()["control"]["writable"] is True
 
 
 @pytest.mark.parametrize(

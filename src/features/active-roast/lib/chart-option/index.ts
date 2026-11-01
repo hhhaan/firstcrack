@@ -2,6 +2,7 @@ import { chartFontScale, scaleChartPx, TEMP_Y_INTERVAL } from '@features/active-
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
+import { withVirtualControlLines } from '../virtual-controls';
 import {
     applyChartAxisSettings,
     applyPrintAxes,
@@ -311,16 +312,17 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     if (hasControlSeries && controlData) {
         // Controls keep their own value axes, including when sharing the temperature grid.
         // Physical feedback (Pa/Hz/RPM) is kept raw, never normalized to percent.
+        const displayedControls = withVirtualControlLines(controlData);
         const physicalUnits = [...(controlData.readUnits ?? []), ...(controlData.reference?.readUnits ?? [])].some(
             (units) => units && Object.values(units).some((unit) => unit !== '%'),
         );
         let readMin = controlYMin;
         let readMax = controlYMax;
-        if (physicalUnits) {
+        if (physicalUnits || displayedControls.virtualRoles?.length) {
             for (const values of [
-                controlData.drumTemp,
-                controlData.heatPower,
-                controlData.fanSpeed,
+                displayedControls.drumTemp,
+                displayedControls.heatPower,
+                displayedControls.fanSpeed,
                 controlData.reference?.drum ?? [],
                 controlData.reference?.heater ?? [],
                 controlData.reference?.fan ?? [],
@@ -356,7 +358,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         });
 
         const controlSeries = buildControlSeries({
-            controlData,
+            controlData: displayedControls,
             showTargetCurve,
             showProfileDrum,
             showProfileHeat,

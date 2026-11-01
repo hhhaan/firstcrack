@@ -18,6 +18,7 @@ import { makeBbpLogEntry } from '@features/active-roast/lib/bbp-events';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
+import { manualNotesToControlChanges } from '@features/active-roast/lib/virtual-controls';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -973,11 +974,14 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         fanSpeed: chart.visibleFanSpeed,
         heatSet: reviewHeatSet,
         heatTarget,
-        controlChanges: bbpChartEntries.flatMap((entry) =>
-            entry.event === 'Control' && entry.appliedControl
-                ? [{ timeSec: entry.timeSec ?? 0, values: entry.appliedControl }]
-                : [],
-        ),
+        controlChanges: [
+            ...bbpChartEntries.flatMap((entry) =>
+                entry.event === 'Control' && entry.appliedControl
+                    ? [{ timeSec: entry.timeSec ?? 0, values: entry.appliedControl }]
+                    : [],
+            ),
+            ...manualNotesToControlChanges(bbpChartEntries),
+        ],
         referenceXs: chart.visibleTargetXs,
         referenceDrum: chart.visibleTargetDrum,
         referenceHeater: chart.visibleTargetHeater,
@@ -1101,6 +1105,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                         unit={unit}
                         onCursorIdx={handleChartCursorIdx}
                         savedReview={reviewing}
+                        recordManualControls={phase === 'roasting'}
                         {...editing.chartHandlers}
                     />
 
