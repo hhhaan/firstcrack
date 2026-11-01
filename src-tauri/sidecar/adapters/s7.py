@@ -166,7 +166,7 @@ class S7Adapter:
 
         session = self._session
 
-        def _connect() -> Any:
+        def _connect() -> None:
             _probe_tcp(self._host, self._port, config.S7_PROBE_TIMEOUT_S)
             client = snap7.client.Client()
             # RecvTimeout 기본 3s → config 값. PLC가 응답 없이 hang하면 manager의
@@ -188,19 +188,18 @@ class S7Adapter:
                     client.destroy()
                     raise ConnectionError("연결 시도가 취소되었습니다.")
                 self._plc = client
+                # 취소돼도 executor는 계속 돈다 — CPU 조회 중 destroy되지 않게 같은 락을 유지한다.
+                if not _client_alive(client):
+                    raise ConnectionError(
+                        f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
+                    )
+                if session != self._session or self._plc is not client:
+                    raise ConnectionError("연결 시도가 취소되었습니다.")
             finally:
                 self._io_lock.release()
-            return client
 
         loop = asyncio.get_running_loop()
-        client = await loop.run_in_executor(None, _connect)
-
-        # 연결 검증은 get_cpu_state() 네트워크 왕복을 포함 → 이벤트 루프 밖에서 평가 (H5).
-        # 읽기 경로에서는 제거했지만(예산 20% 낭비) connect 시에는 왕복 비용이 정당하다.
-        if not await loop.run_in_executor(None, lambda: _client_alive(client)):
-            raise ConnectionError(
-                f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
-            )
+        await loop.run_in_executor(None, _connect)
         self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
         self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
         self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)

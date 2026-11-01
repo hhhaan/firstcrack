@@ -467,6 +467,49 @@ class TestIoLockTimeout:
 # ---------------------------------------------------------------------------
 
 class TestPlcRebind:
+    async def test_cancelled_connect_waits_for_cpu_check_before_destroy(self):
+        from manager import RoasterManager
+
+        adapter = S7Adapter(channels=GIESEN_CHANNELS)
+        manager = RoasterManager()
+        client = MagicMock()
+        client.get_connected.return_value = True
+        checking = threading.Event()
+        release = threading.Event()
+        destroyed = threading.Event()
+        destroyed_during_check = []
+
+        def cpu_state():
+            checking.set()
+            assert release.wait(3)
+            checking.clear()
+            return "S7CpuStatusRun"
+
+        def destroy():
+            destroyed_during_check.append(checking.is_set())
+            destroyed.set()
+
+        client.get_cpu_state.side_effect = cpu_state
+        client.destroy.side_effect = destroy
+        with patch("manager.make_adapter", return_value=adapter), patch(
+            "snap7.client.Client", return_value=client
+        ):
+            connect = asyncio.create_task(manager.connect("giesen_w45a_w60a", {}))
+            disconnect = None
+            try:
+                assert await asyncio.to_thread(checking.wait, 2)
+                disconnect = asyncio.create_task(manager.disconnect())
+                await asyncio.to_thread(destroyed.wait, 0.1)
+            finally:
+                release.set()
+                await asyncio.wait_for(connect, 2)
+                if disconnect is not None:
+                    await asyncio.wait_for(disconnect, 2)
+
+        assert destroyed_during_check == [False]
+        assert adapter._plc is None
+        assert manager.status()["connected"] is False
+
     async def test_read_never_crosses_clients(self, adapter):
         """read 도중 _plc가 교체돼도 그 read는 시작한 클라이언트만 본다."""
         old_plc = adapter._plc
