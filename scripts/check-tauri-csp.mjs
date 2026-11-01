@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Guard: packaged Tauri webviews need wasm-unsafe-eval for @react-pdf/yoga-layout WASM.
+ * Guard: packaged Tauri webviews need wasm-unsafe-eval for @react-pdf/yoga-layout WASM,
+ * and worker-src blob: for fflate zlib Workers when PDFs embed PNGs with alpha (png-js).
  * Tauri merges this with asset hashes on script-src at build time — do not use unsafe-eval.
  */
 import { readFileSync } from 'node:fs';
@@ -9,17 +10,27 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** @param {string} csp */
-function scriptSrcValues(csp) {
+/** @param {string} csp @param {string} directive */
+function directiveValues(csp, directive) {
     for (const part of csp.split(';')) {
         const trimmed = part.trim();
-        if (!trimmed.startsWith('script-src')) {
+        if (!trimmed.startsWith(directive)) {
             continue;
         }
-        const rest = trimmed.slice('script-src'.length).trim();
+        const rest = trimmed.slice(directive.length).trim();
         return rest ? rest.split(/\s+/) : [];
     }
     return null;
+}
+
+/** @param {string} csp */
+function scriptSrcValues(csp) {
+    return directiveValues(csp, 'script-src');
+}
+
+/** @param {string} csp */
+function workerSrcValues(csp) {
+    return directiveValues(csp, 'worker-src');
 }
 
 /** @param {unknown} csp */
@@ -40,6 +51,13 @@ export function validateTauriCsp(csp) {
     if (values.includes("'unsafe-eval'")) {
         return "app.security.csp script-src must not include 'unsafe-eval' (use 'wasm-unsafe-eval' only)";
     }
+    const workerValues = workerSrcValues(csp);
+    if (workerValues === null) {
+        return "app.security.csp must declare worker-src 'self' blob: (PNG alpha in PDF export / fflate zlib worker)";
+    }
+    if (!workerValues.includes("'self'") || !workerValues.includes('blob:')) {
+        return "app.security.csp worker-src must include 'self' and blob: (PNG alpha in PDF export / fflate zlib worker)";
+    }
     return null;
 }
 
@@ -52,5 +70,7 @@ if (isMain) {
         console.error(`check-tauri-csp: ${error}`);
         process.exit(1);
     }
-    console.log("check-tauri-csp: OK (script-src includes 'self' and 'wasm-unsafe-eval', no 'unsafe-eval')\n");
+    console.log(
+        "check-tauri-csp: OK (script-src 'self' + wasm-unsafe-eval; worker-src 'self' + blob:; no unsafe-eval)\n",
+    );
 }

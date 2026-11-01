@@ -23,7 +23,21 @@ test("rejects script-src with 'unsafe-eval'", () => {
 });
 
 test("accepts script-src with 'self' and 'wasm-unsafe-eval'", () => {
-    assert.equal(validateTauriCsp("script-src 'self' 'wasm-unsafe-eval'"), null);
+    assert.equal(
+        validateTauriCsp("script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:"),
+        null,
+    );
+});
+
+test('rejects missing worker-src', () => {
+    assert.match(validateTauriCsp("script-src 'self' 'wasm-unsafe-eval'"), /worker-src/u);
+});
+
+test('rejects worker-src without blob:', () => {
+    assert.match(
+        validateTauriCsp("script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'"),
+        /blob:/u,
+    );
 });
 
 test('repo tauri.conf.json CSP passes', () => {
