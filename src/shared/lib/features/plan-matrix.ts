@@ -26,7 +26,7 @@ export function isWritablePlan(plan: string): boolean {
 
 const FEATURE_PREDICATE = {
     [FEATURE.cupping]: isCoreEntitled,
-    [FEATURE.bbp]: isCoreEntitled,
+    [FEATURE.bbp]: () => true,
     [FEATURE.fastPolling]: isCoreEntitled,
     [FEATURE.orderIntegration]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
     [FEATURE.customMachineControl]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
