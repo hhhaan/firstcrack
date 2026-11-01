@@ -12,13 +12,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** @param {string} csp @param {string} directive */
 function directiveValues(csp, directive) {
+    const want = directive.toLowerCase();
     for (const part of csp.split(';')) {
-        const trimmed = part.trim();
-        if (!trimmed.startsWith(directive)) {
+        const tokens = part.trim().split(/\s+/).filter(Boolean);
+        if (tokens.length === 0) {
             continue;
         }
-        const rest = trimmed.slice(directive.length).trim();
-        return rest ? rest.split(/\s+/) : [];
+        if (tokens[0].toLowerCase() !== want) {
+            continue;
+        }
+        return tokens.slice(1);
     }
     return null;
 }
@@ -42,20 +45,22 @@ export function validateTauriCsp(csp) {
     if (values === null) {
         return "app.security.csp must declare script-src with 'self' and 'wasm-unsafe-eval'";
     }
-    if (!values.includes("'self'")) {
+    const lowerValues = values.map((v) => v.toLowerCase());
+    if (!lowerValues.includes("'self'")) {
         return "app.security.csp script-src must include 'self' (same-origin bundles are not covered by default-src)";
     }
-    if (!values.includes("'wasm-unsafe-eval'")) {
+    if (!lowerValues.includes("'wasm-unsafe-eval'")) {
         return "app.security.csp script-src must include 'wasm-unsafe-eval' (PDF export / yoga-layout WASM)";
     }
-    if (values.includes("'unsafe-eval'")) {
+    if (lowerValues.includes("'unsafe-eval'")) {
         return "app.security.csp script-src must not include 'unsafe-eval' (use 'wasm-unsafe-eval' only)";
     }
     const workerValues = workerSrcValues(csp);
     if (workerValues === null) {
         return "app.security.csp must declare worker-src 'self' blob: (PNG alpha in PDF export / fflate zlib worker)";
     }
-    if (!workerValues.includes("'self'") || !workerValues.includes('blob:')) {
+    const lowerWorker = workerValues.map((v) => v.toLowerCase());
+    if (!lowerWorker.includes("'self'") || !lowerWorker.includes('blob:')) {
         return "app.security.csp worker-src must include 'self' and blob: (PNG alpha in PDF export / fflate zlib worker)";
     }
     return null;
@@ -71,6 +76,6 @@ if (isMain) {
         process.exit(1);
     }
     console.log(
-        "check-tauri-csp: OK (script-src 'self' + wasm-unsafe-eval; worker-src 'self' + blob:; no unsafe-eval)\n",
+        "check-tauri-csp: OK (script-src 'self' + wasm-unsafe-eval; worker-src 'self' + blob:; no unsafe-eval)",
     );
 }
