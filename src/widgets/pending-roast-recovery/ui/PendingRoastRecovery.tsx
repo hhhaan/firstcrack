@@ -14,6 +14,7 @@ import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
@@ -258,8 +259,7 @@ const RecoveryItem = ({
                 <fieldset disabled={busy} className="space-y-2">
                     <label className="block text-sm">
                         {t('activeRoast.recovery.bean')}
-                        <select
-                            className={inputCls}
+                        <FormSelect
                             value={form.beanId ?? ''}
                             onChange={(e) => updateForm({ beanId: e.target.value || null })}
                         >
@@ -271,7 +271,7 @@ const RecoveryItem = ({
                                         {bean.name}
                                     </option>
                                 ))}
-                        </select>
+                        </FormSelect>
                     </label>
                     <label className="block text-sm">
                         {t('activeRoast.recovery.inputWeight')}
@@ -315,8 +315,7 @@ const RecoveryItem = ({
                     </label>
                     <label className="block text-sm">
                         {t('activeRoast.recovery.batch')}
-                        <select
-                            className={inputCls}
+                        <FormSelect
                             value={linked?.planBatchId ?? form.linkedBatchId ?? ''}
                             onChange={(e) => {
                                 const row = batches.find((b) => b.id === e.target.value);
@@ -345,7 +344,7 @@ const RecoveryItem = ({
                                     {b.bean_name} ({b.completed_sessions}/{b.batch_count})
                                 </option>
                             ))}
-                        </select>
+                        </FormSelect>
                     </label>
                 </fieldset>
             )}

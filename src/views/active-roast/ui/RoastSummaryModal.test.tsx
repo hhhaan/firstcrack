@@ -240,12 +240,34 @@ it('applies a schedule batch, keeps a same-batch edit, and restores the opened w
         (b) => b.textContent === 'activeRoast.summary.linkSchedule',
     );
     act(() => schedule?.click());
-    const select = document.querySelector('select') as HTMLSelectElement;
-    act(() => setInputValue(select, 'batch-9'));
+    const chooseBatch = (id: string) => {
+        const trigger = document.querySelector('[aria-label="activeRoast.summary.planBatchPlaceholder"]');
+        trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        document
+            .querySelector(`[role="option"][data-value="${id}"]`)
+            ?.dispatchEvent(
+                new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+            );
+    };
+    Element.prototype.scrollIntoView = () => {};
+    act(() => {
+        document
+            .querySelector('[aria-label="activeRoast.summary.planBatchPlaceholder"]')
+            ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    act(() => {
+        const option = document.querySelector('[role="option"][data-value="batch-9"]');
+        option?.dispatchEvent(
+            new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+        );
+        option?.dispatchEvent(
+            new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+        );
+    });
     expect(weight().value).toBe('8');
 
     act(() => setInputValue(weight(), '7'));
-    act(() => setInputValue(select, 'batch-9'));
+    act(() => chooseBatch('batch-9'));
     expect(weight().value).toBe('7');
 
     const none = [...document.querySelectorAll('button')].find((b) => b.textContent === 'activeRoast.summary.linkNone');

@@ -92,11 +92,28 @@ beforeEach(() => {
     blendMutations.update.mockReset();
 });
 
-const setNativeValue = (el: HTMLInputElement | HTMLSelectElement, value: string) => {
+const setNativeValue = (el: HTMLInputElement, value: string) => {
     const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value')?.set;
     setter?.call(el, value);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+};
+
+const chooseMenu = async (value: string) => {
+    Element.prototype.scrollIntoView = () => {};
+    const trigger = document.querySelector('[role="combobox"]');
+    await act(async () => {
+        trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    const option = document.querySelector(`[role="option"][data-value="${value}"]`);
+    await act(async () => {
+        option?.dispatchEvent(
+            new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+        );
+        option?.dispatchEvent(
+            new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+        );
+    });
 };
 
 const addButton = () =>
@@ -106,11 +123,10 @@ const addButton = () =>
 
 const fillValid = async () => {
     const name = document.querySelector('input[placeholder="beans.blend.modal.namePlaceholder"]') as HTMLInputElement;
-    const select = document.querySelector('select') as HTMLSelectElement;
     await act(async () => {
         setNativeValue(name, 'House');
-        setNativeValue(select, 'bean-1');
     });
+    await chooseMenu('bean-1');
 };
 
 describe('AddBlendModal submit lock', () => {

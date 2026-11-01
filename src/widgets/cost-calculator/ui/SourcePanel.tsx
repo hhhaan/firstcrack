@@ -1,8 +1,9 @@
 import type { Bean } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls, labelCls } from '@shared/ui/form-styles';
 import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
-import { AlertTriangle, ChevronDown, Plus, X } from 'lucide-react';
+import { AlertTriangle, Plus, X } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { formatAmount, formatPctValue, normalizePct, parseNumericInput, parsePctInput } from '../lib/format';
@@ -167,26 +168,19 @@ export const SourcePanel = ({
                             <label className={labelCls} htmlFor="pricing-blend-select">
                                 {t('pricing.source.blend')}
                             </label>
-                            <div className="relative max-w-md">
-                                <select
-                                    id="pricing-blend-select"
-                                    value={selectedBlendId ?? ''}
-                                    onChange={(e) => onBlendSelect(e.target.value)}
-                                    className={`${inputCls} appearance-none cursor-pointer pr-8`}
-                                >
-                                    <option value="">{t('pricing.source.selectBlend')}</option>
-                                    {blends.map((b) => (
-                                        <option key={b.id} value={b.id}>
-                                            {b.name}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown
-                                    size={16}
-                                    strokeWidth={2}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
-                                />
-                            </div>
+                            <FormSelect
+                                id="pricing-blend-select"
+                                value={selectedBlendId ?? ''}
+                                onChange={(e) => onBlendSelect(e.target.value)}
+                                wrapperClassName="max-w-md"
+                            >
+                                <option value="">{t('pricing.source.selectBlend')}</option>
+                                {blends.map((b) => (
+                                    <option key={b.id} value={b.id}>
+                                        {b.name}
+                                    </option>
+                                ))}
+                            </FormSelect>
                             {blends.length === 0 && (
                                 <p className="mt-2 text-[12px] text-muted tracking-[0.14px]">
                                     {t('pricing.source.emptyBlends')}

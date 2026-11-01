@@ -3,31 +3,43 @@ import type { Bean } from '@shared/types/database.types';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls } from '@shared/ui/form-styles';
 import { X } from 'lucide-react';
-import type { UseFormRegister } from 'react-hook-form';
+import { type Control, Controller, type UseFormRegister } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import type { BlendForm } from '../lib/schema';
 
 type BlendComponentRowProps = {
     index: number;
     register: UseFormRegister<BlendForm>;
+    control: Control<BlendForm>;
     beans: Bean[];
     canRemove: boolean;
     onRemove: () => void;
 };
 
-export const BlendComponentRow = ({ index, register, beans, canRemove, onRemove }: BlendComponentRowProps) => {
+export const BlendComponentRow = ({ index, register, control, beans, canRemove, onRemove }: BlendComponentRowProps) => {
     const { t } = useTranslation();
 
     return (
         <div className="flex gap-2 items-center">
-            <FormSelect {...register(`components.${index}.bean_id`)} wrapperClassName="min-w-0 flex-1">
-                <option value="">{t('beans.blend.modal.selectBean')}</option>
-                {beans.map((b) => (
-                    <option key={b.id} value={b.id}>
-                        {b.name}
-                    </option>
-                ))}
-            </FormSelect>
+            <Controller
+                control={control}
+                name={`components.${index}.bean_id`}
+                render={({ field }) => (
+                    <FormSelect
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        onChange={(event) => field.onChange(event.target.value)}
+                        wrapperClassName="min-w-0 flex-1"
+                    >
+                        <option value="">{t('beans.blend.modal.selectBean')}</option>
+                        {beans.map((b) => (
+                            <option key={b.id} value={b.id}>
+                                {b.name}
+                            </option>
+                        ))}
+                    </FormSelect>
+                )}
+            />
             <input
                 type="number"
                 {...register(`components.${index}.ratio_pct`, { valueAsNumber: true })}

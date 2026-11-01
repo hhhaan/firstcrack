@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { ArtisanSettingsSnapshot } from '../../src/shared/types/artisan';
-import { expect, test } from '../fixtures/app';
+import { chooseSelect, expect, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
 import { mockTauriCommand } from '../fixtures/tauri-stub';
 
@@ -36,7 +36,7 @@ const openImporter = async (page: Page) => {
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Artisan');
-    await settings.getByRole('combobox', { name: 'Import from', exact: true }).selectOption('Artisan');
+    await chooseSelect(settings.getByRole('combobox', { name: 'Import from', exact: true }), 'Artisan');
     await expect(settings.getByRole('heading', { name: 'Import Artisan settings', exact: true })).toBeVisible();
     return settings;
 };
@@ -105,8 +105,8 @@ test('requires explicit version confirmation before reconstructing omitted machi
     await version.uncheck();
     await expect(machine).toBeDisabled();
     await expect(machine).not.toBeChecked();
-    await settings.getByRole('combobox', { name: 'Import from', exact: true }).selectOption('Firescope');
-    await settings.getByRole('combobox', { name: 'Import from', exact: true }).selectOption('Artisan');
+    await chooseSelect(settings.getByRole('combobox', { name: 'Import from', exact: true }), 'Firescope');
+    await chooseSelect(settings.getByRole('combobox', { name: 'Import from', exact: true }), 'Artisan');
     await expect(version).not.toBeChecked();
 });
 

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import type { CropsterSettingsSnapshot } from '../../src/shared/types/cropster';
-import { expect, test } from '../fixtures/app';
+import { chooseSelect, expect, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
 import { mockTauriCommand } from '../fixtures/tauri-stub';
 
@@ -47,7 +47,7 @@ const openImporter = async (page: Page) => {
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Cropster');
-    await settings.getByRole('combobox', { name: 'Import from', exact: true }).selectOption('Cropster');
+    await chooseSelect(settings.getByRole('combobox', { name: 'Import from', exact: true }), 'Cropster');
     await expect(settings.getByRole('heading', { name: 'Import Cropster settings', exact: true })).toBeVisible();
     return settings;
 };
