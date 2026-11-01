@@ -1,26 +1,44 @@
 name: Rollback release (R2 pointer)
 
-# Emergency: point latest.json + releases/latest/* back at an already-published version.
-# Does NOT rebuild or re-sign. Binaries must already exist under releases/{version}/.
+# Point latest.json and the download aliases at an already-published version.
+# Does not rebuild or re-sign. It does not pick the previous version for you.
+# It does not roll back Supabase or Edge Functions.
 #
-# Effect:
-#   - Users who have NOT upgraded: stop receiving the bad version ✅
-#   - Users on a build that calls check({ allowDowngrades: true }): install this version even if it is older ✅
-#   - Users on an older build that only accepts a higher version: stay put ❌
+# Actions → Rollback release (R2 pointer) → Run workflow
+#   target_version: 1.3.11
+#   confirm:        1.3.11   (must match target_version)
 #
-# Usage (Actions → Rollback release → Run workflow):
-#   target_version: 1.0.1
-#   confirm:        1.0.1   (must match target_version)
+# Required objects under releases/{version}/, or the job fails before the pointer moves:
+#   First-Crack-{version}-aarch64.app.tar.gz + .sig
+#   First-Crack-{version}-x86_64.app.tar.gz + .sig
+#   First-Crack-{version}-x86_64.msi + .sig
+#
+# On success:
+#   - backup releases/latest.json to releases/latest.json.rollback-to-{version}.{time}.bak
+#   - rewrite latest.json version, URLs, and signatures to that version's files
+#   - copy that MSI onto releases/latest/First-Crack-Windows.msi
+#   - copy that version's DMGs onto releases/latest/First-Crack-arm64.dmg and
+#     First-Crack-x64.dmg when those objects exist. A missing DMG only warns,
+#     and the old alias stays.
+#   - purge Cloudflare for latest.json only. Alias files are not purged.
+#   - verify the public latest.json version, then Slack.
+#
+# Who moves:
+#   - A client that calls check({ allowDowngrades: true }) downloads this version
+#     on next launch or within 4 hours, then installs on the restart button.
+#   - A client without that flag only accepts a higher version. It stops being
+#     offered the bad build, and a machine already on the bad build stays there.
+#   - A client already in ready state installs the bytes it already downloaded.
 
 on:
   workflow_dispatch:
     inputs:
       target_version:
-        description: 'Version to roll back TO (must already exist on R2, e.g. 1.0.1)'
+        description: 'Published version to point at. Not "previous". Example 1.3.11. Its tar.gz, MSI, and .sig must already be on R2.'
         required: true
         type: string
       confirm:
-        description: 'Type the same version again to confirm (safety gate)'
+        description: 'Type target_version again. The job exits before changing R2 if this differs.'
         required: true
         type: string
 
