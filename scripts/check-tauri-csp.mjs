@@ -9,20 +9,36 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+/** @param {string} csp */
+function scriptSrcValues(csp) {
+    for (const part of csp.split(';')) {
+        const trimmed = part.trim();
+        if (!trimmed.startsWith('script-src')) {
+            continue;
+        }
+        const rest = trimmed.slice('script-src'.length).trim();
+        return rest ? rest.split(/\s+/) : [];
+    }
+    return null;
+}
+
 /** @param {unknown} csp */
 export function validateTauriCsp(csp) {
     if (typeof csp !== 'string' || !csp.trim()) {
         return 'app.security.csp must be a non-empty string';
     }
-    if (!/\bscript-src\b/.test(csp)) {
-        return "app.security.csp must declare script-src with 'wasm-unsafe-eval'";
+    const values = scriptSrcValues(csp);
+    if (values === null) {
+        return "app.security.csp must declare script-src with 'self' and 'wasm-unsafe-eval'";
     }
-    if (!csp.includes("'wasm-unsafe-eval'")) {
+    if (!values.includes("'self'")) {
+        return "app.security.csp script-src must include 'self' (same-origin bundles are not covered by default-src)";
+    }
+    if (!values.includes("'wasm-unsafe-eval'")) {
         return "app.security.csp script-src must include 'wasm-unsafe-eval' (PDF export / yoga-layout WASM)";
     }
-    const withoutWasm = csp.replaceAll("'wasm-unsafe-eval'", '');
-    if (withoutWasm.includes("'unsafe-eval'")) {
-        return "app.security.csp must not include 'unsafe-eval' (use 'wasm-unsafe-eval' only)";
+    if (values.includes("'unsafe-eval'")) {
+        return "app.security.csp script-src must not include 'unsafe-eval' (use 'wasm-unsafe-eval' only)";
     }
     return null;
 }
@@ -36,5 +52,5 @@ if (isMain) {
         console.error(`check-tauri-csp: ${error}`);
         process.exit(1);
     }
-    console.log("check-tauri-csp: OK (script-src includes 'wasm-unsafe-eval', no 'unsafe-eval')\n");
+    console.log("check-tauri-csp: OK (script-src includes 'self' and 'wasm-unsafe-eval', no 'unsafe-eval')\n");
 }

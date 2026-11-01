@@ -44,7 +44,7 @@
             }
         ],
         "security": {
-            "csp": "default-src 'self'; img-src 'self' data: https: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:9999 https://*.supabase.co https://*.r2.cloudflarestorage.com https://dl.firstcrackiscoming.com https://api.open-meteo.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io; script-src 'wasm-unsafe-eval'"
+            "csp": "default-src 'self'; img-src 'self' data: https: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:9999 https://*.supabase.co https://*.r2.cloudflarestorage.com https://dl.firstcrackiscoming.com https://api.open-meteo.com https://*.ingest.us.sentry.io https://*.ingest.sentry.io; script-src 'self' 'wasm-unsafe-eval'"
         }
     },
     "plugins": {
