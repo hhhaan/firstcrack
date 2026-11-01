@@ -97,11 +97,18 @@ const errorText = (error: unknown): string => {
 const UPDATER_NETWORK = /error sending request for url/i;
 /** 제거된 plugin:dialog|confirm 호출. ACL 수정이 아니라 클라이언트 노이즈다. */
 const TAURI_ACL_NOISE = /not allowed by acl/i;
+/** 시리얼 포트를 고르지 않은 설정. UI 안내로 끝나고 제품 결함이 아니다 (FC-1Y). */
+const MISSING_SERIAL_PORT = /시리얼 포트가 선택되지 않았습니다/;
 
 const isExpectedNoise = (error: unknown): boolean => {
     const text = errorText(error);
     if (!text.trim()) return false;
-    return isOpaqueNetworkMessage(text) || UPDATER_NETWORK.test(text) || TAURI_ACL_NOISE.test(text);
+    return (
+        isOpaqueNetworkMessage(text) ||
+        UPDATER_NETWORK.test(text) ||
+        TAURI_ACL_NOISE.test(text) ||
+        MISSING_SERIAL_PORT.test(text)
+    );
 };
 
 /**

@@ -48,7 +48,8 @@ _SERIAL_FORM_FIELDS: list[dict[str, Any]] = [
         "key": "comport",
         "label": "Serial Port",
         "type": "text",
-        "required": False,
+        # 보이는 동안만 검사된다. TCP/UDP는 이 필드를 숨긴다.
+        "required": True,
         "placeholder": _comport_placeholder,
     },
     {"key": "baudrate", "label": "Baud Rate", "type": "number", "required": False},

@@ -107,6 +107,12 @@ class TestActionability:
         """Manager capture_exception of a dead PLC still has to be diagnosable."""
         assert sentry_config.is_actionable(RuntimeError("BT out of range (0.0)")) is True
 
+    def test_missing_serial_port_is_user_configuration(self):
+        """FC-1Y: 빈 comport는 설정 문제라 이슈로 남기지 않는다. 실제 포트 실패는 남긴다."""
+        assert sentry_config.is_actionable(ValueError("MODBUS serial: comport가 비어 있음.")) is False
+        assert sentry_config.is_actionable(ValueError("Kaleido Serial 모드: comport가 비어 있음.")) is False
+        assert sentry_config.is_actionable(ConnectionError("MODBUS 연결 실패: /dev/ttyUSB0")) is True
+
 
 class _HttpError(Exception):
     def __init__(self, status: int):

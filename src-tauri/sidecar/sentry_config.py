@@ -51,6 +51,8 @@ _SENSITIVE_ASSIGNMENT = re.compile(
 )
 # 사용자 홈 아래 경로는 계정명이 그대로 PII다.
 _HOME_PATH = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)[^\s\"',;)}\]]+")
+# 포트를 고르지 않은 시리얼 설정. 사용자 안내로 끝나고 이슈가 아니다 (FC-1Y).
+_MISSING_COMPORT = "comport가 비어"
 
 
 def _env(env: Mapping[str, str] | None) -> Mapping[str, str]:
@@ -124,6 +126,8 @@ def is_actionable(exc: BaseException | None) -> bool:
         status = getattr(exc, "status_code", None)
     if isinstance(status, int) and 400 <= status < 500:
         return status == 429
+    if _MISSING_COMPORT in str(exc):
+        return False
     return True
 
 

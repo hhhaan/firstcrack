@@ -2,6 +2,39 @@ import { buildProtocolRoasterDef, initRoasterFormParams, ROASTER_REGISTRY, write
 import { describe, expect, it } from 'vitest';
 import { assembleConnectionParams, persistConnectionParams } from './assembleConnectionParams';
 
+describe('serial port required when the field is visible', () => {
+    it('rejects an RTU machine with no port and still saves TCP without one', () => {
+        const serial = ROASTER_REGISTRY.easyster;
+        const blank = initRoasterFormParams(serial);
+        expect(blank.mode).toBe('rtu');
+        expect(assembleConnectionParams(serial, blank, false, false)).toEqual({
+            ok: false,
+            missing: 'Serial Port',
+        });
+        expect(assembleConnectionParams(serial, { ...blank, comport: '   ' }, false, false)).toEqual({
+            ok: false,
+            missing: 'Serial Port',
+        });
+        const chosen = assembleConnectionParams(serial, { ...blank, comport: '/dev/cu.usbserial' }, false, false);
+        expect(chosen.ok).toBe(true);
+        if (chosen.ok) expect(chosen.typed.comport).toBe('/dev/cu.usbserial');
+
+        const network = ROASTER_REGISTRY.probat_probatone;
+        const tcp = assembleConnectionParams(network, initRoasterFormParams(network), false, false);
+        expect(tcp.ok).toBe(true);
+        if (tcp.ok) expect(tcp.typed).not.toHaveProperty('comport');
+    });
+
+    it('rejects custom serial mode without a port', () => {
+        const def = buildProtocolRoasterDef('modbus');
+        const params = { ...initRoasterFormParams(def), mode: 'ascii', comport: '' };
+        expect(assembleConnectionParams(def, params, false, false)).toEqual({
+            ok: false,
+            missing: 'Serial Port',
+        });
+    });
+});
+
 describe('persistConnectionParams', () => {
     it('strips write_map when includeWriteMap is false', () => {
         expect(persistConnectionParams({ host: '10.0.0.1', write_map: { heater: { db: 2 } } }, false)).toEqual({
