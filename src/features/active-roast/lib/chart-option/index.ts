@@ -266,7 +266,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const hasPhaseBar = phaseSegments.length > 0;
     const phaseSeries = hasPhaseBar
         ? buildPhaseSeries({ phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale })
-        : null;
+        : [];
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
     const curveLabelSeries = print
@@ -400,7 +400,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                     xAxisIndex: mergeControlChart ? 0 : 1,
                 })),
                 curveLabelSeries,
-                ...(phaseSeries ? [phaseSeries] : []),
+                ...phaseSeries,
             ],
             // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
             dataZoom: [],
@@ -445,11 +445,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         dataZoom: [],
         xAxis,
         yAxis,
-        series: [
-            ...(bbpRange ? [bbpBackground(false)] : []),
-            ...tempSeries,
-            curveLabelSeries,
-            ...(phaseSeries ? [phaseSeries] : []),
-        ],
+        series: [...(bbpRange ? [bbpBackground(false)] : []), ...tempSeries, curveLabelSeries, ...phaseSeries],
     };
 };

@@ -291,6 +291,35 @@ describe('buildRoastChartOption font scale', () => {
     );
 });
 
+describe('phase line', () => {
+    const drying = {
+        name: 'Drying',
+        startSec: 0,
+        endSec: 180,
+        durationSec: 180,
+        pct: 100,
+        color: '#fff',
+    };
+
+    it('keeps the plot where it was and still draws the phase line', () => {
+        const option = buildRoastChartOption({ ...baseParams(), phaseSegments: [drying] });
+        expect(option.grid).toMatchObject([{ bottom: 65 }]);
+        const phase = (option.series as { id?: string; data?: unknown[] }[]).find(
+            (series) => series.id === 'phase-bar',
+        );
+        expect(phase?.data).toEqual([[0, 180, 180, 'Drying']]);
+    });
+
+    it('does not shrink the temperature grid when a control chart is below', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            phaseSegments: [drying],
+            controlData: { xs: [0, 60], drumTemp: [50, 50], heatPower: [80, 60], fanSpeed: [20, 30] },
+        });
+        expect(option.grid).toMatchObject([{ height: '76%' }, { top: '79%', bottom: 30 }]);
+    });
+});
+
 describe('buildRoastChartOption', () => {
     it('separates three recorded control plots even when screen controls are merged', () => {
         const params = {

@@ -1,21 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { phaseBarLabelMode } from './series';
+import { mockChartColors } from './chart-colors.fixture';
+import { buildPhaseSeries } from './series';
 
-const atScale1 = (width: number, name: string, durLabel: string) =>
-    phaseBarLabelMode(width, name, durLabel, 10, 9, 6, 2, 30);
+describe('buildPhaseSeries', () => {
+    it('draws a thin color line on the bottom edge of the plot', () => {
+        const [line, label] = buildPhaseSeries({
+            phaseSegments: [{ name: 'Drying', startSec: 0, endSec: 180, durationSec: 180, pct: 100, color: '#old' }],
+            tempMinC: 50,
+            tempMaxC: 250,
+            temperatureUnit: 'C',
+            colors: mockChartColors,
+        });
+        const api = {
+            value: (index: number) => [0, 180, 180, 'Drying'][index],
+            coord: (point: number[]) => [32 + point[0], 110],
+        };
+        const coordSys = { coordSys: { x: 32, y: 10, width: 400, height: 200 } };
+        const drawn = line.renderItem(coordSys, api) as {
+            type: string;
+            shape: { y: number; height: number };
+            style: { fill: string };
+        };
+        const caption = label.renderItem(coordSys, api) as { style: { text: string; y: number } };
 
-describe('phaseBarLabelMode', () => {
-    it('keeps the name and the time when the segment is wide enough', () => {
-        expect(atScale1(160, 'Drying', '4:00  50%')).toBe('both');
-    });
-
-    it('drops the name when the two labels would overlap', () => {
-        expect(atScale1(100, 'Maillard', '2:30  31%')).toBe('time');
-        expect(atScale1(100, 'Development', '1:30  19%')).toBe('time');
-    });
-
-    it('omits text when the time itself does not fit', () => {
-        expect(atScale1(40, 'Maillard', '2:30  31%')).toBe('none');
-        expect(atScale1(20, 'Drying', '4:00  50%')).toBe('none');
+        expect(line.z).toBe(0);
+        expect(drawn).toMatchObject({
+            type: 'rect',
+            shape: { y: 204, height: 6 },
+            style: { fill: '#31' },
+        });
+        expect(label.z).toBe(10);
+        expect(caption.style).toMatchObject({ text: 'Drying  3:00', y: 202 });
     });
 });

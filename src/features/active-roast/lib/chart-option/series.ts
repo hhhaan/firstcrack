@@ -1,22 +1,15 @@
 import {
     MARKER_LABEL_CHAR_WIDTH_PX,
-    MARKER_LABEL_GAP_PX,
     MARKER_LABEL_STACK_PX,
     markerLabelFont,
     PHASE_BAR_FONT_FAMILY,
-    PHASE_BAR_FONT_SIZE,
-    PHASE_BAR_FONT_SIZE_NARROW,
     PHASE_BAR_FONT_WEIGHT,
     PHASE_BAR_HEIGHT,
-    PHASE_BAR_NARROW_THRESHOLD,
-    PHASE_BAR_STROKE_WIDTH,
-    PHASE_BAR_TEXT_INSET,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { formatElapsed } from '@shared/lib/format';
-import * as echarts from 'echarts';
 import type { TemperatureUnit } from '../../model/settings';
 import type { PhaseSegment } from '../phases';
 import { curveLabelLeader, projectCurveLabels } from './curve-label-projection';
@@ -49,6 +42,7 @@ const controlMarks = (
     role: 'heater' | 'fan' | 'drum',
     style: CurveLineStyle,
     fontScale: number,
+    includeVirtual = false,
 ) => {
     const text = {
         show: true,
@@ -77,6 +71,7 @@ const controlMarks = (
     const ordered = [...(changes ?? [])].sort((a, b) => a.timeSec - b.timeSec);
     let previousHeater: number | undefined;
     const marks = ordered.flatMap((change) => {
+        if (change.virtual && !includeVirtual) return [];
         const value = change.values[role];
         if (value === undefined || !Number.isFinite(value) || !Number.isFinite(change.timeSec)) return [];
         // Clicking the heater that is already set is not another change label.
@@ -275,7 +270,17 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         controlGuideMarkLines,
         fontScale = 1,
     } = params;
-    const { xs: cxs, drumTemp, heatPower, fanSpeed, heatSet, heatTarget, reference, changes } = controlData;
+    const {
+        xs: cxs,
+        drumTemp,
+        heatPower,
+        fanSpeed,
+        heatSet,
+        heatTarget,
+        reference,
+        changes,
+        virtualRoles,
+    } = controlData;
     const series: object[] = [];
 
     // 참조(현재 곡선, 투명도 30%)를 먼저 깐다. Heat target / Heat set 은 별도 시리즈로 그 위에 남긴다.
@@ -317,7 +322,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data,
             lineStyle: { ...curves.drum.current },
             ...lineSeriesBase,
-            ...controlMarks(data, changes, 'drum', curves.drum.current, fontScale),
+            ...controlMarks(data, changes, 'drum', curves.drum.current, fontScale, virtualRoles?.includes('drum')),
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
@@ -358,7 +363,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data,
             lineStyle: { ...curves.heat.current },
             ...lineSeriesBase,
-            ...controlMarks(data, changes, 'heater', curves.heat.current, fontScale),
+            ...controlMarks(data, changes, 'heater', curves.heat.current, fontScale, virtualRoles?.includes('heater')),
         });
     }
     if (showControlFan) {
@@ -372,7 +377,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data,
             lineStyle: { ...curves.fan.current },
             ...lineSeriesBase,
-            ...controlMarks(data, changes, 'fan', curves.fan.current, fontScale),
+            ...controlMarks(data, changes, 'fan', curves.fan.current, fontScale, virtualRoles?.includes('fan')),
         });
     }
     const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));
@@ -457,149 +462,99 @@ export interface PhaseSeriesParams {
     fontScale?: number;
 }
 
-/** ASCII advance at PHASE_BAR_FONT_SIZE. Same 6px step as marker labels. */
-const phaseBarTextWidth = (text: string, fontSize: number) =>
-    text.length * MARKER_LABEL_CHAR_WIDTH_PX * (fontSize / PHASE_BAR_FONT_SIZE);
+const PHASE_BAR_LABEL_SIZE = 10;
 
-export const phaseBarLabelMode = (
-    width: number,
-    name: string,
-    durLabel: string,
-    nameSize: number,
-    narrowSize: number,
-    textInset: number,
-    gap: number,
-    narrowThreshold: number,
-): 'both' | 'time' | 'none' => {
-    const nameWidth = phaseBarTextWidth(name, nameSize);
-    const durWidth = phaseBarTextWidth(durLabel, nameSize);
-    if (nameWidth + durWidth + textInset * 2 + gap <= width) return 'both';
-    const narrowDurWidth = phaseBarTextWidth(durLabel, narrowSize);
-    if (width > narrowThreshold && narrowDurWidth + textInset * 2 <= width) return 'time';
-    return 'none';
+const phaseBarFill = (name: string, colors: ResolvedChartColors) => {
+    if (name === 'Maillard') return colors.phaseBarMaillard;
+    if (name === 'Development') return colors.phaseBarDevelopment;
+    return colors.phaseBarDrying;
 };
 
-// ── Phase bar (온도 plot 하단 오버레이) ───────────────────────────────
-// 별도 grid 없이 temp grid(x0/y0) 하단에 custom series로 그린다.
-// dataZoom/zoom 시 x는 축과 동기화, y는 coordSys 하단 고정 높이.
+const phaseBarLabel = (width: number, name: string, timeLabel: string, fontSize: number) => {
+    const advance = MARKER_LABEL_CHAR_WIDTH_PX * (fontSize / PHASE_BAR_LABEL_SIZE);
+    const both = `${name}  ${timeLabel}`;
+    if (both.length * advance <= width) return both;
+    if (timeLabel.length * advance <= width) return timeLabel;
+    return null;
+};
+
+// Color line on the plot bottom, with the name and time just above it.
 export const buildPhaseSeries = (params: PhaseSeriesParams) => {
     const { phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale = 1 } = params;
     const barHeight = scaleChartPx(PHASE_BAR_HEIGHT, fontScale);
-    const narrowThreshold = scaleChartPx(PHASE_BAR_NARROW_THRESHOLD, fontScale);
-    const labelGap = scaleChartPx(MARKER_LABEL_GAP_PX, fontScale);
-    const textInset = scaleChartPx(PHASE_BAR_TEXT_INSET, fontScale);
-    const nameSize = scaleChartPx(PHASE_BAR_FONT_SIZE, fontScale);
-    const narrowSize = scaleChartPx(PHASE_BAR_FONT_SIZE_NARROW, fontScale);
-    const strokeWidth = fontScale === 1 ? PHASE_BAR_STROKE_WIDTH : PHASE_BAR_STROKE_WIDTH * fontScale;
+    const labelSize = scaleChartPx(PHASE_BAR_LABEL_SIZE, fontScale);
     // y=0이 temp 축 min(기본 50°C) 밖일 수 있어 x 변환용 mid Y 사용
     const phaseCoordY = (toDisplayTemp(tempMinC, temperatureUnit) + toDisplayTemp(tempMaxC, temperatureUnit)) / 2;
+    const data = phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.name]);
 
-    return {
-        type: 'custom' as const,
-        xAxisIndex: 0,
-        yAxisIndex: 0,
+    // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
+    const segmentBox = (renderParams: any, api: any) => {
+        const startPx = api.coord([api.value(0), phaseCoordY])[0] as number;
+        const endPx = api.coord([api.value(1), phaseCoordY])[0] as number;
+        const { x: csX, y: csY, width: csW, height: csH } = renderParams.coordSys;
+        const left = Math.max(startPx, csX);
+        const right = Math.min(endPx, csX + csW);
+        if (right - left <= 0) return null;
+        return {
+            left,
+            width: right - left,
+            top: csY + csH - barHeight,
+            name: api.value(3) as string,
+            timeLabel: formatElapsed(api.value(2) as number),
+        };
+    };
 
-        // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
-        renderItem: (renderParams: any, api: any) => {
-            const startPx = api.coord([api.value(0), phaseCoordY])[0] as number;
-            const endPx = api.coord([api.value(1), phaseCoordY])[0] as number;
-            const { x: csX, y: csY, width: csW, height: csH } = renderParams.coordSys;
-            const barY = csY + csH - barHeight;
-            const clipped = echarts.graphic.clipRectByRect(
-                {
-                    x: startPx,
-                    y: barY,
-                    width: Math.max(0, endPx - startPx),
-                    height: barHeight,
-                },
-                { x: csX, y: csY, width: csW, height: csH },
-            );
-            if (!clipped) return;
-
-            const durSec = api.value(2) as number;
-            const pct = api.value(3) as number;
-            const color = api.value(4) as string;
-            const name = api.value(5) as string;
-            const durLabel = `${formatElapsed(durSec)}  ${pct}%`;
-            const { x, y, width, height: h } = clipped;
-            const textY = y + h / 2;
-
-            // biome-ignore lint/suspicious/noExplicitAny: ECharts graphic children are loosely typed
-            const children: any[] = [
-                {
+    return [
+        {
+            id: 'phase-bar',
+            type: 'custom' as const,
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
+            renderItem: (renderParams: any, api: any) => {
+                const box = segmentBox(renderParams, api);
+                if (!box) return;
+                return {
                     type: 'rect',
-                    shape: clipped,
-                    style: {
-                        fill: color,
-                        stroke: colors.phaseBarStroke,
-                        lineWidth: strokeWidth,
-                    },
+                    shape: { x: box.left, y: box.top, width: box.width, height: barHeight },
+                    style: { fill: phaseBarFill(box.name, colors) },
                     silent: true,
-                },
-            ];
-
-            // 둘 다 들어가면 이름 좌 + 시간 우. 시간만 들어가면 중앙. 그것도 못 들어가면 생략.
-            const labelMode = phaseBarLabelMode(
-                width,
-                name,
-                durLabel,
-                nameSize,
-                narrowSize,
-                textInset,
-                labelGap,
-                narrowThreshold,
-            );
-            if (labelMode === 'both') {
-                children.push({
+                };
+            },
+            data,
+            z: 0,
+            silent: true,
+        },
+        {
+            id: 'phase-bar-label',
+            type: 'custom' as const,
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
+            renderItem: (renderParams: any, api: any) => {
+                const box = segmentBox(renderParams, api);
+                if (!box) return;
+                const text = phaseBarLabel(box.width, box.name, box.timeLabel, labelSize);
+                if (!text) return;
+                return {
                     type: 'text',
                     style: {
-                        text: name,
-                        x: x + textInset,
-                        y: textY,
-                        fontSize: nameSize,
+                        text,
+                        x: box.left + box.width / 2,
+                        y: box.top - 2,
+                        fontSize: labelSize,
                         fontFamily: PHASE_BAR_FONT_FAMILY,
                         fontWeight: PHASE_BAR_FONT_WEIGHT,
                         fill: colors.phaseBarName,
-                        textVerticalAlign: 'middle',
-                    },
-                    silent: true,
-                });
-                children.push({
-                    type: 'text',
-                    style: {
-                        text: durLabel,
-                        x: x + width - textInset,
-                        y: textY,
-                        fontSize: nameSize,
-                        fontFamily: PHASE_BAR_FONT_FAMILY,
-                        fill: colors.phaseBarDuration,
-                        textAlign: 'right',
-                        textVerticalAlign: 'middle',
-                    },
-                    silent: true,
-                });
-            } else if (labelMode === 'time') {
-                children.push({
-                    type: 'text',
-                    style: {
-                        text: durLabel,
-                        x: x + width / 2,
-                        y: textY,
-                        fontSize: narrowSize,
-                        fontFamily: PHASE_BAR_FONT_FAMILY,
-                        fill: colors.phaseBarDuration,
                         textAlign: 'center',
-                        textVerticalAlign: 'middle',
+                        textVerticalAlign: 'bottom',
                     },
                     silent: true,
-                });
-            }
-
-            return { type: 'group', children };
+                };
+            },
+            data,
+            z: 10,
+            silent: true,
         },
-        // [startSec, endSec, durationSec, percentage, color, name]
-        data: phaseSegments.map((seg) => [seg.startSec, seg.endSec, seg.durationSec, seg.pct, seg.color, seg.name]),
-        z: 10,
-        silent: true,
-    };
+    ];
 };

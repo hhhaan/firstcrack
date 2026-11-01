@@ -164,8 +164,11 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-chart-current-line` | `rgba(0, 0, 0, 0.45)` | `rgba(255, 255, 255, 0.45)` |
 | `--color-chart-phaseline` | `rgba(0, 0, 0, 0.07)` | `rgba(255, 255, 255, 0.08)` |
 | `--color-chart-phasebar-stroke` | `rgba(0, 0, 0, 0.08)` | `rgba(255, 255, 255, 0.12)` |
-| `--color-chart-phasebar-name` | `#444` | `#bbb` |
-| `--color-chart-phasebar-duration` | `#555` | `#999` |
+| `--color-chart-phasebar-name` | `#444` | `oklch(0.9 0 0)` |
+| `--color-chart-phasebar-duration` | `#555` | `oklch(0.9 0 0)` |
+| `--color-chart-phasebar-drying` | `oklch(0.88 0.19 95)` | `oklch(0.95 0.2 100)` |
+| `--color-chart-phasebar-maillard` | `oklch(0.74 0.11 225)` | `oklch(0.84 0.09 225)` |
+| `--color-chart-phasebar-development` | `oklch(0.74 0.12 155)` | `oklch(0.84 0.11 155)` |
 | `--color-chart-tooltip-bg` | `#fff` | `#181d21` |
 | `--color-chart-tooltip-border` | `rgba(0, 0, 0, 0.08)` | `rgba(255, 255, 255, 0.1)` |
 | `--color-chart-axis-pointer` | `#64748b` | `#64748b` |
