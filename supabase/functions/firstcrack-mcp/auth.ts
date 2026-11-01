@@ -1,4 +1,5 @@
 export const READ_SCOPE = 'firstcrack:read';
+export const WRITE_SCOPE = 'firstcrack:write';
 export const READER_ROLE = 'firstcrack_mcp_data';
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -7,6 +8,7 @@ export type McpConfig = {
     issuer: string;
     clientIds: string[];
     allowedOrigins: string[];
+    writeEnabled?: boolean;
 };
 
 /** Disabled until a reviewed OAuth issuer, resource and client registration are ready. */
@@ -36,6 +38,7 @@ export function readMcpConfig(env: (key: string) => string | undefined): McpConf
             issuer: issuer.href.replace(/\/$/, ''),
             clientIds,
             allowedOrigins,
+            ...(env('FIRSTCRACK_MCP_WRITE_ENABLED') === 'true' ? { writeEnabled: true } : {}),
         };
     } catch {
         return null;
@@ -43,7 +46,7 @@ export function readMcpConfig(env: (key: string) => string | undefined): McpConf
 }
 
 export type VerifiedClaims = Record<string, unknown>;
-export type Principal = { userId: string; clientId: string; workspaceOwnerId: string };
+export type Principal = { userId: string; clientId: string; workspaceOwnerId: string; canWrite?: boolean };
 export type AuthResult =
     | { principal: Principal }
     | { status: 401 | 403; error: 'invalid_token' | 'insufficient_scope' };
@@ -75,7 +78,7 @@ export function authorizeClaims(claims: VerifiedClaims, config: McpConfig, now =
     )
         return { status: 401, error: 'invalid_token' };
 
-    if (typeof claims.scope !== 'string' || !claims.scope.split(/\s+/).includes(READ_SCOPE)) {
+    if (claims.scope !== READ_SCOPE && claims.scope !== `${READ_SCOPE} ${WRITE_SCOPE}`) {
         return { status: 403, error: 'insufficient_scope' };
     }
     return {
@@ -83,6 +86,7 @@ export function authorizeClaims(claims: VerifiedClaims, config: McpConfig, now =
             userId: claims.sub,
             clientId: claims.client_id,
             workspaceOwnerId: claims.firstcrack_workspace_owner_id,
+            ...(config.writeEnabled && claims.scope === `${READ_SCOPE} ${WRITE_SCOPE}` ? { canWrite: true } : {}),
         },
     };
 }

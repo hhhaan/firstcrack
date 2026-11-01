@@ -1,5 +1,5 @@
 import { privateKeyJwtError } from './client-auth.ts';
-import { type IssuerConfig, MCP_SCOPE } from './config.ts';
+import { type IssuerConfig, MCP_SCOPE, MCP_WRITE_SCOPE, MCP_WRITE_SCOPES } from './config.ts';
 import { digest, isOpaque, opaque, pkce } from './crypto.ts';
 
 export type JsonRecord = Record<string, unknown>;
@@ -30,7 +30,7 @@ export class IssuerService {
             revocation_endpoint: `${base}/revoke`,
             response_types_supported: ['code'],
             grant_types_supported: ['authorization_code', 'refresh_token'],
-            scopes_supported: [MCP_SCOPE],
+            scopes_supported: this.config.writeEnabled ? [MCP_SCOPE, MCP_WRITE_SCOPE] : [MCP_SCOPE],
             code_challenge_methods_supported: ['S256'],
             token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
             revocation_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
@@ -45,6 +45,11 @@ export class IssuerService {
         if (typeof result.error === 'string')
             throw new OAuthFailure(result.error, typeof result.status === 'number' ? result.status : 400);
         return result;
+    }
+    private scope(value: unknown, existingGrant = false) {
+        if (value === MCP_SCOPE || ((this.config.writeEnabled || existingGrant) && value === MCP_WRITE_SCOPES))
+            return value;
+        throw new OAuthFailure('invalid_scope');
     }
     private only(params: URLSearchParams, keys: string[], allowUnknown = false) {
         const names = [...new Set([...params.keys()])];
@@ -70,6 +75,7 @@ export class IssuerService {
             true,
         );
         const redirect = params.get('redirect_uri') ?? '';
+        const scope = this.scope(params.get('scope'));
         let target: URL;
         try {
             target = new URL(redirect);
@@ -82,7 +88,6 @@ export class IssuerService {
             target.password ||
             target.hash ||
             params.get('response_type') !== 'code' ||
-            params.get('scope') !== MCP_SCOPE ||
             params.get('resource') !== this.config.resource ||
             params.get('code_challenge_method') !== 'S256' ||
             !/^[A-Za-z0-9_-]{43}$/.test(params.get('code_challenge') ?? '') ||
@@ -97,6 +102,7 @@ export class IssuerService {
             redirect_uri: redirect,
             state: params.get('state'),
             challenge: params.get('code_challenge'),
+            scope,
         });
         if (typeof result.authorization_id !== 'string' || !idPattern.test(result.authorization_id))
             throw new Error('Invalid issuer storage result');
@@ -112,13 +118,21 @@ export class IssuerService {
             user: { id: identity.userId },
             workspaces: identity.workspaces,
             credential_kind: 'mcp_opaque_v1',
-            scope: MCP_SCOPE,
+            scope: this.scope(result.scope === undefined ? MCP_SCOPE : result.scope),
             issuer: this.config.issuer,
             resource: this.config.resource,
         };
     }
-    async decide(id: string, decision: string, owner: string | undefined, identity: NativeIdentity) {
+    async decide(
+        id: string,
+        decision: string,
+        owner: string | undefined,
+        identity: NativeIdentity,
+        allowWrite = false,
+    ) {
         if (!idPattern.test(id) || !['approve', 'deny'].includes(decision)) throw new OAuthFailure('invalid_request');
+        if (decision === 'approve' && allowWrite && !this.config.writeEnabled)
+            throw new OAuthFailure('access_denied', 403);
         if (
             decision === 'approve' &&
             (!owner || !idPattern.test(owner) || !identity.workspaces.some((workspace) => workspace.owner_id === owner))
@@ -130,6 +144,7 @@ export class IssuerService {
             user_id: identity.userId,
             workspace_owner_id: owner,
             code_hash: await digest(code),
+            allow_write: allowWrite,
         });
         if (typeof result.redirect_uri !== 'string' || typeof result.state !== 'string')
             throw new Error('Invalid issuer redirect result');
@@ -147,16 +162,29 @@ export class IssuerService {
         this.only(
             params,
             codeGrant
-                ? ['grant_type', 'client_id', 'code', 'redirect_uri', 'code_verifier', 'resource', 'client_assertion', 'client_assertion_type']
-                : ['grant_type', 'client_id', 'refresh_token', 'resource', 'scope', 'client_assertion', 'client_assertion_type'],
+                ? [
+                      'grant_type',
+                      'client_id',
+                      'code',
+                      'redirect_uri',
+                      'code_verifier',
+                      'resource',
+                      'client_assertion',
+                      'client_assertion_type',
+                  ]
+                : [
+                      'grant_type',
+                      'client_id',
+                      'refresh_token',
+                      'resource',
+                      'scope',
+                      'client_assertion',
+                      'client_assertion_type',
+                  ],
         );
         if (await privateKeyJwtError(params, [this.config.issuer, `${this.config.issuer}/token`]))
             throw new OAuthFailure('invalid_client', 401);
-        if (
-            !params.get('client_id') ||
-            params.get('resource') !== this.config.resource ||
-            (params.has('scope') && params.get('scope') !== MCP_SCOPE)
-        )
+        if (!params.get('client_id') || params.get('resource') !== this.config.resource)
             throw new OAuthFailure('invalid_request');
         const source = params.get(codeGrant ? 'code' : 'refresh_token') ?? '';
         if (!isOpaque(source, codeGrant ? 'code' : 'rt')) throw new OAuthFailure('invalid_grant');
@@ -171,6 +199,7 @@ export class IssuerService {
             challenge: codeGrant ? await pkce(verifier) : undefined,
             access_hash: await digest(access),
             refresh_hash: await digest(refresh),
+            ...(params.has('scope') ? { scope: this.scope(params.get('scope'), true) } : {}),
         });
         if (typeof result.expires_in !== 'number') throw new Error('Invalid token lifetime');
         return {
@@ -178,7 +207,7 @@ export class IssuerService {
             token_type: 'Bearer',
             expires_in: result.expires_in,
             refresh_token: refresh,
-            scope: MCP_SCOPE,
+            scope: this.scope(result.scope === undefined ? MCP_SCOPE : result.scope, true),
         };
     }
     async revoke(params: URLSearchParams) {

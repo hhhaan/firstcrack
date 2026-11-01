@@ -102,7 +102,7 @@ const server = Deno.serve({ hostname: '127.0.0.1', port: 0, onListen: () => {} }
     if (url.origin === project && url.pathname.startsWith('/functions/v1/firstcrack-oauth/')) return oauth(req);
     if (url.origin === 'https://identity.example') {
         const action = url.pathname.startsWith('/.well-known/') ? 'metadata' : (url.pathname.split('/').at(-1) ?? '');
-        return proxyIssuerRequest(req, action, { enabled: true, issuer, project }, fixtureFetch);
+        return proxyIssuerRequest(req, action, { enabled: true, writeEnabled: false, issuer, project }, fixtureFetch);
     }
     if (url.origin === 'https://resource.example') return mcp(req);
     if (url.origin !== project) return new Response('Unknown fixture', { status: 404 });

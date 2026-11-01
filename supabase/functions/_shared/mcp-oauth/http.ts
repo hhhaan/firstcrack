@@ -99,10 +99,14 @@ export function createIssuerHandler(deps: {
             if (!body || typeof body !== 'object' || Array.isArray(body)) throw new OAuthFailure('invalid_request');
             const args = body as Record<string, unknown>;
             const allowed =
-                path === '/decision' ? ['authorization_id', 'decision', 'workspace_owner_id'] : ['grant_id'];
+                path === '/decision'
+                    ? ['authorization_id', 'decision', 'workspace_owner_id', 'allow_write']
+                    : ['grant_id'];
             if (Object.keys(args).some((key) => !allowed.includes(key))) throw new OAuthFailure('invalid_request');
             if (path === '/revoke-grant') return json(await service.revokeGrant(String(args.grant_id ?? ''), identity));
             if (args.workspace_owner_id !== undefined && typeof args.workspace_owner_id !== 'string')
+                throw new OAuthFailure('invalid_request');
+            if (args.allow_write !== undefined && typeof args.allow_write !== 'boolean')
                 throw new OAuthFailure('invalid_request');
             return json(
                 await service.decide(
@@ -110,6 +114,7 @@ export function createIssuerHandler(deps: {
                     String(args.decision ?? ''),
                     args.workspace_owner_id as string | undefined,
                     identity,
+                    args.allow_write === true,
                 ),
             );
         } catch (error) {

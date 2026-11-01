@@ -2481,6 +2481,7 @@ export type Database = {
                 Returns: undefined;
             };
             revoke_org_invite: { Args: { p_invite_id: string }; Returns: undefined };
+            request_user_id: { Args: never; Returns: string };
             roast_deduction_blocked: {
                 Args: { p_reference_id: string };
                 Returns: boolean;

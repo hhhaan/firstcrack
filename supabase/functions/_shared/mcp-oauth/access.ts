@@ -6,6 +6,7 @@ import type { JsonRecord } from './service.ts';
 export type Gateway = {
     access(hash: string, issuer: string, resource: string): Promise<JsonRecord | null>;
     read(hash: string, issuer: string, resource: string, tool: string, args: JsonRecord): Promise<JsonRecord>;
+    write?(hash: string, issuer: string, resource: string, tool: string, args: JsonRecord): Promise<JsonRecord>;
 };
 export function opaqueDependencies(config: McpConfig, gateway: Gateway) {
     const hashFor = async (req: Request) => {
@@ -32,6 +33,13 @@ export function opaqueDependencies(config: McpConfig, gateway: Gateway) {
                     throw new ToolFailure('Pro 이상 요금제에서 연결할 수 있습니다.');
                 if (result.error) throw new ToolFailure('연결 권한이 만료되었거나 철회되었습니다. 다시 연결해 주세요.');
                 return { data: result.rows, error: null };
+            },
+        }),
+        writeClient: (req: Request) => ({
+            executeWrite: async (tool: string, args: JsonRecord) => {
+                const hash = await hashFor(req);
+                if (!hash || !config.writeEnabled || !gateway.write) return { error: 'insufficient_scope' };
+                return gateway.write(hash, config.issuer, config.resource, tool, args);
             },
         }),
     };
