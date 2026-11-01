@@ -1,4 +1,12 @@
-import { createBeanViaUi, expect, goNav, runRoastSaveWithDeduct, test } from '../fixtures/app';
+import {
+    createBeanViaUi,
+    expect,
+    goNav,
+    pickRoastSource,
+    roastSourceTrigger,
+    runRoastSaveWithDeduct,
+    test,
+} from '../fixtures/app';
 import { E2E_USER } from '../fixtures/constants';
 
 test.describe('2c roast save with stock deduct', () => {
@@ -22,10 +30,9 @@ test.describe('2c roast save with stock deduct', () => {
         const otherBean = db.seedBean({ name: '마라닉', origin: '', stockGrams: 10_000 });
         await page.reload();
         await goNav(page, 'roast');
-        await page
-            .locator('select')
-            .filter({ has: page.locator(`option[value="${bean.id}"]`) })
-            .selectOption(bean.id);
+        const source = roastSourceTrigger(page);
+        await pickRoastSource(page, 'Colombia · Santander');
+        await expect(source).toHaveAttribute('data-value', bean.id);
         await page.getByTestId('roast-ready').click();
         await page.getByTestId('roast-charge').click();
         const title = page.getByRole('textbox', { name: 'Roast title', exact: true });
@@ -48,24 +55,23 @@ test.describe('2c roast save with stock deduct', () => {
         await title.press('Enter');
         await expect(automaticTitle).toBeVisible();
         await page.screenshot({ path: testInfo.outputPath('bean-batch-title.png') });
-        const source = page.getByRole('combobox', { name: 'Green Bean', exact: true });
         await expect(source).toBeEnabled();
         await source.click();
         await source.press('Escape');
-        await source.selectOption(otherBean.id);
+        await pickRoastSource(page, '마라닉');
         const otherAutomaticTitle = page.getByRole('button', { name: '마라닉', exact: true });
         await expect(otherAutomaticTitle).toBeVisible();
         await otherAutomaticTitle.click();
         await title.fill('Morning production');
         await title.press('Tab');
         await expect(editedTitle).toBeVisible();
-        await source.selectOption(bean.id);
+        await pickRoastSource(page, 'Colombia · Santander');
         await expect(editedTitle).toBeVisible();
-        await source.selectOption(otherBean.id);
+        await pickRoastSource(page, '마라닉');
         await expect(editedTitle).toBeVisible();
         await page.evaluate(() => window.__FC_E2E__?.remountRoast?.());
         await expect(editedTitle).toBeVisible();
-        await expect(source).toHaveValue(otherBean.id);
+        await expect(source).toHaveAttribute('data-value', otherBean.id);
         await page.screenshot({ path: testInfo.outputPath('independent-title-and-source.png') });
 
         await page.getByTestId('roast-end').click();
@@ -85,7 +91,7 @@ test.describe('2c roast save with stock deduct', () => {
         authedPage: page,
         db,
     }, testInfo) => {
-        const bean = db.seedBean({ name: 'Lot', origin: '', stockGrams: 10_000 });
+        db.seedBean({ name: 'Lot', origin: '', stockGrams: 10_000 });
         let counterReads = 0;
         page.on('request', (request) => {
             if (request.url().endsWith('/rpc/get_roast_batch_counters')) counterReads += 1;
@@ -106,7 +112,7 @@ test.describe('2c roast save with stock deduct', () => {
         );
         await page.reload();
         await goNav(page, 'roast');
-        await page.getByRole('combobox', { name: 'Green Bean', exact: true }).selectOption(bean.id);
+        await pickRoastSource(page, 'Lot');
         const selectProfile = async (name: string) => {
             await page.getByRole('button', { name: 'Target:', exact: true }).click();
             await page.getByRole('button', { name, exact: true }).click();

@@ -11,9 +11,9 @@ import { useRoastSettings } from '@features/active-roast/model/settings';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
-import { ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type BeanSourceGroup, BeanSourceMenu } from './BeanSourceMenu';
 import { RoastTitleEditor } from './RoastTitleEditor';
 import { TargetMenu } from './TargetMenu';
 
@@ -156,6 +156,11 @@ export const RoastHeader = ({
         } else handleBeanChange(value || null);
         setPendingSource(null);
     };
+    const selectSource = (value: string) => {
+        if (!canSelectSource) return;
+        if (charged && scheduled) setPendingSource({ value, sessionId });
+        else applySource(value);
+    };
 
     const selectedBlend = blends.find((b) => b.id === selectedBlendId);
     const selectedBean = beans.find((b) => b.id === selectedBeanId);
@@ -163,7 +168,7 @@ export const RoastHeader = ({
         ? selectedBlend.name
         : selectedBean
           ? joinDisplay([selectedBean.origin, selectedBean.region], ' ') || selectedBean.name
-          : (fallbackBeanName ?? 'No Bean Selected');
+          : (fallbackBeanName ?? t('activeRoast.header.noBeanSelected'));
     const sourceDisplayName = selectedBlend || selectedBean ? beanTitle : (fallbackBeanName ?? null);
     const liveTitleName = batchTitleSource === 'profile' ? selectedProfileName || sourceDisplayName : sourceDisplayName;
     const batchTitle =
@@ -193,6 +198,26 @@ export const RoastHeader = ({
         ? joinDisplay([selectedBean.farm, selectedBean.variety, selectedBean.process]) ||
           (selectedBean.name !== beanTitle ? selectedBean.name : '')
         : '';
+    const selectedSource = selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '');
+    const sourceGroups: BeanSourceGroup[] = [];
+    if (sourceCandidates.length > 1)
+        sourceGroups.push({
+            label: t('activeRoast.header.profileSources'),
+            items: sourceCandidates.map((source) => ({
+                value: source.blendId ? `blend:${source.blendId}` : (source.beanId ?? ''),
+                label: source.name,
+            })),
+        });
+    if (visibleBeans.length)
+        sourceGroups.push({
+            label: t('newProfileModal.singleOrigin'),
+            items: visibleBeans.map((bean) => ({ value: bean.id, label: beanOptionDisplay(bean) })),
+        });
+    if (blends.length)
+        sourceGroups.push({
+            label: t('newProfileModal.blend'),
+            items: blends.map((blend) => ({ value: `blend:${blend.id}`, label: blend.name })),
+        });
     const defaultProfileId = userProfile?.default_roast_profile_id;
     const sortedProfiles = dbProfiles
         .filter((profile) => profile.id === targetProfileId || !profileVisibility.hidden.has(profile.id))
@@ -230,52 +255,12 @@ export const RoastHeader = ({
                     )}
 
                     {!review && (
-                        <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded focus-within:outline-2 focus-within:outline-(--color-primary)">
-                            <select
-                                aria-label={t('activeRoast.summary.bean')}
-                                value={selectedBlendId ? `blend:${selectedBlendId}` : (selectedBeanId ?? '')}
-                                onChange={(e) => {
-                                    if (!canSelectSource) return;
-                                    const value = e.target.value;
-                                    if (charged && scheduled) setPendingSource({ value, sessionId });
-                                    else applySource(value);
-                                }}
-                                disabled={!canSelectSource}
-                                className="absolute inset-0 h-full w-full opacity-0 appearance-none bg-transparent border-none outline-none text-[14px] cursor-pointer disabled:cursor-default"
-                            >
-                                <option value="">No Bean Selected</option>
-                                {sourceCandidates.length > 1 && (
-                                    <optgroup label={t('activeRoast.header.profileSources')}>
-                                        {sourceCandidates.map((source) => (
-                                            <option
-                                                key={source.blendId ? `blend:${source.blendId}` : source.beanId}
-                                                value={
-                                                    source.blendId ? `blend:${source.blendId}` : (source.beanId ?? '')
-                                                }
-                                            >
-                                                {source.name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                )}
-                                <optgroup label={t('newProfileModal.singleOrigin')}>
-                                    {visibleBeans.map((b) => (
-                                        <option key={b.id} value={b.id}>
-                                            {beanOptionDisplay(b)}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                                <optgroup label={t('newProfileModal.blend')}>
-                                    {blends.map((b) => (
-                                        <option key={b.id} value={`blend:${b.id}`}>
-                                            {b.name}
-                                        </option>
-                                    ))}
-                                </optgroup>
-                            </select>
-
-                            <ChevronDown size={18} className="pointer-events-none text-muted" />
-                        </div>
+                        <BeanSourceMenu
+                            disabled={!canSelectSource}
+                            value={selectedSource}
+                            groups={sourceGroups}
+                            onSelect={selectSource}
+                        />
                     )}
                 </div>
 

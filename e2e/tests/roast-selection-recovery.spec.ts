@@ -1,4 +1,4 @@
-import { createBeanViaUi, expect, goNav, test } from '../fixtures/app';
+import { createBeanViaUi, expect, goNav, pickRoastSource, roastSourceTrigger, test } from '../fixtures/app';
 import { E2E_USER } from '../fixtures/constants';
 
 test('running bean and reference survive a roast-screen remount', async ({ authedPage: page, db }) => {
@@ -26,9 +26,9 @@ test('running bean and reference survive a roast-screen remount', async ({ authe
     await page.reload();
     await expect(page.getByTestId('app-sidebar')).toBeVisible();
     await goNav(page, 'roast');
-    const beans = page.locator('select:visible').filter({ has: page.locator(`option[value="${bean.id}"]`) });
+    const beans = roastSourceTrigger(page);
     const target = page.getByRole('button', { name: 'Target:' });
-    await beans.selectOption(bean.id);
+    await pickRoastSource(page, 'Recovery Lot');
     await target.click();
     await page.getByRole('button', { name: 'Recovery Reference', exact: true }).click();
     await expect(target).toContainText('Recovery Reference');
@@ -36,7 +36,7 @@ test('running bean and reference survive a roast-screen remount', async ({ authe
     await page.evaluate(() => window.__FC_E2E__?.forceChargedSession());
     await expect(beans).toBeDisabled();
     await page.evaluate(() => window.__FC_E2E__?.remountRoast?.());
-    await expect(beans).toHaveValue(bean.id);
+    await expect(beans).toHaveAttribute('data-value', bean.id);
     await expect(beans).toBeDisabled();
     await expect(target).toContainText('Recovery Reference');
     await expect(page.getByTestId('roast-end')).toBeEnabled();

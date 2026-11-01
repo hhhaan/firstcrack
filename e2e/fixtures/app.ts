@@ -34,6 +34,15 @@ export async function goNav(page: Page, view: string) {
     await page.getByTestId(`nav-${view}`).click();
 }
 
+export function roastSourceTrigger(page: Page) {
+    return page.getByRole('button', { name: 'Green Bean', exact: true });
+}
+
+export async function pickRoastSource(page: Page, label: string) {
+    await roastSourceTrigger(page).click();
+    await page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click();
+}
+
 export async function createBeanViaUi(page: Page, name: string, stockKg: string) {
     await goNav(page, 'beans');
     await page.getByTestId('beans-add-lot').click();

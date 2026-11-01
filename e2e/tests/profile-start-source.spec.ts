@@ -1,4 +1,4 @@
-import { expect, goNav, test } from '../fixtures/app';
+import { expect, goNav, roastSourceTrigger, test } from '../fixtures/app';
 import { E2E_USER } from '../fixtures/constants';
 
 for (const origin of ['registered', 'historical'] as const) {
@@ -60,9 +60,9 @@ for (const origin of ['registered', 'historical'] as const) {
                 await choices.getByRole('button', { name: 'Registered Blend' }).click();
             }
 
-            const source = page.getByRole('combobox', { name: 'Green Bean', exact: true });
+            const source = roastSourceTrigger(page);
             await expect(source).toBeVisible();
-            await expect(source).toHaveValue(kind === 'bean' ? bean.id : `blend:${blend.id}`);
+            await expect(source).toHaveAttribute('data-value', kind === 'bean' ? bean.id : `blend:${blend.id}`);
             await expect(page.getByRole('button', { name: 'Target:' })).toHaveText('Registered Profile');
             if (kind !== 'bean')
                 await expect(page.getByText('Registered Blend', { exact: true }).first()).toBeVisible();

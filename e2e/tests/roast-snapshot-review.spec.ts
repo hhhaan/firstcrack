@@ -1,4 +1,4 @@
-import { createBeanViaUi, expect, runRoastSaveWithDeduct, test } from '../fixtures/app';
+import { createBeanViaUi, expect, roastSourceTrigger, runRoastSaveWithDeduct, test } from '../fixtures/app';
 
 test('a saved roast stays on its curve until the operator returns to charge wait', async ({ authedPage: page, db }) => {
     await createBeanViaUi(page, 'Review bean', '10');
@@ -8,7 +8,7 @@ test('a saved roast stays on its curve until the operator returns to charge wait
     await expect(page.getByTestId('roast-charge')).toHaveCount(0);
     await expect(page.getByTestId('history-detail')).toHaveCount(0);
     await expect(page.getByTestId('bbp-target-status')).toHaveCount(0);
-    await expect(page.getByRole('combobox', { name: 'Green Bean', exact: true })).toBeDisabled();
+    await expect(roastSourceTrigger(page)).toBeDisabled();
     const original = { ...db.sessions[0] };
     const title = page.locator('button[title="Roast title"]');
     await title.click();
