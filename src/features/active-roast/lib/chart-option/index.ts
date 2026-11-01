@@ -123,11 +123,12 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         fontScale: fontScaleRaw,
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
+        targetCurveTone = 'color',
     } = paper;
     const report = print || configuredReport;
     const mergeControlChart = !print && configuredMergeControlChart;
     const controlChartHeightPct = print ? 24 : configuredControlChartHeightPct;
-    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
+    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors), targetCurveTone, colors.reference);
     if (print) for (const curve of Object.values(curves)) curve.current.type = 'solid';
 
     const fontScale = chartFontScale(fontScaleRaw);

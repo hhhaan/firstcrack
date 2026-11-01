@@ -5,7 +5,7 @@ import {
     MARKER_LABEL_LEADER_Y_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
-    REFERENCE_CURVE_OPACITY,
+    REFERENCE_EVENT_OPACITY,
 } from '@features/active-roast/lib/chart-config';
 
 import { describe, expect, it } from 'vitest';
@@ -76,7 +76,7 @@ it.each(['0%', '60%', '2.5 kPa'])('draws original reference heat events for %s w
             xAxis: 630,
             lineStyle: expect.objectContaining({
                 color: colors.eventControl,
-                opacity: REFERENCE_CURVE_OPACITY,
+                opacity: REFERENCE_EVENT_OPACITY,
                 type: 'solid',
             }),
         }),
@@ -86,7 +86,7 @@ it.each(['0%', '60%', '2.5 kPa'])('draws original reference heat events for %s w
             timeSec: 630,
             y: 204,
             color: colors.eventControl,
-            opacity: REFERENCE_CURVE_OPACITY,
+            opacity: REFERENCE_EVENT_OPACITY,
             text: `${note}|10:30|204.0°C`,
         }),
     );
@@ -104,7 +104,7 @@ it.each([false, true])('renders event text and points with source opacity (refer
         { dataIndex: 0, coordSys: { x: 0, y: 0, width: 400, height: 300 } },
         { coord: () => [120, 100], getWidth: () => 440 },
     );
-    const style = { fill: colors.eventControl, opacity: reference ? REFERENCE_CURVE_OPACITY : 1 };
+    const style = { fill: colors.eventControl, opacity: reference ? REFERENCE_EVENT_OPACITY : 1 };
     expect(rendered?.children).toEqual([
         expect.objectContaining({ type: 'circle', style: expect.objectContaining(style) }),
         expect.objectContaining({

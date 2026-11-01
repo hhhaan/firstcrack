@@ -21,8 +21,10 @@ export const TEMP_CURVE_WIDTH = 2;
 export const CONTROL_CURVE_WIDTH = 2;
 /** Vertical guides for heater, roast events, notes, and turning points. */
 export const EVENT_MARK_LINE_WIDTH = 1;
-/** Stored reference/profile curves fade to a translucent gray so they read as background. */
-export const REFERENCE_CURVE_OPACITY = 0.3;
+/** Stored reference/profile curves. Channel color or gray, both at this opacity. */
+export const REFERENCE_CURVE_OPACITY = 0.2;
+/** Reference event guides, labels, and dots. Curves use {@link REFERENCE_CURVE_OPACITY}. */
+export const REFERENCE_EVENT_OPACITY = 0.3;
 export const PHASE_BAR_FONT_SIZE = 10;
 export const PHASE_BAR_FONT_SIZE_NARROW = 9;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';

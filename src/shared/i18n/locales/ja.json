@@ -544,7 +544,13 @@
                 "alertAfterDrop": "排出後",
                 "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。",
                 "curveStyles": "カーブスタイル",
-                "curveStylesDescription": "チャンネルごとの色・太さ・線種。ターゲットカーブは同じスタイルを薄く表示。ロースト画面と履歴チャートに適用。",
+                "curveStylesDescription": "チャンネルごとの色・太さ・線種。ターゲットカーブはチャンネル色かグレーで薄く表示。ロースト画面と履歴チャートに適用。",
+                "targetCurveTone": "ターゲットカーブ",
+                "targetCurveToneDescription": "ライブ曲線の背後にあるプロファイル線。チャンネル色かグレー、どちらも同じ透明度。",
+                "targetCurveToneValue": {
+                    "color": "チャンネル色",
+                    "gray": "グレー"
+                },
                 "curveStyleChannel": "チャンネル",
                 "curveStyleChannelBt": "BT",
                 "curveStyleChannelEt": "ET",

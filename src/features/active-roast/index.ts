@@ -15,6 +15,8 @@ export {
     CURVE_WIDTH_MIN,
     type CurveChannel,
     type CurveLineType,
+    TARGET_CURVE_TONES,
+    type TargetCurveTone,
 } from './lib/curve-style';
 export { firescopeTemperatureUnit, mapFirescopeGraphSettings } from './lib/firescope-settings';
 export type { PhaseSegment } from './lib/phases';

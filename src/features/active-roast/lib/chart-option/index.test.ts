@@ -1262,7 +1262,7 @@ describe('buildRoastChartOption', () => {
         return byName;
     };
 
-    it('draws stored reference channels as the parent curve at 30% opacity without filling gaps', () => {
+    it('draws stored reference channels as the parent curve at reference opacity without filling gaps', () => {
         const byName = seriesByName({ ...baseParams(), ...fullReference });
         expect(byName['ET Target']).toMatchObject({
             connectNulls: false,
@@ -1374,7 +1374,7 @@ describe('buildRoastChartOption', () => {
         const svg = chart.renderToSVGString();
         chart.dispose();
         expect(svg).toContain('#123456');
-        expect(svg).toContain('stroke-opacity="0.3"');
+        expect(svg).toContain('stroke-opacity="0.2"');
         expect(svg).toContain('stroke-dasharray');
     });
 
@@ -1393,6 +1393,18 @@ describe('buildRoastChartOption', () => {
             color: '#ff0000',
             width: TEMP_CURVE_WIDTH,
             type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
+        const gray = seriesByName({ ...baseParams(), ...fullReference, curveStyles, targetCurveTone: 'gray' });
+        expect(gray['BT Actual']?.lineStyle).toEqual({ color: '#ff0000', width: TEMP_CURVE_WIDTH, type: 'solid' });
+        expect(gray['BT Target']?.lineStyle).toEqual({
+            color: mockColors.reference,
+            width: TEMP_CURVE_WIDTH,
+            type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
+        expect(gray['Heater Target']?.lineStyle).toMatchObject({
+            color: mockColors.reference,
             opacity: REFERENCE_CURVE_OPACITY,
         });
         expect(styled['RoR Target']?.lineStyle).toEqual({

@@ -360,7 +360,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const chartInstanceRef = useRef<echarts.ECharts | null>(null);
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const roastSettings = useRoastSettings();
-    const { curveStyles } = roastSettings;
+    const { curveStyles, targetCurveTone } = roastSettings;
     const curves = useCurveStyles();
     const fontScale = roastSettings.fontScalePct / 100;
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
@@ -494,6 +494,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 fontScale,
                 colors,
                 curveStyles,
+                targetCurveTone,
             }),
         [
             report,
@@ -548,6 +549,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             hideChargeLabel,
             fontScale,
             curveStyles,
+            targetCurveTone,
         ],
     );
 

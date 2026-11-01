@@ -1,5 +1,5 @@
 import type { getResolvedChartColors } from '@features/active-roast/lib/chart-config';
-import type { CurveStyles } from '@features/active-roast/lib/curve-style';
+import type { CurveStyles, TargetCurveTone } from '@features/active-roast/lib/curve-style';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import type { ReadUnits } from '@shared/types/sidecar';
 import type { EventMarkerStyle, RoastSettings, TemperatureUnit } from '../../model/settings';
@@ -115,4 +115,6 @@ export interface ChartOptionParams {
     colors: ResolvedChartColors;
     /** User line styles. Omitted = DESIGN.md defaults. */
     curveStyles?: CurveStyles;
+    /** Target profile color. Omitted keeps each channel's color at reference opacity. */
+    targetCurveTone?: TargetCurveTone;
 }

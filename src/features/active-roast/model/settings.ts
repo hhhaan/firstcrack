@@ -12,6 +12,7 @@ import {
     type CurveChannel,
     type CurveChannelStyle,
     DEFAULT_CURVE_STYLES,
+    isTargetCurveTone,
     normalizeCurveStyles,
 } from '../lib/curve-style';
 import { DEFAULT_EVENT_BUTTONS, normalizeEventButtons } from '../lib/event-buttons';
@@ -129,6 +130,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     eventButtons: DEFAULT_EVENT_BUTTONS,
     manualControls: [...DEFAULT_MANUAL_CONTROLS],
     curveStyles: DEFAULT_CURVE_STYLES,
+    targetCurveTone: 'color',
     tempMinC: 130,
     tempMaxC: 240,
     tempLabelInterval: 50,
@@ -393,6 +395,9 @@ export const normalizeRoastSettings = (
         totalBatchPrefix: normalizeTotalBatchPrefix(merged.totalBatchPrefix),
         // curveStyles: invalid per-field values fall back to channel defaults (see normalizeCurveStyles), not prior settings.
         curveStyles: normalizeCurveStyles(merged.curveStyles),
+        targetCurveTone: isTargetCurveTone(merged.targetCurveTone)
+            ? merged.targetCurveTone
+            : DEFAULT_SETTINGS.targetCurveTone,
         showControlDrum: asBool(merged.showControlDrum, DEFAULT_SETTINGS.showControlDrum),
         showControlHeat: asBool(merged.showControlHeat, DEFAULT_SETTINGS.showControlHeat),
         showControlFan: asBool(merged.showControlFan, DEFAULT_SETTINGS.showControlFan),
@@ -561,7 +566,8 @@ export const updateCurveStyle = (channel: CurveChannel, patch: Partial<CurveChan
     });
 };
 
-export const resetCurveStyles = () => updateRoastSettings({ curveStyles: DEFAULT_CURVE_STYLES });
+export const resetCurveStyles = () =>
+    updateRoastSettings({ curveStyles: DEFAULT_CURVE_STYLES, targetCurveTone: 'color' });
 
 export const useRoastSettings = () => useSyncExternalStore(_subscribe, _getSnapshot);
 

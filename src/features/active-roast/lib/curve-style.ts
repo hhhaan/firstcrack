@@ -13,6 +13,14 @@ export type CurveChannel = (typeof CURVE_CHANNELS)[number];
 export const CURVE_LINE_TYPES = ['solid', 'dashed', 'dotted'] as const;
 export type CurveLineType = (typeof CURVE_LINE_TYPES)[number];
 
+/** Target profile stroke. `color` copies the live channel. `gray` is the axis-label gray. Both stay at reference opacity. */
+export const TARGET_CURVE_TONES = ['color', 'gray'] as const;
+export type TargetCurveTone = (typeof TARGET_CURVE_TONES)[number];
+
+export const isTargetCurveTone = (value: unknown): value is TargetCurveTone => value === 'color' || value === 'gray';
+
+const CSS_TARGET_GRAY = 'var(--color-chart-axis-label)';
+
 export const CURVE_WIDTH_MIN = 1;
 export const CURVE_WIDTH_MAX = 6;
 
@@ -101,15 +109,20 @@ export type CurveLineStyle = { color: string; width: number; type: CurveLineType
 export type ResolvedCurveStyle = { current: CurveLineStyle; background: CurveLineStyle };
 export type ResolvedCurveStyles = Record<CurveChannel, ResolvedCurveStyle>;
 
-/** Theme color per channel. The target curve inherits this color at {@link REFERENCE_CURVE_OPACITY}. */
+/** Theme color per channel. The target curve uses this color, or gray, at {@link REFERENCE_CURVE_OPACITY}. */
 export type CurveTokenColors = Record<CurveChannel, { current: string }>;
 
 /**
  * The single source for curve color, width, and dash. Lines, legends, tooltips,
  * and value readouts must all read from this so they never drift apart.
- * The target copies the current curve and draws it at 30% opacity.
+ * The target copies width and line type. Its color is the live channel, or `gray`, at reference opacity.
  */
-export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors): ResolvedCurveStyles =>
+export const resolveCurveStyles = (
+    styles: CurveStyles,
+    tokens: CurveTokenColors,
+    tone: TargetCurveTone = 'color',
+    gray = CSS_TARGET_GRAY,
+): ResolvedCurveStyles =>
     Object.fromEntries(
         CURVE_CHANNELS.map((channel) => {
             const style = styles[channel];
@@ -122,7 +135,11 @@ export const resolveCurveStyles = (styles: CurveStyles, tokens: CurveTokenColors
                 channel,
                 {
                     current,
-                    background: { ...current, opacity: REFERENCE_CURVE_OPACITY },
+                    background: {
+                        ...current,
+                        color: tone === 'gray' ? gray : current.color,
+                        opacity: REFERENCE_CURVE_OPACITY,
+                    },
                 },
             ];
         }),

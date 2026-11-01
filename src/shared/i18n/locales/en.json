@@ -544,7 +544,13 @@
                 "alertAfterDrop": "After drop",
                 "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast.",
                 "curveStyles": "Curve Styles",
-                "curveStylesDescription": "Color, width, and line style per channel. Target curves use the same style at reduced opacity. Applies to Active Roast and History.",
+                "curveStylesDescription": "Color, width, and line style per channel. Target curves use the channel color or gray, both faded. Applies to Active Roast and History.",
+                "targetCurveTone": "Target curve",
+                "targetCurveToneDescription": "Profile line behind the live curve. Channel color or gray, both at the same opacity.",
+                "targetCurveToneValue": {
+                    "color": "Channel color",
+                    "gray": "Gray"
+                },
                 "curveStyleChannel": "Channel",
                 "curveStyleChannelBt": "BT",
                 "curveStyleChannelEt": "ET",

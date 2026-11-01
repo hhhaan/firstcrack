@@ -12,7 +12,7 @@ import {
     MARKER_LABEL_MIN_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     MARKER_LABEL_X_OFFSET_PX,
-    REFERENCE_CURVE_OPACITY,
+    REFERENCE_EVENT_OPACITY,
     scaleChartPx,
 } from '@features/active-roast/lib/chart-config';
 import { controlChangeLabel, formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -496,7 +496,7 @@ export const buildCurveLabels = ({
                         marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
                     ),
                     color: (isControlEvent(marker.event) ? colors?.eventControl : colors?.markerLabelColor) ?? '',
-                    opacity: marker.reference ? REFERENCE_CURVE_OPACITY : 1,
+                    opacity: marker.reference ? REFERENCE_EVENT_OPACITY : 1,
                     below: labelAtTop || ['TP', 'Drop', 'End'].includes(marker.event),
                     showDot: marker.event !== 'Charge' && showDot && onCurve != null,
                     labelAtTop,
@@ -598,7 +598,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
             color: markerColor(m.event),
             width: EVENT_MARK_LINE_WIDTH,
             type: 'solid' as const,
-            opacity: m.reference ? REFERENCE_CURVE_OPACITY : 1,
+            opacity: m.reference ? REFERENCE_EVENT_OPACITY : 1,
         },
         label: { show: false },
     }));

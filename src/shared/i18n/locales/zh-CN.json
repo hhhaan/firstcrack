@@ -544,7 +544,13 @@
                 "alertAfterDrop": "下豆后",
                 "alertAfterDropDescription": "Drop 后经过该分钟数时提醒。计时器持续到结束烘焙。",
                 "curveStyles": "曲线样式",
-                "curveStylesDescription": "各通道的颜色、粗细和线型。目标曲线沿用相同样式并降低不透明度，同时应用于烘焙界面和历史图表。",
+                "curveStylesDescription": "各通道的颜色、粗细和线型。目标曲线可用通道色或灰色，并以相同透明度变淡，同时应用于烘焙界面和历史图表。",
+                "targetCurveTone": "目标曲线",
+                "targetCurveToneDescription": "实时曲线背后的配置曲线。通道色或灰色，透明度相同。",
+                "targetCurveToneValue": {
+                    "color": "通道色",
+                    "gray": "灰色"
+                },
                 "curveStyleChannel": "通道",
                 "curveStyleChannelBt": "BT",
                 "curveStyleChannelEt": "ET",

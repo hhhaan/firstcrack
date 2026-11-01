@@ -92,7 +92,7 @@ const controlMarks = (
     };
 };
 
-/** Stored reference behind the live curve. Same stroke as the live curve, at 30% opacity. Gaps stay broken. */
+/** Stored reference behind the live curve. Same stroke as the live curve, at reference opacity. Gaps stay broken. */
 const referenceLineSeries = (
     name: string,
     xs: number[],
