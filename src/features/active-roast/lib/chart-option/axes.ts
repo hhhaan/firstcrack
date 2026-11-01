@@ -287,7 +287,7 @@ export const applyPrintAxes = (
         axis.nameGap = 26;
         axis.nameTextStyle = font;
         axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: true, hideOverlap: true };
-        if (index === 1 && axis.type === 'value') axis.interval = unit === 'F' ? 20 : 10;
+        if (index === 1 && axis.type === 'value') axis.interval = 10;
         if (axis.splitLine?.show) {
             axis.splitLine = {
                 ...axis.splitLine,
