@@ -10,6 +10,7 @@ import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
 import * as echarts from 'echarts';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../curve-style';
+import { toDisplayRoR } from '../temperature';
 import { mockChartColors as mockColors } from './chart-colors.fixture';
 import { buildRoastChartOption } from './index';
 import type { ChartOptionParams, ControlData } from './types';
@@ -85,7 +86,7 @@ it('prints each recorded control in its own plot while keeping screen controls i
     ]);
     expect(screenSeries.map((series) => series.name)).toEqual(expect.arrayContaining(['Drum', 'Heat', 'Fan']));
     expect(paper.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 600 })]));
-    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
+    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 40, interval: 10 })]));
     for (const name of ['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Heat set', 'Fan', 'Drum']) {
         expect(paperSeries.find((series) => series.name === name)).toMatchObject({ lineStyle: { type: 'solid' } });
     }
@@ -98,7 +99,9 @@ it('prints each recorded control in its own plot while keeping screen controls i
         ]),
     );
     const fahrenheit = buildRoastChartOption({ ...params, print: true, temperatureUnit: 'F' });
-    expect(fahrenheit.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 40 })]));
+    expect(fahrenheit.yAxis).toEqual(
+        expect.arrayContaining([expect.objectContaining({ min: 0, max: 40, interval: 20 })]),
+    );
     expect(paperSeries.find((series) => series.name === 'BT Actual')).toMatchObject({
         data: [
             [0, 190],
@@ -107,6 +110,65 @@ it('prints each recorded control in its own plot while keeping screen controls i
             [640, 180],
         ],
     });
+});
+
+it.each(['C', 'F'] as const)(
+    'prints readable positive RoR in °%s without changing the samples or screen axes',
+    (unit) => {
+        for (const controls of [false, true]) {
+            const xs = [-30, 0, 30, 60, 300, 330];
+            const params: ChartOptionParams = {
+                ...baseParams(),
+                temperatureUnit: unit,
+                xs,
+                btActual: [200, 195, 140, 100, 210, 190],
+                rorActual: [999, -140, -18, 14, 8, 800].map((value) => toDisplayRoR(value, unit)),
+                rorEtActual: [999, -145, -20, 22, 7, 900].map((value) => toDisplayRoR(value, unit)),
+                eventMarkers: [{ event: 'Drop', timeSec: 300, timeStr: '5:00', temp: '210°C', color: '#777' }],
+                controlData: controls
+                    ? { xs, drumTemp: [], heatPower: [], fanSpeed: [30, 30, 30, 30, 30, 30] }
+                    : undefined,
+            };
+            const paper = buildRoastChartOption({ ...params, print: true });
+            const screen = buildRoastChartOption(params);
+            expect(paper.yAxis).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        position: 'right',
+                        min: 0,
+                        max: unit === 'F' ? 40 : 30,
+                        interval: unit === 'F' ? 20 : 10,
+                        axisLabel: expect.objectContaining({ hideOverlap: true }),
+                    }),
+                ]),
+            );
+            expect(screen.yAxis).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        position: 'right',
+                        min: toDisplayRoR(-5, unit),
+                        max: toDisplayRoR(20, unit),
+                    }),
+                ]),
+            );
+            const series = Array.isArray(paper.series) ? paper.series : [];
+            expect(series.find((item) => item.name === 'RoR')?.data).toEqual(
+                xs.map((t, i) => [t, params.rorActual[i]]),
+            );
+            expect(series.find((item) => item.name === 'ET RoR')?.data).toEqual(
+                xs.map((t, i) => [t, params.rorEtActual[i]]),
+            );
+        }
+    },
+);
+
+it.each([
+    { label: 'empty', rorActual: [] },
+    { label: 'missing or invalid', rorActual: [null, Number.NaN, Number.POSITIVE_INFINITY] },
+    { label: 'negative or zero', rorActual: [-140, -18, 0] },
+])('keeps a usable print RoR scale with $label samples', ({ rorActual }) => {
+    const paper = buildRoastChartOption({ ...baseParams(), print: true, xs: [0, 30, 60], rorActual });
+    expect(paper.yAxis).toMatchObject([{}, { min: 0, max: 10, interval: 10 }]);
 });
 
 it.each([true, false])('prints major roast events including TP (stored TP: %s)', (storedTp) => {
