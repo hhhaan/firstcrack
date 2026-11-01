@@ -4,18 +4,26 @@ vi.mock('@tauri-apps/api/core', () => ({
     invoke: vi.fn().mockResolvedValue('test-token'),
 }));
 
-const { captureSidecar } = vi.hoisted(() => ({ captureSidecar: vi.fn() }));
+const { captureSidecar, captureReady } = vi.hoisted(() => ({ captureSidecar: vi.fn(), captureReady: vi.fn() }));
 vi.mock('./sentry', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./sentry')>();
-    return { ...actual, captureSidecarRequestFailure: captureSidecar, isSentryEnabled: true };
+    return {
+        ...actual,
+        captureSidecarRequestFailure: captureSidecar,
+        captureSidecarReadinessFailure: captureReady,
+        isSentryEnabled: true,
+    };
 });
 
-import { SidecarHttpError, sidecar, subscribeSidecarSettings } from './sidecar';
+let { SidecarHttpError, sidecar, subscribeSidecarSettings } = await import('./sidecar');
 
 describe('sidecar.waitUntilReady', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
+        vi.resetModules();
+        ({ SidecarHttpError, sidecar, subscribeSidecarSettings } = await import('./sidecar'));
         vi.useFakeTimers();
-        captureSidecar.mockClear();
+        captureSidecar.mockReset();
+        captureReady.mockReset();
     });
 
     afterEach(() => {
@@ -116,14 +124,24 @@ describe('sidecar.waitUntilReady', () => {
         expect(captureSidecar).not.toHaveBeenCalled();
     });
 
-    it('reports once when the startup retry budget is exhausted without Sentry noise', async () => {
+    it('reports one final readiness failure when concurrent callers exhaust the startup budget', async () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Load failed')));
 
-        const result = expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'network', route: '/status' });
+        const pending = sidecar.waitUntilReady();
+        expect(sidecar.waitUntilReady()).toBe(pending);
+        const result = expect(pending).rejects.toMatchObject({ status: 'network', route: '/status' });
         await vi.advanceTimersByTimeAsync(30_000);
 
         await result;
         expect(captureSidecar).not.toHaveBeenCalled();
+        expect(captureReady).toHaveBeenCalledExactlyOnceWith({
+            episode: 1,
+            attempts: 76,
+            elapsedMs: 30_000,
+            previouslyReady: false,
+            status: 'network',
+            errorType: 'SidecarHttpError',
+        });
     });
 
     it('does not retry on request timeout (matches main — only opaque spawn failures retry)', async () => {
@@ -134,7 +152,7 @@ describe('sidecar.waitUntilReady', () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not retry or report 2xx with malformed JSON (waitUntilReady)', async () => {
+    it('reports malformed ready responses without retrying or replacing the error', async () => {
         const fetchMock = vi
             .fn()
             .mockResolvedValue(
@@ -144,6 +162,9 @@ describe('sidecar.waitUntilReady', () => {
 
         await expect(sidecar.waitUntilReady()).rejects.toBeInstanceOf(SyntaxError);
         expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(captureReady).toHaveBeenCalledWith(
+            expect.objectContaining({ status: 'unknown', errorType: 'SyntaxError', attempts: 1 }),
+        );
         expect(captureSidecar).not.toHaveBeenCalled();
     });
 
@@ -158,5 +179,73 @@ describe('sidecar.waitUntilReady', () => {
         await expect(sidecar.connect('virtual', {})).rejects.toBeInstanceOf(SyntaxError);
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(captureSidecar).not.toHaveBeenCalled();
+    });
+    it('reports once per outage and records a prior successful readiness check', async () => {
+        const fetchMock = vi.fn().mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+        vi.stubGlobal('fetch', fetchMock);
+        await expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'timeout', sentryReported: true });
+        await expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'timeout', sentryReported: true });
+        expect(captureReady).toHaveBeenCalledTimes(1);
+        fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ connected: false })));
+        await expect(sidecar.waitUntilReady()).resolves.toMatchObject({ connected: false });
+        await expect(sidecar.waitUntilReady()).rejects.toMatchObject({ status: 'timeout', sentryReported: true });
+        expect(captureReady).toHaveBeenCalledTimes(2);
+        expect(captureReady).toHaveBeenLastCalledWith(
+            expect.objectContaining({ episode: 2, previouslyReady: true, attempts: 1 }),
+        );
+    });
+
+    it('does not report an aborted readiness wait', async () => {
+        const error = new DOMException('aborted', 'AbortError');
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
+        await expect(sidecar.waitUntilReady()).rejects.toBe(error);
+        expect(captureReady).not.toHaveBeenCalled();
+    });
+
+    it('preserves the original readiness failure if telemetry throws', async () => {
+        const error = new SyntaxError('invalid response');
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
+        captureReady.mockImplementation(() => {
+            throw new Error('telemetry failed');
+        });
+        await expect(sidecar.waitUntilReady()).rejects.toBe(error);
+    });
+
+    it.each([502, 400, 409])('leaves probe HTTP %s reporting to its existing owner', async (status) => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'refused' }), { status })),
+        );
+        await expect(sidecar.doorProbe('fill_open')).rejects.toMatchObject({ status });
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [new TypeError('Failed to fetch'), 'network'],
+        [new DOMException('timed out', 'TimeoutError'), 'timeout'],
+    ])('reports a probe transport failure once with its action: %s', async (error, status) => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(error));
+        await expect(sidecar.doorProbe('stirrer_on')).rejects.toMatchObject({ status, sentryReported: true });
+        expect(captureSidecar).toHaveBeenCalledExactlyOnceWith({
+            route: '/door-probe',
+            method: 'POST',
+            status,
+            action: 'stirrer_on',
+        });
+    });
+
+    it('keeps probe delivery results and errors unchanged when telemetry fails', async () => {
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ action: 'fill_open', wrote: 1 })));
+        vi.stubGlobal('fetch', fetchMock);
+        captureSidecar.mockImplementation(() => {
+            throw new Error('telemetry failed');
+        });
+        await expect(sidecar.doorProbe('fill_open')).resolves.toEqual({ action: 'fill_open', wrote: 1 });
+        expect(captureSidecar).not.toHaveBeenCalled();
+        fetchMock.mockRejectedValue(new DOMException('timed out', 'TimeoutError'));
+        await expect(sidecar.doorProbe('fill_open')).rejects.toMatchObject({
+            status: 'timeout',
+            sentryReported: false,
+        });
     });
 });

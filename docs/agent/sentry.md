@@ -84,9 +84,32 @@ self._capture_hardware_error(exc, "event_name", once=True)
 
 `once=True` when a retry loop would emit the same event again. An expected disconnect is `sentry_sdk.add_breadcrumb` only. Do not `capture_exception` beside `_capture_hardware_error`.
 
+Do not log an exception at ERROR before the classified capture: LoggingIntegration can send it first
+and SDK deduplication can discard the event with hardware tags. Use WARNING for the accompanying log.
+
+S7 failures carry bounded `s7_operation` context across the executor boundary. It records the operation,
+stage, elapsed time, completed writes, and whether a compound actuator command reached its final zero.
+A cancelled read can still have an active native call; `await_cancelled` does not mean that call stopped.
+These facts observe existing I/O and do not add PLC reads, writes, retries, or change time limits.
+Completed W60A button reports belong to Python; the webview reports only its own request failures with
+the action attached. Successful transmission is not proof of physical movement.
+
+Search hardware incidents by `event` and `protocol` as well as release. Production Python events have
+been observed with `runtime=CPython ...`, so `runtime:sidecar` alone can miss them.
+
+The shared webview readiness wait reports `sidecar readiness failed` once per outage when it rejects.
+The report includes attempt count, elapsed time, final response category, and prior readiness history.
+Successful readiness allows a later outage to be reported again; concurrent consumers share the wait.
+
 ## Rust
 
 A terminal failure the app will not retry: `sentry::capture_message` at `Error`, same shape as sidecar spawn-dead in `src-tauri/src/lib.rs`. A retry that may still recover: `sentry::add_breadcrumb` only.
+
+Sidecar lifecycle breadcrumbs retain spawn/readiness stages, exit code/signal/uptime, and a bounded
+history of fixed stderr classifications. Arbitrary stderr text is not sent: connection details, paths,
+credentials, and user text must not leak through native diagnostics. Unclassified chunks are counted.
+Those breadcrumbs attach to the existing terminal failure event. A recovered restart does not itself
+create an event under the current reporting policy.
 
 ## Payload
 

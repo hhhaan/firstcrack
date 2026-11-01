@@ -456,6 +456,15 @@ class RoasterManager:
                         "reconnect_attempt": self._reconnect_attempt,
                     },
                 )
+                cause: BaseException | None = exc
+                for _ in range(8):
+                    if cause is None:
+                        break
+                    diagnostics = getattr(cause, "s7_diagnostics", None)
+                    if isinstance(diagnostics, dict):
+                        scope.set_context("s7_operation", diagnostics)
+                        break
+                    cause = cause.__cause__ or cause.__context__
                 # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
                 # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
                 if self._merged_params:
@@ -582,7 +591,7 @@ class RoasterManager:
                 self._protocol = protocol
                 self._roaster_key = roaster_key
                 self._merged_params = merged
-                _log.error("연결 실패 [%s]: %s", roaster_key, exc, exc_info=True)
+                _log.warning("연결 실패 [%s]: %s", roaster_key, exc, exc_info=True)
                 self._capture_hardware_error(exc, "connect_failed")
 
     async def disconnect(self) -> None:
@@ -693,7 +702,7 @@ class RoasterManager:
                         self._error = _format_connection_error(
                             exc, self._protocol, self._merged_params
                         )
-                        _log.error("재연결 실패 (%d): %s", attempt, exc)
+                        _log.warning("재연결 실패 (%d): %s", attempt, exc)
                         sentry_sdk.add_breadcrumb(
                             category="hardware",
                             message=f"reconnect failed ({attempt}): {exc}",
@@ -1348,6 +1357,7 @@ class RoasterManager:
 
     def _record_door_probe(self, action: str, result: dict[str, Any]) -> None:
         """버튼 결과. 문 이동 여부는 넣지 않는다."""
+        diagnostics = result.pop("diagnostics", None)
         facts = {
             "action": action,
             "wrote": result.get("wrote"),
@@ -1392,6 +1402,8 @@ class RoasterManager:
                 scope.set_tag("action", action)
                 scope.set_tag("command_held", held_tag)
                 scope.set_context("door_probe", facts)
+                if isinstance(diagnostics, dict):
+                    scope.set_context("s7_operation", diagnostics)
                 scope.fingerprint = ["door-probe", action, held_tag]
                 scope.capture_message("w60a door probe", level=level)
             sentry_sdk.add_breadcrumb(

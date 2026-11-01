@@ -9,7 +9,6 @@
  * - 앱 내 ErrorBoundary는 캡처하지 않는다. React 19 root 핸들러(reactRootOptions)가 유일한 경로다.
  */
 import * as Sentry from '@sentry/react';
-import type { DoorProbeResult } from '@shared/types/sidecar';
 import { isOpaqueNetworkMessage } from './errorMessage';
 import { mapServerBatchGateError } from './features/plan-matrix';
 import { httpStatusOf, isClientSqlStateWarning, isDeterministicClientError, isExpectedRefusal } from './httpStatus';
@@ -371,70 +370,47 @@ export const captureSidecarRequestFailure = (input: {
     route: string;
     method: string;
     status: number | 'network' | 'timeout';
+    action?: string;
 }) => {
-    const rateKey = `${input.route}:${input.status}`;
+    const rateKey = `${input.route}:${input.status}:${input.action ?? ''}`;
     const now = Date.now();
     const last = sidecarFailureReportAt.get(rateKey) ?? 0;
     if (now - last < SIDECAR_FAILURE_REPORT_MS) return;
     sidecarFailureReportAt.set(rateKey, now);
     Sentry.captureMessage('sidecar request failed', {
         level: 'error',
-        fingerprint: ['sidecar', input.route, String(input.status)],
+        fingerprint: ['sidecar', input.route, String(input.status), ...(input.action ? [input.action] : [])],
         tags: {
             feature: 'sidecar',
             'sidecar.route': input.route,
             'http.status': String(input.status),
             method: input.method,
+            ...(input.action ? { action: input.action } : {}),
         },
     });
 };
 
-const doorProbeTags = (result: Pick<DoorProbeResult, 'action' | 'command_held' | 'wrote'>) => {
-    const held = result.command_held == null ? 'none' : String(result.command_held);
-    return {
-        feature: 'w60a-door-probe',
-        action: result.action,
-        command_held: held,
-        wrote: result.wrote == null ? 'none' : String(result.wrote),
-    };
-};
-
-/** 명령 전송 결과와 명시적으로 읽은 값만 기록한다. null은 미측정이다. */
-export const captureDoorProbe = (result: DoorProbeResult) => {
-    const tags = doorProbeTags(result);
-    Sentry.captureMessage('w60a door probe', {
-        level: result.command_held === false ? 'warning' : 'info',
-        fingerprint: ['door-probe', result.action, tags.command_held],
-        tags,
-        extra: {
-            command_before: result.command_before,
-            command_after: result.command_after,
-            discharge_open_before: result.discharge_open_before,
-            discharge_open_after: result.discharge_open_after,
-            ...(result.cool_fan_before == null
-                ? {}
-                : {
-                      cool_fan_before: result.cool_fan_before,
-                      cool_fan_after: result.cool_fan_after,
-                      cool_fan_held: result.cool_fan_held,
-                  }),
-            ...(result.stirrer_before == null
-                ? {}
-                : {
-                      stirrer_before: result.stirrer_before,
-                      stirrer_after: result.stirrer_after,
-                      stirrer_held: result.stirrer_held,
-                  }),
-        },
-    });
-};
-
-export const captureDoorProbeFailure = (action: string, message: string) => {
-    Sentry.captureMessage('w60a door probe failed', {
+/** One terminal readiness failure per outage; the shared readiness wait owns dedupe. */
+export const captureSidecarReadinessFailure = (input: {
+    episode: number;
+    attempts: number;
+    elapsedMs: number;
+    previouslyReady: boolean;
+    status: number | 'network' | 'timeout' | 'unknown';
+    errorType: string;
+}) => {
+    // A stable fingerprint groups outages; distinct messages prevent SDK Dedupe dropping a later outage.
+    Sentry.captureMessage(`sidecar readiness failed (episode ${input.episode})`, {
         level: 'error',
-        fingerprint: ['door-probe', action, 'failed'],
-        tags: { feature: 'w60a-door-probe', action },
-        extra: { message },
+        fingerprint: ['sidecar-readiness', String(input.status), String(input.previouslyReady)],
+        tags: { feature: 'sidecar', 'sidecar.route': '/status', 'http.status': String(input.status) },
+        extra: {
+            episode: input.episode,
+            attempts: input.attempts,
+            elapsed_ms: input.elapsedMs,
+            previously_ready: input.previouslyReady,
+            error_type: input.errorType,
+        },
     });
 };
 

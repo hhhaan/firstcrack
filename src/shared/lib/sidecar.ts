@@ -9,7 +9,12 @@ import type {
 } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
 import { isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
-import { captureSidecarRequestFailure, isSentryEnabled } from './sentry';
+import {
+    captureActionable,
+    captureSidecarReadinessFailure,
+    captureSidecarRequestFailure,
+    isSentryEnabled,
+} from './sentry';
 
 const settingsListeners = new Set<() => void>();
 export const subscribeSidecarSettings = (listener: () => void) => {
@@ -33,7 +38,7 @@ const TOKEN_HEADER = 'X-Sidecar-Token';
 export class SidecarHttpError extends Error {
     readonly route: string;
     readonly status: number | 'network' | 'timeout';
-    readonly sentryReported: boolean;
+    sentryReported: boolean;
 
     constructor(route: string, status: number | 'network' | 'timeout', message: string, sentryReported = false) {
         super(message);
@@ -61,10 +66,19 @@ const networkStatus = (err: unknown): 'network' | 'timeout' => {
     return 'network';
 };
 
-const reportSidecarFailure = (route: string, method: string, status: number | 'network' | 'timeout'): boolean => {
+const reportSidecarFailure = (
+    route: string,
+    method: string,
+    status: number | 'network' | 'timeout',
+    action?: DoorProbeAction,
+): boolean => {
     if (!isSentryEnabled || !shouldReportSidecarFailure(status)) return false;
-    captureSidecarRequestFailure({ route, method, status });
-    return true;
+    try {
+        captureSidecarRequestFailure({ route, method, status, ...(action ? { action } : {}) });
+        return true;
+    } catch {
+        return false;
+    }
 };
 
 const devSidecarLog = (...args: unknown[]) => {
@@ -157,15 +171,55 @@ const errorMessageFrom = (err: unknown): string => {
     return 'network error';
 };
 
+let readinessPromise: Promise<SidecarStatus> | null = null;
+let previouslyReady = false;
+let readinessFailureReported = false;
+let readinessEpisode = 0;
+
+const waitUntilReady = (): Promise<SidecarStatus> => {
+    if (readinessPromise !== null) return readinessPromise;
+    const startedAt = performance.now();
+    let attempts = 0;
+    readinessPromise = retryWhileSidecarStarts(() => {
+        attempts += 1;
+        return request<SidecarStatus>('/status', undefined, DEFAULT_TIMEOUT_MS, false);
+    }, READY_RETRY_BUDGET_MS)
+        .then((status) => {
+            previouslyReady = true;
+            readinessFailureReported = false;
+            return status;
+        })
+        .catch((error: unknown) => {
+            if (error instanceof Error && error.name === 'AbortError') throw error;
+            if (!readinessFailureReported && isSentryEnabled) {
+                try {
+                    captureSidecarReadinessFailure({
+                        episode: ++readinessEpisode,
+                        attempts,
+                        elapsedMs: Math.max(0, Math.round(performance.now() - startedAt)),
+                        previouslyReady,
+                        status: isSidecarHttpError(error) ? error.status : 'unknown',
+                        errorType: error instanceof Error ? error.name : typeof error,
+                    });
+                    readinessFailureReported = true;
+                } catch {
+                    // Telemetry must preserve the original readiness failure.
+                }
+            }
+            if (readinessFailureReported && isSidecarHttpError(error)) error.sentryReported = true;
+            throw error;
+        })
+        .finally(() => {
+            readinessPromise = null;
+        });
+    return readinessPromise;
+};
+
 export const sidecar = {
     getStatus: () => request<SidecarStatus>('/status'),
 
     /** 재시작 직후 30초 예산 동안 사이드카 기동 실패를 삼키고 첫 정상 상태를 기다린다. */
-    waitUntilReady: () =>
-        retryWhileSidecarStarts(
-            () => request<SidecarStatus>('/status', undefined, DEFAULT_TIMEOUT_MS, false),
-            READY_RETRY_BUDGET_MS,
-        ),
+    waitUntilReady,
 
     connect: (roasterKey: string, params: Record<string, unknown>, machineId?: string) =>
         retryWhileSidecarStarts(
@@ -213,11 +267,28 @@ export const sidecar = {
      * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
      */
     /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
-    doorProbe: (action: DoorProbeAction) =>
-        request<DoorProbeResult>('/door-probe', {
-            method: 'POST',
-            body: JSON.stringify({ action }),
-        }),
+    doorProbe: async (action: DoorProbeAction) => {
+        try {
+            // Python owns completed commands and hardware failures; report only client failures here.
+            return await request<DoorProbeResult>(
+                '/door-probe',
+                { method: 'POST', body: JSON.stringify({ action }) },
+                DEFAULT_TIMEOUT_MS,
+                false,
+            );
+        } catch (error) {
+            if (isSidecarHttpError(error)) {
+                error.sentryReported = reportSidecarFailure('/door-probe', 'POST', error.status, action);
+            } else {
+                try {
+                    captureActionable(error, { tags: { feature: 'w60a-door-probe', action } });
+                } catch {
+                    // A reporting failure must not replace the original request error.
+                }
+            }
+            throw error;
+        }
+    },
 
     setControl: (cmd: Partial<Record<'heater' | 'fan' | 'drum', number>>, retry?: { connectionEpoch: number }) =>
         request<{ ok: boolean; applied: Partial<Record<'heater' | 'fan' | 'drum', number>> }>('/control', {

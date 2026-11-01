@@ -1,7 +1,11 @@
 import * as Sentry from '@sentry/react';
 import { createTransport } from '@sentry/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { captureSidecarRequestFailure, resetSidecarFailureRateLimitForTests } from './sentry';
+import {
+    captureSidecarReadinessFailure,
+    captureSidecarRequestFailure,
+    resetSidecarFailureRateLimitForTests,
+} from './sentry';
 
 describe('fixed-message capture fingerprints vs Dedupe integration', () => {
     let sent = 0;
@@ -31,5 +35,27 @@ describe('fixed-message capture fingerprints vs Dedupe integration', () => {
         captureSidecarRequestFailure({ route: '/temperatures', method: 'GET', status: 500 });
         await Sentry.flush(2000);
         expect(sent).toBe(3);
+    });
+    it('preserves distinct readiness outages with the same stable grouping', async () => {
+        for (const episode of [1, 2, 3]) {
+            captureSidecarReadinessFailure({
+                episode,
+                attempts: 1,
+                elapsedMs: 5000,
+                previouslyReady: true,
+                status: 'timeout',
+                errorType: 'SidecarHttpError',
+            });
+        }
+        await Sentry.flush(2000);
+        expect(sent).toBe(3);
+    });
+
+    it('keeps distinct failed probe actions without duplicating the same attempt', async () => {
+        for (const action of ['fill_open', 'fill_open', 'stirrer_on']) {
+            captureSidecarRequestFailure({ route: '/door-probe', method: 'POST', status: 'timeout', action });
+        }
+        await Sentry.flush(2000);
+        expect(sent).toBe(2);
     });
 });

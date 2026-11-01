@@ -8,6 +8,8 @@ mod roast_monitor;
 #[cfg(desktop)]
 mod poll_clock;
 mod sentry_config;
+#[cfg(any(desktop, test))]
+mod sidecar_diagnostics;
 #[cfg(any(target_os = "windows", test))]
 mod window_chrome;
 // Local import locations are supported on macOS; keep parsers compiled for portable tests.
@@ -22,7 +24,7 @@ use std::net::TcpStream;
 #[cfg(desktop)]
 use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(desktop)]
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 #[cfg(desktop)]
 use std::time::Duration;
 #[cfg(desktop)]
@@ -142,9 +144,10 @@ fn is_latest_watcher(generation: u64) -> bool {
 /// `sidecar-ready`를 중복 emit한다. 그래서 세대 카운터로 최신 워처 1개만 살려둔다 —
 /// 세대는 spawn 스레드에서 미리 올려서(스레드 시작 순서에 의존하지 않도록) 넘긴다.
 #[cfg(desktop)]
-fn watch_sidecar_ready(app: tauri::AppHandle) {
+fn watch_sidecar_ready(app: tauri::AppHandle, hub: Arc<sentry::Hub>) {
     let generation = claim_watcher_generation();
     std::thread::spawn(move || {
+        let started_at = Instant::now();
         let token = app.state::<SidecarToken>().0.clone();
         loop {
             // 더 새로운 워처가 떴으면 여기서 종료 — 폴링도 emit도 하지 않는다.
@@ -154,6 +157,15 @@ fn watch_sidecar_ready(app: tauri::AppHandle) {
             if probe_sidecar_ready(&token) {
                 // probe에 최대 400ms가 걸리므로 그 사이 세대가 바뀔 수 있다 → emit 직전 재확인.
                 if is_latest_watcher(generation) {
+                    hub.add_breadcrumb(sentry::Breadcrumb {
+                        category: Some("sidecar".into()),
+                        message: Some("HTTP ready".into()),
+                        data: [(
+                            "elapsed_ms".into(),
+                            serde_json::json!(started_at.elapsed().as_millis() as u64),
+                        )].into_iter().collect(),
+                        ..Default::default()
+                    });
                     let _ = app.emit("sidecar-ready", ());
                 }
                 return;
@@ -358,11 +370,16 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
 
     let app_handle = app.handle().clone();
     // Keep startup and retry evidence together even when Tokio changes worker threads.
-    let sidecar_hub = sentry::Hub::new_from_top(sentry::Hub::main());
+    let sidecar_hub = Arc::new(sentry::Hub::new_from_top(sentry::Hub::main()));
     let initial_rx = match spawn_sidecar(&app_handle) {
         Ok((rx, child)) => {
             *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(child);
-            watch_sidecar_ready(app_handle.clone());
+            sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
+                category: Some("sidecar".into()),
+                message: Some("process spawned".into()),
+                ..Default::default()
+            });
+            watch_sidecar_ready(app_handle.clone(), sidecar_hub.clone());
             Some(rx)
         }
         Err(e) => {
@@ -382,6 +399,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
         // 최초 spawn이 실패했으면 이미 1회 실패한 상태로 루프를 시작한다.
         let mut attempts: usize = if current_rx.is_some() { 0 } else { 1 };
         let mut spawned_at = Instant::now();
+        let mut stderr = sidecar_diagnostics::StderrDiagnostics::default();
 
         loop {
             if let Some(rx) = current_rx.as_mut() {
@@ -392,6 +410,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                             print!("[sidecar] {}", String::from_utf8_lossy(&line));
                         }
                         CommandEvent::Stderr(line) => {
+                            stderr.record(&line, spawned_at.elapsed().as_millis() as u64);
                             eprint!("[sidecar] {}", String::from_utf8_lossy(&line));
                         }
                         CommandEvent::Terminated(payload) => {
@@ -423,6 +442,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                                         serde_json::json!(spawned_at.elapsed().as_millis() as u64),
                                     ),
                                     ("previous_failures".into(), serde_json::json!(attempts)),
+                                    ("stderr".into(), stderr.take()),
                                 ].into_iter().collect(),
                                 ..Default::default()
                             });
@@ -444,6 +464,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                         category: Some("sidecar".into()),
                         level: sentry::Level::Error,
                         message: Some("event stream closed without a termination status".into()),
+                        data: [("stderr".into(), stderr.take())].into_iter().collect(),
                         ..Default::default()
                     });
                 }
@@ -491,7 +512,15 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
             match spawn_sidecar(&app_handle) {
                 Ok((new_rx, new_child)) => {
                     *app_handle.state::<SidecarChild>().0.lock().unwrap() = Some(new_child);
-                    watch_sidecar_ready(app_handle.clone());
+                    sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
+                        category: Some("sidecar".into()),
+                        message: Some("process respawned".into()),
+                        data: [(
+                            "previous_failures".into(), serde_json::json!(attempts),
+                        )].into_iter().collect(),
+                        ..Default::default()
+                    });
+                    watch_sidecar_ready(app_handle.clone(), sidecar_hub.clone());
                     current_rx = Some(new_rx);
                     spawned_at = Instant::now();
                     eprintln!("[sidecar-restart] 재시작 성공");

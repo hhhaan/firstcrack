@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/react';
-import type { DoorProbeResult } from '@shared/types/sidecar';
 import { QueryClient } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BatchLimitError } from './features/plan-matrix';
@@ -7,9 +6,8 @@ import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from './optimist
 import {
     buildSentryOptions,
     captureActionable,
-    captureDoorProbe,
-    captureDoorProbeFailure,
     captureRoastingImportFailure,
+    captureSidecarReadinessFailure,
     captureSidecarRequestFailure,
     isActionableError,
     isActionableSidecarHttpStatus,
@@ -405,65 +403,43 @@ describe('captureSidecarRequestFailure', () => {
     });
 });
 
-describe('captureDoorProbe', () => {
-    const result = (overrides: Partial<DoorProbeResult> = {}): DoorProbeResult => ({
-        action: 'discharge_open',
-        wrote: 5,
-        command_before: 0,
-        command_after: 0,
-        command_held: false,
-        discharge_open_before: false,
-        discharge_open_after: false,
-        ...overrides,
-    });
-
-    it('warns when the written value does not stay and keeps the readings', () => {
-        captureDoorProbe(result());
-        expect(Sentry.captureMessage).toHaveBeenCalledWith('w60a door probe', {
-            level: 'warning',
-            fingerprint: ['door-probe', 'discharge_open', 'false'],
-            tags: {
-                feature: 'w60a-door-probe',
-                action: 'discharge_open',
-                command_held: 'false',
-                wrote: '5',
-            },
-            extra: {
-                command_before: 0,
-                command_after: 0,
-                discharge_open_before: false,
-                discharge_open_after: false,
-            },
+describe('sidecar readiness and probe diagnostics', () => {
+    it('captures final readiness facts with a separate stable fingerprint', () => {
+        captureSidecarReadinessFailure({
+            episode: 1,
+            attempts: 76,
+            elapsedMs: 30_000,
+            previouslyReady: false,
+            status: 'network',
+            errorType: 'SidecarHttpError',
         });
-    });
-
-    it('keeps unobserved readback null after Artisan command delivery', () => {
-        captureDoorProbe(
-            result({
-                command_after: null,
-                command_held: null,
-                discharge_open_before: null,
-                discharge_open_after: null,
-            }),
-        );
-        expect(Sentry.captureMessage).toHaveBeenCalledWith(
-            'w60a door probe',
-            expect.objectContaining({
-                level: 'info',
-                tags: expect.objectContaining({ command_held: 'none', wrote: '5' }),
-                extra: expect.objectContaining({ command_after: null, discharge_open_after: null }),
-            }),
-        );
-    });
-
-    it('records a failed button without a PLC result', () => {
-        captureDoorProbeFailure('fill_open', '문 명령 확인에 실패했습니다.');
-        expect(Sentry.captureMessage).toHaveBeenCalledWith('w60a door probe failed', {
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('sidecar readiness failed (episode 1)', {
             level: 'error',
-            fingerprint: ['door-probe', 'fill_open', 'failed'],
-            tags: { feature: 'w60a-door-probe', action: 'fill_open' },
-            extra: { message: '문 명령 확인에 실패했습니다.' },
+            fingerprint: ['sidecar-readiness', 'network', 'false'],
+            tags: { feature: 'sidecar', 'sidecar.route': '/status', 'http.status': 'network' },
+            extra: {
+                episode: 1,
+                attempts: 76,
+                elapsed_ms: 30_000,
+                previously_ready: false,
+                error_type: 'SidecarHttpError',
+            },
         });
+    });
+
+    it('retains different probe actions while suppressing repeated transport failures', () => {
+        resetSidecarFailureRateLimitForTests();
+        for (const action of ['fill_open', 'fill_open', 'stirrer_on']) {
+            captureSidecarRequestFailure({ route: '/door-probe', method: 'POST', status: 'timeout', action });
+        }
+        expect(Sentry.captureMessage).toHaveBeenCalledTimes(2);
+        expect(Sentry.captureMessage).toHaveBeenLastCalledWith(
+            'sidecar request failed',
+            expect.objectContaining({
+                fingerprint: ['sidecar', '/door-probe', 'timeout', 'stirrer_on'],
+                tags: expect.objectContaining({ action: 'stirrer_on' }),
+            }),
+        );
     });
 });
 

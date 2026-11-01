@@ -9,6 +9,7 @@ from typing import Any
 
 import config
 from adapters.base import Reading
+from adapters.s7_diagnostics import S7Diagnostics
 from protocol_trace import TRACE
 
 _log = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class CommandReadbackMismatch(IOError):
     """Fresh command bytes differ; a retry may write again while it still owns control."""
 
 
-def _client_alive(plc: Any) -> bool:
+def _client_alive(plc: Any, diagnostics: S7Diagnostics | None = None) -> bool:
     """클라이언트가 살아있는 PLC에 붙어 있는지 확인 (네트워크 왕복 포함).
 
     get_connected()는 peer가 끊은 뒤에도 True를 돌려줄 수 있어(snap7 버그)
@@ -26,12 +27,21 @@ def _client_alive(plc: Any) -> bool:
     비싸므로 connect 검증과 /status에서만 쓴다. 읽기 경로에서는 쓰지 않는다.
     """
     try:
+        if diagnostics is not None:
+            if plc is None or not diagnostics.call("connection_state", plc.get_connected):
+                diagnostics.update(cpu_validation="disconnected")
+                return False
+            state = str(diagnostics.call("cpu_state", plc.get_cpu_state))
+            diagnostics.update(cpu_validation="run" if state == "S7CpuStatusRun" else "not_run")
+            return state == "S7CpuStatusRun"
         return (
             plc is not None
             and plc.get_connected()
             and str(plc.get_cpu_state()) == "S7CpuStatusRun"
         )
     except Exception:
+        if diagnostics is not None:
+            diagnostics.update(cpu_validation="error")
         return False
 
 
@@ -165,21 +175,22 @@ class S7Adapter:
             raise ValueError("channels가 비어 있음. roaster_registry 확인 필요.")
 
         session = self._session
+        diagnostics = S7Diagnostics("connect")
 
         def _connect() -> None:
-            _probe_tcp(self._host, self._port, config.S7_PROBE_TIMEOUT_S)
-            client = snap7.client.Client()
+            diagnostics.call("tcp_probe", _probe_tcp, self._host, self._port, config.S7_PROBE_TIMEOUT_S)
+            client = diagnostics.call("client_create", snap7.client.Client)
             # RecvTimeout 기본 3s → config 값. PLC가 응답 없이 hang하면 manager의
             # wait_for(3s)는 만료돼도 snap7 동기 호출이 잡은 executor 스레드는
             # 남는다 — 폴링마다 쌓이지 않게 블로킹 상한을 짧게 제한.
-            client.set_param(snap7.type.Parameter.RecvTimeout, config.S7_RECV_TIMEOUT_MS)
-            client.connect(self._host, self._rack, self._slot, self._port)
+            diagnostics.call("configure", client.set_param, snap7.type.Parameter.RecvTimeout, config.S7_RECV_TIMEOUT_MS)
+            diagnostics.call("connect", client.connect, self._host, self._rack, self._slot, self._port)
             time.sleep(0.2)  # Artisan: wait after connect for slow PLCs
             # 바인딩은 반드시 락 안에서 — 무락 재바인딩이면 락을 기다리던 구 세션
             # read가 깨어나 새 클라이언트를 읽고 그 결과가 새 연결에 귀속된다.
             # 에폭 검사도 여기(executor 스레드)에 있어야 한다. await 뒤에 두면
             # 취소된 코루틴이 아예 재개되지 않아 클라이언트가 그대로 샌다.
-            if not self._io_lock.acquire(timeout=config.S7_TEARDOWN_LOCK_TIMEOUT_S):
+            if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_TEARDOWN_LOCK_TIMEOUT_S):
                 client.destroy()
                 raise ConnectionError("이전 S7 세션이 정리되지 않아 연결할 수 없습니다.")
             try:
@@ -189,7 +200,7 @@ class S7Adapter:
                     raise ConnectionError("연결 시도가 취소되었습니다.")
                 self._plc = client
                 # 취소돼도 executor는 계속 돈다 — CPU 조회 중 destroy되지 않게 같은 락을 유지한다.
-                if not _client_alive(client):
+                if not _client_alive(client, diagnostics):
                     raise ConnectionError(
                         f"S7 연결 실패: {self._host}:{self._port} (rack={self._rack}, slot={self._slot})"
                     )
@@ -198,8 +209,7 @@ class S7Adapter:
             finally:
                 self._io_lock.release()
 
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _connect)
+        await diagnostics.run(_connect)
         self._bt_ch = next((c for c in self._channels if c.get("role") == "BT"), None)
         self._et_ch = next((c for c in self._channels if c.get("role") == "ET"), None)
         self._hp_ch = next((c for c in self._channels if c.get("role") == "heater"), None)
@@ -264,6 +274,7 @@ class S7Adapter:
         deadline: float | None = None,
         *,
         preserve_precision: bool = False,
+        diagnostics: S7Diagnostics | None = None,
     ) -> float:
         """스레드에서 실행. snap7 db_read → float 변환. retry 포함.
 
@@ -291,6 +302,8 @@ class S7Adapter:
             if deadline is not None and time.monotonic() + per_attempt > deadline:
                 if attempted:
                     break  # retry 여유 없음 — 직전 실패를 그대로 올린다
+                if diagnostics is not None:
+                    diagnostics.update(stage="read_budget", db=db, offset=offset)
                 raise TimeoutError(
                     f"S7 읽기 예산 소진: db={db} offset={offset} — PLC 응답 없음"
                 )
@@ -298,17 +311,22 @@ class S7Adapter:
             self._throttle()
             try:
                 role = ch.get("role", "?")
+                details = {"db": db, "offset": offset, "size": size, "attempt": attempt + 1}
                 if area == 3:
                     from snap7.type import Area
 
                     TRACE.record("tx", "s7", f"read_area MK offset={offset} size={size} role={role}")
-                    raw = plc.read_area(Area.MK, 0, offset, size)
+                    raw = (diagnostics.call("read", plc.read_area, Area.MK, 0, offset, size, details=details)
+                           if diagnostics else plc.read_area(Area.MK, 0, offset, size))
                     ba = bytearray(raw)
                     TRACE.record("rx", "s7", f"read_area MK offset={offset} role={role}", bytes(ba))
                 else:
                     TRACE.record("tx", "s7", f"db_read db={db} offset={offset} size={size} role={role}")
-                    ba = plc.db_read(db, offset, size)
+                    ba = (diagnostics.call("read", plc.db_read, db, offset, size, details=details)
+                          if diagnostics else plc.db_read(db, offset, size))
                     TRACE.record("rx", "s7", f"db_read db={db} offset={offset} role={role}", bytes(ba))
+                if diagnostics is not None:
+                    diagnostics.update(stage="decode", db=db, offset=offset)
                 if len(ba) != size:
                     raise IOError(f"S7 읽기 응답 크기 불일치: {len(ba)} != {size}")
                 value = float(get_real(ba, 0) if ch_type == 1 else get_int(ba, 0))
@@ -344,6 +362,7 @@ class S7Adapter:
         # 예산 시작은 락 획득 **이전** — 락 대기까지 상한에 포함해야
         # "executor 스레드가 manager의 wait_for 만료 전에 락을 놓는다"가 성립한다.
         deadline = time.monotonic() + config.S7_READ_BUDGET_S
+        diagnostics = S7Diagnostics("read")
 
         def _read_all() -> tuple[
             float,
@@ -353,7 +372,7 @@ class S7Adapter:
             float,
             list[dict[str, str | float | None]],
         ]:
-            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+            if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:
                 plc = self._plc
@@ -364,11 +383,11 @@ class S7Adapter:
                 # 실제 판정은 아래 db_read 실패가 한다. (get_cpu_state는 왕복이라 제외)
                 if not plc.get_connected():
                     raise ConnectionError("S7 PLC가 연결되지 않음")
-                bt = self._read_channel_sync(self._bt_ch, plc, deadline) if self._bt_ch else -1.0
-                et = self._read_channel_sync(self._et_ch, plc, deadline) if self._et_ch else -1.0
-                hp = self._read_channel_sync(self._hp_ch, plc, deadline) if self._hp_ch else None
-                fc = self._read_channel_sync(self._fc_ch, plc, deadline) if self._fc_ch else 0.0
-                drum = self._read_channel_sync(self._drum_ch, plc, deadline) if self._drum_ch else 0.0
+                bt = self._read_channel_sync(self._bt_ch, plc, deadline, diagnostics=diagnostics) if self._bt_ch else -1.0
+                et = self._read_channel_sync(self._et_ch, plc, deadline, diagnostics=diagnostics) if self._et_ch else -1.0
+                hp = self._read_channel_sync(self._hp_ch, plc, deadline, diagnostics=diagnostics) if self._hp_ch else None
+                fc = self._read_channel_sync(self._fc_ch, plc, deadline, diagnostics=diagnostics) if self._fc_ch else 0.0
+                drum = self._read_channel_sync(self._drum_ch, plc, deadline, diagnostics=diagnostics) if self._drum_ch else 0.0
                 values: dict[str, float | None] = {}
                 start = (
                     self._extra_cursor % len(self._extra_channels)
@@ -386,7 +405,7 @@ class S7Adapter:
                     role = channel["role"]
                     try:
                         value = self._read_channel_sync(
-                            channel, plc, deadline, preserve_precision=True
+                            channel, plc, deadline, preserve_precision=True, diagnostics=diagnostics
                         )
                     except Exception as exc:
                         value = None
@@ -405,8 +424,7 @@ class S7Adapter:
             finally:
                 self._io_lock.release()
 
-        loop = asyncio.get_running_loop()
-        bt, et, hp, fc, drum, extra_readings = await loop.run_in_executor(None, _read_all)
+        bt, et, hp, fc, drum, extra_readings = await diagnostics.run(_read_all)
         return Reading(
             bt=bt,
             et=et,
@@ -425,21 +443,21 @@ class S7Adapter:
             return None
 
         deadline = time.monotonic() + config.S7_READ_BUDGET_S
+        diagnostics = S7Diagnostics("read_raw")
 
         def _read_one() -> float:
-            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+            if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:
                 # 락 밖의 사전 검사와 여기 사이에 disconnect가 끼어들 수 있다
                 plc = self._plc
                 if plc is None:
                     raise ConnectionError("S7 PLC가 연결되지 않음")
-                return self._read_channel_sync(ch, plc, deadline)
+                return self._read_channel_sync(ch, plc, deadline, diagnostics=diagnostics)
             finally:
                 self._io_lock.release()
 
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(None, _read_one)
+        return await diagnostics.run(_read_one)
 
     async def door_probe(self, write: int | None) -> dict[str, Any]:
         if write is None:
@@ -477,6 +495,8 @@ class S7Adapter:
         plc, session = self._plc, self._session
         if plc is None:
             raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+        diagnostics = S7Diagnostics("actuator")
+        diagnostics.update(final_zero_reached=False if len(commands) > 1 else None)
 
         def check_session() -> None:
             if self._plc is not plc or self._session != session:
@@ -495,7 +515,8 @@ class S7Adapter:
                 result.update({f"{bit_name}_before": None, f"{bit_name}_after": None, f"{bit_name}_held": None})
             first_error: Exception | None = None
             for index, (db, offset, value, bit) in enumerate(commands):
-                if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+                details = {"command_index": index + 1, "db": db, "offset": offset}
+                if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S, details=details):
                     raise TimeoutError("S7 I/O 락 대기 시간 초과")
                 try:
                     check_session()
@@ -504,9 +525,14 @@ class S7Adapter:
                         self._throttle()
                         check_session()
                         TRACE.record("tx", "s7", f"actuator read_area db={db} offset={offset} size={size}")
-                        payload = plc.read_area(Area.DB, db, offset, size)
+                        payload = diagnostics.call("read", plc.read_area, Area.DB, db, offset, size, details=details)
                         TRACE.record("rx", "s7", f"actuator read_area db={db} offset={offset}", bytes(payload))
                         if len(payload) != size:
+                            if "first_failure" not in diagnostics.snapshot():
+                                diagnostics.update(first_failure={
+                                    "stage": "read_validation", **details,
+                                    "error_type": "OSError", "error_code": "short_read",
+                                })
                             raise IOError(f"read_area(DB,{db},{offset},{size}) returned {len(payload)} bytes")
                         if bit is None:
                             if index == 0:
@@ -518,7 +544,8 @@ class S7Adapter:
                         self._throttle()
                         check_session()
                         TRACE.record("tx", "s7", f"actuator write_area db={db} offset={offset}", bytes(payload))
-                        plc.write_area(Area.DB, db, offset, payload)
+                        diagnostics.call("write", plc.write_area, Area.DB, db, offset, payload, details=details)
+                        diagnostics.wrote(final_zero=index == len(commands) - 1 and value == 0 and bit is None)
                     except Exception as exc:
                         # Artisan continues subsequent tokens; FC still reports delivery failure after the sequence.
                         if first_error is None:
@@ -531,7 +558,9 @@ class S7Adapter:
                 raise first_error
             return result
 
-        return await asyncio.get_running_loop().run_in_executor(None, execute)
+        result = await diagnostics.run(execute)
+        result["diagnostics"] = diagnostics.snapshot()
+        return result
 
     async def _read_actuator_probe(self, bit_name: str, db: int, offset: int, bit: int) -> dict[str, Any]:
         """Explicit diagnostics only; command buttons do not add these reads."""
@@ -540,9 +569,10 @@ class S7Adapter:
         plc, session = self._plc, self._session
         if plc is None:
             raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
+        diagnostics = S7Diagnostics("actuator_read")
 
         def read() -> dict[str, Any]:
-            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+            if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 대기 시간 초과")
             try:
                 result: dict[str, Any] = {
@@ -553,15 +583,24 @@ class S7Adapter:
                 }
                 for phase in ("before", "after"):
                     for name, block, start, size in (("command", 2, 30, 2), (bit_name, db, offset, 1)):
+                        details = {"phase": phase, "db": block, "offset": start, "size": size}
                         self._throttle()
                         if self._plc is not plc or self._session != session:
                             raise ConnectionError("S7 connection changed during actuator read")
                         TRACE.record("tx", "s7", f"actuator db_read db={block} offset={start} size={size}")
-                        payload = plc.db_read(block, start, size)
+                        payload = diagnostics.call("read", plc.db_read, block, start, size, details=details)
                         TRACE.record("rx", "s7", f"actuator db_read db={block} offset={start}", bytes(payload))
                         if len(payload) != size:
+                            diagnostics.update(first_failure={
+                                "stage": "read_validation", **details,
+                                "error_type": "OSError", "error_code": "short_read",
+                            })
                             raise IOError(f"db_read({block},{start},{size}) returned {len(payload)} bytes")
-                        result[f"{name}_{phase}"] = int(get_int(payload, 0)) if name == "command" else bool(get_bool(payload, 0, bit))
+                        result[f"{name}_{phase}"] = (
+                            int(diagnostics.call("decode", get_int, payload, 0, details=details))
+                            if name == "command" else
+                            bool(diagnostics.call("decode", get_bool, payload, 0, bit, details=details))
+                        )
                 if self._plc is not plc or self._session != session:
                     raise ConnectionError("S7 connection changed during actuator read")
                 if bit_name != "discharge_open":
@@ -570,7 +609,9 @@ class S7Adapter:
             finally:
                 self._io_lock.release()
 
-        return await asyncio.get_running_loop().run_in_executor(None, read)
+        result = await diagnostics.run(read)
+        result["diagnostics"] = diagnostics.snapshot()
+        return result
 
     def _confirm_command_bytes(
         self,
@@ -578,14 +619,21 @@ class S7Adapter:
         target: dict[str, Any],
         command_payload: bytearray,
         connection: Any,
+        diagnostics: S7Diagnostics | None = None,
     ) -> None:
         """이미 쓴 설정 셀을 새로 읽어 확인한다. 실측 채널이나 캐시는 쓰지 않는다."""
         block_number = target["db"]
         start_byte = target["offset"]
         self._throttle()
         TRACE.record("tx", "s7", f"write_readback db={block_number} offset={start_byte} role={role}")
-        observed_payload = bytes(connection.db_read(block_number, start_byte, len(command_payload)))
+        observed_payload = bytes(
+            diagnostics.call("readback", connection.db_read, block_number, start_byte, len(command_payload),
+                             details={"db": block_number, "offset": start_byte})
+            if diagnostics else connection.db_read(block_number, start_byte, len(command_payload))
+        )
         TRACE.record("rx", "s7", f"write_readback db={block_number} offset={start_byte} role={role}", observed_payload)
+        if diagnostics is not None:
+            diagnostics.update(readback_matched=observed_payload == bytes(command_payload))
         # raw 0(AUTO)을 논리 0으로 clamp해 성공 처리하지 않도록 인코딩 바이트로 비교한다.
         if observed_payload != bytes(command_payload):
             TRACE.record("err", "s7", f"write_readback mismatch role={role}")
@@ -594,6 +642,7 @@ class S7Adapter:
     def _write_channel_sync(
         self, role: str, spec: dict[str, Any], value: float, plc: Any,
         *, confirm_first: bool = False, check_current: Callable[[], None] | None = None,
+        diagnostics: S7Diagnostics | None = None,
     ) -> int | float:
         """스레드에서 실행. clamp → div 역스케일 → value_offset → 인코딩 → db_write.
 
@@ -641,7 +690,7 @@ class S7Adapter:
 
         if confirm_first and spec.get("verify_readback") is True:
             try:
-                self._confirm_command_bytes(role, spec, command_payload, plc)
+                self._confirm_command_bytes(role, spec, command_payload, plc, diagnostics)
             except CommandReadbackMismatch:
                 # A fresh mismatch permits one resend; read failures do not.
                 pass
@@ -657,9 +706,14 @@ class S7Adapter:
         )
         if check_current is not None:
             check_current()
-        plc.db_write(db, offset, command_payload)
+        if diagnostics is not None:
+            diagnostics.call("write", plc.db_write, db, offset, command_payload,
+                             details={"db": db, "offset": offset})
+            diagnostics.wrote()
+        else:
+            plc.db_write(db, offset, command_payload)
         if spec.get("verify_readback") is True:
-            self._confirm_command_bytes(role, spec, command_payload, plc)
+            self._confirm_command_bytes(role, spec, command_payload, plc, diagnostics)
         return raw
 
     async def control(
@@ -689,6 +743,8 @@ class S7Adapter:
         plc = self._plc
         session = self._session
 
+        diagnostics = S7Diagnostics("retry_control" if _confirm_first else "control")
+
         def _check_session() -> None:
             if session != self._session or plc is not self._plc:
                 raise ConnectionError("S7 제어 중 연결이 변경되었습니다.")
@@ -697,7 +753,7 @@ class S7Adapter:
 
         def _write_all() -> None:
             # One delivery attempt; Replay owns the bounded retry schedule.
-            if not self._io_lock.acquire(timeout=config.S7_IO_LOCK_TIMEOUT_S):
+            if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:
                 # 락을 기다리던 구 연결의 명령이 새 PLC에 쓰이지 않게 한다.
@@ -706,13 +762,13 @@ class S7Adapter:
                     self._write_channel_sync(
                         role, spec, value, plc,
                         confirm_first=_confirm_first, check_current=_check_session,
+                        diagnostics=diagnostics,
                     )
                     _check_session()
             finally:
                 self._io_lock.release()
 
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _write_all)
+        await diagnostics.run(_write_all)
 
     async def retry_control(self, heater: float, is_current: Callable[[], bool]) -> None:
         """Confirm a possibly applied command before deciding whether to send it again."""

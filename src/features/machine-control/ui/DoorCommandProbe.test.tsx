@@ -7,17 +7,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DoorCommandProbe } from './DoorCommandProbe';
 
 const doorProbe = vi.hoisted(() => vi.fn());
-const captureDoorProbe = vi.hoisted(() => vi.fn());
-const captureDoorProbeFailure = vi.hoisted(() => vi.fn());
 
 vi.mock('@shared/lib/sidecar', () => ({
     isSidecarHttpError: (error: unknown) => error instanceof Error && error.name === 'SidecarHttpError',
     sidecar: { doorProbe },
-}));
-
-vi.mock('@shared/lib/sentry', () => ({
-    captureDoorProbe,
-    captureDoorProbeFailure,
 }));
 
 vi.mock('react-i18next', () => ({
@@ -53,8 +46,6 @@ describe('DoorCommandProbe', () => {
     beforeEach(() => {
         document.body.innerHTML = '';
         doorProbe.mockReset();
-        captureDoorProbe.mockReset();
-        captureDoorProbeFailure.mockReset();
     });
 
     it('stays off other roasters', () => {
@@ -114,13 +105,12 @@ describe('DoorCommandProbe', () => {
             button?.click();
         });
         expect(doorProbe).toHaveBeenCalledWith('discharge_open');
-        expect(captureDoorProbe).toHaveBeenCalledWith(report());
         expect(host.textContent).not.toContain('DB2.30');
         expect(host.textContent).not.toContain('machines.doorProbe.wroteHeld');
         expect(host.textContent).not.toContain('machines.doorProbe.notPosition');
     });
 
-    it('records a lost value without showing it', async () => {
+    it('keeps delivery feedback out of physical position labels', async () => {
         doorProbe.mockResolvedValue(report({ command_after: 0, command_held: false }));
         const host = renderProbe('giesen_w45a_w60a');
         const button = [...host.querySelectorAll('button')].find(
@@ -130,12 +120,9 @@ describe('DoorCommandProbe', () => {
             button?.click();
         });
         expect(host.textContent).not.toContain('machines.doorProbe.wroteLost');
-        expect(captureDoorProbe).toHaveBeenCalledWith(
-            expect.objectContaining({ command_held: false, command_after: 0 }),
-        );
     });
 
-    it('records cooling without showing the bit text', async () => {
+    it('sends cooling without showing the bit text', async () => {
         doorProbe.mockResolvedValue(
             report({
                 action: 'cooling_on',
@@ -156,14 +143,11 @@ describe('DoorCommandProbe', () => {
             button?.click();
         });
         expect(doorProbe).toHaveBeenCalledWith('cooling_on');
-        expect(captureDoorProbe).toHaveBeenCalledWith(
-            expect.objectContaining({ action: 'cooling_on', cool_fan_held: true }),
-        );
         expect(host.textContent).not.toContain('machines.doorProbe.coolHeld');
         expect(host.textContent).not.toContain('DB3.0.0');
     });
 
-    it('shows the stirrer bit for a stirrer command', async () => {
+    it('sends stirrer without showing the bit text', async () => {
         doorProbe.mockResolvedValue(
             report({
                 action: 'stirrer_on',
@@ -184,9 +168,6 @@ describe('DoorCommandProbe', () => {
             button?.click();
         });
         expect(doorProbe).toHaveBeenCalledWith('stirrer_on');
-        expect(captureDoorProbe).toHaveBeenCalledWith(
-            expect.objectContaining({ action: 'stirrer_on', stirrer_held: true }),
-        );
         expect(host.textContent).not.toContain('machines.doorProbe.stirrerHeld');
         expect(host.textContent).not.toContain('DB2.83.1');
     });
@@ -266,7 +247,5 @@ describe('DoorCommandProbe', () => {
         await act(async () => {
             button?.click();
         });
-        expect(captureDoorProbeFailure).toHaveBeenCalledWith('fill_open', '문 명령 확인에 실패했습니다.');
-        expect(captureDoorProbe).not.toHaveBeenCalled();
     });
 });

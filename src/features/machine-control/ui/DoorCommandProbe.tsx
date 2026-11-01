@@ -1,5 +1,4 @@
 import { cn } from '@shared/lib/cn';
-import { captureDoorProbe, captureDoorProbeFailure } from '@shared/lib/sentry';
 import { isSidecarHttpError, sidecar } from '@shared/lib/sidecar';
 import type { DoorProbeAction } from '@shared/types/sidecar';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -58,13 +57,12 @@ export const DoorCommandProbe = ({ roaster, disabled }: { roaster: string | null
         setSending(true);
         setError(null);
         try {
-            captureDoorProbe(await sidecar.doorProbe(action));
+            await sidecar.doorProbe(action);
             const pair = PAIR[action];
             if (pair) setLatched((current) => ({ ...current, [pair]: action }));
         } catch (caught) {
             const message = isSidecarHttpError(caught) ? caught.message : t('machines.doorProbe.failed');
             setError(message);
-            captureDoorProbeFailure(action, message);
         } finally {
             setSending(false);
             setPending(null);

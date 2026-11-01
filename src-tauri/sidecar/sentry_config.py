@@ -38,19 +38,24 @@ _TRUTHY = frozenset({"1", "true"})
 _SEMVER = re.compile(r"\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-]+)?")
 
 _SENSITIVE_KEY = re.compile(r"password|token|secret|authorization|cookie", re.I)
-_REDACTED_KEYS = frozenset({"host", "comport", "serial", "path", "query_string"})
+_REDACTED_KEYS = frozenset({"host", "port", "comport", "serial", "path", "query_string"})
 
 # URL 쿼리는 통째로. 문자열/JSON 구분자에서 멈춰야 뒤따르는 본문이 함께 잘리지 않는다.
 _URL_QUERY = re.compile(r"(https?://[^\s?]+)\?[^\s\"'<>)\]},;]*", re.I)
 # `key=value` / `"key": "value"` 형태. Bearer/Basic 접두는 값에 포함해 함께 지운다.
 # 키 앞을 고정하지 않아 `SIDECAR_TOKEN=…`처럼 접두사가 붙은 형태도 잡힌다.
 _SENSITIVE_ASSIGNMENT = re.compile(
-    r"(password|token|secret|authorization|cookie|host|comport|serial|path)"
+    r"(password|token|secret|authorization|cookie|host|port|comport|serial|path)"
     r"([\"']?\s*[=:]\s*[\"']?)(?:(?:bearer|basic|token)\s+)?[^\s\"',;)}\]&]+",
     re.I,
 )
 # 사용자 홈 아래 경로는 계정명이 그대로 PII다.
 _HOME_PATH = re.compile(r"(?:/Users/|/home/|[A-Za-z]:\\Users\\)[^\s\"',;)}\]]+")
+_IP_ENDPOINT = re.compile(
+    r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?"
+    r"|\[[0-9a-fA-F:]+\](?::\d+)?"
+    r"|(?<![\w:])(?:[0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(?![\w:])"
+)
 
 
 def _env(env: Mapping[str, str] | None) -> Mapping[str, str]:
@@ -88,7 +93,8 @@ def environment_name(env: Mapping[str, str] | None = None, *, frozen: bool | Non
 def scrub_text(value: str) -> str:
     value = _URL_QUERY.sub(rf"\1?{REDACTED}", value)
     value = _SENSITIVE_ASSIGNMENT.sub(rf"\1\2{REDACTED}", value)
-    return _HOME_PATH.sub(REDACTED, value)
+    value = _HOME_PATH.sub(REDACTED, value)
+    return _IP_ENDPOINT.sub(REDACTED, value)
 
 
 def scrub(value: Any, depth: int = 0) -> Any:
@@ -145,9 +151,12 @@ def before_send(event: dict[str, Any], hint: Mapping[str, Any] | None) -> dict[s
     for exception in (event.get("exception") or {}).get("values", []):
         if isinstance(exception.get("value"), str):
             exception["value"] = scrub_text(exception["value"])
-    for key in ("extra", "contexts", "request", "breadcrumbs", "tags"):
+    for key in ("extra", "contexts", "request", "breadcrumbs", "tags", "logentry"):
         if event.get(key):
             event[key] = scrub(event[key])
+    if isinstance(event.get("logentry"), dict):
+        # Positional values have lost their sensitive field names; formatted text retains safe detail.
+        event["logentry"].pop("params", None)
     return event
 
 
