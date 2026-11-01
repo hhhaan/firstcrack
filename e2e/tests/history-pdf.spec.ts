@@ -9,7 +9,9 @@ test('exports a completed roast as PDF', async ({ authedPage: page, db }) => {
         const bt = t <= 70 ? 95 + 105 * (1 - t / 70) ** 2 : 95 + 140 * (1 - Math.exp(-(t - 70) / 300));
         const et =
             225 - 25 * Math.exp(-((t - 60) ** 2) / 4000) + 22 * (1 - Math.exp(-t / 180)) - Math.max(0, t - 450) * 0.06;
-        const ror = t <= 70 ? '' : (28 * Math.exp(-(t - 70) / 300) + 0.3 * Math.sin(t / 13)).toFixed(1);
+        const ror = (t <= 70 ? -180 * (1 - t / 70) : 28 * Math.exp(-(t - 70) / 300) + 0.3 * Math.sin(t / 13)).toFixed(
+            1,
+        );
         const etRor = (
             60 *
             ((25 * Math.exp(-((t - 60) ** 2) / 4000) * (t - 60)) / 2000 +

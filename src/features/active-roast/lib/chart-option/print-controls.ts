@@ -89,7 +89,7 @@ export const buildPrintControls = (
     const { grid, xAxis: baseX, yAxis: baseY } = buildSingleGridLayout(params);
     const xAxis: XAXisComponentOption[] = Array.isArray(baseX) ? baseX : [];
     const yAxis: YAXisComponentOption[] = Array.isArray(baseY) ? baseY : [];
-    applyReportAxes({ xAxis, yAxis }, params.colors, xMax - xMin, params.temperatureUnit);
+    applyReportAxes({ xAxis, yAxis }, params.colors, xMax - xMin, params.temperatureUnit, 50);
 
     const axisSpace = 32;
     const controlWeights = channels.map((channel) => (channel.role === 'heater' ? 1.5 : 1));
