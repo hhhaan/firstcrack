@@ -119,4 +119,6 @@ export interface ChartOptionParams {
     curveStyles?: CurveStyles;
     /** Target profile color. Omitted keeps each channel's color at reference opacity. */
     targetCurveTone?: TargetCurveTone;
+    /** Machine whose manual-control names and units label note markers. */
+    machineId?: string | null;
 }

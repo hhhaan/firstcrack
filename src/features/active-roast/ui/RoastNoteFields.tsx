@@ -1,7 +1,7 @@
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ManualControlId, noteControlDraft } from '../lib/manual-controls';
+import { type ManualControlId, manualControlsFor, noteControlDraft } from '../lib/manual-controls';
 
 export type RoastNoteValues = { gas: string; airflow: string; drum: string; note: string };
 
@@ -18,16 +18,18 @@ export const RoastNoteFields = ({
     onChange,
     prefix,
     commentId,
+    machineId,
     autoFocus = false,
 }: {
     values: RoastNoteValues;
     onChange: (values: RoastNoteValues) => void;
     prefix: string;
     commentId: string;
+    machineId?: string | null;
     autoFocus?: boolean;
 }) => {
     const { t } = useTranslation();
-    const controls = useRoastSettings().manualControls.filter((control) => control.enabled);
+    const controls = manualControlsFor(useRoastSettings(), machineId).filter((control) => control.enabled);
     const measureRef = useRef<HTMLInputElement>(null);
     const commentRef = useRef<HTMLTextAreaElement>(null);
     const inputClass =
@@ -65,7 +67,12 @@ export const RoastNoteFields = ({
                             }
                             className={inputClass}
                         />
-                        <span className="min-w-4 font-mono text-[11px] whitespace-nowrap">{unit}</span>
+                        <span className="min-w-4 text-right font-mono text-[11px] leading-tight whitespace-nowrap">
+                            {unit}
+                            <span className="block text-[10px] text-muted">
+                                {control.min}–{control.max}
+                            </span>
+                        </span>
                     </label>
                 );
             })}

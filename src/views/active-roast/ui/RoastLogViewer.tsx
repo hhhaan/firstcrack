@@ -3,7 +3,13 @@ import type { LogEntry } from '@shared/types/roast';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
-export type ReferenceRoastLog = { name: string; entries: LogEntry[]; loading: boolean; error: boolean };
+export type ReferenceRoastLog = {
+    name: string;
+    entries: LogEntry[];
+    loading: boolean;
+    error: boolean;
+    machineId?: string | null;
+};
 
 export const RoastLogViewer = ({
     reference,
@@ -47,7 +53,12 @@ export const RoastLogViewer = ({
                 <>
                     <p className="mb-2 break-words text-[11px] text-secondary">{reference.name}</p>
                     {reference.entries.length > 0 ? (
-                        <RoastLog variant={current.variant} entries={reference.entries} showHeading={false} />
+                        <RoastLog
+                            variant={current.variant}
+                            entries={reference.entries}
+                            showHeading={false}
+                            machineId={reference.machineId}
+                        />
                     ) : (
                         <p role="status" className="py-3 text-[11px] text-muted">
                             {t(

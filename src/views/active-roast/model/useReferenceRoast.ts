@@ -95,6 +95,7 @@ export const useReferenceRoast = ({
                       entries: buildReferenceLog(sourceEvents, selected.points, unit, selected.storedHeat),
                       loading: selected.loading,
                       error: selected.error,
+                      machineId: selected.machineId,
                   }
                 : undefined,
         [selected, sourceEvents, unit],

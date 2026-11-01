@@ -20,7 +20,7 @@ import { isRemovableLogEvent } from '@features/active-roast/lib/constants';
 import type { CurveLineStyle, ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
 import { isFanDrumMarker } from '@features/active-roast/lib/fan-drum-markers';
-import { commitManualControl } from '@features/active-roast/lib/manual-controls';
+import { commitManualControl, manualControlsFor } from '@features/active-roast/lib/manual-controls';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import { isReviewDeletableEvent, isReviewEditableEvent } from '@features/active-roast/lib/review-record-events';
 import { formatRoastNote } from '@features/active-roast/lib/roast-note';
@@ -113,6 +113,8 @@ interface Props {
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     /** Right-click gas, airflow, and drum. Only while a roast is running. */
     recordManualControls?: boolean;
+    /** Machine whose name, unit, and range apply to those fields. */
+    machineId?: string | null;
     onAddEvent?: (event: string, timeSec: number) => void;
     /** Saved curve: a right-click label that already exists moves to the clicked time. */
     onMoveEvent?: (event: string, timeSec: number) => void;
@@ -310,6 +312,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         savedReview = false,
         onAddNote,
         recordManualControls = true,
+        machineId,
         onAddEvent,
         onMoveEvent,
         hideChargeLabel = false,
@@ -498,6 +501,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 colors,
                 curveStyles,
                 targetCurveTone,
+                machineId,
             }),
         [
             report,
@@ -553,6 +557,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             fontScale,
             curveStyles,
             targetCurveTone,
+            machineId,
         ],
     );
 
@@ -672,6 +677,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 tempYMax,
                 hideChargeLabel,
                 fontScale,
+                machineId,
             });
             const coord = ([time, temp]: number[]) => [
                 scalar(chart.convertToPixel({ xAxisIndex: 0 }, time)) ?? Number.NaN,
@@ -749,6 +755,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             turningPoints,
             savedReview,
             fontScale,
+            machineId,
             xs,
             xViewMax,
             xViewMin,
@@ -822,14 +829,14 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const point = localPoint(event.clientX, event.clientY);
             const container = chartRef.current;
             if (!selected?.logId || !point || !container) return false;
-            const noteTitle = formatRoastNote(selected).trim();
+            const noteTitle = formatRoastNote(selected, ' · ', machineId).trim();
             const title = isFanDrumMarker(selected.event)
                 ? t(selected.event === 'Fan' ? 'activeRoast.controls.fan' : 'activeRoast.controls.drum')
                 : selected.event === 'Note' && noteTitle
                   ? noteTitle
                   : roastEventLabel(selected.event);
             const heat = labelHeat(selected.event, selected.note);
-            const manual = getRoastSettings().manualControls;
+            const manual = manualControlsFor(getRoastSettings(), machineId);
             const controls =
                 selected.event === 'Note'
                     ? {
@@ -855,7 +862,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             });
             return true;
         },
-        [findDraggableMarker, localPoint, onEventMarkerEdit, t],
+        [findDraggableMarker, localPoint, machineId, onEventMarkerEdit, t],
     );
 
     const getDataURL = useCallback(
@@ -954,7 +961,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     );
 
     const submitNote = useCallback(() => {
-        const manual = getRoastSettings().manualControls;
+        const manual = manualControlsFor(getRoastSettings(), machineId);
         const note = noteValues.note.trim();
         const gas = recordManualControls ? commitManualControl('gas', noteValues.gas, manual) : '';
         const airflow = recordManualControls ? commitManualControl('airflow', noteValues.airflow, manual) : '';
@@ -970,7 +977,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         setNoteForm(null);
         setNoteValues(emptyNote);
         chartRef.current?.focus();
-    }, [noteValues, noteForm, onAddNote, recordManualControls]);
+    }, [machineId, noteValues, noteForm, onAddNote, recordManualControls]);
 
     const submitEdit = useCallback(() => {
         if (!editForm || !onEventMarkerEdit) return;
@@ -980,7 +987,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         const note = editForm.heat == null ? null : heatNote(editForm.heat, editForm.heatSuffix);
         if (editForm.heat != null && note == null) return;
         const controls = editForm.controls;
-        const manual = getRoastSettings().manualControls;
+        const manual = manualControlsFor(getRoastSettings(), machineId);
         onEventMarkerEdit(editForm.logId, {
             timeSec: clampMarkerTime(editForm.event, timeSec, currentTimeSec, axisMax),
             ...(note != null ? { note } : {}),
@@ -995,7 +1002,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         });
         setEditForm(null);
         chartRef.current?.focus();
-    }, [currentTimeSec, editForm, onEventMarkerEdit, xs, xViewMax]);
+    }, [currentTimeSec, editForm, machineId, onEventMarkerEdit, xs, xViewMax]);
 
     const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>, submit: () => void) => {
         if (event.key === 'Enter' && event.target instanceof HTMLButtonElement && event.target.type === 'button')
@@ -1117,6 +1124,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             onChange={setNoteValues}
                             prefix="chart-note"
                             commentId="chart-note-input"
+                            machineId={machineId}
                             autoFocus
                         />
                     ) : (
@@ -1243,6 +1251,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             onChange={(controls) => setEditForm({ ...editForm, controls })}
                             prefix="chart-marker"
                             commentId="chart-marker-note"
+                            machineId={machineId}
                         />
                     )}
                     <div className="flex items-center justify-end gap-1">

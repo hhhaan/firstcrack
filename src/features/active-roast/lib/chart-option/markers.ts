@@ -422,6 +422,8 @@ export interface MarkerBuildParams {
     hideChargeLabel?: boolean;
     /** 1, 1.5, or 2. Label inset and the target-delta mark use this. */
     fontScale?: number;
+    /** Machine whose manual-control names and units label note markers. */
+    machineId?: string | null;
 }
 
 export interface MarkerBuildResult {
@@ -448,6 +450,7 @@ type CurveLabelBuildParams = Pick<
     | 'tempYMax'
     | 'hideChargeLabel'
     | 'fontScale'
+    | 'machineId'
 > & { colors?: ResolvedChartColors };
 
 /** One source for rendered annotations and their click/drag targets. */
@@ -464,6 +467,7 @@ export const buildCurveLabels = ({
     tempYMax,
     hideChargeLabel = false,
     fontScale = 1,
+    machineId,
     colors,
 }: CurveLabelBuildParams): CurveLabelItem[] => {
     const showDot = eventMarkerStyle === 'point';
@@ -493,7 +497,7 @@ export const buildCurveLabels = ({
                         marker.event,
                         marker.timeSec,
                         markerTemp(marker, nearest),
-                        marker.event === 'Note' ? formatRoastNote(marker, '\n') : marker.note,
+                        marker.event === 'Note' ? formatRoastNote(marker, '\n', machineId) : marker.note,
                     ),
                     color: (isControlEvent(marker.event) ? colors?.eventControl : colors?.markerLabelColor) ?? '',
                     opacity: marker.reference ? REFERENCE_EVENT_OPACITY : 1,

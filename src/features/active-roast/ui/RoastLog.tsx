@@ -17,6 +17,7 @@ export const RoastLog = ({
     deletableEvent = isRemovableLogEvent,
     editableEvent = (event: string) => event !== 'Charge',
     showHeading = true,
+    machineId,
 }: {
     entries: LogEntry[];
     variant: 'sidebar' | 'main' | 'panel';
@@ -25,6 +26,8 @@ export const RoastLog = ({
     deletableEvent?: (event: string) => boolean;
     editableEvent?: (event: string) => boolean;
     showHeading?: boolean;
+    /** Machine whose control names and units label these notes. */
+    machineId?: string | null;
 }) => {
     const isSidebar = variant === 'sidebar';
     const { t } = useTranslation();
@@ -49,7 +52,7 @@ export const RoastLog = ({
             <div role="list">
                 {entries.map((entry, i, arr) => {
                     const key = entry.current ? 'current' : (entry.id ?? `${entry.time}-${entry.event}`);
-                    const note = entry.event === 'Note' ? formatRoastNote(entry) : entry.note;
+                    const note = entry.event === 'Note' ? formatRoastNote(entry, ' · ', machineId) : entry.note;
                     const canRemove = deletableEvent(entry.event) && !!entry.id && !entry.current && !!onRemoveEntry;
                     const deleteLocked =
                         entry.event === 'TP' && deletableEvent !== isRemovableLogEvent && !deletableEvent(entry.event);

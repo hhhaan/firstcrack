@@ -77,8 +77,10 @@ export type RoastSettings = {
      * Those numbers draw only on control channels the machine never reported, and are not sent to it.
      */
     recordVirtualControls: boolean;
-    /** Hand-entered gas, airflow, and drum. Numbers only; name and unit are the operator's. */
+    /** Hand-entered gas, airflow, and drum. Numbers only; name, unit, and range are the operator's. */
     manualControls: ManualControlSetting[];
+    /** Per-machine override. A missing id still uses `manualControls`. */
+    manualControlsByMachine: Record<string, ManualControlSetting[]>;
     /** Per-channel line color, width, and dash for live and reference curves. */
     curveStyles: CurveStyles;
     /** Target profile stroke: the live channel color, or gray. Both draw at reference opacity. */

@@ -59,6 +59,8 @@ interface RoastSidePanelProps {
     pressedButtons: Set<string>;
     roastLogDisplayEntries: RoastLogDisplayEntry[];
     referenceLog?: ReferenceRoastLog;
+    /** Machine whose control names and units label the live log. */
+    machineId?: string | null;
     noteInput: string;
     onNoteChange: (value: string) => void;
     onNoteSubmit: () => void;
@@ -108,6 +110,7 @@ export const RoastSidePanel = ({
     pressedButtons,
     roastLogDisplayEntries,
     referenceLog,
+    machineId,
     noteInput,
     onNoteChange,
     onNoteSubmit,
@@ -167,6 +170,7 @@ export const RoastSidePanel = ({
         <RoastSidePanelLayout
             roastLogDisplayEntries={roastLogDisplayEntries}
             referenceLog={referenceLog}
+            machineId={machineId}
             onRemoveLogEntry={onRemoveLogEntry}
             logEditOptions={logEditOptions}
             deletableEvent={reviewing ? isReviewDeletableEvent : undefined}

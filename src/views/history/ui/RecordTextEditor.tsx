@@ -202,7 +202,11 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                     {logged.map((note) => {
                         const id = note.id ?? `legacy:${note.index}`;
                         const time = drafts[id] ?? note.time;
-                        const controls = formatRoastNote({ gas: note.gas, airflow: note.airflow, drum: note.drum });
+                        const controls = formatRoastNote(
+                            { gas: note.gas, airflow: note.airflow, drum: note.drum },
+                            ' · ',
+                            session.machine_id,
+                        );
                         const commentNow = () => commentRefs.current.get(id)?.value ?? note.comment;
                         return (
                             <li key={id} className="flex items-start gap-2">

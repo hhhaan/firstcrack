@@ -75,6 +75,8 @@ interface RoastChartContainerProps {
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
     /** Gas, airflow, and drum fields. Live roast only; the chart right-click is the recorder. */
     recordManualControls?: boolean;
+    /** Machine whose name, unit, and range apply to those fields. */
+    machineId?: string | null;
     onAddEvent?: (event: string, timeSec: number) => void;
     onMoveEvent?: (event: string, timeSec: number) => void;
 }
@@ -139,6 +141,7 @@ export const RoastChartContainer = ({
     onAddEvent,
     onMoveEvent,
     recordManualControls = true,
+    machineId,
 }: RoastChartContainerProps) => {
     const chartRef = useRef<RoastTempChartHandle>(null);
     const markerPointerId = useRef<number | null>(null);
@@ -276,6 +279,7 @@ export const RoastChartContainer = ({
                 savedReview={savedReview}
                 onAddNote={onAddNote}
                 recordManualControls={recordManualControls}
+                machineId={machineId}
                 onAddEvent={onAddEvent}
                 onMoveEvent={onMoveEvent}
                 showET={showET}

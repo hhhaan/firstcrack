@@ -1,7 +1,7 @@
 import type { RoastNoteControls } from '@shared/types/roast';
 import i18n from 'i18next';
 import { getRoastSettings } from '../model/settings';
-import { DEFAULT_MANUAL_CONTROLS, isNumericControlValue, type ManualControlSetting } from './manual-controls';
+import { isNumericControlValue, type ManualControlSetting, manualControlsFor } from './manual-controls';
 
 const controlName = (control: ManualControlSetting) => {
     const custom = control.label.trim();
@@ -20,8 +20,12 @@ const controlText = (control: ManualControlSetting, value: string | undefined) =
 };
 
 /** Display only: keep the original comment and manual control values separate in storage. */
-export const formatRoastNote = (entry: RoastNoteControls & { note?: string | null }, separator = ' · '): string => {
-    const controls = getRoastSettings().manualControls ?? DEFAULT_MANUAL_CONTROLS;
+export const formatRoastNote = (
+    entry: RoastNoteControls & { note?: string | null },
+    separator = ' · ',
+    machineId?: string | null,
+): string => {
+    const controls = manualControlsFor(getRoastSettings(), machineId);
     return [...controls.map((control) => controlText(control, entry[control.id])), entry.note]
         .filter(Boolean)
         .join(separator);

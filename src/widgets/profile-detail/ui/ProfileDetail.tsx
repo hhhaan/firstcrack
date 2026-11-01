@@ -278,7 +278,11 @@ export const ProfileDetail = ({
                     <p className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-2">
                         {t('profiles.detail.roastLog')}
                     </p>
-                    <RoastLog entries={roastLogEntries} variant="main" />
+                    <RoastLog
+                        entries={roastLogEntries}
+                        variant="main"
+                        machineId={resolveSourceSession(selected.source_session)?.machine_id}
+                    />
                 </div>
             )}
 

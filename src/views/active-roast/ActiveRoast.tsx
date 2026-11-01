@@ -1106,6 +1106,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                         onCursorIdx={handleChartCursorIdx}
                         savedReview={reviewing}
                         recordManualControls={phase === 'roasting' && roastSettings.recordVirtualControls}
+                        machineId={machineSnapshot?.machine_id}
                         {...editing.chartHandlers}
                     />
 
@@ -1151,6 +1152,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                         pressedButtons={pressedButtons}
                         roastLogDisplayEntries={roastLogDisplayEntries}
                         referenceLog={referenceLog}
+                        machineId={machineSnapshot?.machine_id}
                         noteInput={noteInput}
                         onNoteChange={setNoteInput}
                         onNoteSubmit={handleNoteSubmit}

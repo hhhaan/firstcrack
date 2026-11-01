@@ -5,6 +5,7 @@ import type { CropsterSettingsSnapshot } from '@shared/types/cropster';
 import type { FirescopeSettingsSnapshot } from '@shared/types/firescope';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CURVE_STYLES } from '../lib/curve-style';
+import { commitManualControl, manualControlsFor } from '../lib/manual-controls';
 import {
     AUTO_DROP_START_MIN_DEFAULT,
     AUTO_DROP_START_MIN_MAX,
@@ -23,9 +24,10 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 
-it('leaves virtual right-click controls off until turned on', () => {
-    expect(normalizeRoastSettings({}).recordVirtualControls).toBe(false);
+it('turns virtual right-click controls on until turned off', () => {
+    expect(normalizeRoastSettings({}).recordVirtualControls).toBe(true);
     expect(normalizeRoastSettings({ recordVirtualControls: false }).recordVirtualControls).toBe(false);
+    expect(normalizeRoastSettings({ recordVirtualControls: true }).recordVirtualControls).toBe(true);
 });
 
 it('drops the combined batch numbering choice', () => {
@@ -525,26 +527,48 @@ describe('normalize — font scale', () => {
 describe('normalize — manual controls', () => {
     it('starts with gas, airflow, and drum RPM', () => {
         expect(normalizeRoastSettings({}).manualControls).toEqual([
-            { id: 'gas', label: '', unit: '%', enabled: true },
-            { id: 'airflow', label: '', unit: '%', enabled: true },
-            { id: 'drum', label: '', unit: 'RPM', enabled: true },
+            { id: 'gas', label: '', unit: '%', min: 0, max: 100, enabled: true },
+            { id: 'airflow', label: '', unit: '%', min: 0, max: 100, enabled: true },
+            { id: 'drum', label: '', unit: 'RPM', min: 0, max: 100, enabled: true },
         ]);
+        expect(normalizeRoastSettings({}).manualControlsByMachine).toEqual({});
     });
 
     it('keeps a renamed unit and a hidden drum, and drops an unknown control', () => {
         expect(
             normalizeRoastSettings({
                 manualControls: [
-                    { id: 'gas', label: '버너압', unit: 'kPa', enabled: true },
+                    { id: 'gas', label: '버너압', unit: 'kPa', min: 0, max: 3, enabled: true },
                     { id: 'drum', label: '', unit: 'Hz', enabled: false },
                     { id: 'damper', label: '댐퍼', unit: '%', enabled: true },
                 ] as never,
             }).manualControls,
         ).toEqual([
-            { id: 'gas', label: '버너압', unit: 'kPa', enabled: true },
-            { id: 'airflow', label: '', unit: '%', enabled: true },
-            { id: 'drum', label: '', unit: 'Hz', enabled: false },
+            { id: 'gas', label: '버너압', unit: 'kPa', min: 0, max: 3, enabled: true },
+            { id: 'airflow', label: '', unit: '%', min: 0, max: 100, enabled: true },
+            { id: 'drum', label: '', unit: 'Hz', min: 0, max: 100, enabled: false },
         ]);
+    });
+
+    it('stores a range and a list on one machine, and leaves the others on the shared list', () => {
+        const settings = normalizeRoastSettings({
+            manualControlsByMachine: {
+                mill: [{ id: 'drum', label: '회전', unit: 'Hz', min: 20, max: 70, enabled: true }],
+                '  ': [],
+            } as never,
+        });
+        expect(settings.manualControlsByMachine.mill).toEqual([
+            { id: 'gas', label: '', unit: '%', min: 0, max: 100, enabled: true },
+            { id: 'airflow', label: '', unit: '%', min: 0, max: 100, enabled: true },
+            { id: 'drum', label: '회전', unit: 'Hz', min: 20, max: 70, enabled: true },
+        ]);
+        expect(Object.keys(settings.manualControlsByMachine)).toEqual(['mill']);
+        expect(manualControlsFor(settings, 'other')).toEqual(settings.manualControls);
+        expect(manualControlsFor(settings, null)).toEqual(settings.manualControls);
+        const mill = manualControlsFor(settings, 'mill');
+        expect(commitManualControl('drum', '70', mill)).toBe('70');
+        expect(commitManualControl('drum', '71', mill)).toBe('');
+        expect(commitManualControl('gas', '150', mill)).toBe('');
     });
 });
 

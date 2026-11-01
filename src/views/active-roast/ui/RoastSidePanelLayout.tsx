@@ -14,6 +14,7 @@ export const RoastSidePanelLayout = ({
     deletableEvent,
     editableEvent,
     referenceLog,
+    machineId,
 }: {
     children: ReactNode;
     roastLogDisplayEntries: LogEntry[];
@@ -24,6 +25,7 @@ export const RoastSidePanelLayout = ({
     /** Saved-curve review also freezes Drop. Live roast freezes Charge only. */
     editableEvent?: (event: string) => boolean;
     referenceLog?: ReferenceRoastLog;
+    machineId?: string | null;
 }) => {
     const { t } = useTranslation();
     const { logExpanded } = useRoastSettings();
@@ -74,6 +76,7 @@ export const RoastSidePanelLayout = ({
                             editOptions={logEditOptions}
                             deletableEvent={deletableEvent}
                             editableEvent={editableEvent}
+                            machineId={machineId}
                         />
                     </>
                 )}
@@ -108,6 +111,7 @@ export const RoastSidePanelLayout = ({
                             editOptions={logEditOptions}
                             deletableEvent={deletableEvent}
                             editableEvent={editableEvent}
+                            machineId={machineId}
                         />
                     </div>
                 </section>

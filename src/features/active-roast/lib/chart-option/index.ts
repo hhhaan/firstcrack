@@ -114,6 +114,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
         targetCurveTone = 'color',
+        machineId,
     } = paper;
     const report = print || configuredReport;
     const mergeControlChart = !print && configuredMergeControlChart;
@@ -221,6 +222,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             targetBt,
             hideChargeLabel,
             fontScale,
+            machineId,
         });
 
     const hasRightYAxis = showRoR || hasControlSeries;

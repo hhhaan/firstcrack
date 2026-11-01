@@ -425,6 +425,7 @@ export function HistorySessionChart({
                     eventMarkers={eventMarkers}
                     onEventMarkerEdit={record.canWrite ? onEventMarkerEdit : undefined}
                     onEventMarkerDelete={record.canWrite ? onEventMarkerDelete : undefined}
+                    machineId={session.machine_id}
                     showRoRET={false}
                     temperatureUnit={unit}
                     tempMinC={tempBounds.tempMinC}
