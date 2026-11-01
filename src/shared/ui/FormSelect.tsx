@@ -101,9 +101,15 @@ export const FormSelect = forwardRef<HTMLButtonElement, FormSelectProps>(
             if (value == null) setUncontrolled(real);
             onChange?.(changeEvent(real, name));
         };
+        const searchKeywords = blocks
+            .flatMap((block) => [...(block.label ? [block.label] : []), ...block.items.map((item) => item.label)])
+            .join(' ');
 
         return (
-            <div className={cn('relative min-w-0 w-full', wrapperClassName)}>
+            <div
+                className={cn('relative min-w-0 w-full', wrapperClassName)}
+                {...(searchKeywords ? { 'data-form-select-keywords': searchKeywords } : {})}
+            >
                 <Select value={known ? radixValue : ''} onValueChange={choose} disabled={disabled}>
                     <SelectTrigger
                         ref={ref}
