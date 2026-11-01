@@ -418,7 +418,7 @@
                 "eventButtonNameInvalid": "请输入 1–16 个字符。不能使用已有名称或内置事件。",
                 "eventButtonLimit": "最多添加 8 个事件。",
                 "eventButtonShortcutUnset": "设置",
-                "recordVirtualControls": "右键虚拟写入",
+                "recordVirtualControls": "虚拟写入",
                 "recordVirtualControlsDescription": "烘焙中右键记下的火力、风门和滚筒，画在机器没有读数的控制图上。不会发给机器。",
                 "manualControls": "手动控制",
                 "manualControlsDescription": "每台机器各自保存燃气、排风和滚筒的名称、单位和范围。只记录该范围内的数字。单位不写入记录，修改后该机器较早记录的显示也会改变。",

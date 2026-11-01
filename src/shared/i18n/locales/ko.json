@@ -418,7 +418,7 @@
                 "eventButtonNameInvalid": "1–16자로 입력하세요. 이미 있는 이름이나 기본 이벤트는 쓸 수 없습니다.",
                 "eventButtonLimit": "이벤트는 8개까지 추가할 수 있습니다.",
                 "eventButtonShortcutUnset": "지정",
-                "recordVirtualControls": "우클릭 가상 쓰기",
+                "recordVirtualControls": "가상 쓰기",
                 "recordVirtualControlsDescription": "로스팅 중 우클릭으로 적은 화력·에어·드럼을, 머신 값이 없는 컨트롤 그래프에 그립니다. 머신에는 보내지 않습니다.",
                 "manualControls": "수동 컨트롤",
                 "manualControlsDescription": "머신마다 가스, 배기, 드럼의 이름·단위·범위가 따로입니다. 값은 그 범위의 숫자만 기록됩니다. 단위는 기록에 저장되지 않아, 바꾸면 그 머신으로 남긴 이전 기록의 표시도 바뀝니다.",

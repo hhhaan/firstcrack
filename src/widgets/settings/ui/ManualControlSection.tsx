@@ -109,7 +109,7 @@ export function ManualControlSection() {
                 />
                 {selectedId && (
                     <Select value={selectedId} onValueChange={setPickedId}>
-                        <SelectTrigger className="w-full" aria-label={tk('manualControlMachine')}>
+                        <SelectTrigger className="my-4 w-full" aria-label={tk('manualControlMachine')}>
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
