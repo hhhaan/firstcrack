@@ -38,16 +38,6 @@ export type { ChartOptionParams, ControlData, ResolvedChartColors, RoastEventMar
 
 export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption => {
     const printEnd = params.eventMarkers.find((marker) => marker.event === 'Drop')?.timeSec;
-    let printRorMax = 10;
-    if (params.print) {
-        for (const values of [params.rorActual, params.rorEtActual])
-            values.forEach((value, index) => {
-                const time = params.xs[index];
-                if (value == null || !Number.isFinite(value) || time < 0 || (printEnd != null && time > printEnd))
-                    return;
-                printRorMax = Math.max(printRorMax, value);
-            });
-    }
     const paper = params.print
         ? {
               ...params,
@@ -134,10 +124,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const fontScale = chartFontScale(fontScaleRaw);
     const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
     const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
-    const rorStep = temperatureUnit === 'F' ? 20 : 10;
-    // Charge cooling must not flatten the rising RoR curve in print.
-    const rorYMinDisp = print ? 0 : toDisplayRoR(rorYMin, temperatureUnit);
-    const rorYMaxDisp = print ? Math.ceil(printRorMax / rorStep) * rorStep : toDisplayRoR(rorYMax, temperatureUnit);
+    const rorYMinDisp = print ? -10 : toDisplayRoR(rorYMin, temperatureUnit);
+    const rorYMaxDisp = print ? 20 : toDisplayRoR(rorYMax, temperatureUnit);
 
     const unitLabel = tempUnitLabel(temperatureUnit);
     const rorUnit = rorUnitLabel(temperatureUnit);

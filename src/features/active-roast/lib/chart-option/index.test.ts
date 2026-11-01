@@ -86,7 +86,7 @@ it('prints each recorded control in its own plot while keeping screen controls i
     ]);
     expect(screenSeries.map((series) => series.name)).toEqual(expect.arrayContaining(['Drum', 'Heat', 'Fan']));
     expect(paper.xAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 600 })]));
-    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: 0, max: 40, interval: 10 })]));
+    expect(paper.yAxis).toEqual(expect.arrayContaining([expect.objectContaining({ min: -10, max: 20, interval: 10 })]));
     for (const name of ['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Heat set', 'Fan', 'Drum']) {
         expect(paperSeries.find((series) => series.name === name)).toMatchObject({ lineStyle: { type: 'solid' } });
     }
@@ -100,7 +100,7 @@ it('prints each recorded control in its own plot while keeping screen controls i
     );
     const fahrenheit = buildRoastChartOption({ ...params, print: true, temperatureUnit: 'F' });
     expect(fahrenheit.yAxis).toEqual(
-        expect.arrayContaining([expect.objectContaining({ min: 0, max: 40, interval: 20 })]),
+        expect.arrayContaining([expect.objectContaining({ min: -10, max: 20, interval: 10 })]),
     );
     expect(paperSeries.find((series) => series.name === 'BT Actual')).toMatchObject({
         data: [
@@ -113,7 +113,7 @@ it('prints each recorded control in its own plot while keeping screen controls i
 });
 
 it.each(['C', 'F'] as const)(
-    'prints readable positive RoR in °%s without changing the samples or screen axes',
+    'keeps the printed RoR axis fixed at -10 to 20 in °%s without changing recorded samples or screen axes',
     (unit) => {
         for (const controls of [false, true]) {
             const xs = [-30, 0, 30, 60, 300, 330];
@@ -135,9 +135,9 @@ it.each(['C', 'F'] as const)(
                 expect.arrayContaining([
                     expect.objectContaining({
                         position: 'right',
-                        min: 0,
-                        max: unit === 'F' ? 40 : 30,
-                        interval: unit === 'F' ? 20 : 10,
+                        min: -10,
+                        max: 20,
+                        interval: 10,
                         axisLabel: expect.objectContaining({ hideOverlap: true }),
                     }),
                 ]),
@@ -166,9 +166,9 @@ it.each([
     { label: 'empty', rorActual: [] },
     { label: 'missing or invalid', rorActual: [null, Number.NaN, Number.POSITIVE_INFINITY] },
     { label: 'negative or zero', rorActual: [-140, -18, 0] },
-])('keeps a usable print RoR scale with $label samples', ({ rorActual }) => {
+])('keeps the fixed print RoR scale with $label samples', ({ rorActual }) => {
     const paper = buildRoastChartOption({ ...baseParams(), print: true, xs: [0, 30, 60], rorActual });
-    expect(paper.yAxis).toMatchObject([{}, { min: 0, max: 10, interval: 10 }]);
+    expect(paper.yAxis).toMatchObject([{}, { min: -10, max: 20, interval: 10 }]);
 });
 
 it.each([true, false])('prints major roast events including TP (stored TP: %s)', (storedTp) => {
