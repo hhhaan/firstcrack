@@ -68,6 +68,8 @@ const click = (element: Element | null | undefined) => {
 };
 
 const targetButton = () => document.querySelector('button[aria-label="activeRoast.header.target"]');
+const beanTrigger = (root: ParentNode) =>
+    root.querySelector<HTMLButtonElement>('button[aria-label="activeRoast.summary.bean"]');
 
 const buttonNamed = (text: string) =>
     [...document.querySelectorAll('button')].find((button) => button.textContent?.includes(text));
@@ -160,7 +162,7 @@ it.each([
     expect(host.querySelector('label')).toBeNull();
     expect(host.textContent).not.toContain('activeRoast.header.batchTitle');
     expect(host.querySelector('span')?.textContent).toBe('Colombia Santander');
-    expect(host.querySelector('select')?.disabled).toBe(false);
+    expect(beanTrigger(host)?.disabled).toBe(false);
     expect(host.querySelector('[title="activeRoast.header.batchNumberHint"]')).toBeNull();
     act(() => root.unmount());
 });
@@ -259,7 +261,7 @@ it('allows source selection during roasting and locks the completed batch', () =
     const host = document.createElement('div');
     const root = createRoot(host);
     act(() => root.render(createElement(RoastHeader, props)));
-    const beanSelect = host.querySelector('select');
+    const beanSelect = beanTrigger(host);
     expect(beanSelect?.disabled).toBe(false);
     act(() => useRoastingStore.setState({ phase: 'ended' }));
     expect(beanSelect?.disabled).toBe(true);
@@ -311,14 +313,29 @@ it('hides reconnecting status when store.reconnecting is false', () => {
 
 it('shows a grouped blend option and selects the recipe independently of beans', () => {
     const onBlendChange = vi.fn();
+    const onBeanChange = vi.fn();
     const host = document.createElement('div');
+    document.body.append(host);
     const root = createRoot(host);
-    act(() => root.render(createElement(RoastHeader, { ...props, selectedBlendId: 'blend-1', onBlendChange })));
-    const select = host.querySelector('select');
-    expect(select?.value).toBe('blend:blend-1');
+    act(() =>
+        root.render(createElement(RoastHeader, { ...props, selectedBlendId: 'blend-1', onBlendChange, onBeanChange })),
+    );
+    const trigger = beanTrigger(host);
+    expect(trigger?.getAttribute('data-value')).toBe('blend:blend-1');
     expect(host.textContent).toContain('Modern');
-    act(() => select?.dispatchEvent(new Event('change', { bubbles: true })));
+    click(trigger);
+    const dialog = document.querySelector('[role="dialog"]');
+    expect(dialog?.textContent).toContain('newProfileModal.singleOrigin');
+    expect(dialog?.textContent).toContain('Colombia · Santander');
+    expect(dialog?.textContent).toContain('마라닉');
+    expect(dialog?.textContent).toContain('newProfileModal.blend');
+    click(buttonNamed('Modern'));
     expect(onBlendChange).toHaveBeenCalledWith('blend-1', 'Modern');
+    expect(onBeanChange).not.toHaveBeenCalled();
+    click(trigger);
+    click(buttonNamed('마라닉'));
+    expect(onBeanChange).toHaveBeenCalledWith('bean-2', '마라닉');
+    expect(localStorage.getItem(DEFAULT_BEAN_KEY)).toBe('bean-2');
     act(() => root.unmount());
 });
 
@@ -513,7 +530,7 @@ describe('inline running title edits', () => {
         expect(host.textContent).toContain('Saved roast');
         expect(titleButton()).toBeNull();
         expect(input()).toBeNull();
-        expect(host.querySelector('select')).toBeNull();
+        expect(beanTrigger(host)).toBeNull();
         expect(host.querySelector('.lucide-chevron-down')).toBeNull();
         const title = [...host.querySelectorAll('span')].find((span) => span.textContent === 'Saved roast');
         click(title);
@@ -541,7 +558,7 @@ describe('inline running title edits', () => {
                 }),
             ),
         );
-        expect(host.querySelector('select')).toBeNull();
+        expect(beanTrigger(host)).toBeNull();
         expect(onBeanChange).not.toHaveBeenCalled();
         expect(onBlendChange).not.toHaveBeenCalled();
         expect(useRoastingStore.getState().completed).toBe(before.completed);
@@ -552,7 +569,7 @@ describe('inline running title edits', () => {
             useRoastingStore.getState().startCharge(undefined, 'user-1');
         });
         expect(useRoastingStore.getState().activeSelection?.beanId).toBe('bean-1');
-        expect(host.querySelector('select')?.disabled).toBe(false);
+        expect(beanTrigger(host)?.disabled).toBe(false);
         expect(titleButton()).not.toBeNull();
     });
 
@@ -566,6 +583,6 @@ describe('inline running title edits', () => {
                 });
         });
         expect(titleButton()).toBeNull();
-        expect(host.querySelector('select')).toBeNull();
+        expect(beanTrigger(host)).toBeNull();
     });
 });
