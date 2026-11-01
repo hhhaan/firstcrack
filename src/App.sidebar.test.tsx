@@ -7,6 +7,7 @@ const hooks = vi.hoisted(() => ({
     initTheme: vi.fn(),
     phase: 'idle',
     updateStatus: 'idle',
+    updateProgress: 0,
     checkAndDownload: vi.fn(() => Promise.resolve()),
     applyAndRelaunch: vi.fn(() => Promise.resolve()),
 }));
@@ -62,14 +63,18 @@ vi.mock('./features/active-roast', () => ({
 }));
 vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined }));
 vi.mock('./features/sidecar', () => ({ useSidecarDeadListener: () => ({ isDead: false }) }));
-vi.mock('./features/updater', () => ({
-    UpdateCheckerProvider: ({ children }: { children: ReactNode }) => children,
-    useUpdater: () => ({
-        state: { status: hooks.updateStatus, version: null, progress: 0, error: null },
-        checkAndDownload: hooks.checkAndDownload,
-        applyAndRelaunch: hooks.applyAndRelaunch,
-    }),
-}));
+vi.mock('./features/updater', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('./features/updater')>();
+    return {
+        ...actual,
+        UpdateCheckerProvider: ({ children }: { children: ReactNode }) => children,
+        useUpdater: () => ({
+            state: { status: hooks.updateStatus, version: '1.4.0', progress: hooks.updateProgress, error: null },
+            checkAndDownload: hooks.checkAndDownload,
+            applyAndRelaunch: hooks.applyAndRelaunch,
+        }),
+    };
+});
 vi.mock('./entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner-1' }),
 }));
@@ -127,6 +132,7 @@ describe('App sidebar collapse', () => {
         vi.clearAllMocks();
         hooks.phase = 'idle';
         hooks.updateStatus = 'idle';
+        hooks.updateProgress = 0;
         setSidebarCollapsed(false);
         container = document.createElement('div');
         document.body.appendChild(container);
@@ -174,6 +180,17 @@ describe('App sidebar collapse', () => {
         act(() => restartButton()?.click());
         expect(status === 'ready' ? hooks.applyAndRelaunch : hooks.checkAndDownload).toHaveBeenCalledOnce();
         expect(status === 'ready' ? hooks.checkAndDownload : hooks.applyAndRelaunch).not.toHaveBeenCalled();
+    });
+
+    it('shows a download bar before the restart pill', async () => {
+        hooks.updateStatus = 'downloading';
+        hooks.updateProgress = 42;
+        await act(async () => root.render(createElement(App)));
+
+        const bar = container.querySelector('[role="progressbar"]');
+        expect(bar?.getAttribute('aria-valuenow')).toBe('42');
+        expect(container.textContent).toContain('updater.downloadingProgress');
+        expect(container.textContent).not.toContain('updater.ready');
     });
 
     it('collapses the sidebar when the roast view opens and keeps a manual expand', async () => {

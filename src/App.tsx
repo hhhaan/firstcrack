@@ -14,7 +14,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useActiveWorkspace } from './entities/organization';
 import { useSidecarDeadListener } from './features/sidecar';
-import { UpdateCheckerProvider, useUpdater } from './features/updater';
+import { UpdateCheckerProvider, UpdateDownloadBar, useUpdater } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
 import {
     SHORTCUT_HOTKEY_OPTIONS,
@@ -423,6 +423,32 @@ const AppShell = () => {
                     >
                         {updateLabel}
                     </button>
+                )}
+
+                {state.status === 'downloading' && (
+                    <div
+                        style={{
+                            position: 'fixed',
+                            bottom: 24,
+                            right: 24,
+                            zIndex: 9999,
+                            width: 260,
+                            padding: '10px 16px',
+                            borderRadius: 16,
+                            background: 'var(--color-accent, #2563eb)',
+                            color: '#fff',
+                            fontSize: 14,
+                            fontWeight: 500,
+                            boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+                        }}
+                    >
+                        <div style={{ marginBottom: 8 }}>
+                            {state.progress > 0
+                                ? t('updater.downloadingProgress', { progress: state.progress })
+                                : t('updater.downloading')}
+                        </div>
+                        <UpdateDownloadBar progress={state.progress} label={t('updater.downloading')} />
+                    </div>
                 )}
 
                 {state.status === 'applying' && (
