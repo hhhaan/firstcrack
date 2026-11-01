@@ -47,6 +47,9 @@ const INITIAL_STATE: UpdateState = {
 
 const MAX_RETRY_ATTEMPTS = 3;
 
+// 원격 버전이 현재와 다르면 설치한다. 낮은 버전도 받아서, 이 빌드 이후에는 R2 latest.json 롤백이 이미 설치된 앱을 내린다.
+const UPDATE_CHECK = { allowDowngrades: true } as const;
+
 const LAST_DOWNLOADED_KEY = 'fc_updater_last_downloaded';
 
 const readLastDownloadedVersion = () => localStorage.getItem(LAST_DOWNLOADED_KEY);
@@ -125,7 +128,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             }
 
             try {
-                const update = await check();
+                const update = await check(UPDATE_CHECK);
                 if (blocksUpdate()) return;
                 if (!update) {
                     clearLastDownloadedVersion();
@@ -154,7 +157,7 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             setState((prev) => ({ ...prev, status: 'checking', error: null }));
 
             try {
-                const update = await check();
+                const update = await check(UPDATE_CHECK);
                 if (!update) {
                     clearLastDownloadedVersion();
                     clearRetryAttempts();

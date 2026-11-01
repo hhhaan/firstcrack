@@ -5,8 +5,8 @@ name: Rollback release (R2 pointer)
 #
 # Effect:
 #   - Users who have NOT upgraded: stop receiving the bad version ✅
-#   - Users already on a newer version: Tauri will NOT auto-downgrade ❌
-#     → ship a higher-version hotfix when possible
+#   - Users on a build that calls check({ allowDowngrades: true }): install this version even if it is older ✅
+#   - Users on an older build that only accepts a higher version: stay put ❌
 #
 # Usage (Actions → Rollback release → Run workflow):
 #   target_version: 1.0.1
@@ -264,7 +264,7 @@ jobs:
         run: |
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           if [ "${{ job.status }}" = "success" ]; then
-            TEXT=":rewind: *Release ROLLED BACK* — pointer → v${VERSION} by @${ACTOR} | <${RUN_URL}|View run>\n_(already-upgraded clients will NOT auto-downgrade)_"
+            TEXT=":rewind: *Release ROLLED BACK* — pointer → v${VERSION} by @${ACTOR} | <${RUN_URL}|View run>\n_(clients that allow downgrades install this version; older clients stay)_"
           else
             TEXT=":x: *Release rollback FAILED* — target v${VERSION} by @${ACTOR} | <${RUN_URL}|View run>"
           fi

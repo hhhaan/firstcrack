@@ -74,6 +74,7 @@ describe('UpdateCheckerProvider', () => {
 
     it('checks on startup and every four hours, downloading once without installing', async () => {
         expect(native.check).toHaveBeenCalledOnce();
+        expect(native.check).toHaveBeenCalledWith({ allowDowngrades: true });
         const available = update();
         native.check.mockResolvedValue(available);
 
@@ -131,6 +132,7 @@ describe('UpdateCheckerProvider', () => {
 
         await act(async () => api().checkForUpdate());
 
+        expect(native.check).toHaveBeenCalledWith({ allowDowngrades: true });
         expect(api().state).toMatchObject({ status: 'available', version: '1.4.0' });
         expect(available.download).not.toHaveBeenCalled();
         expect(available.downloadAndInstall).not.toHaveBeenCalled();
