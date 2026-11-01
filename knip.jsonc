@@ -6,10 +6,14 @@
         "src/roast-monitor.tsx",
         "scripts/check-version-sync.mjs",
         "supabase/tests/polar-database-types.ts",
-        "supabase/tests/mcp-opaque.integration.ts"
+        "supabase/tests/mcp-opaque.integration.ts",
+        "supabase/tests/mcp-inventory.integration.ts"
     ],
     // Deno resolves the pinned npm: imports; Knip otherwise reports a nonexistent package named "npm".
-    "ignoreIssues": { "supabase/tests/mcp-opaque.integration.ts": ["unlisted"] },
+    "ignoreIssues": {
+        "supabase/tests/mcp-opaque.integration.ts": ["unlisted"],
+        "supabase/tests/mcp-inventory.integration.ts": ["unlisted"]
+    },
     "ignore": [
         // Deno. `deno check`(edge-check)와 vitest가 본다. `npm:` specifier는 knip이 패키지 `npm`으로 오인한다.
         "supabase/functions/**",
