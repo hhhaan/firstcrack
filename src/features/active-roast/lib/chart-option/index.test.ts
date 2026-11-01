@@ -291,6 +291,35 @@ describe('buildRoastChartOption font scale', () => {
     );
 });
 
+describe('phase line', () => {
+    const drying = {
+        name: 'Drying',
+        startSec: 0,
+        endSec: 180,
+        durationSec: 180,
+        pct: 100,
+        color: '#fff',
+    };
+
+    it('keeps the plot where it was and still draws the phase line', () => {
+        const option = buildRoastChartOption({ ...baseParams(), phaseSegments: [drying] });
+        expect(option.grid).toMatchObject([{ bottom: 65 }]);
+        const phase = (option.series as { id?: string; data?: unknown[] }[]).find(
+            (series) => series.id === 'phase-bar',
+        );
+        expect(phase?.data).toEqual([[0, 180, 180, 'Drying']]);
+    });
+
+    it('does not shrink the temperature grid when a control chart is below', () => {
+        const option = buildRoastChartOption({
+            ...baseParams(),
+            phaseSegments: [drying],
+            controlData: { xs: [0, 60], drumTemp: [50, 50], heatPower: [80, 60], fanSpeed: [20, 30] },
+        });
+        expect(option.grid).toMatchObject([{ height: '76%' }, { top: '79%', bottom: 30 }]);
+    });
+});
+
 describe('buildRoastChartOption', () => {
     it('separates three recorded control plots even when screen controls are merged', () => {
         const params = {
@@ -1262,7 +1291,7 @@ describe('buildRoastChartOption', () => {
         return byName;
     };
 
-    it('draws stored reference channels as the parent curve at 30% opacity without filling gaps', () => {
+    it('draws stored reference channels as the parent curve at reference opacity without filling gaps', () => {
         const byName = seriesByName({ ...baseParams(), ...fullReference });
         expect(byName['ET Target']).toMatchObject({
             connectNulls: false,
@@ -1374,7 +1403,7 @@ describe('buildRoastChartOption', () => {
         const svg = chart.renderToSVGString();
         chart.dispose();
         expect(svg).toContain('#123456');
-        expect(svg).toContain('stroke-opacity="0.3"');
+        expect(svg).toContain('stroke-opacity="0.2"');
         expect(svg).toContain('stroke-dasharray');
     });
 
@@ -1393,6 +1422,18 @@ describe('buildRoastChartOption', () => {
             color: '#ff0000',
             width: TEMP_CURVE_WIDTH,
             type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
+        const gray = seriesByName({ ...baseParams(), ...fullReference, curveStyles, targetCurveTone: 'gray' });
+        expect(gray['BT Actual']?.lineStyle).toEqual({ color: '#ff0000', width: TEMP_CURVE_WIDTH, type: 'solid' });
+        expect(gray['BT Target']?.lineStyle).toEqual({
+            color: mockColors.reference,
+            width: TEMP_CURVE_WIDTH,
+            type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
+        expect(gray['Heater Target']?.lineStyle).toMatchObject({
+            color: mockColors.reference,
             opacity: REFERENCE_CURVE_OPACITY,
         });
         expect(styled['RoR Target']?.lineStyle).toEqual({

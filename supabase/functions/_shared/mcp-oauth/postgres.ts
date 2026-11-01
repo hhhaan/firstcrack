@@ -25,6 +25,8 @@ function connection(url: string, role: 'firstcrack_mcp_issuer' | 'firstcrack_mcp
             pg_has_role(current_user, ${role}, 'USAGE') as allowed,
             pg_has_role(current_user, 'firstcrack_mcp_store', 'MEMBER') as store_owner,
             pg_has_role(current_user, 'firstcrack_mcp_data', 'MEMBER') as data_owner,
+            exists(select 1 from pg_roles where rolname = 'firstcrack_mcp_writer'
+                and pg_has_role(current_user, oid, 'MEMBER')) as writer_owner,
             pg_has_role(current_user, ${role === 'firstcrack_mcp_issuer' ? 'firstcrack_mcp_gateway' : 'firstcrack_mcp_issuer'}, 'MEMBER') as other_runtime,
             pg_has_role(current_user, 'service_role', 'MEMBER') as service_role,
             pg_has_role(current_user, 'authenticated', 'MEMBER') as native_role
@@ -35,6 +37,7 @@ function connection(url: string, role: 'firstcrack_mcp_issuer' | 'firstcrack_mcp
                 r.rolbypassrls ||
                 r.store_owner ||
                 r.data_owner ||
+                r.writer_owner ||
                 r.other_runtime ||
                 r.service_role ||
                 r.native_role
@@ -78,6 +81,18 @@ export function readGateway(url: string) {
             await ready();
             const [row] =
                 await sql`select private.mcp_read(${hash}, ${issuer}, ${resource}, ${tool}, ${sql.json(args as postgres.JSONValue)}::jsonb) as result`;
+            return row?.result ?? { error: 'invalid_token' };
+        },
+        write: async (
+            hash: string,
+            issuer: string,
+            resource: string,
+            tool: string,
+            args: JsonRecord,
+        ): Promise<JsonRecord> => {
+            await ready();
+            const [row] =
+                await sql`select private.mcp_write(${hash}, ${issuer}, ${resource}, ${tool}, ${sql.json(args as postgres.JSONValue)}::jsonb) as result`;
             return row?.result ?? { error: 'invalid_token' };
         },
     };

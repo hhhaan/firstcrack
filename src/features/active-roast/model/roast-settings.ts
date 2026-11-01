@@ -1,7 +1,7 @@
 import type { BatchTitleNumbering } from '@shared/types/roast';
 import type { AlertSoundKind } from '../lib/alertSound';
 import type { AutoChargeMode, AutoDropMode } from '../lib/autoCharge';
-import type { CurveStyles } from '../lib/curve-style';
+import type { CurveStyles, TargetCurveTone } from '../lib/curve-style';
 import type { RoastEventButtons } from '../lib/event-buttons';
 import type { ManualControlSetting } from '../lib/manual-controls';
 import type { TemperatureUnit } from '../lib/temperature';
@@ -76,6 +76,8 @@ export type RoastSettings = {
     manualControls: ManualControlSetting[];
     /** Per-channel line color, width, and dash for live and reference curves. */
     curveStyles: CurveStyles;
+    /** Target profile stroke: the live channel color, or gray. Both draw at reference opacity. */
+    targetCurveTone: TargetCurveTone;
     tempMinC: number;
     tempMaxC: number;
     /** Numeric label spacing in the displayed temperature unit. */

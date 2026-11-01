@@ -2,6 +2,7 @@ import { chartFontScale, scaleChartPx, TEMP_Y_INTERVAL } from '@features/active-
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
+import { withVirtualControlLines } from '../virtual-controls';
 import {
     applyChartAxisSettings,
     applyPrintAxes,
@@ -123,11 +124,12 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         fontScale: fontScaleRaw,
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
+        targetCurveTone = 'color',
     } = paper;
     const report = print || configuredReport;
     const mergeControlChart = !print && configuredMergeControlChart;
     const controlChartHeightPct = print ? 24 : configuredControlChartHeightPct;
-    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
+    const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors), targetCurveTone, colors.reference);
     if (print) for (const curve of Object.values(curves)) curve.current.type = 'solid';
 
     const fontScale = chartFontScale(fontScaleRaw);
@@ -265,7 +267,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const hasPhaseBar = phaseSegments.length > 0;
     const phaseSeries = hasPhaseBar
         ? buildPhaseSeries({ phaseSegments, tempMinC, tempMaxC, temperatureUnit, colors, fontScale })
-        : null;
+        : [];
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
     const curveLabelSeries = print
@@ -310,16 +312,17 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     if (hasControlSeries && controlData) {
         // Controls keep their own value axes, including when sharing the temperature grid.
         // Physical feedback (Pa/Hz/RPM) is kept raw, never normalized to percent.
+        const displayedControls = withVirtualControlLines(controlData);
         const physicalUnits = [...(controlData.readUnits ?? []), ...(controlData.reference?.readUnits ?? [])].some(
             (units) => units && Object.values(units).some((unit) => unit !== '%'),
         );
         let readMin = controlYMin;
         let readMax = controlYMax;
-        if (physicalUnits) {
+        if (physicalUnits || displayedControls.virtualRoles?.length) {
             for (const values of [
-                controlData.drumTemp,
-                controlData.heatPower,
-                controlData.fanSpeed,
+                displayedControls.drumTemp,
+                displayedControls.heatPower,
+                displayedControls.fanSpeed,
                 controlData.reference?.drum ?? [],
                 controlData.reference?.heater ?? [],
                 controlData.reference?.fan ?? [],
@@ -355,7 +358,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         });
 
         const controlSeries = buildControlSeries({
-            controlData,
+            controlData: displayedControls,
             showTargetCurve,
             showProfileDrum,
             showProfileHeat,
@@ -399,7 +402,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                     xAxisIndex: mergeControlChart ? 0 : 1,
                 })),
                 curveLabelSeries,
-                ...(phaseSeries ? [phaseSeries] : []),
+                ...phaseSeries,
             ],
             // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
             dataZoom: [],
@@ -444,11 +447,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         dataZoom: [],
         xAxis,
         yAxis,
-        series: [
-            ...(bbpRange ? [bbpBackground(false)] : []),
-            ...tempSeries,
-            curveLabelSeries,
-            ...(phaseSeries ? [phaseSeries] : []),
-        ],
+        series: [...(bbpRange ? [bbpBackground(false)] : []), ...tempSeries, curveLabelSeries, ...phaseSeries],
     };
 };

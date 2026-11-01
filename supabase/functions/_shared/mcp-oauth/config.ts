@@ -1,5 +1,13 @@
 export const MCP_SCOPE = 'firstcrack:read';
-export type IssuerConfig = { issuer: string; resource: string; consentUrl: string; allowedOrigins: string[] };
+export const MCP_WRITE_SCOPE = 'firstcrack:write';
+export const MCP_WRITE_SCOPES = `${MCP_SCOPE} ${MCP_WRITE_SCOPE}`;
+export type IssuerConfig = {
+    issuer: string;
+    resource: string;
+    consentUrl: string;
+    allowedOrigins: string[];
+    writeEnabled?: boolean;
+};
 export function readIssuerConfig(env: (name: string) => string | undefined): IssuerConfig | null {
     if (env('FIRSTCRACK_OAUTH_ENABLED') !== 'true' || !env('FIRSTCRACK_OAUTH_DATABASE_URL')) return null;
     try {
@@ -25,6 +33,7 @@ export function readIssuerConfig(env: (name: string) => string | undefined): Iss
             resource: resource.href.replace(/\/$/, ''),
             consentUrl: consent.href,
             allowedOrigins,
+            ...(env('FIRSTCRACK_OAUTH_WRITE_ENABLED') === 'true' ? { writeEnabled: true } : {}),
         };
     } catch {
         return null;

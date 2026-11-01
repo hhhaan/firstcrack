@@ -620,3 +620,29 @@ class TestControl:
 
         with pytest.raises(ControlUnavailable):
             await adapter.control(heater=80, fan=60, drum=50)
+
+    async def test_imf_write_word_is_big_endian_float(self):
+        """Artisan writeWord + wordorderLittle=false → FLOAT32, high word first."""
+        from roaster_registry import ROASTER_REGISTRY
+
+        params = ROASTER_REGISTRY["imf_rm_control"]["default_params"]
+        adapter = ModbusAdapter(
+            mode="tcp",
+            word_order=params["word_order"],
+            write_map=params["write_map"],
+            modbus_registers=params["modbus_registers"],
+        )
+        client = AsyncMock()
+        client.connected = True
+        client.write_registers.return_value = MagicMock(isError=lambda: False)
+        adapter._client = client
+
+        await adapter.control(heater=200, fan=80)
+
+        assert client.write_registers.await_count == 2
+        heater, fan = client.write_registers.await_args_list
+        assert heater.args[0] == 24
+        assert fan.args[0] == 42
+        assert heater.kwargs["device_id"] == 1
+        assert list(heater.args[1]) == list(struct.unpack(">HH", struct.pack(">f", 200.0)))
+        assert list(fan.args[1]) == list(struct.unpack(">HH", struct.pack(">f", 80.0)))

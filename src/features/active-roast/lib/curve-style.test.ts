@@ -72,7 +72,7 @@ describe('normalizeCurveStyles', () => {
 });
 
 describe('resolveCurveStyles', () => {
-    it('makes the target the current curve at 30% opacity, ignoring stored background width and line', () => {
+    it('makes the target the current curve at reference opacity, ignoring stored background width and line', () => {
         const defaults = resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS);
         expect(defaults.bt).toEqual({
             current: { color: 'var(--color-sensor-bt)', width: TEMP_CURVE_WIDTH, type: 'solid' },
@@ -125,5 +125,18 @@ describe('resolveCurveStyles', () => {
             type: 'dotted',
             opacity: REFERENCE_CURVE_OPACITY,
         });
+    });
+
+    it('draws every target in gray at the same opacity, and leaves the live stroke colored', () => {
+        const resolved = resolveCurveStyles(DEFAULT_CURVE_STYLES, CSS_CURVE_TOKENS, 'gray', '#666666');
+        expect(resolved.bt.current.color).toBe('var(--color-sensor-bt)');
+        expect(resolved.bt.background).toEqual({
+            color: '#666666',
+            width: TEMP_CURVE_WIDTH,
+            type: 'solid',
+            opacity: REFERENCE_CURVE_OPACITY,
+        });
+        expect(resolved.heat.background.color).toBe('#666666');
+        expect(resolved.heat.current.color).toBe('var(--color-control-heat)');
     });
 });

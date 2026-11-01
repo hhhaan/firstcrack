@@ -1,5 +1,13 @@
-import { authorizeClaims, bearerChallenge, type McpConfig, READ_SCOPE, type VerifiedClaims } from './auth.ts';
+import {
+    authorizeClaims,
+    bearerChallenge,
+    type McpConfig,
+    READ_SCOPE,
+    type VerifiedClaims,
+    WRITE_SCOPE,
+} from './auth.ts';
 import { BackendFailure, InvalidArguments, type ReadClient, readTool, ToolFailure, tools } from './data.ts';
+import { isWriteTool, type WriteClient, writeTool, writeTools } from './write.ts';
 
 const VERSIONS = ['2025-06-18', '2025-03-26'];
 const MAX_BODY_BYTES = 65536;
@@ -8,6 +16,7 @@ type Dependencies = {
     /** Must validate an opaque credential against its current grant; native JWTs are rejected. */
     verify: (req: Request, token: string) => Promise<VerifiedClaims | null>;
     userClient: (req: Request) => ReadClient;
+    writeClient?: (req: Request) => WriteClient;
     reportError: (error: unknown) => Promise<void>;
 };
 
@@ -70,9 +79,9 @@ export function createMcpHandler(deps: Dependencies) {
         if (metadataPaths.includes(pathname) && req.method === 'GET') {
             return json({
                 resource: config.resource,
-                resource_name: 'Firstcrack read-only',
+                resource_name: config.writeEnabled ? 'Firstcrack inventory and production' : 'Firstcrack read-only',
                 authorization_servers: [config.issuer],
-                scopes_supported: [READ_SCOPE],
+                scopes_supported: config.writeEnabled ? [READ_SCOPE, WRITE_SCOPE] : [READ_SCOPE],
                 bearer_methods_supported: ['header'],
             });
         }
@@ -140,18 +149,27 @@ export function createMcpHandler(deps: Dependencies) {
                 return result({
                     protocolVersion: VERSIONS.includes(args.protocolVersion) ? args.protocolVersion : VERSIONS[0],
                     capabilities: { tools: { listChanged: false } },
-                    serverInfo: { name: 'firstcrack-read-only', version: '0.1.0' },
-                    instructions:
-                        '로그인한 사용자의 허용된 로스터리 정보만 조회합니다. 조회 실패를 샘플 데이터로 대체하지 마세요.',
+                    serverInfo: {
+                        name: auth.principal.canWrite ? 'firstcrack-inventory-production' : 'firstcrack-read-only',
+                        version: '0.2.0',
+                    },
+                    instructions: auth.principal.canWrite
+                        ? '허용된 로스터리의 재고·생산만 변경할 수 있습니다. 재시도에는 같은 요청 ID와 인자를 유지하세요. 주문·결제 변경과 장비 제어는 지원하지 않습니다.'
+                        : '로그인한 사용자의 허용된 로스터리 정보만 조회합니다. 조회 실패를 샘플 데이터로 대체하지 마세요.',
                 });
             case 'ping':
                 return result({});
             case 'tools/list':
-                return result({ tools });
+                return result({ tools: auth.principal.canWrite ? [...tools, ...writeTools] : tools });
             case 'tools/call': {
                 if (typeof args.name !== 'string') return failure(-32602, 'Tool name required');
                 try {
-                    const output = await readTool(deps.userClient(req), auth.principal, args.name, args.arguments);
+                    let output: unknown;
+                    if (isWriteTool(args.name)) {
+                        if (!auth.principal.canWrite || !deps.writeClient)
+                            throw new ToolFailure('새 재고·생산 쓰기 동의가 필요합니다.');
+                        output = await writeTool(deps.writeClient(req), auth.principal, args.name, args.arguments);
+                    } else output = await readTool(deps.userClient(req), auth.principal, args.name, args.arguments);
                     return result({
                         content: [{ type: 'text', text: JSON.stringify(output) }],
                         structuredContent: output,

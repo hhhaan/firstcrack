@@ -664,6 +664,9 @@ it('defaults legacy Charge/Drop thresholds to Standard and ignores stored °C va
 describe('curve styles', () => {
     it('falls back to defaults for old or invalid stored styles', () => {
         expect(normalizeRoastSettings({}).curveStyles).toEqual(DEFAULT_CURVE_STYLES);
+        expect(normalizeRoastSettings({}).targetCurveTone).toBe('color');
+        expect(normalizeRoastSettings({ targetCurveTone: 'gray' }).targetCurveTone).toBe('gray');
+        expect(normalizeRoastSettings({ targetCurveTone: 'blue' } as never).targetCurveTone).toBe('color');
         const stored = normalizeRoastSettings({ curveStyles: { bt: { color: 'nope', width: 50 } } } as never);
         expect(stored.curveStyles.bt).toEqual(DEFAULT_CURVE_STYLES.bt);
     });
@@ -673,6 +676,7 @@ describe('curve styles', () => {
         vi.mocked(settingsSet).mockClear();
         const first = await import('./settings');
         await Promise.resolve();
+        first.updateRoastSettings({ targetCurveTone: 'gray' });
         first.updateCurveStyle('bt', { color: '#ff0000' });
         first.updateCurveStyle('ror', { backgroundLineType: 'solid', backgroundWidth: 3 });
         const afterChange = first.getRoastSettings().curveStyles;
@@ -685,15 +689,18 @@ describe('curve styles', () => {
         expect(afterChange.et).toEqual(DEFAULT_CURVE_STYLES.et);
         const persisted = vi.mocked(settingsSet).mock.lastCall?.[1] as ReturnType<typeof getRoastSettings>;
         expect(persisted.curveStyles).toEqual(afterChange);
+        expect(persisted.targetCurveTone).toBe('gray');
 
         vi.resetModules();
         vi.mocked(settingsGet).mockResolvedValueOnce(structuredClone(persisted));
         const restarted = await import('./settings');
         await Promise.resolve();
         expect(restarted.getRoastSettings().curveStyles).toEqual(afterChange);
+        expect(restarted.getRoastSettings().targetCurveTone).toBe('gray');
 
         restarted.resetCurveStyles();
         expect(restarted.getRoastSettings().curveStyles).toEqual(DEFAULT_CURVE_STYLES);
+        expect(restarted.getRoastSettings().targetCurveTone).toBe('color');
         expect(restarted.getRoastSettings().temperatureUnit).toBe(persisted.temperatureUnit);
     });
 });

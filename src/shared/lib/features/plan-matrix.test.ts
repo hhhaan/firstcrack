@@ -54,18 +54,10 @@ describe('planHasFeature cupping', () => {
 });
 
 describe('planHasFeature bbp', () => {
-    it('allows core-entitled plans (trial included)', () => {
-        expect(planHasFeature('trial', FEATURE.bbp)).toBe(true);
-        expect(planHasFeature('pro', FEATURE.bbp)).toBe(true);
-        expect(planHasFeature('team', FEATURE.bbp)).toBe(true);
-        expect(planHasFeature('pro_plus', FEATURE.bbp)).toBe(true);
-        expect(planHasFeature('enterprise', FEATURE.bbp)).toBe(true);
-    });
-
-    it('denies free / read_only', () => {
-        expect(planHasFeature('free', FEATURE.bbp)).toBe(false);
-        expect(planHasFeature('read_only', FEATURE.bbp)).toBe(false);
-        expect(planHasFeature('', FEATURE.bbp)).toBe(false);
+    it('is on for every plan', () => {
+        for (const plan of ['trial', 'pro', 'team', 'pro_plus', 'enterprise', 'tester', 'free', 'read_only', '']) {
+            expect(planHasFeature(plan, FEATURE.bbp)).toBe(true);
+        }
     });
 });
 

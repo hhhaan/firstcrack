@@ -73,6 +73,8 @@ interface RoastChartContainerProps {
     onEventMarkerDelete?: (logId: string) => void;
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
+    /** Gas, airflow, and drum fields. Live roast only; the chart right-click is the recorder. */
+    recordManualControls?: boolean;
     onAddEvent?: (event: string, timeSec: number) => void;
     onMoveEvent?: (event: string, timeSec: number) => void;
 }
@@ -136,6 +138,7 @@ export const RoastChartContainer = ({
     onAddNote,
     onAddEvent,
     onMoveEvent,
+    recordManualControls = true,
 }: RoastChartContainerProps) => {
     const chartRef = useRef<RoastTempChartHandle>(null);
     const markerPointerId = useRef<number | null>(null);
@@ -272,6 +275,7 @@ export const RoastChartContainer = ({
                 onEventMarkerDelete={onEventMarkerDelete}
                 savedReview={savedReview}
                 onAddNote={onAddNote}
+                recordManualControls={recordManualControls}
                 onAddEvent={onAddEvent}
                 onMoveEvent={onMoveEvent}
                 showET={showET}

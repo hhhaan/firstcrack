@@ -122,7 +122,7 @@
     "lint-staged": {
         "src/**/*.{ts,tsx}": "biome check --write --no-errors-on-unmatched",
         "**/*.{js,jsx,mjs,cjs,json,css,md}": "biome check --write --no-errors-on-unmatched",
-        "*.{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
+        "!(dmg-background).{png,jpeg,jpg,gif,svg}": "imagemin-lint-staged",
         "**/*.{ts,tsx,js,jsx,mjs,cjs,json,yml,yaml,toml,md,py,sh,html,css,env,env.*}": "secretlint"
     },
     "packageManager": "pnpm@11.3.0+sha512.2c403d6594527287672b1f7056343a1f7c3634036a67ffabfcc2b3d7595d843768f8787148d1b57cf7956c90606bbd192857c363af19e96d2d0ec9ec5741d215"

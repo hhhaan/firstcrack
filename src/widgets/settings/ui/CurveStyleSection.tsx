@@ -8,7 +8,9 @@ import {
     type CurveLineType,
     CurveSwatch,
     resetCurveStyles,
+    TARGET_CURVE_TONES,
     updateCurveStyle,
+    updateRoastSettings,
     useCurveStyles,
     useRoastSettings,
 } from '@features/active-roast';
@@ -125,7 +127,7 @@ const LineTypeSelect = ({
 export const CurveStyleSection = () => {
     const { t } = useTranslation();
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
-    const { curveStyles } = useRoastSettings();
+    const { curveStyles, targetCurveTone } = useRoastSettings();
     const curves = useCurveStyles();
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const themeHexByChannel = useThemeHexForChannels(resolvedTheme);
@@ -135,6 +137,32 @@ export const CurveStyleSection = () => {
         <SettingsSection group="display">
             <SettingsSection.Header title={tk('curveStyles')} description={tk('curveStylesDescription')} />
             <SettingsSection.Body className="grid gap-3">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                        <p className="m-0 text-sm text-primary">{tk('targetCurveTone')}</p>
+                        <p className="m-0 mt-0.5 text-xs leading-relaxed text-muted">
+                            {tk('targetCurveToneDescription')}
+                        </p>
+                    </div>
+                    <Select
+                        value={targetCurveTone}
+                        onValueChange={(next) => {
+                            const tone = TARGET_CURVE_TONES.find((option) => option === next);
+                            if (tone) updateRoastSettings({ targetCurveTone: tone });
+                        }}
+                    >
+                        <SelectTrigger className="w-36" aria-label={tk('targetCurveTone')}>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {TARGET_CURVE_TONES.map((tone) => (
+                                <SelectItem key={tone} value={tone}>
+                                    {tk(`targetCurveToneValue.${tone}`)}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 <div className="overflow-x-auto">
                     <table className="w-full border-collapse text-[13px]">
                         <thead>

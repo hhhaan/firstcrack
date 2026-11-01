@@ -30,7 +30,12 @@ const brandRank = (brand: string) => {
     return index === -1 ? BRAND_ORDER.length : index;
 };
 const ROASTER_GROUPS = Object.entries(ROASTERS_BY_BRAND)
-    .map(([brand, items]) => ({ brand, items }))
+    .map(([brand, items]) => ({
+        brand,
+        // Seeded when profiles.simulator_enabled is on. Not a public roaster choice.
+        items: items.filter(({ def }) => def.protocol !== 'virtual'),
+    }))
+    .filter((group) => group.items.length > 0)
     .sort((a, b) => brandRank(a.brand) - brandRank(b.brand) || a.brand.localeCompare(b.brand));
 
 function RoasterModelSelect({

@@ -1,5 +1,5 @@
 import type { Machine, RoasterDef, SidecarStatus, TemperatureReading } from '@entities/machine';
-import { canConnectRoaster, useMachines, VIRTUAL_ID } from '@entities/machine';
+import { canConnectRoaster, isSimulatorMachine, useMachines } from '@entities/machine';
 import {
     noteUserMachineDisconnect,
     settleUserMachineDisconnect,
@@ -22,7 +22,7 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
     const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     const [limitBlocked, setLimitBlocked] = useState(false);
 
-    const realMachineCount = useMemo(() => machines.filter((m) => m.id !== VIRTUAL_ID).length, [machines]);
+    const realMachineCount = useMemo(() => machines.filter((m) => !isSimulatorMachine(m.id)).length, [machines]);
     const maxMachines = planMaxMachines(plan);
     const allowAddMachine = canAddMachine(plan, realMachineCount);
 

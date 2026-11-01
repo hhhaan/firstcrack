@@ -2,6 +2,7 @@
 export const FEATURE = {
     cupping: 'cupping',
     orderIntegration: 'orderIntegration',
+    /** Between-batch recording. Every plan. The roast setting is the only switch. */
     bbp: 'bbp',
     roastedInventory: 'roastedInventory',
     productStock: 'productStock',

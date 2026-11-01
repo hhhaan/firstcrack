@@ -54,7 +54,7 @@ class S7Adapter:
     channels: roaster_registry의 "channels" 배열 (읽기 전용)
       [{"role": "BT"|"ET"|"heater"|"fan", "db": N, "offset": N, "area": 6, "type": 0|1, "div": 0|1|2}, ...]
     type: 0=int (2 bytes), 1=float (4 bytes)
-    area: 6=DB (DataBlock) — Giesen/Probat 모두 여기
+    area: Artisan 번호. 6=DB (db_read). 3=MK merkers (read_area). 생략은 6.
     div:  0=raw, 1=÷10, 2=÷100
 
     write_map: roaster_registry의 "write_map" (쓰기 전용, role → spec + min/max)
@@ -154,6 +154,9 @@ class S7Adapter:
                     raise ValueError(
                         f"S7 channel {role}.{field} must be a string up to 1024 characters"
                     )
+            area = channel.get("area", 6)
+            if isinstance(area, bool) or not isinstance(area, int) or area not in (3, 6):
+                raise ValueError(f"S7 channel {role}.area must be 3 (MK) or 6 (DB)")
 
     async def connect(self) -> None:
         import snap7  # type: ignore[import]
@@ -275,6 +278,7 @@ class S7Adapter:
 
         db: int = ch["db"]
         offset: int = ch["offset"]
+        area: int = ch.get("area", 6)  # 6=DB, 3=MK (Artisan s7port.areas)
         ch_type: int = ch.get("type", 0)  # 0=int(2B), 1=float(4B)
         div: int = ch.get("div", 0)
         temp_mode: str = ch.get("mode", "C")
@@ -295,11 +299,19 @@ class S7Adapter:
             self._throttle()
             try:
                 role = ch.get("role", "?")
-                TRACE.record("tx", "s7", f"db_read db={db} offset={offset} size={size} role={role}")
-                ba: bytearray = plc.db_read(db, offset, size)
-                TRACE.record("rx", "s7", f"db_read db={db} offset={offset} role={role}", bytes(ba))
+                if area == 3:
+                    from snap7.type import Area
+
+                    TRACE.record("tx", "s7", f"read_area MK offset={offset} size={size} role={role}")
+                    raw = plc.read_area(Area.MK, 0, offset, size)
+                    ba = bytearray(raw)
+                    TRACE.record("rx", "s7", f"read_area MK offset={offset} role={role}", bytes(ba))
+                else:
+                    TRACE.record("tx", "s7", f"db_read db={db} offset={offset} size={size} role={role}")
+                    ba = plc.db_read(db, offset, size)
+                    TRACE.record("rx", "s7", f"db_read db={db} offset={offset} role={role}", bytes(ba))
                 if len(ba) != size:
-                    raise IOError(f"db_read 응답 크기 불일치: {len(ba)} != {size}")
+                    raise IOError(f"S7 읽기 응답 크기 불일치: {len(ba)} != {size}")
                 value = float(get_real(ba, 0) if ch_type == 1 else get_int(ba, 0))
                 value /= 10.0 ** div
                 if temp_mode == "F":

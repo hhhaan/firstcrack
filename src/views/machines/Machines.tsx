@@ -1,5 +1,5 @@
 import type { Machine } from '@entities/machine';
-import { useMachines, useVisibleMachines, VIRTUAL_ID } from '@entities/machine';
+import { isSimulatorMachine, useMachines, useVisibleMachines } from '@entities/machine';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { useMachineSidecarConnection } from '@features/machine-connection';
 import type { View } from '@shared/types/view';
@@ -208,7 +208,7 @@ export const Machines = ({
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
-                                        {selected.id !== VIRTUAL_ID && (
+                                        {!isSimulatorMachine(selected.id) && (
                                             <>
                                                 <button
                                                     type="button"

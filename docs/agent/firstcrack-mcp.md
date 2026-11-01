@@ -1,5 +1,9 @@
 # FirstCrack MCP: independent OAuth issuer
 
+Inventory/production write source is documented in
+[mcp-inventory-production.md](mcp-inventory-production.md). It adds a separate opt-in
+scope and default-off gates; the read connection described below stays read-only.
+
 Status (2026-10-26): read-only issuer SQL is migration
 `20261026120000_firstcrack_mcp_read_issuer.sql`. It is not applied until Deploy
 migrations runs. Both Edge functions stay disabled until their flags and database
@@ -96,7 +100,7 @@ Pages default to 50, maximum 100; offsets maximum 10000. Nested order lines and 
 batches are capped at 1000 per parent. Workspace choices and recent connection lists
 are capped at 100. Reads return on-hand stock and order shipment status. Roast curves,
 buyer details, amounts, tracking numbers, equipment and live sensor data are not included.
-No stock adjustment or `compute_inventory_alerts` call exists. A workspace owner whose
+Read grants cannot invoke stock adjustments or `compute_inventory_alerts`. A workspace owner whose
 plan is not `pro`, `pro_plus`, `enterprise`, `team` or `tester` gets `insufficient_plan`.
 Login/read failures never
 fall back to sample data. Sample simulation remains a separate plugin skill/flow.

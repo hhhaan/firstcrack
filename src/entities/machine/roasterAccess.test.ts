@@ -1,7 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { canConnectRoaster, roasterRequiresEnterprise } from './roasterAccess';
 
-const FACTORY_KEYS = ['giesen_w45a_w60a', 'giesen_w140a_v1', 'giesen_w140a_v2', 'buhler_rm60_240'] as const;
+const FACTORY_KEYS = [
+    'giesen_w45a_w60a',
+    'giesen_w140a_v1',
+    'giesen_w140a_v2',
+    'buhler_rm60_240',
+    'imf_rm',
+    'imf_rm_auto',
+    'imf_rm_control',
+    'imf_rm_legacy',
+    'petroncini_asem',
+    'petroncini_maestro',
+    'petroncini_maestro_i06',
+    'petroncini_traditional',
+    'neuhaus_neoroast',
+    'neuhaus_rfb',
+] as const;
 
 describe('canConnectRoaster', () => {
     it.each(FACTORY_KEYS)('limits %s to the enterprise account plan', (key) => {

@@ -10,21 +10,18 @@ export const CHART_GRID_RIGHT = 8;
 export const CHART_GRID_RIGHT_WITH_ROR = 32;
 export const Y_AXIS_NAME_GAP = 0;
 
-// ── Phase bar dimensions & text style (temp-grid overlay strip) ──────────────
-export const PHASE_BAR_HEIGHT = 26;
-export const PHASE_BAR_NARROW_THRESHOLD = 30;
-export const PHASE_BAR_TEXT_INSET = 6;
-export const PHASE_BAR_STROKE_WIDTH = 0.5;
+/** Giesen-style phase line on the bottom edge of the temperature plot. */
+export const PHASE_BAR_HEIGHT = 6;
 /** BT, ET, RoR, and their reference curves. */
 export const TEMP_CURVE_WIDTH = 2;
 /** Heat, damper, drum, and their reference curves. */
 export const CONTROL_CURVE_WIDTH = 2;
 /** Vertical guides for heater, roast events, notes, and turning points. */
 export const EVENT_MARK_LINE_WIDTH = 1;
-/** Stored reference/profile curves fade to a translucent gray so they read as background. */
-export const REFERENCE_CURVE_OPACITY = 0.3;
-export const PHASE_BAR_FONT_SIZE = 10;
-export const PHASE_BAR_FONT_SIZE_NARROW = 9;
+/** Stored reference/profile curves. Channel color or gray, both at this opacity. */
+export const REFERENCE_CURVE_OPACITY = 0.2;
+/** Reference event guides, labels, and dots. Curves use {@link REFERENCE_CURVE_OPACITY}. */
+export const REFERENCE_EVENT_OPACITY = 0.3;
 export const PHASE_BAR_FONT_FAMILY = 'monospace';
 export const PHASE_BAR_FONT_WEIGHT = 600;
 
@@ -138,6 +135,9 @@ export const getResolvedChartColors = (print = false) => {
         phaseBarStroke: gv('--color-chart-phasebar-stroke', 'rgba(0,0,0,0.08)'),
         phaseBarName: gv('--color-chart-phasebar-name', '#444'),
         phaseBarDuration: gv('--color-chart-phasebar-duration', '#555'),
+        phaseBarDrying: gv('--color-chart-phasebar-drying', 'oklch(0.88 0.19 95)'),
+        phaseBarMaillard: gv('--color-chart-phasebar-maillard', 'oklch(0.74 0.11 225)'),
+        phaseBarDevelopment: gv('--color-chart-phasebar-development', 'oklch(0.74 0.12 155)'),
 
         // Control chart colors
         controlDrum: gv('--color-control-drum', '#00a36d'),
