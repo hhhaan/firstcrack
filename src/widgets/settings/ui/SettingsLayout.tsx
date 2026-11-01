@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { settingsSectionSearchText } from '../lib/settingsSectionSearchText';
 import { type SettingsNavigationProps, SettingsSidebar } from './SettingsSidebar';
 import { getSearchTabs, getTabs, type RoastSettingsGroup, roastSettingsGroups } from './tabConfig';
 
@@ -42,7 +43,7 @@ export function SettingsLayout({
                 activeTab === 'roast' && roastSettingsGroups.some((id) => id === group)
                     ? t(`settings.tabs.roast.groups.${group}`)
                     : '';
-            const text = `${groupText} ${section.textContent}`.toLocaleLowerCase();
+            const text = settingsSectionSearchText(section, groupText).toLocaleLowerCase();
             section.hidden =
                 (activeTab === 'roast' && (!terms.length || matchesTab) && group !== roastGroup) ||
                 (!matchesTab && !terms.every((term) => text.includes(term)));
