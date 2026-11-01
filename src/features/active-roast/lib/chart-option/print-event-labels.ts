@@ -99,7 +99,6 @@ export const buildPrintEventLabels = (items: CurveLabelItem[]): CustomSeriesOpti
                                 align: 'left' as const,
                                 verticalAlign: 'top' as const,
                                 fill: item.color,
-                                backgroundColor: '#ffffff',
                             },
                         },
                     ];
