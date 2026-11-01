@@ -1235,8 +1235,8 @@ describe('buildRoastChartOption', () => {
         const text = result?.children.find((child) => child.type === 'text');
         expect(text).toMatchObject({
             type: 'text',
-            x: print ? 138 : 136,
-            y: print ? 39 : 43,
+            x: print ? 130 : 136,
+            y: print ? 47 : 43,
             style: { font: print ? '400 8px SUIT' : MARKER_LABEL_FONT },
         });
         expect(result?.children.some((child) => child.type === 'line')).toBe(true);

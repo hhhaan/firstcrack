@@ -240,12 +240,33 @@ it('applies a schedule batch, keeps a same-batch edit, and restores the opened w
         (b) => b.textContent === 'activeRoast.summary.linkSchedule',
     );
     act(() => schedule?.click());
-    const select = document.querySelector('select') as HTMLSelectElement;
-    act(() => setInputValue(select, 'batch-9'));
+    const chooseBatch = (id: string) => {
+        const proto = HTMLElement.prototype;
+        if (!proto.hasPointerCapture) {
+            proto.hasPointerCapture = () => false;
+            proto.setPointerCapture = () => {};
+            proto.releasePointerCapture = () => {};
+        }
+        const trigger = document.querySelector('[aria-label="activeRoast.summary.planBatchPlaceholder"]');
+        if (!trigger) throw new Error(`missing trigger ${document.body.innerText.slice(0, 400)}`);
+        if (trigger instanceof HTMLElement) trigger.click();
+        const option = document.querySelector(`[role="option"][data-value="${id}"]`);
+        if (!option)
+            throw new Error(
+                `${trigger.outerHTML.slice(0, 500)} :: ${trigger.getAttribute('aria-expanded')} :: ${[...document.querySelectorAll('[role]')].map((el) => el.getAttribute('role')).join(',')}`,
+            );
+        option?.dispatchEvent(
+            new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+        );
+        option?.dispatchEvent(
+            new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+        );
+    };
+    act(() => chooseBatch('batch-9'));
     expect(weight().value).toBe('8');
 
     act(() => setInputValue(weight(), '7'));
-    act(() => setInputValue(select, 'batch-9'));
+    act(() => chooseBatch('batch-9'));
     expect(weight().value).toBe('7');
 
     const none = [...document.querySelectorAll('button')].find((b) => b.textContent === 'activeRoast.summary.linkNone');
