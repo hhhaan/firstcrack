@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, goNav, test } from '../fixtures/app';
+import { chooseSelect, expect, goNav, test } from '../fixtures/app';
 import { installPersistentStore } from '../fixtures/persistent-store';
 import { mockTauriCommand } from '../fixtures/tauri-stub';
 
@@ -183,7 +183,7 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await page.setViewportSize({ width: 600, height: 900 });
     expect(await settings.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Language');
-    await settings.getByLabel('App language', { exact: true }).selectOption('ko');
+    await chooseSelect(settings.getByLabel('App language', { exact: true }), 'ko');
     await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('Firescope');
     await expect(settings.getByRole('heading', { name: 'Firescope 설정 가져오기', exact: true })).toBeVisible();
     await expect(settings.getByRole('button', { name: '그래프 설정 가져오기', exact: true })).toBeEnabled();
@@ -193,7 +193,7 @@ test('imports Firescope machine and graph settings once without connecting hardw
     await page.screenshot({ path: testInfo.outputPath('firescope-import-default-ko.png'), animations: 'disabled' });
 
     await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('언어');
-    await settings.getByLabel('앱 언어', { exact: true }).selectOption('en');
+    await chooseSelect(settings.getByLabel('앱 언어', { exact: true }), 'en');
     await settings.getByRole('searchbox', { name: 'Search settings', exact: true }).fill('Firescope');
     await settings.getByRole('checkbox', { name: /Synthetic RTU/ }).check();
     await expect(settings.getByRole('button', { name: /Import 1 machines? and graph/ })).toBeEnabled();

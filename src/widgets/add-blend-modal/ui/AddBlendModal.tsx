@@ -161,6 +161,7 @@ export const AddBlendModal = ({ open, onClose, editing }: Props) => {
                                     key={field.id}
                                     index={idx}
                                     register={register}
+                                    control={control}
                                     beans={beans}
                                     canRemove={fields.length > 1}
                                     onRemove={() => remove(idx)}

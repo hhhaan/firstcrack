@@ -1,5 +1,5 @@
 import { devices } from '@playwright/test';
-import { expect, goNav, test } from '../fixtures/app';
+import { chooseSelect, expect, goNav, test } from '../fixtures/app';
 
 // Match the host platform so the shortcut matcher and native modifier labels agree.
 test.use({
@@ -222,13 +222,14 @@ test('settings is a responsive page and preserves existing preferences and entry
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
 
     const language = settings.getByLabel('App language', { exact: true });
-    await expect(language.locator('option')).toHaveCount(4);
-    await language.selectOption('ko');
-    await expect(settings.getByLabel('앱 언어', { exact: true })).toHaveValue('ko');
+    await language.click();
+    await expect(page.getByRole('option')).toHaveCount(4);
+    await page.locator('[role="option"][data-value="ko"]').click();
+    await expect(settings.getByLabel('앱 언어', { exact: true })).toHaveAttribute('data-value', 'ko');
     await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('재고');
     await expect(settings.getByRole('navigation').getByRole('button', { name: '일반', exact: true })).toBeVisible();
     await settings.getByRole('searchbox', { name: '설정 검색', exact: true }).fill('');
-    await settings.getByLabel('앱 언어', { exact: true }).selectOption('en');
+    await chooseSelect(settings.getByLabel('앱 언어', { exact: true }), 'en');
     await settings.getByLabel('Stock alert horizon', { exact: true }).fill('42');
 
     for (const tab of ['Roasting', 'Team', 'Profile', 'Billing', 'Software', 'Feedback', 'General']) {
@@ -376,7 +377,7 @@ test('roasting submenus filter sections while search and saved preferences span 
     await expect(submenus.getByRole('button')).toHaveCount(9);
     await navigation.getByRole('button', { name: 'General', exact: true }).click();
     await expect(submenus).toHaveCount(0);
-    await settings.getByLabel('App language', { exact: true }).selectOption('ko');
+    await chooseSelect(settings.getByLabel('App language', { exact: true }), 'ko');
     await navigation.getByRole('button', { name: '로스팅', exact: true }).click();
     await navigation.getByRole('button', { name: '알람', exact: true }).click();
     await expect(main.getByRole('heading', { name: '알람', exact: true, level: 1 })).toBeFocused();

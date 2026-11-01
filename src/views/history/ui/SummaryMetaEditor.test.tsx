@@ -132,14 +132,30 @@ describe('SummaryMetaEditor', () => {
     };
 
     const setControl = async (testId: string, value: string) => {
-        const el = host.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement | HTMLSelectElement;
-        const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
-        const setValue = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
+        const el = host.querySelector(`[data-testid="${testId}"]`) as HTMLElement;
+        if (el.getAttribute('role') === 'combobox') {
+            Element.prototype.scrollIntoView = () => {};
+            await act(async () => {
+                el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            });
+            const option = document.querySelector(`[role="option"][data-value="${value}"]`);
+            await act(async () => {
+                option?.dispatchEvent(
+                    new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+                );
+                option?.dispatchEvent(
+                    new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+                );
+            });
+            return el;
+        }
+        const input = el as HTMLInputElement;
+        const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
         await act(async () => {
-            setValue?.call(el, value);
-            el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true }));
+            setValue?.call(input, value);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         });
-        return el;
+        return input;
     };
 
     const beanInput = () => host.querySelector('[data-testid="history-bean"] input') as HTMLInputElement;
@@ -312,7 +328,7 @@ describe('SummaryMetaEditor', () => {
         setRoastLevel.mockRejectedValueOnce(new Error('inbound failed'));
         await render({ ...session, roast_level: 'Medium' });
         await setControl('history-level', 'Dark');
-        expect((host.querySelector('[data-testid="history-level"]') as HTMLSelectElement).value).toBe('Medium');
+        expect(host.querySelector('[data-testid="history-level"]')?.getAttribute('data-value')).toBe('Medium');
         expect(updateSession).not.toHaveBeenCalled();
     });
 

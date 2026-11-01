@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type Locator, type Page } from '@playwright/test';
 import { seedAuthSession } from './auth';
 import { E2E_PROJECT_REF } from './constants';
 import { MockDb } from './mock-db';
@@ -32,6 +32,20 @@ export { expect };
 
 export async function goNav(page: Page, view: string) {
     await page.getByTestId(`nav-${view}`).click();
+}
+
+export function roastSourceTrigger(page: Page) {
+    return page.getByRole('button', { name: 'Green Bean', exact: true });
+}
+
+export async function pickRoastSource(page: Page, label: string) {
+    await roastSourceTrigger(page).click();
+    await page.getByRole('dialog').getByRole('button', { name: label, exact: true }).click();
+}
+
+export async function chooseSelect(control: Locator, value: string) {
+    await control.click();
+    await control.page().locator(`[role="listbox"] [role="option"][data-value="${value}"]`).click();
 }
 
 export async function createBeanViaUi(page: Page, name: string, stockKg: string) {

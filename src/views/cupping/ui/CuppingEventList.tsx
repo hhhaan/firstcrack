@@ -7,6 +7,7 @@ import {
 } from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -231,10 +232,10 @@ export const CuppingEventList = ({
                         </label>
                         <label className="mb-4 flex flex-col gap-1 text-[12px] text-muted">
                             {t('cupping.eventForm')}
-                            <select
+                            <FormSelect
                                 value={formValue}
                                 onChange={(e) => setFormValue(e.target.value)}
-                                className="rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-sm text-primary dark:border-border"
+                                className="h-auto min-h-0 rounded-md px-3 py-2 text-sm shadow-none"
                             >
                                 <option value="preset:sca_v1">{t('cupping.presetSca')}</option>
                                 <option value="preset:simple_5">{t('cupping.presetSimple5')}</option>
@@ -243,7 +244,7 @@ export const CuppingEventList = ({
                                         {row.name}
                                     </option>
                                 ))}
-                            </select>
+                            </FormSelect>
                         </label>
                         {createError ? <div className="mb-3 text-xs text-red-600">{createError}</div> : null}
                         <div className="flex justify-end gap-2">

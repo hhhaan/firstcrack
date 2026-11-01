@@ -13,6 +13,7 @@ import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import { BeanCombobox } from '@shared/ui/BeanCombobox';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { formErrorCls } from '@shared/ui/form-styles';
 import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -354,7 +355,8 @@ export const RoastSummaryModal = ({
                                                 errors.planBatchId ? 'ring-1 ring-red-400/80' : ''
                                             }`}
                                         >
-                                            <select
+                                            <FormSelect
+                                                aria-label={t('activeRoast.summary.planBatchPlaceholder')}
                                                 value={formPlanBatchId ?? ''}
                                                 onChange={(e) =>
                                                     setValue('planBatchId', e.target.value || null, {
@@ -363,7 +365,7 @@ export const RoastSummaryModal = ({
                                                     })
                                                 }
                                                 disabled={!isWorkspaceReady || incompleteBatches.length === 0}
-                                                className="w-full py-2 bg-transparent border-none outline-none text-primary text-[13px] cursor-pointer appearance-none disabled:opacity-50"
+                                                className="h-auto min-h-0 rounded-none border-none bg-transparent py-2 text-[13px] shadow-none"
                                             >
                                                 <option value="">
                                                     {incompleteBatches.length === 0
@@ -375,7 +377,7 @@ export const RoastSummaryModal = ({
                                                         {batchOptionLabel(b)}
                                                     </option>
                                                 ))}
-                                            </select>
+                                            </FormSelect>
                                         </div>
                                         {effectiveHandoff && (
                                             <p className="text-[11px] text-muted mt-1">

@@ -178,13 +178,23 @@ describe('RecordEventsEditor', () => {
 
     const addButton = () => document.querySelector('[data-testid="record-events-add"]') as HTMLButtonElement;
 
+    const pointer = { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' } as const;
+
+    const openMenu = (trigger: Element | null | undefined) => {
+        Element.prototype.scrollIntoView = () => {};
+        trigger?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    };
+
+    const optionValues = () =>
+        [...document.querySelectorAll('[role="option"]')].map((option) => option.getAttribute('data-value'));
+
     const pickType = async (from: string, value: string) => {
-        const select = document.querySelector(
-            `select[aria-label="${from} history.edit.eventType"]`,
-        ) as HTMLSelectElement;
+        const trigger = document.querySelector(`[aria-label="${from} history.edit.eventType"]`);
+        await act(async () => openMenu(trigger));
+        const option = document.querySelector(`[role="option"][data-value="${value}"]`);
         await act(async () => {
-            Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value')?.set?.call(select, value);
-            select.dispatchEvent(new Event('change', { bubbles: true }));
+            option?.dispatchEvent(new PointerEvent('pointerdown', pointer));
+            option?.dispatchEvent(new PointerEvent('pointerup', pointer));
         });
     };
 
@@ -197,9 +207,10 @@ describe('RecordEventsEditor', () => {
         const onSave = vi.fn().mockResolvedValue(undefined);
         const onClose = await mount({ events: source, onSave });
         await act(async () => addButton().click());
-        expect((document.querySelector('select') as HTMLSelectElement).value).toBe('FC Start');
-        const options = [...document.querySelectorAll('select option')].map((o) => (o as HTMLOptionElement).value);
-        expect(options).toEqual(['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End']);
+        const trigger = document.querySelector('[role="combobox"]');
+        expect(trigger?.getAttribute('data-value')).toBe('FC Start');
+        act(() => openMenu(trigger));
+        expect(optionValues()).toEqual(['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End']);
         await type('FC Start history.edit.time', '8:00');
         await type('FC Start history.edit.temp', '196');
         await act(async () => button('history.edit.save')?.click());
@@ -216,10 +227,12 @@ describe('RecordEventsEditor', () => {
         await mount({});
         await act(async () => addButton().click());
         await act(async () => addButton().click());
-        const selects = [...document.querySelectorAll('select')] as HTMLSelectElement[];
-        expect(selects.map((s) => s.value)).toEqual(['Yellow', 'FC Rolling']);
+        const selects = [...document.querySelectorAll('[role="combobox"]')];
+        expect(selects.map((s) => s.getAttribute('data-value'))).toEqual(['Yellow', 'FC Rolling']);
         for (const select of selects) {
-            const values = [...select.options].map((o) => o.value);
+            act(() => openMenu(select));
+            const values = optionValues();
+            act(() => openMenu(select));
             expect(values).not.toContain('FC Start');
             expect(values).not.toContain('Charge');
             expect(values).not.toContain('Drop');
@@ -237,10 +250,11 @@ describe('RecordEventsEditor', () => {
             ],
         });
         await act(async () => addButton().click());
-        const select = document.querySelector('select') as HTMLSelectElement;
-        await pickType(select.value, '아로마');
-        expect(select.value).toBe('아로마');
-        const options = [...select.options].map((option) => option.value);
+        const select = document.querySelector('[role="combobox"]');
+        await pickType(select?.getAttribute('data-value') ?? '', '아로마');
+        expect(select?.getAttribute('data-value')).toBe('아로마');
+        act(() => openMenu(select));
+        const options = optionValues();
         expect(options.filter((value) => value === '아로마')).toHaveLength(1);
         expect(options).toContain('아로마');
     });

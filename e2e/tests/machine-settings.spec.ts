@@ -1,4 +1,4 @@
-import { expect, goNav, test } from '../fixtures/app';
+import { chooseSelect, expect, goNav, test } from '../fixtures/app';
 
 for (const protocol of ['modbus', 's7']) {
     test(`${protocol} settings group channels and preserve collapsed values`, async ({
@@ -18,8 +18,8 @@ for (const protocol of ['modbus', 's7']) {
         await dialog.getByRole('button', { name: 'Other / Custom' }).click();
         await dialog.getByLabel('Machine name').fill('Firescope');
         await dialog.getByLabel('Brand', { exact: true }).fill('Firescope');
-        await dialog.getByLabel('Protocol').selectOption(protocol);
-        if (protocol === 'modbus') await dialog.getByRole('combobox', { name: /^Connection \*/ }).selectOption('tcp');
+        await chooseSelect(dialog.getByLabel('Protocol'), protocol);
+        if (protocol === 'modbus') await chooseSelect(dialog.getByRole('combobox', { name: /^Connection \*/ }), 'tcp');
         await dialog.getByLabel('IP Address').fill('192.168.44.26');
         await dialog.getByLabel('Port', { exact: true }).fill(protocol === 'modbus' ? '502' : '102');
         if (protocol === 's7') {
@@ -33,10 +33,10 @@ for (const protocol of ['modbus', 's7']) {
             .last();
         await expect(advanced).not.toHaveAttribute('open');
         await advanced.locator('summary').click();
-        await dialog.getByLabel('BT Scale').selectOption('1');
+        await chooseSelect(dialog.getByLabel('BT Scale'), '1');
         if (protocol === 'modbus') {
-            await dialog.getByLabel('BT 32-bit Float').selectOption('true');
-            await dialog.getByLabel('Float Word Order').selectOption('big');
+            await chooseSelect(dialog.getByLabel('BT 32-bit Float'), 'true');
+            await chooseSelect(dialog.getByLabel('Float Word Order'), 'big');
         }
         await advanced.locator('summary').click();
         await dialog.getByRole('button', { name: 'Add Machine', exact: true }).click();
@@ -92,10 +92,10 @@ for (const protocol of ['modbus', 's7']) {
         await dialog.screenshot({ path: testInfo.outputPath('mobile-dark.png') });
 
         await advanced.locator('summary').click();
-        await expect(dialog.getByLabel('BT Scale')).toHaveValue('1');
+        await expect(dialog.getByLabel('BT Scale')).toHaveAttribute('data-value', '1');
         if (protocol === 'modbus') {
-            await expect(dialog.getByLabel('BT 32-bit Float')).toHaveValue('true');
-            await expect(dialog.getByLabel('Float Word Order')).toHaveValue('big');
+            await expect(dialog.getByLabel('BT 32-bit Float')).toHaveAttribute('data-value', 'true');
+            await expect(dialog.getByLabel('Float Word Order')).toHaveAttribute('data-value', 'big');
         }
         await advanced.locator('summary').click();
         await dialog.getByRole('button', { name: 'Save', exact: true }).click();

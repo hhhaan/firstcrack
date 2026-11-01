@@ -251,7 +251,7 @@ describe('PendingRoastRecovery safety', () => {
         await mount(item);
         expect(document.body.textContent).toContain('activeRoast.recovery.syncPending');
         expect(document.querySelector('fieldset')).toBeNull();
-        expect(document.querySelector('select')).toBeNull();
+        expect(document.querySelector('[role="combobox"]')).toBeNull();
         expect(document.querySelector('input[type="number"]')).toBeNull();
         await act(async () => (document.querySelector('input[type="checkbox"]') as HTMLInputElement).click());
         await act(async () => button('retry').click());

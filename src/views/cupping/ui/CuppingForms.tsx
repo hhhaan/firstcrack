@@ -20,6 +20,7 @@ import {
     useUpdateCuppingFormTemplate,
 } from '@entities/cupping';
 import type { CuppingFormTemplate } from '@shared/types/database.types';
+import { FormSelect } from '@shared/ui/FormSelect';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { confirm } from '@tauri-apps/plugin-dialog';
@@ -192,17 +193,17 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                         <div className="grid grid-cols-[7.5rem_1fr_2rem] items-end gap-2">
                                             <label className="flex flex-col gap-1 text-[11px] text-muted">
                                                 {t('cupping.fieldType')}
-                                                <select
+                                                <FormSelect
                                                     value={kind}
                                                     onChange={(e) =>
                                                         patch(retargetField(field, e.target.value as FormFieldType))
                                                     }
-                                                    className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-border"
+                                                    className="h-auto min-h-0 rounded-md px-2 py-1.5 text-[13px] shadow-none"
                                                 >
                                                     <option value="slider">{t('cupping.fieldTypeSlider')}</option>
                                                     <option value="pass_fail">{t('cupping.fieldTypePassFail')}</option>
                                                     <option value="select">{t('cupping.fieldTypeSelect')}</option>
-                                                </select>
+                                                </FormSelect>
                                             </label>
                                             <label className="flex flex-col gap-1 text-[11px] text-muted">
                                                 {t('cupping.fieldLabel')}
@@ -230,7 +231,7 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                             <div className="grid grid-cols-[10rem_4.5rem_4.5rem_4.5rem] items-end gap-2">
                                                 <label className="flex flex-col gap-1 text-[11px] text-muted">
                                                     {t('cupping.fieldScale')}
-                                                    <select
+                                                    <FormSelect
                                                         value={sliderScaleId(field)}
                                                         onChange={(e) => {
                                                             const id = e.target.value;
@@ -240,13 +241,13 @@ export const CuppingForms = ({ userId, onBack }: CuppingFormsProps) => {
                                                             }
                                                             patch(applyScale(field, id));
                                                         }}
-                                                        className="rounded-md border border-border-subtle bg-main-bg px-2 py-1.5 text-[13px] text-primary dark:border-border"
+                                                        className="h-auto min-h-0 rounded-md px-2 py-1.5 text-[13px] shadow-none"
                                                     >
                                                         <option value="sca">{t('cupping.scaleSca')}</option>
                                                         <option value="five">{t('cupping.scaleFive')}</option>
                                                         <option value="stars">{t('cupping.scaleStars')}</option>
                                                         <option value="custom">{t('cupping.scaleCustom')}</option>
-                                                    </select>
+                                                    </FormSelect>
                                                 </label>
                                                 <label className="flex flex-col gap-1 text-[11px] text-muted">
                                                     {t('cupping.fieldMin')}
