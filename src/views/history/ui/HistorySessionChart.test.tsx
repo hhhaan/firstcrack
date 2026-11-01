@@ -227,7 +227,7 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             tempMinC: 160,
             tempMaxC: 210,
             xViewMax: 11,
-            height: 360,
+            height: 440,
         }),
     );
     await act(async () => root.unmount());

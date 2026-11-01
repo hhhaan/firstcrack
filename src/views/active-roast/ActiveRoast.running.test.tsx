@@ -992,7 +992,7 @@ describe('ActiveRoast running clock (#627)', () => {
                 const option = call[0] as { series?: { data?: unknown[] }[] };
                 return (option.series ?? []).flatMap((series) =>
                     (series.data ?? []).flatMap((row) =>
-                        Array.isArray(row) && row[5] === 'Development' ? [row[2]] : [],
+                        Array.isArray(row) && row[3] === 'Development' ? [row[2]] : [],
                     ),
                 );
             });
