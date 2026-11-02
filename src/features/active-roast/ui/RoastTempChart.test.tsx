@@ -2,6 +2,7 @@
 
 import type { ControlData } from '@features/active-roast/lib/chart-option';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
+import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
 import * as echarts from 'echarts';
 import { act, createElement, createRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -16,7 +17,7 @@ const replaceMarkerTime = (input: HTMLInputElement, data: string) => {
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.hoisted(() => {
+const { chart, paper, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.hoisted(() => {
     const setOption = vi.fn();
     const zrHandlers = new Map<string, (event: Record<string, number>) => void>();
     const convertFromPixel = vi.fn((_finder: object, value: number | number[]) =>
@@ -46,10 +47,18 @@ const { chart, convertFromPixel, convertToPixel, setOption, zrHandlers } = vi.ho
         getOption: vi.fn(() => ({})),
         getDataURL: vi.fn(() => 'data:image/png;base64,qq'),
     };
-    return { chart, convertFromPixel, convertToPixel, setOption, zrHandlers };
+    const paper = {
+        ...chart,
+        setOption: vi.fn(),
+        dispose: vi.fn(),
+        getDataURL: vi.fn(() => 'data:image/png;base64,qq'),
+    };
+    return { chart, paper, convertFromPixel, convertToPixel, setOption, zrHandlers };
 });
 
-vi.mock('echarts', () => ({ init: vi.fn(() => chart) }));
+vi.mock('echarts', () => ({
+    init: vi.fn((element: HTMLElement) => (element.style.left === '-9999px' ? paper : chart)),
+}));
 
 const baseProps = {
     xs: [0, 60],
@@ -72,6 +81,17 @@ const controlData = (heatSet: ControlData['heatSet']): ControlData => ({
     heatPower: [40, 45],
     fanSpeed: [30, 35],
     heatSet,
+});
+
+beforeEach(() => {
+    Object.defineProperty(document, 'fonts', {
+        configurable: true,
+        value: { load: vi.fn().mockResolvedValue([]) },
+    });
+    chart.dispose.mockClear();
+    paper.setOption.mockClear();
+    paper.dispose.mockClear();
+    paper.getDataURL.mockClear();
 });
 
 describe('RoastTempChart Heat set lifecycle', () => {
@@ -1262,56 +1282,116 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('#chart-note-input')).toBeNull();
     });
 
-    it('exports the canvas as a PNG data URL', () => {
+    it('keeps PDF colors and legend consistent when settings change while fonts load', async () => {
+        const previous = getRoastSettings().curveStyles;
         const ref = createRef<RoastTempChartHandle>();
-        act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref })));
-        expect(ref.current?.getDataURL()).toBe('data:image/png;base64,qq');
-        expect(chart.getDataURL).toHaveBeenCalledWith({
-            type: 'png',
-            pixelRatio: 2,
-            backgroundColor: '#ffffff',
+        const fontReady = Promise.withResolvers<void>();
+        vi.mocked(document.fonts.load).mockReturnValueOnce(fontReady.promise.then(() => []));
+        act(() => {
+            updateRoastSettings({
+                curveStyles: { ...previous, bt: { ...previous.bt, color: '#e53935', lineType: 'dotted' } },
+            });
+            root.render(
+                createElement(RoastTempChart, { ...baseProps, ref, temperatureUnit: 'F', rorEtActual: [1, null] }),
+            );
         });
+        try {
+            const pending = ref.current?.capturePdf();
+            expect(document.fonts.load).toHaveBeenCalledWith('400 8px SUIT');
+            expect(paper.setOption).not.toHaveBeenCalled();
+            act(() => updateRoastSettings({ curveStyles: { ...previous, bt: { ...previous.bt, color: '#00aa00' } } }));
+            fontReady.resolve();
+            const capture = await pending;
+            expect(capture?.chartDataUrl).toBe('data:image/png;base64,qq');
+            expect(capture?.legend).toEqual([
+                { color: '#e53935', label: 'BT (°F)', lineType: 'solid' },
+                { color: expect.any(String), label: 'ET (°F)', lineType: 'solid' },
+                { color: expect.any(String), label: 'BT RoR (°F/min)', lineType: 'solid' },
+                { color: expect.any(String), label: 'ET RoR (°F/min)', lineType: 'solid' },
+            ]);
+            const option = paper.setOption.mock.lastCall?.[0];
+            expect(option.series.find((series: { name: string }) => series.name === 'BT Actual').lineStyle).toEqual(
+                expect.objectContaining({ color: '#e53935', type: 'solid' }),
+            );
+        } finally {
+            act(() => updateRoastSettings({ curveStyles: previous }));
+        }
     });
 
-    it('exports saved controls without adding an empty on-screen feedback plot', () => {
+    it('exports saved controls without adding an empty on-screen feedback plot', async () => {
         const ref = createRef<RoastTempChartHandle>();
         act(() =>
             root.render(createElement(RoastTempChart, { ...baseProps, ref, printControlData: controlData([60, 0]) })),
         );
-        const screen = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
+        const screen = chart.setOption.mock.lastCall?.[0];
         expect(screen.grid).toHaveLength(1);
-        ref.current?.getDataURL({ width: 2000, height: 1200 });
-        const paper = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
-        expect(paper.grid).toHaveLength(4);
+        const capture = await ref.current?.capturePdf();
+        expect(paper.setOption.mock.lastCall?.[0].grid).toHaveLength(4);
+        expect(chart.setOption.mock.lastCall?.[0]).toBe(screen);
+        expect(capture?.legend).toHaveLength(3);
     });
 
-    it('re-renders at print density with legible light colors and separate controls, without changing the screen theme', () => {
+    it('renders at 200 dpi without changing the live chart or its theme', async () => {
         document.documentElement.style.setProperty('--color-sensor-bt', '#ffffff');
         const ref = createRef<RoastTempChartHandle>();
         act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref, controlData: controlData([]) })));
-        const screenOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
-        expect(screenOption.grid[1].top).toBe('79%');
-        expect(ref.current?.getDataURL({ width: 2000, height: 1200 })).toBe('data:image/png;base64,qq');
-        const init = vi.mocked(echarts.init);
-        const element = init.mock.calls[init.mock.calls.length - 1]?.[0];
-        expect(element?.style.width).toBe('1000px');
-        expect(element?.style.height).toBe('600px');
-        expect(element?.isConnected).toBe(false);
-        const printOption = chart.setOption.mock.calls[chart.setOption.mock.calls.length - 1]?.[0];
-        expect(printOption.grid).toHaveLength(4);
-        expect(printOption.grid[0].height).toBeGreaterThan(200);
-        expect(
-            Number(printOption.grid[1].top) - Number(printOption.grid[0].top) - Number(printOption.grid[0].height),
-        ).toBeCloseTo(14.4 + 32);
-        expect(printOption.series.find((s: { name: string }) => s.name === 'BT Actual').lineStyle.color).toBe(
-            '#009d4c',
-        );
-        expect(document.documentElement.style.getPropertyValue('--color-sensor-bt')).toBe('#ffffff');
-        document.documentElement.style.removeProperty('--color-sensor-bt');
-        expect(chart.getDataURL).toHaveBeenLastCalledWith({
-            type: 'png',
-            pixelRatio: 2,
-            backgroundColor: 'rgba(0,0,0,0)',
+        try {
+            const screenOption = chart.setOption.mock.lastCall?.[0];
+            expect(screenOption.grid[1].top).toBe('79%');
+            expect((await ref.current?.capturePdf())?.chartDataUrl).toBe('data:image/png;base64,qq');
+            const element = vi.mocked(echarts.init).mock.lastCall?.[0];
+            const pixelRatio = 200 / 72;
+            expect(Number.parseFloat(element?.style.width ?? '') * pixelRatio).toBeCloseTo(
+                Math.round(roastPdfLayout.chartWidth * pixelRatio),
+            );
+            expect(Number.parseFloat(element?.style.height ?? '') * pixelRatio).toBeCloseTo(
+                Math.round(roastPdfLayout.chartHeight * pixelRatio),
+            );
+            expect(element?.isConnected).toBe(false);
+            const printOption = paper.setOption.mock.lastCall?.[0];
+            expect(printOption.grid).toHaveLength(4);
+            expect(printOption.grid[0].height).toBeGreaterThan(200);
+            expect(
+                Number(printOption.grid[1].top) - Number(printOption.grid[0].top) - Number(printOption.grid[0].height),
+            ).toBeCloseTo(14.4 + 32);
+            expect(
+                printOption.series.find((series: { name: string }) => series.name === 'BT Actual').lineStyle.color,
+            ).toBe('#009d4c');
+            expect(document.documentElement.style.getPropertyValue('--color-sensor-bt')).toBe('#ffffff');
+            expect(chart.setOption.mock.lastCall?.[0]).toBe(screenOption);
+            expect(chart.dispose).not.toHaveBeenCalled();
+            expect(paper.dispose).toHaveBeenCalledOnce();
+            expect(paper.getDataURL).toHaveBeenLastCalledWith({
+                type: 'png',
+                pixelRatio,
+                backgroundColor: 'rgba(0,0,0,0)',
+            });
+        } finally {
+            document.documentElement.style.removeProperty('--color-sensor-bt');
+        }
+    });
+
+    it('removes the temporary canvas when initialization fails', async () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref })));
+        vi.mocked(echarts.init).mockImplementationOnce(() => {
+            throw new Error('init failed');
         });
+        await expect(ref.current?.capturePdf()).rejects.toThrow('init failed');
+        expect(document.querySelector('[style*="-9999px"]')).toBeNull();
+        expect(chart.dispose).not.toHaveBeenCalled();
+    });
+
+    it('disposes the temporary chart after rendering fails and allows another capture', async () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, ref })));
+        paper.setOption.mockImplementationOnce(() => {
+            throw new Error('render failed');
+        });
+        await expect(ref.current?.capturePdf()).rejects.toThrow('render failed');
+        expect(paper.dispose).toHaveBeenCalledOnce();
+        expect(document.querySelector('[style*="-9999px"]')).toBeNull();
+        expect(chart.dispose).not.toHaveBeenCalled();
+        expect((await ref.current?.capturePdf())?.chartDataUrl).toBe('data:image/png;base64,qq');
     });
 });

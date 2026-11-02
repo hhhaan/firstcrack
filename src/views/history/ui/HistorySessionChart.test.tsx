@@ -25,7 +25,6 @@ vi.mock('@entities/roast', () => ({
 }));
 vi.mock('@features/export-history-pdf', () => ({
     historyPdfFilename: () => 'roast-graph-e2e-ethiopia-26-09-20.pdf',
-    historyPdfChartBox: () => ({ width: 2151, height: 1374 }),
     useExportHistoryPdf: () => mocks.exportPdf,
 }));
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
@@ -73,7 +72,14 @@ vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
         RoastTempChart: react.forwardRef((props: unknown, ref) => {
             mocks.chart(props);
             react.useImperativeHandle(ref, () => ({
-                getDataURL: () => mocks.dataUrl,
+                capturePdf: async () => ({
+                    chartDataUrl: mocks.dataUrl,
+                    legend: [
+                        { color: '#009d4c', label: 'BT (°F)', lineType: 'solid' },
+                        { color: '#c34839', label: 'ET (°F)', lineType: 'solid' },
+                        { color: '#3d7ac2', label: 'BT RoR (°F/min)', lineType: 'solid' },
+                    ],
+                }),
                 beginMarkerDrag: () => false,
                 moveMarkerDrag: () => false,
                 endMarkerDrag: () => false,
@@ -233,6 +239,4 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     await act(async () => root.unmount());
 });
 
-beforeEach(() => {
-    Object.defineProperty(document, 'fonts', { configurable: true, value: { load: vi.fn().mockResolvedValue([]) } });
-});
+beforeEach(() => {});

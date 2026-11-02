@@ -356,8 +356,6 @@ export function HistorySessionChart({
     const { canExport, onExportPdf } = useHistoryPdfExport({
         session,
         chartRef,
-        unit,
-        hasEtRor: points.some((point) => point.rorEt != null),
         canCapture: points.length > 0,
         roasting,
     });

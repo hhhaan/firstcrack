@@ -3,7 +3,7 @@ import en from '@shared/i18n/locales/en.json';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { beforeEach, expect, it, vi } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { useHistoryPdfExport } from './useHistoryPdfExport';
 
 const mocks = vi.hoisted(() => ({ exportPdf: vi.fn(async () => true) }));
@@ -25,14 +25,16 @@ vi.mock('@features/active-roast', () => ({
 }));
 vi.mock('@features/export-history-pdf', async () => ({
     historyPdfFilename: (await import('@features/export-history-pdf/lib/filename')).historyPdfFilename,
-    historyPdfChartBox: () => ({ width: 100, height: 100 }),
     useExportHistoryPdf: () => mocks.exportPdf,
 }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it('exports the selected batch title and date without report metadata', async () => {
-    const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
-    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
+    const capturePdf = vi.fn(async () => ({
+        chartDataUrl: 'data:image/png;base64,AA==',
+        legend: [{ color: '#e53935', label: 'BT (°C)', lineType: 'solid' as const }],
+    }));
+    const chartRef = { current: { capturePdf } };
     const session = {
         batch_name: 'Batch A',
         profile_batch_number: 9,
@@ -42,19 +44,21 @@ it('exports the selected batch title and date without report metadata', async ()
     } as unknown as RoastSessionWithRelations;
     let latest!: ReturnType<typeof useHistoryPdfExport>;
     const Probe = ({ value }: { value: RoastSessionWithRelations }) => {
-        latest = useHistoryPdfExport({ session: value, chartRef, unit: 'C', canCapture: true });
+        latest = useHistoryPdfExport({ session: value, chartRef, canCapture: true });
         return null;
     };
     const root = createRoot(document.createElement('div'));
     try {
         await act(async () => root.render(createElement(Probe, { value: session })));
         await act(async () => latest.onExportPdf());
-        expect(getDataURL).toHaveBeenCalledWith({ width: 100, height: 100, pixelRatio: 200 / 72 });
+        expect(capturePdf).toHaveBeenCalledWith();
         expect(mocks.exportPdf).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 filename: expect.stringContaining('batch-a'),
                 title: 'Batch A',
                 date: '26-10-19 14:35',
+                chartDataUrl: 'data:image/png;base64,AA==',
+                legend: [{ color: '#e53935', label: 'BT (°C)', lineType: 'solid' }],
             }),
         );
         await act(async () => root.render(createElement(Probe, { value: { ...session, batch_name: 'Batch B' } })));
@@ -106,15 +110,17 @@ it('exports the selected batch title and date without report metadata', async ()
 
 it('disables PDF export while a roast is in progress', async () => {
     mocks.exportPdf.mockClear();
-    const getDataURL = vi.fn(() => 'data:image/png;base64,AA==');
-    const chartRef = { current: { getDataURL } } as unknown as Parameters<typeof useHistoryPdfExport>[0]['chartRef'];
+    const capturePdf = vi.fn(async () => ({
+        chartDataUrl: 'data:image/png;base64,AA==',
+        legend: [{ color: '#e53935', label: 'BT (°C)', lineType: 'solid' as const }],
+    }));
+    const chartRef = { current: { capturePdf } };
     const session = { roasted_at: '2026-10-19T14:35:47' } as unknown as RoastSessionWithRelations;
     let latest!: ReturnType<typeof useHistoryPdfExport>;
     const Probe = ({ roasting }: { roasting: boolean }) => {
         latest = useHistoryPdfExport({
             session,
             chartRef,
-            unit: 'C',
             canCapture: true,
             roasting,
         });
@@ -125,15 +131,11 @@ it('disables PDF export while a roast is in progress', async () => {
         await act(async () => root.render(createElement(Probe, { roasting: true })));
         expect(latest.canExport).toBe(false);
         await act(async () => latest.onExportPdf());
-        expect(getDataURL).not.toHaveBeenCalled();
+        expect(capturePdf).not.toHaveBeenCalled();
         expect(mocks.exportPdf).not.toHaveBeenCalled();
         await act(async () => root.render(createElement(Probe, { roasting: false })));
         expect(latest.canExport).toBe(true);
     } finally {
         act(() => root.unmount());
     }
-});
-
-beforeEach(() => {
-    Object.defineProperty(document, 'fonts', { configurable: true, value: { load: vi.fn().mockResolvedValue([]) } });
 });
