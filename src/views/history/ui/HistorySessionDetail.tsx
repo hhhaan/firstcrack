@@ -4,7 +4,7 @@ import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionBatchNumberLabel } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
-import { ChevronLeft, FileText, Package } from 'lucide-react';
+import { Check, ChevronLeft, FileText, Package } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChargeWeightEditor, QcMeasurementEditor } from './HistoryQcEditor';
@@ -22,14 +22,20 @@ const detailTitleCls = 'm-0 text-[11px] font-medium tracking-[0.3px] text-muted'
 type HistorySessionDetailProps = {
     session: RoastSessionWithRelations;
     onBack: () => void;
+    /** Where back goes. Defaults to the history list title. */
+    backLabel?: string;
     onSaveAsProfile: (id: string) => void;
+    /** This session is the profile's current reference curve. */
+    isCurrentReference?: boolean;
     onSetReference?: () => void;
 };
 
 export const HistorySessionDetail = ({
     session,
     onBack,
+    backLabel,
     onSaveAsProfile,
+    isCurrentReference = false,
     onSetReference,
 }: HistorySessionDetailProps): ReactNode => {
     const { t } = useTranslation();
@@ -49,10 +55,11 @@ export const HistorySessionDetail = ({
                 type="button"
                 data-testid="history-back"
                 onClick={onBack}
-                className="mb-3 inline-flex cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[12px] text-muted transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--color-primary)"
+                title={backLabel}
+                className="mb-3 inline-flex max-w-full cursor-pointer items-center gap-1 border-none bg-transparent p-0 text-[12px] text-muted transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--color-primary)"
             >
-                <ChevronLeft size={14} strokeWidth={2} />
-                {t('history.title')}
+                <ChevronLeft size={14} strokeWidth={2} className="shrink-0" />
+                <span className="truncate">{backLabel ?? t('history.title')}</span>
             </button>
             <header className="mb-4 flex flex-wrap items-start justify-between gap-x-5 gap-y-3">
                 <div className="min-w-0 flex-1">
@@ -83,15 +90,26 @@ export const HistorySessionDetail = ({
                     >
                         {t('history.saveAsProfile')}
                     </button>
-                    {onSetReference && (
-                        <button
-                            type="button"
-                            data-testid="history-set-reference"
-                            onClick={onSetReference}
-                            className="inline-flex shrink-0 cursor-pointer items-center rounded-full border border-border-subtle bg-main-bg px-4 py-2 text-[12px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)"
+                    {isCurrentReference ? (
+                        <Badge
+                            tone="good"
+                            data-testid="history-current-reference"
+                            icon={<Check size={12} strokeWidth={1.5} aria-hidden="true" />}
+                            className="h-8 px-3 text-[12px] text-emerald-800 dark:text-emerald-200"
                         >
-                            {t('history.setReference')}
-                        </button>
+                            {t('profiles.detail.currentReference')}
+                        </Badge>
+                    ) : (
+                        onSetReference && (
+                            <button
+                                type="button"
+                                data-testid="history-set-reference"
+                                onClick={onSetReference}
+                                className="inline-flex shrink-0 cursor-pointer items-center rounded-full border border-border-subtle bg-main-bg px-4 py-2 text-[12px] font-medium text-secondary transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary)"
+                            >
+                                {t('profiles.detail.setReference')}
+                            </button>
+                        )
                     )}
                 </div>
             </header>

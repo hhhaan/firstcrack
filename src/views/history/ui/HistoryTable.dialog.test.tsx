@@ -160,4 +160,37 @@ describe('HistorySessionDetail edit dialog', () => {
         expect(overlay?.parentElement).toBe(document.body);
         expect(host.contains(dialog)).toBe(false);
     });
+
+    it('shows whether this roast is the profile reference', async () => {
+        host = document.createElement('div');
+        document.body.appendChild(host);
+        root = createRoot(host);
+        const render = async (isCurrentReference: boolean) => {
+            await act(async () => {
+                root.render(
+                    createElement(HistorySessionDetail, {
+                        session: session(1),
+                        onBack: () => {},
+                        backLabel: 'Filter profile',
+                        onSaveAsProfile: () => {},
+                        isCurrentReference,
+                        onSetReference: isCurrentReference ? undefined : () => {},
+                    }),
+                );
+            });
+        };
+
+        await render(true);
+        expect(host.querySelector('[data-testid="history-back"]')?.textContent).toContain('Filter profile');
+        expect(host.querySelector('[data-testid="history-current-reference"]')?.textContent).toBe(
+            'profiles.detail.currentReference',
+        );
+        expect(host.querySelector('[data-testid="history-set-reference"]')).toBeNull();
+
+        await render(false);
+        expect(host.querySelector('[data-testid="history-current-reference"]')).toBeNull();
+        expect(host.querySelector('[data-testid="history-set-reference"]')?.textContent).toBe(
+            'profiles.detail.setReference',
+        );
+    });
 });

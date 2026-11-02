@@ -60,6 +60,7 @@ vi.mock('@entities/roast', () => ({
 
 vi.mock('@entities/roast-profile', () => ({
     useCreateRoastProfile: () => ({ mutateAsync: vi.fn() }),
+    useRoastProfiles: () => ({ data: [], isSuccess: true }),
     useSetProfileReference: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 

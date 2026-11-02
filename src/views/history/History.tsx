@@ -5,7 +5,7 @@ import {
     useRoastSessions,
     useRoastSessionsPaginated,
 } from '@entities/roast';
-import { useCreateRoastProfile, useSetProfileReference } from '@entities/roast-profile';
+import { useCreateRoastProfile, useRoastProfiles, useSetProfileReference } from '@entities/roast-profile';
 import { useExportCsv } from '@features/export-csv';
 import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateTimeShort } from '@shared/lib/format';
@@ -46,7 +46,14 @@ const findById = <T extends { id: string }>(id: string | null, ...lists: T[][]):
 
 export type HistoryFocus = { sessionId: string; profileId: string };
 
-export const History = ({ focus = null }: { focus?: HistoryFocus | null }) => {
+export const History = ({
+    focus = null,
+    onBackToProfile,
+}: {
+    focus?: HistoryFocus | null;
+    /** Set when this detail was opened from a profile. Back returns there. */
+    onBackToProfile?: () => void;
+}) => {
     const { t } = useTranslation();
     const [selectedId, setSelectedId] = useState<string | null>(focus?.sessionId ?? null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -185,6 +192,13 @@ export const History = ({ focus = null }: { focus?: HistoryFocus | null }) => {
     const deleteSession = useDeleteRoastSession(workspaceOwnerId);
     const { mutateAsync: createProfile } = useCreateRoastProfile(workspaceOwnerId);
     const { mutateAsync: setReference, isPending: settingReference } = useSetProfileReference(workspaceOwnerId);
+    const { data: profiles = [], isSuccess: profilesReady } = useRoastProfiles(workspaceOwnerId);
+    const focusProfile = focus ? profiles.find((profile) => profile.id === focus.profileId) : undefined;
+    const isCurrentReference = Boolean(
+        focus && selectedSession && focusProfile?.source_session_id === selectedSession.id,
+    );
+    const referenceProfileId = focus?.profileId ?? null;
+    const canSetReference = Boolean(referenceProfileId && profilesReady && !isCurrentReference);
 
     const handleProfileCreated = useCallback(
         async (profileData: RoastProfile) => {
@@ -319,14 +333,22 @@ export const History = ({ focus = null }: { focus?: HistoryFocus | null }) => {
                 ) : selectedSession ? (
                     <HistorySessionDetail
                         session={selectedSession}
-                        onBack={() => setSelectedId(null)}
+                        onBack={() => {
+                            if (focus && onBackToProfile) onBackToProfile();
+                            else setSelectedId(null);
+                        }}
+                        backLabel={
+                            focus && onBackToProfile ? (focusProfile?.name ?? t('sidebar.nav.profiles')) : undefined
+                        }
                         onSaveAsProfile={setPromoteSessionId}
+                        isCurrentReference={isCurrentReference}
                         onSetReference={
-                            focus
+                            canSetReference && referenceProfileId
                                 ? () => {
-                                      if (settingReference) return;
+                                      const profileId = referenceProfileId;
+                                      if (settingReference || !profileId) return;
                                       void setReference({
-                                          id: focus.profileId,
+                                          id: profileId,
                                           sourceSessionId: selectedSession.id,
                                           sourceSession: {
                                               tsv_path: selectedSession.tsv_path,

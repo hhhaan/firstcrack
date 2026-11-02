@@ -91,9 +91,11 @@ const ProfileDetailSkeleton = () => (
 interface ProfilesProps {
     onNavigate: (view: View) => void;
     onOpenHistoryBatch?: (sessionId: string, profileId: string) => void;
+    /** Profile to select on mount. Set when returning from a batch detail. */
+    initialSelectedId?: string | null;
 }
 
-export const Profiles = ({ onNavigate, onOpenHistoryBatch }: ProfilesProps) => {
+export const Profiles = ({ onNavigate, onOpenHistoryBatch, initialSelectedId = null }: ProfilesProps) => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
     const user = useAuthStore((s) => s.user);
@@ -106,7 +108,7 @@ export const Profiles = ({ onNavigate, onOpenHistoryBatch }: ProfilesProps) => {
     const { data: userProfile } = useProfile(user?.id ?? '');
     const { mutate: updateProfile } = useUpdateProfile(user?.id ?? '');
 
-    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId);
     const defaultId = userProfile?.default_roast_profile_id ?? null;
     const [comparison, setComparison] = useState<string[] | null>(null);
     const compareMode = comparison !== null;

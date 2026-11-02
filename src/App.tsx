@@ -132,13 +132,19 @@ const AppShell = () => {
 
     const [view, setView] = useState<View>('dashboard');
     const [historyFocus, setHistoryFocus] = useState<HistoryFocus | null>(null);
+    const [profileReturnId, setProfileReturnId] = useState<string | null>(null);
     const showView = (next: View) => {
         setHistoryFocus(null);
         setView(next);
     };
     const openHistoryBatch = (sessionId: string, profileId: string) => {
+        setProfileReturnId(profileId);
         setHistoryFocus({ sessionId, profileId });
         setView('history');
+    };
+    const returnToProfile = () => {
+        setHistoryFocus(null);
+        setView('profiles');
     };
     const [roastMount, setRoastMount] = useState(0);
     useEffect(() => {
@@ -367,7 +373,10 @@ const AppShell = () => {
                         </div>
                         {view === 'history' && (
                             <ViewErrorBoundary>
-                                <History focus={historyFocus} />
+                                <History
+                                    focus={historyFocus}
+                                    onBackToProfile={historyFocus ? returnToProfile : undefined}
+                                />
                             </ViewErrorBoundary>
                         )}
                         {view === 'cupping' && (
@@ -392,7 +401,11 @@ const AppShell = () => {
                         )}
                         {view === 'profiles' && (
                             <ViewErrorBoundary>
-                                <Profiles onNavigate={showView} onOpenHistoryBatch={openHistoryBatch} />
+                                <Profiles
+                                    onNavigate={showView}
+                                    onOpenHistoryBatch={openHistoryBatch}
+                                    initialSelectedId={profileReturnId}
+                                />
                             </ViewErrorBoundary>
                         )}
                         <div style={{ display: view === 'machines' ? 'block' : 'none' }}>

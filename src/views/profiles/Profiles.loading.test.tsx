@@ -8,7 +8,7 @@ import { Profiles } from './Profiles';
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const profilesQuery = vi.hoisted(() => ({
-    data: [] as { id: string; name: string }[],
+    data: [] as { id: string; name: string; drop_temp_celsius?: number; duration_sec?: number }[],
     isLoading: true,
     isError: false,
 }));
@@ -55,12 +55,12 @@ describe('Profiles loading', () => {
         profilesQuery.data = [];
     });
 
-    const render = async () => {
+    const render = async (initialSelectedId?: string) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
         await act(async () => {
-            root.render(createElement(Profiles, { onNavigate: () => {} }));
+            root.render(createElement(Profiles, { onNavigate: () => {}, initialSelectedId }));
         });
     };
 
@@ -108,5 +108,19 @@ describe('Profiles loading', () => {
         expect(host.querySelector('[role="alert"]')).not.toBeNull();
         expect(host.querySelector('[role="status"]')).toBeNull();
         expect(host.querySelector('[data-testid="profile-detail-skeleton"]')).toBeNull();
+    });
+
+    it('reopens the profile a batch detail was opened from', async () => {
+        profilesQuery.isLoading = false;
+        profilesQuery.data = [
+            { id: 'first', name: 'First', drop_temp_celsius: 200, duration_sec: 600 },
+            { id: 'returned', name: 'Returned', drop_temp_celsius: 190, duration_sec: 500 },
+        ];
+        await render('returned');
+
+        const cardFor = (name: string) =>
+            [...host.querySelectorAll('span')].find((node) => node.textContent === name)?.closest('.rounded-2xl');
+        expect(cardFor('Returned')?.className).toContain('shadow-xs');
+        expect(cardFor('First')?.className).not.toContain('shadow-xs');
     });
 });
