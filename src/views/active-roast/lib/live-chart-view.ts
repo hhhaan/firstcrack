@@ -4,8 +4,7 @@ import type { TsvPoint } from '@shared/lib/tsv';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
 import { livePointsFromBbp } from './bbp-live-points';
 
-/** At most this much of the wait stays left of Charge. The chart origin is 0, not this mark. */
-export const BBP_LOOKBACK_SECONDS = 600;
+const REFERENCE_ROAST_AHEAD_SECONDS = 300;
 
 export type LiveChartView = {
     livePoints: LiveRoastPoint[];
@@ -74,11 +73,11 @@ export const resolveLiveChartView = (input: {
         };
     }
 
-    const ahead = input.roastTarget.filter((point) => point.t >= 0);
+    const ahead = input.roastTarget.filter((point) => point.t >= 0 && point.t <= REFERENCE_ROAST_AHEAD_SECONDS);
     const source = input.bbpTargetError ? [] : input.bbpTarget;
     const lastT = input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0;
     if (ahead.length > 0) {
-        const eventTimeOrigin = Math.max(0, lastT - BBP_LOOKBACK_SECONDS);
+        const eventTimeOrigin = Math.max(0, lastT - BBP_MAX_SECONDS);
         const seam = lastT - eventTimeOrigin;
         const livePoints = livePointsFromBbp(
             input.bbpPoints.flatMap((point) =>

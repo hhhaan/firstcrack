@@ -71,22 +71,22 @@ describe('displayed roast timeline interface', () => {
 
     it('aligns displayed events and inverse edits without moving the viewport origin or losing hidden rows', async () => {
         reference.roast = [{ t: 0, bt: 190, et: null, ror: null, heater: null, fan: 0, drum: 0 }];
-        const events = [entry('hidden', 100), entry('visible', 900)];
+        const events = [entry('hidden', 30), entry('visible', 900)];
         useBbpStore.setState({ active: true, startMs: 1, points: [waitPoint(0), waitPoint(960)], events });
         await render();
-        expect(timeline().entries).toEqual([expect.objectContaining({ id: 'visible', timeSec: 540 })]);
-        expect(timeline().chart.maxTime).toBe(900);
-        expect(timeline().frame.displayedElapsed).toBe(600);
+        expect(timeline().entries).toEqual([expect.objectContaining({ id: 'visible', timeSec: 840 })]);
+        expect(timeline().chart.maxTime).toBe(1020);
+        expect(timeline().frame.displayedElapsed).toBe(900);
         const read = timeline().editing.read;
-        expect(read().editEntries(events, 'visible', { timeSec: 550 })).toEqual([
+        expect(read().editEntries(events, 'visible', { timeSec: 850 })).toEqual([
             events[0],
             expect.objectContaining({ id: 'visible', timeSec: 910 }),
         ]);
         expect(events[1].timeSec).toBe(900);
 
         await act(() => useBbpStore.setState({ points: [waitPoint(0), waitPoint(1020)] }));
-        expect(timeline().entries[0].timeSec).toBe(480);
-        expect(read().editEntries(events, 'visible', { timeSec: 490 })[1].timeSec).toBe(910);
+        expect(timeline().entries[0].timeSec).toBe(780);
+        expect(read().editEntries(events, 'visible', { timeSec: 790 })[1].timeSec).toBe(910);
     });
 
     it('preserves a selected real interval across joined Charge and resets it for the next wait', async () => {
@@ -154,7 +154,7 @@ describe('displayed roast timeline interface', () => {
         useBbpStore.setState({ active: true, startMs: 1, points: [waitPoint(960)], events: [entry('wait', 900)] });
         await render();
         expect(timeline().frame.targetPointCount).toBe(1);
-        expect(timeline().entries[0].timeSec).toBe(540);
+        expect(timeline().entries[0].timeSec).toBe(840);
         expect(timeline().bbpObservationNow()).toEqual({ timeSec: 960, tempC: 200 });
     });
 });
