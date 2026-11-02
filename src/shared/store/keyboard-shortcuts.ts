@@ -7,8 +7,10 @@ import {
     isReservedShortcut,
     normalizeKey,
     parseShortcut,
+    parseShortcutPress,
     type ShortcutBindingResult,
     shortcutBindingError,
+    shortcutChord,
 } from '@shared/lib/shortcut-key';
 import { create } from 'zustand';
 
@@ -62,7 +64,7 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
         if (!editable) continue;
         const keys = (value as Record<string, unknown>)[id];
         if (!Array.isArray(keys)) continue;
-        const normalized = keys.map((key) => (typeof key === 'string' ? canonicalize(key) : ''));
+        const normalized = keys.map((key) => (typeof key === 'string' ? canonicalShortcut(key) : ''));
         if (!normalized.length || normalized.some((key) => !key || isReservedShortcut(key))) continue;
         candidate[id] = [...new Set(normalized)];
         customized.add(id);
@@ -72,7 +74,9 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
         const owners = new Map<string, ShortcutId[]>();
         for (const [id, keys] of Object.entries(candidate) as [ShortcutId, string[]][]) {
             for (const key of keys) {
-                const comparable = conflictKey(key);
+                const chord = shortcutChord(key);
+                if (!chord) continue;
+                const comparable = conflictKey(chord);
                 owners.set(comparable, [...(owners.get(comparable) ?? []), id]);
             }
         }
@@ -248,6 +252,7 @@ export const SHORTCUT_HOTKEY_OPTIONS = {
 export function shortcutHotkeys(keys: readonly string[]): string {
     return keys
         .flatMap((shortcut) => {
+            // A double (`shift+enter shift+enter`) is not a library sequence. The double listener owns it.
             const parsed = parseShortcut(shortcut);
             if (!parsed) return [];
             const variants = [[...parsed.modifiers, parsed.key]];
@@ -261,7 +266,7 @@ export function shortcutHotkeys(keys: readonly string[]): string {
 }
 
 export function formatShortcut(keys: string | readonly string[], apple = isAppleOs()): string {
-    const formatOne = (shortcut: string) => {
+    const formatChord = (shortcut: string) => {
         const parsed = parseShortcut(shortcut);
         if (!parsed) return shortcut;
         return [...parsed.modifiers, parsed.key]
@@ -276,6 +281,12 @@ export function formatShortcut(keys: string | readonly string[], apple = isApple
                 return key.length === 1 ? key.toUpperCase() : key;
             })
             .join(apple ? '' : '+');
+    };
+    const formatOne = (shortcut: string) => {
+        const press = parseShortcutPress(shortcut);
+        if (!press) return shortcut;
+        const label = formatChord(press.chord);
+        return press.count === 2 ? `${label} ×2` : label;
     };
     return (typeof keys === 'string' ? [keys] : keys).map(formatOne).join(' / ');
 }

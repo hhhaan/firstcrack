@@ -73,29 +73,54 @@ export const canonicalize = (shortcut: string): string => {
 export const conflictKey = (shortcut: string): string =>
     isAppleOs() ? shortcut : shortcut.replace(/(^|\+)ctrl(?=\+|$)/, '$1mod');
 
-export function canonicalShortcut(shortcut: string): string {
-    return canonicalize(shortcut);
+/** One chord, or the same chord written twice (`shift+enter shift+enter`). */
+export function parseShortcutPress(shortcut: string): { chord: string; count: 1 | 2 } | null {
+    const parts = shortcut.trim().split(/ +/);
+    if (parts.length < 1 || parts.length > 2) return null;
+    const chords = parts.map((part) => canonicalize(part));
+    const chord = chords[0];
+    if (!chord || chords.some((item) => item !== chord)) return null;
+    return { chord, count: parts.length === 2 ? 2 : 1 };
 }
 
-/** `undefined` means the key can be assigned. `taken` is other actions' keys. */
+export function shortcutChord(shortcut: string): string {
+    return parseShortcutPress(shortcut)?.chord ?? '';
+}
+
+export function doubleShortcut(chord: string): string {
+    const canonical = canonicalize(chord);
+    return canonical ? `${canonical} ${canonical}` : '';
+}
+
+export function canonicalShortcut(shortcut: string): string {
+    const parsed = parseShortcutPress(shortcut);
+    if (!parsed) return '';
+    return parsed.count === 2 ? `${parsed.chord} ${parsed.chord}` : parsed.chord;
+}
+
+/**
+ * `undefined` means the key can be assigned. `taken` is other actions' keys.
+ * A single and a double of the same chord conflict, so a single never has to wait.
+ */
 export function shortcutBindingError(shortcut: string, taken: readonly string[]): ShortcutBindingResult {
-    const canonical = canonicalize(shortcut);
-    if (!canonical) return 'invalid';
-    if (RESERVED_KEYS.has(canonical)) return 'reserved';
-    const comparable = conflictKey(canonical);
-    if (taken.some((key) => conflictKey(canonicalize(key)) === comparable)) return 'conflict';
+    const parsed = parseShortcutPress(shortcut);
+    if (!parsed) return 'invalid';
+    if (RESERVED_KEYS.has(parsed.chord)) return 'reserved';
+    const comparable = conflictKey(parsed.chord);
+    if (taken.some((key) => conflictKey(shortcutChord(key)) === comparable)) return 'conflict';
     return undefined;
 }
 
 export function sameShortcut(a: string, b: string): boolean {
-    const left = canonicalize(a);
-    const right = canonicalize(b);
-    return left !== '' && conflictKey(left) === conflictKey(right);
+    const left = parseShortcutPress(a);
+    const right = parseShortcutPress(b);
+    if (!left || !right || left.count !== right.count) return false;
+    return conflictKey(left.chord) === conflictKey(right.chord);
 }
 
 export function isReservedShortcut(shortcut: string): boolean {
-    const canonical = canonicalize(shortcut);
-    return canonical !== '' && RESERVED_KEYS.has(canonical);
+    const chord = shortcutChord(shortcut);
+    return chord !== '' && RESERVED_KEYS.has(chord);
 }
 
 export { normalizeKey };

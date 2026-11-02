@@ -62,6 +62,10 @@ describe('keyboard shortcuts', () => {
             yellow: ['mod+2'],
             fcStart: ['mod+1'],
         });
+        expect(parseShortcutBindings({ drop: ['Shift+Enter Shift+Enter'] })).toEqual({
+            drop: ['shift+enter shift+enter'],
+        });
+        expect(parseShortcutBindings({ drop: ['shift+enter shift+enter'], charge: ['shift+enter'] })).toEqual({});
     });
 
     it('captures and formats canonical shortcuts', () => {
@@ -74,6 +78,9 @@ describe('keyboard shortcuts', () => {
         expect(eventToShortcut({ key: 'Shift', shiftKey: true })).toBe('');
         expect(formatShortcut(['mod+,', 'f'], true)).toBe('⌘, / F');
         expect(formatShortcut('mod++', true)).toBe('⌘+');
+        expect(formatShortcut('shift+enter shift+enter', true)).toBe('⇧↵ ×2');
+        expect(formatShortcut('shift+enter shift+enter', false)).toBe('Shift+↵ ×2');
+        expect(shortcutHotkeys(['shift+enter shift+enter', 'mod+1'])).toBe('mod\t1');
         expect(shortcutHotkeys(['mod+,', '+', 'mod+shift++', '>', '|'])).toBe(
             'mod\t,\n+\nshift\t+\nmod\tshift\t+\n>\n|',
         );

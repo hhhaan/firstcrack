@@ -2,6 +2,7 @@ import { cn } from '@shared/lib/cn';
 import { logger } from '@shared/lib/logger';
 import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
+import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
 import { useToastStore } from '@shared/store/toast';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -179,22 +180,35 @@ const AppShell = () => {
     const recordingShortcut = useShortcutStore((s) => s.recording);
     const setShortcutsOpen = useShortcutStore((s) => s.setDialogOpen);
     const appKeysEnabled = Boolean(user) && !loading && !oauthPending && !recordingShortcut;
+    const settingsOnFormTags = settingsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key));
+    const shortcutsOnFormTags = shortcutsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key));
     useHotkeys(shortcutHotkeys(settingsKeys), () => toggleSettings(), {
         ...SHORTCUT_HOTKEY_OPTIONS,
         enabled: appKeysEnabled && !shortcutsOpen && settingsKeys.length > 0,
-        enableOnFormTags: settingsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
+        enableOnFormTags: settingsOnFormTags,
         preventDefault: true,
+    });
+    useDoubleShortcut(settingsKeys, () => toggleSettings(), {
+        enabled: appKeysEnabled && !shortcutsOpen,
+        enableOnFormTags: settingsOnFormTags,
     });
     useHotkeys(shortcutHotkeys(shortcutsKeys), () => setShortcutsOpen(true), {
         ...SHORTCUT_HOTKEY_OPTIONS,
         enabled: appKeysEnabled && shortcutsKeys.length > 0,
-        enableOnFormTags: shortcutsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key)),
+        enableOnFormTags: shortcutsOnFormTags,
         preventDefault: true,
+    });
+    useDoubleShortcut(shortcutsKeys, () => setShortcutsOpen(true), {
+        enabled: appKeysEnabled,
+        enableOnFormTags: shortcutsOnFormTags,
     });
     useHotkeys(shortcutHotkeys(sidebarKeys), () => setSidebarCollapsed((current) => !current), {
         ...SHORTCUT_HOTKEY_OPTIONS,
         enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings' && sidebarKeys.length > 0,
         preventDefault: true,
+    });
+    useDoubleShortcut(sidebarKeys, () => setSidebarCollapsed((current) => !current), {
+        enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings',
     });
     useHotkeys(
         'escape',

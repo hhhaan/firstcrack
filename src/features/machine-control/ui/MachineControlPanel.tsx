@@ -1,4 +1,5 @@
 import { FEATURE, useFeature } from '@shared/lib/features';
+import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
 import {
     formatShortcut,
     SHORTCUT_HOTKEY_OPTIONS,
@@ -72,6 +73,9 @@ export const MachineControlPanel = ({
         },
         [hotkeysEnabled, panelVisible],
     );
+    useDoubleShortcut(toggleControlKeys, () => setCollapsed((collapsed) => !collapsed), {
+        enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked,
+    });
     if (!panelVisible) return null;
 
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에

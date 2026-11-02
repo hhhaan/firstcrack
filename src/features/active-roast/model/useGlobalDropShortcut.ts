@@ -1,5 +1,22 @@
-import { shortcutToAccelerator, syncGlobalShortcut } from '@shared/lib/global-shortcut';
+import { type PressArm, stepDoublePress } from '@shared/lib/double-press';
+import { bindingAccelerator, syncGlobalShortcut } from '@shared/lib/global-shortcut';
+import { parseShortcutPress } from '@shared/lib/shortcut-key';
 import { useEffect, useRef, useState } from 'react';
+
+/**
+ * One OS edge of the Drop binding. A single fires on press. A double fires on the second press,
+ * after the key was released. The release itself never fires.
+ */
+export function nextGlobalDrop(
+    count: 1 | 2,
+    arm: PressArm | null,
+    state: 'Pressed' | 'Released',
+    chord: string,
+    now: number,
+): { arm: PressArm | null; fire: boolean } {
+    if (count === 1) return { arm: null, fire: state === 'Pressed' };
+    return stepDoublePress(arm, { chord, edge: state === 'Pressed' ? 'down' : 'up', now });
+}
 
 /**
  * Drop at OS level, including while the window is unfocused, minimized or hidden (#936).
@@ -19,7 +36,11 @@ export function useGlobalDropShortcut({
     const onFireRef = useRef(onFire);
     const [holding, setHolding] = useState(false);
     // One binding maps to one accelerator. Multi-binding actions stay on the webview hotkey.
-    const accelerator = enabled && keys.length === 1 ? shortcutToAccelerator(keys[0]) : null;
+    const stored = enabled && keys.length === 1 ? keys[0] : null;
+    const press = stored ? parseShortcutPress(stored) : null;
+    const accelerator = stored ? bindingAccelerator(stored) : null;
+    const count = press?.count ?? 1;
+    const chord = press?.chord ?? '';
 
     useEffect(() => {
         onFireRef.current = onFire;
@@ -27,8 +48,13 @@ export function useGlobalDropShortcut({
 
     useEffect(() => {
         let disposed = false;
+        let arm: PressArm | null = null;
         setHolding(false);
-        void syncGlobalShortcut(accelerator, () => onFireRef.current()).then((held) => {
+        void syncGlobalShortcut(accelerator, (state) => {
+            const next = nextGlobalDrop(count, arm, state, chord, Date.now());
+            arm = next.arm;
+            if (next.fire) onFireRef.current();
+        }).then((held) => {
             if (!disposed) setHolding(held);
         });
         return () => {
@@ -36,7 +62,7 @@ export function useGlobalDropShortcut({
             // Release the combo as soon as Drop stops being markable — other apps own it then.
             void syncGlobalShortcut(null, () => undefined);
         };
-    }, [accelerator]);
+    }, [accelerator, chord, count]);
 
     return accelerator !== null && holding;
 }

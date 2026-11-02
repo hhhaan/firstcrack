@@ -2,6 +2,8 @@ import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-butto
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useGlobalDropShortcut } from '@features/active-roast/model/useGlobalDropShortcut';
 import { i18n } from '@shared/i18n';
+import { doubleShortcut } from '@shared/lib/shortcut-key';
+import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
 import {
     eventToShortcut,
     SHORTCUT_HOTKEY_OPTIONS,
@@ -181,93 +183,128 @@ export const useRoastKeyboardShortcuts = ({
         return () => window.removeEventListener('keydown', preventRefresh, true);
     }, [phase, awaitingNextCharge]);
 
+    const exitFullscreenHotkey = shortcutHotkeys(exitFullscreenKeys);
+    const fullscreenHotkey = shortcutHotkeys(fullscreenKeys);
+    const chargeHotkey = shortcutHotkeys(chargeKeys);
+    const yellowHotkey = shortcutHotkeys(yellowKeys);
+    const fcStartHotkey = shortcutHotkeys(fcStartKeys);
+    const fcEndHotkey = shortcutHotkeys(fcEndKeys);
+    const dropHotkey = shortcutHotkeys(dropKeys);
+
     // Escape → exit fullscreen (only when fullscreen and no modal open)
     useHotkeys(
-        shortcutHotkeys(exitFullscreenKeys),
+        exitFullscreenHotkey,
         (e) => {
             e.preventDefault();
             onExitFullscreen();
         },
-        { enabled: enabled && isFullscreen && exitFullscreenKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: enabled && isFullscreen && exitFullscreenHotkey.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [enabled, isFullscreen, onExitFullscreen],
     );
 
     // F → toggle fullscreen (case-insensitive — library normalises via toLowerCase)
     useHotkeys(
-        shortcutHotkeys(fullscreenKeys),
+        fullscreenHotkey,
         (e) => {
             e.preventDefault();
             onToggleFullscreen();
         },
-        { enabled: enabled && fullscreenKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: enabled && fullscreenHotkey.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [enabled, onToggleFullscreen],
     );
+    useDoubleShortcut(fullscreenKeys, () => onToggleFullscreen(), { enabled });
+
+    const chargeFromShortcut = () => {
+        if (phase === 'preheating') onEnterStandby();
+        else if (phase === 'standby') onManualCharge();
+    };
 
     // Ctrl/Meta + Enter → enter standby or charge
     useHotkeys(
-        shortcutHotkeys(chargeKeys),
+        chargeHotkey,
         (e) => {
             e.preventDefault();
-            if (phase === 'preheating') onEnterStandby();
-            else if (phase === 'standby') onManualCharge();
+            chargeFromShortcut();
         },
         {
-            enabled: canCharge && chargeKeys.length > 0,
+            enabled: canCharge && chargeHotkey.length > 0,
             enableOnFormTags: chargeEnabledOnFormTags,
             ...SHORTCUT_HOTKEY_OPTIONS,
         },
         [canCharge, phase, onEnterStandby, onManualCharge],
     );
+    useDoubleShortcut(chargeKeys, () => chargeFromShortcut(), {
+        enabled: canCharge,
+        enableOnFormTags: chargeEnabledOnFormTags,
+    });
 
     // Ctrl/Meta + 1 → Mark Yellow
     useHotkeys(
-        shortcutHotkeys(yellowKeys),
+        yellowHotkey,
         (e) => {
             e.preventDefault();
             onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow');
         },
-        { enabled: canMarkEvents && yellowKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMarkEvents && yellowHotkey.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMarkEvents, onMarkEvent],
     );
+    useDoubleShortcut(yellowKeys, () => onMarkEvent('Yellow', 'Color change visible', 'Mark Yellow'), {
+        enabled: canMarkEvents,
+    });
 
     // Ctrl/Meta + 2 → Mark FC Start (or dual-mark cycle when onCycleFc provided)
+    const markFcStart = () => {
+        if (onCycleFc) onCycleFc();
+        else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+    };
     useHotkeys(
-        shortcutHotkeys(fcStartKeys),
+        fcStartHotkey,
         (e) => {
             e.preventDefault();
-            if (onCycleFc) onCycleFc();
-            else onMarkEvent('FC Start', 'First crack started', 'Mark FC Start');
+            markFcStart();
         },
-        { enabled: canMarkEvents && fcStartKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMarkEvents && fcStartHotkey.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMarkEvents, onMarkEvent, onCycleFc],
     );
+    useDoubleShortcut(fcStartKeys, () => markFcStart(), { enabled: canMarkEvents });
 
     // Ctrl/Meta + 3 → Mark FC End
     useHotkeys(
-        shortcutHotkeys(fcEndKeys),
+        fcEndHotkey,
         (e) => {
             e.preventDefault();
             onMarkEvent('FC End', 'First crack ended', 'Mark FC End');
         },
-        { enabled: canMarkEvents && fcEndKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
+        { enabled: canMarkEvents && fcEndHotkey.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMarkEvents, onMarkEvent],
     );
+    useDoubleShortcut(fcEndKeys, () => onMarkEvent('FC End', 'First crack ended', 'Mark FC End'), {
+        enabled: canMarkEvents,
+    });
 
     // Ctrl/Meta + Shift + D → Mark Drop. Stays on while the OS hotkey is held; the shared
-    // dedupe drops the second delivery of the same press.
+    // dedupe drops the second delivery of the same press. A double fires only on the second press,
+    // from here and from the OS hook, and the same dedupe collapses that pair.
     useHotkeys(
-        shortcutHotkeys(dropKeys),
+        dropHotkey,
         (e) => {
             e.preventDefault();
             if (e.repeat) return;
             markDropFromShortcut();
         },
         {
-            enabled: canMark && dropKeys.length > 0,
+            enabled: canMark && dropHotkey.length > 0,
             enableOnFormTags: dropEnabledOnFormTags,
             ...SHORTCUT_HOTKEY_OPTIONS,
         },
         [canMark, markDropFromShortcut],
+    );
+    useDoubleShortcut(
+        dropKeys,
+        () => {
+            markDropFromShortcut();
+        },
+        { enabled: canMark, enableOnFormTags: dropEnabledOnFormTags },
     );
 
     const customEvents = useRoastSettings().eventButtons.custom;
@@ -289,5 +326,16 @@ export const useRoastKeyboardShortcuts = ({
         },
         { enabled: canMarkEvents && customHotkeyPlan.hotkeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [canMarkEvents, customEvents, customHotkeyPlan, onMarkEvent],
+    );
+    useDoubleShortcut(
+        customHotkeyPlan.keys.filter((key): key is string => Boolean(key)),
+        (event) => {
+            const pressed = doubleShortcut(eventToShortcut(event));
+            const index = customHotkeyPlan.keys.findIndex((key) => key != null && sameShortcut(key, pressed));
+            const item = index >= 0 ? customEvents[index] : undefined;
+            if (!item) return;
+            onMarkEvent(item.name, '', item.id);
+        },
+        { enabled: canMarkEvents },
     );
 };

@@ -1,7 +1,6 @@
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import {
-    eventToShortcut,
     formatShortcut,
     SHORTCUTS,
     type ShortcutId,
@@ -14,6 +13,7 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { RotateCcw, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShortcutCapture } from '../model/useShortcutCapture';
 import { settingsOptionSwitchCls } from './SettingsOptionRow';
 
 export function KeyboardShortcutsModal() {
@@ -45,36 +45,45 @@ export function KeyboardShortcutsModal() {
         };
     }, [setRecording]);
 
-    useEffect(() => {
-        const onKey = (event: KeyboardEvent) => {
-            if (editingId) {
-                event.preventDefault();
-                event.stopImmediatePropagation();
-                if (event.repeat || event.isComposing) return;
-                if (event.key === 'Escape') {
-                    setEditingId(null);
-                    setError(null);
-                    setRecording(false);
-                    recordingButtonRef.current?.focus();
-                    return;
-                }
-                const key = eventToShortcut(event);
-                if (!key) return;
-                const otherBindings = SHORTCUTS.flatMap(({ id }) => (id === editingId ? [] : bindings[id]));
-                const customKeys = effectiveCustomShortcuts(customEvents, otherBindings).filter(
-                    (item): item is string => Boolean(item),
-                );
-                const failure = shortcutBindingError(key, customKeys) ?? setBinding(editingId, key);
-                if (failure) {
-                    setError(failure);
-                    return;
-                }
-                setEditingId(null);
-                setError(null);
-                setRecording(false);
-                recordingButtonRef.current?.focus();
+    const shortcutDraft = useShortcutCapture({
+        active: editingId !== null,
+        onCandidate: (chord) => {
+            if (!editingId) return 'reject';
+            const otherBindings = SHORTCUTS.flatMap(({ id }) => (id === editingId ? [] : bindings[id]));
+            const customKeys = effectiveCustomShortcuts(customEvents, otherBindings).filter((item): item is string =>
+                Boolean(item),
+            );
+            const failure = shortcutBindingError(chord, customKeys);
+            if (failure) {
+                setError(failure);
+                return 'reject';
+            }
+            setError(null);
+            return 'accept';
+        },
+        onCommit: (shortcut) => {
+            if (!editingId) return;
+            const failure = setBinding(editingId, shortcut);
+            if (failure) {
+                setError(failure);
                 return;
             }
+            setEditingId(null);
+            setError(null);
+            setRecording(false);
+            recordingButtonRef.current?.focus();
+        },
+        onCancel: () => {
+            setEditingId(null);
+            setError(null);
+            setRecording(false);
+            recordingButtonRef.current?.focus();
+        },
+    });
+
+    useEffect(() => {
+        const onKey = (event: KeyboardEvent) => {
+            if (editingId) return;
             if (event.key === 'Escape') {
                 event.preventDefault();
                 event.stopImmediatePropagation();
@@ -96,7 +105,7 @@ export function KeyboardShortcutsModal() {
         };
         document.addEventListener('keydown', onKey, true);
         return () => document.removeEventListener('keydown', onKey, true);
-    }, [bindings, customEvents, editingId, setBinding, setRecording, setDialogOpen]);
+    }, [editingId, setDialogOpen]);
 
     return (
         <ModalShell
@@ -201,7 +210,9 @@ export function KeyboardShortcutsModal() {
                                         >
                                             <kbd className="whitespace-nowrap font-sans">
                                                 {editingId === id
-                                                    ? t('shortcuts.pressKeys')
+                                                    ? shortcutDraft
+                                                        ? formatShortcut(shortcutDraft)
+                                                        : t('shortcuts.pressKeys')
                                                     : formatShortcut(bindings[id])}
                                             </kbd>
                                         </button>

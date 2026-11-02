@@ -1,3 +1,4 @@
+import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
 import {
     formatShortcut,
     SHORTCUT_HOTKEY_OPTIONS,
@@ -106,6 +107,15 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
             enabled:
                 shouldShow && !!target && step.id === 'fullscreen' && !shortcutsBlocked && fullscreenKeys.length > 0,
             ...SHORTCUT_HOTKEY_OPTIONS,
+        },
+    );
+    useDoubleShortcut(
+        fullscreenKeys,
+        () => {
+            if (step.id === 'fullscreen') dismissSession();
+        },
+        {
+            enabled: shouldShow && !!target && step.id === 'fullscreen' && !shortcutsBlocked,
         },
     );
 

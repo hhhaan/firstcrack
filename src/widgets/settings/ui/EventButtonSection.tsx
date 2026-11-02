@@ -8,7 +8,6 @@ import {
 import { getRoastSettings, updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import {
-    eventToShortcut,
     formatShortcut,
     type ShortcutBindingResult,
     shortcutBindingError,
@@ -17,6 +16,7 @@ import {
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useShortcutCapture } from '../model/useShortcutCapture';
 import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
@@ -80,48 +80,47 @@ export function EventButtonSection() {
         setShortcutError(null);
     }, [dialogOpen]);
 
-    useEffect(() => {
-        if (!editingId) return;
-        setRecording(true);
-        const onKey = (event: KeyboardEvent) => {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            if (event.repeat || event.isComposing) return;
-            if (event.key === 'Escape') {
-                setEditingId(null);
-                setShortcutError(null);
-                setRecording(false);
-                return;
-            }
-            const key = eventToShortcut(event);
-            if (!key) return;
+    const shortcutDraft = useShortcutCapture({
+        active: editingId !== null && !dialogOpen,
+        onCandidate: (chord) => {
             const current = getRoastSettings().eventButtons;
             const globals = Object.values(useShortcutStore.getState().bindings).flat();
             const others = effectiveCustomShortcuts(
                 current.custom.filter((row) => row.id !== editingId),
                 globals,
             ).filter((item): item is string => Boolean(item));
-            const failure = shortcutBindingError(key, [...globals, ...others]);
+            const failure = shortcutBindingError(chord, [...globals, ...others]);
             if (failure) {
                 setShortcutError(failure);
-                return;
+                return 'reject';
             }
+            setShortcutError(null);
+            return 'accept';
+        },
+        onCommit: (shortcut) => {
+            const current = getRoastSettings().eventButtons;
             updateRoastSettings({
                 eventButtons: {
                     ...current,
-                    custom: current.custom.map((row) => (row.id === editingId ? { ...row, shortcut: key } : row)),
+                    custom: current.custom.map((row) => (row.id === editingId ? { ...row, shortcut } : row)),
                 },
             });
             setEditingId(null);
             setShortcutError(null);
             setRecording(false);
-        };
-        document.addEventListener('keydown', onKey, true);
-        return () => {
-            document.removeEventListener('keydown', onKey, true);
+        },
+        onCancel: () => {
+            setEditingId(null);
+            setShortcutError(null);
             setRecording(false);
-        };
-    }, [editingId, setRecording]);
+        },
+    });
+
+    useEffect(() => {
+        if (!editingId || dialogOpen) return;
+        setRecording(true);
+        return () => setRecording(false);
+    }, [dialogOpen, editingId, setRecording]);
 
     return (
         <SettingsSection group="events">
@@ -212,7 +211,9 @@ export function EventButtonSection() {
                                 >
                                     <kbd className="whitespace-nowrap font-sans">
                                         {editingId === item.id
-                                            ? t('shortcuts.pressKeys')
+                                            ? shortcutDraft
+                                                ? formatShortcut(shortcutDraft)
+                                                : t('shortcuts.pressKeys')
                                             : live
                                               ? formatShortcut(live)
                                               : item.shortcut

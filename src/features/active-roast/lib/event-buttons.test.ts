@@ -58,6 +58,14 @@ describe('normalizeEventButtons', () => {
         ]);
     });
 
+    it('keeps a double shortcut', () => {
+        expect(
+            normalizeEventButtons({
+                custom: [{ id: 'a', name: '아로마', enabled: true, shortcut: 'Shift+Enter Shift+Enter' }],
+            }).custom,
+        ).toEqual([{ id: 'a', name: '아로마', enabled: true, shortcut: 'shift+enter shift+enter' }]);
+    });
+
     it('stops at eight custom names', () => {
         const custom = Array.from({ length: 10 }, (_, index) => ({
             id: `id-${index}`,

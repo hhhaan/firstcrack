@@ -40,6 +40,13 @@ describe('shortcutToAccelerator', () => {
         expect(shortcutToAccelerator('d')).toBeNull();
         expect(shortcutToAccelerator('mod+not-a-key')).toBeNull();
         expect(shortcutToAccelerator('')).toBeNull();
+        expect(shortcutToAccelerator('shift+enter shift+enter')).toBeNull();
+    });
+
+    it('registers the chord of a double binding', async () => {
+        const { bindingAccelerator } = await load();
+        expect(bindingAccelerator('shift+enter shift+enter')).toBe('Shift+Enter');
+        expect(bindingAccelerator('d d')).toBeNull();
     });
 });
 
@@ -71,9 +78,11 @@ describe('syncGlobalShortcut', () => {
         expect(accelerator).toBe('CommandOrControl+Shift+D');
         handler({ state: 'Pressed' });
         expect(onPress).toHaveBeenCalledTimes(1);
-        // The plugin also reports the key release — that must not mark a second Drop.
+        expect(onPress).toHaveBeenLastCalledWith('Pressed');
+        // Both edges are forwarded. The Drop hook decides whether a release counts.
         handler({ state: 'Released' });
-        expect(onPress).toHaveBeenCalledTimes(1);
+        expect(onPress).toHaveBeenCalledTimes(2);
+        expect(onPress).toHaveBeenLastCalledWith('Released');
 
         // Re-registering the same accelerator is a no-op (StrictMode, re-renders).
         await expect(syncGlobalShortcut('CommandOrControl+Shift+D', onPress)).resolves.toBe(true);

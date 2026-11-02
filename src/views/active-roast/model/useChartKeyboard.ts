@@ -1,4 +1,5 @@
 import { MIN_VISIBLE_SECS } from '@features/active-roast/model/useChartZoom';
+import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
 import {
     SHORTCUT_HOTKEY_OPTIONS,
     shortcutHotkeys,
@@ -88,6 +89,7 @@ export const useChartKeyboard = ({
         { enabled: chartKeysEnabled && zoomInKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, maxTime, zoomChart],
     );
+    useDoubleShortcut(zoomInKeys, () => zoomChart(0.8), { enabled: chartKeysEnabled });
 
     useHotkeys(
         shortcutHotkeys(zoomOutKeys),
@@ -98,6 +100,7 @@ export const useChartKeyboard = ({
         { enabled: chartKeysEnabled && zoomOutKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, maxTime, zoomChart],
     );
+    useDoubleShortcut(zoomOutKeys, () => zoomChart(1.25), { enabled: chartKeysEnabled });
 
     useHotkeys(
         shortcutHotkeys(resetZoomKeys),
@@ -108,6 +111,7 @@ export const useChartKeyboard = ({
         { enabled: chartKeysEnabled && resetZoomKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, setZoomRange],
     );
+    useDoubleShortcut(resetZoomKeys, () => setZoomRange(null), { enabled: chartKeysEnabled });
 
     useHotkeys(
         shortcutHotkeys(panLeftKeys),
@@ -118,6 +122,7 @@ export const useChartKeyboard = ({
         { enabled: chartKeysEnabled && panLeftKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, panChart],
     );
+    useDoubleShortcut(panLeftKeys, () => panChart(-1), { enabled: chartKeysEnabled });
 
     useHotkeys(
         shortcutHotkeys(panRightKeys),
@@ -128,4 +133,5 @@ export const useChartKeyboard = ({
         { enabled: chartKeysEnabled && panRightKeys.length > 0, ...SHORTCUT_HOTKEY_OPTIONS },
         [chartKeysEnabled, panChart],
     );
+    useDoubleShortcut(panRightKeys, () => panChart(1), { enabled: chartKeysEnabled });
 };
