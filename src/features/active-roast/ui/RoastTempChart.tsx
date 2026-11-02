@@ -1057,47 +1057,47 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     </div>
                     {onAddEvent && (
                         <div
-                            className="flex items-center gap-1 px-1"
+                            className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-1 px-1"
                             role="group"
                             aria-label={t('activeRoast.noteEntry.events')}
                         >
-                            <span className="w-[52px] shrink-0 text-[11px] text-muted">
-                                {t('activeRoast.noteEntry.events')}
-                            </span>
-                            {[
-                                ['CC', 'Yellow'],
-                                ['FC', 'FC Start'],
-                                ['SC', 'FC End'],
-                            ].map(([label, event]) => {
-                                const recorded = eventMarkers.some((marker) => marker.event === event);
-                                const description = recorded
-                                    ? t('activeRoast.noteEntry.eventRecorded', { event: roastEventLabel(event) })
-                                    : roastEventLabel(event);
-                                return (
-                                    <button
-                                        key={event}
-                                        type="button"
-                                        data-chart-note-event={event}
-                                        aria-label={description}
-                                        title={description}
-                                        aria-describedby={
-                                            noteForm.timeSec > currentTimeSec ? 'chart-note-future-hint' : undefined
-                                        }
-                                        disabled={noteForm.timeSec > currentTimeSec}
-                                        onClick={() => {
-                                            if (recorded && onMoveEvent) onMoveEvent(event, noteForm.timeSec);
-                                            else if (!recorded) onAddEvent(event, noteForm.timeSec);
-                                            setNoteForm(null);
-                                            setNoteValues(emptyNote);
-                                            chartRef.current?.focus();
-                                        }}
-                                        className={`flex h-7 cursor-pointer items-center justify-center gap-1 rounded border px-2 text-[11px] font-semibold disabled:cursor-default ${recorded ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-surface text-secondary hover:bg-main-bg disabled:opacity-40'}`}
-                                    >
-                                        {recorded && <Check className="size-3" aria-hidden="true" />}
-                                        {label}
-                                    </button>
-                                );
-                            })}
+                            <span className="truncate text-[11px] text-muted">{t('activeRoast.noteEntry.events')}</span>
+                            <div className="grid grid-cols-3 gap-1">
+                                {[
+                                    ['CC', 'Yellow'],
+                                    ['FC', 'FC Start'],
+                                    ['SC', 'FC End'],
+                                ].map(([label, event]) => {
+                                    const recorded = eventMarkers.some((marker) => marker.event === event);
+                                    const description = recorded
+                                        ? t('activeRoast.noteEntry.eventRecorded', { event: roastEventLabel(event) })
+                                        : roastEventLabel(event);
+                                    return (
+                                        <button
+                                            key={event}
+                                            type="button"
+                                            data-chart-note-event={event}
+                                            aria-label={description}
+                                            title={description}
+                                            aria-describedby={
+                                                noteForm.timeSec > currentTimeSec ? 'chart-note-future-hint' : undefined
+                                            }
+                                            disabled={noteForm.timeSec > currentTimeSec}
+                                            onClick={() => {
+                                                if (recorded && onMoveEvent) onMoveEvent(event, noteForm.timeSec);
+                                                else if (!recorded) onAddEvent(event, noteForm.timeSec);
+                                                setNoteForm(null);
+                                                setNoteValues(emptyNote);
+                                                chartRef.current?.focus();
+                                            }}
+                                            className={`flex h-7 cursor-pointer items-center justify-center gap-1 rounded border px-2 text-[11px] font-semibold disabled:cursor-default ${recorded ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border bg-surface text-secondary hover:bg-main-bg disabled:opacity-40'}`}
+                                        >
+                                            {recorded && <Check className="size-3" aria-hidden="true" />}
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                     {onAddEvent && noteForm.timeSec > currentTimeSec && (

@@ -9,6 +9,7 @@ const labelKey = (id: ManualControlId) => (id === 'drum' ? 'activeRoast.controls
 
 const fitComment = (gas: HTMLInputElement, comment: HTMLTextAreaElement) => {
     comment.style.height = `${gas.offsetHeight}px`;
+    if (!comment.value) return;
     const overflow = comment.scrollHeight - comment.clientHeight;
     if (overflow > 0) comment.style.height = `${comment.offsetHeight + overflow}px`;
 };
@@ -44,40 +45,44 @@ export const RoastNoteFields = ({
     }, [values.note]);
 
     return (
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
+        <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
             {controls.map((control, index) => {
                 const label = control.label.trim() || t(labelKey(control.id));
                 const unit = control.unit.trim();
+                const bounds = `${control.min}–${control.max}`;
                 return (
                     <label key={control.id} className="contents" htmlFor={`${prefix}-${control.id}`}>
-                        <span className="max-w-24 truncate" title={label}>
+                        <span className="truncate" title={label}>
                             {label}
                         </span>
-                        <input
-                            ref={index === 0 ? measureRef : undefined}
-                            id={`${prefix}-${control.id}`}
-                            autoFocus={autoFocus && index === 0}
-                            value={values[control.id]}
-                            placeholder={t(`activeRoast.noteEntry.${control.id}Placeholder`)}
-                            inputMode="decimal"
-                            autoComplete="off"
-                            spellCheck={false}
-                            onChange={(event) =>
-                                onChange({ ...values, [control.id]: noteControlDraft(event.target.value) })
-                            }
-                            className={inputClass}
-                        />
-                        <span className="min-w-4 text-right font-mono text-[11px] leading-tight whitespace-nowrap">
-                            {unit}
-                            <span className="block text-[10px] text-muted">
-                                {control.min}–{control.max}
+                        <span className="relative block min-w-0">
+                            <input
+                                ref={index === 0 ? measureRef : undefined}
+                                id={`${prefix}-${control.id}`}
+                                autoFocus={autoFocus && index === 0}
+                                value={values[control.id]}
+                                placeholder={t(`activeRoast.noteEntry.${control.id}Placeholder`)}
+                                inputMode="decimal"
+                                autoComplete="off"
+                                spellCheck={false}
+                                onChange={(event) =>
+                                    onChange({ ...values, [control.id]: noteControlDraft(event.target.value) })
+                                }
+                                className={`${inputClass} pr-16`}
+                            />
+                            <span
+                                className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted"
+                                title={unit ? `${unit} ${bounds}` : bounds}
+                            >
+                                {unit ? <span>{unit}</span> : null}
+                                <span>{bounds}</span>
                             </span>
                         </span>
                     </label>
                 );
             })}
             <label className="contents" htmlFor={commentId}>
-                <span>{t('activeRoast.noteEntry.comment')}</span>
+                <span className="truncate">{t('activeRoast.noteEntry.comment')}</span>
                 <textarea
                     ref={commentRef}
                     id={commentId}
@@ -87,7 +92,6 @@ export const RoastNoteFields = ({
                     onChange={(event) => onChange({ ...values, note: event.target.value })}
                     className={`${inputClass} resize-none overflow-hidden`}
                 />
-                <span />
             </label>
         </div>
     );
