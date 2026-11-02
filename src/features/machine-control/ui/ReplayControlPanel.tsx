@@ -1,6 +1,6 @@
 import { Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { REPLAY_DELIVERY_LIMIT } from '../lib/replayDelivery';
+import { HEATER_DELIVERY_LIMIT } from '../lib/heaterDelivery';
 import { formatReplayCondition, formatReplayHeater } from '../lib/replayDisplay';
 import { collapsedReplayTpChrome, isReplayTpHold, resolveReplayTpWait } from '../lib/replayStatus';
 import type { ReplayStopReason, useReplayControl } from '../model/useReplayControl';
@@ -165,7 +165,7 @@ const ReplayPanelMessages = ({
             )}
             {replay.active && replay.deliveryAttempt > 1 && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500" role="status">
-                    화력 명령 확인 재시도 {replay.deliveryAttempt}/{REPLAY_DELIVERY_LIMIT}
+                    화력 명령 확인 재시도 {replay.deliveryAttempt}/{HEATER_DELIVERY_LIMIT}
                 </p>
             )}
             {replay.active && !observationHold && isReplayTpHold(chrome) && (

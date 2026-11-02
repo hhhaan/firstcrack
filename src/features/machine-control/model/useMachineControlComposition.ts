@@ -86,7 +86,15 @@ export const useMachineControlComposition = ({
         },
         [onCommitted, onHeaterCommitted],
     );
-    const machine = useMachineControl(sidecarConnected, liveData, handleCommitted, onApplied, gasOffDiagnostics);
+    const pidActive = (pidRuntime?.state ?? 'off') !== 'off';
+    const machine = useMachineControl(
+        sidecarConnected,
+        liveData,
+        handleCommitted,
+        onApplied,
+        gasOffDiagnostics,
+        !pidActive && !roastFinished && !reconnecting,
+    );
     useEffect(() => {
         gasOffDiagnostics.updateContext({
             sessionId: diagnostics?.sessionId ?? null,
@@ -114,7 +122,6 @@ export const useMachineControlComposition = ({
         roastFinished,
         dropBehavior: pidDropBehavior,
     });
-    const pidActive = (pidRuntime?.state ?? 'off') !== 'off';
 
     // Replay writes only through setValue + commitNow. A drag preview is not a send.
     const writeHeater = useCallback(
@@ -168,6 +175,10 @@ export const useMachineControlComposition = ({
         heaterMin: machine.limits.heater?.min,
         heaterStep: numericHeaterStep((machine.limits.heater as { step?: unknown } | undefined)?.step),
     });
+
+    useEffect(() => {
+        if (replay.active) machine.cancelManualHeaterRetry();
+    }, [replay.active, machine.cancelManualHeaterRetry]);
 
     // Manual heater edits stop Replay. Replay's own setValue must not stop itself.
     const changeManual = useCallback(

@@ -71,6 +71,7 @@ export interface ControlLimit {
     min?: number;
     max?: number;
     unit?: string;
+    verify_readback?: boolean;
 }
 
 /**

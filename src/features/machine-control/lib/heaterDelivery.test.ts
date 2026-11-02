@@ -1,8 +1,8 @@
-import { captureReplayDeliveryResult } from '@shared/lib/sentry';
+import { captureHeaterDeliveryResult } from '@shared/lib/sentry';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { deliverReplayStep, REPLAY_RETRY_DELAY_MS } from './replayDelivery';
+import { deliverHeaterCommand, HEATER_RETRY_DELAY_MS } from './heaterDelivery';
 
-vi.mock('@shared/lib/sentry', () => ({ captureReplayDeliveryResult: vi.fn() }));
+vi.mock('@shared/lib/sentry', () => ({ captureHeaterDeliveryResult: vi.fn() }));
 
 afterEach(() => {
     vi.useRealTimers();
@@ -15,7 +15,7 @@ describe('Replay step delivery', () => {
         const write = vi.fn(async () => null);
         const retry = vi.fn(async () => 0);
         const attempts = vi.fn();
-        const result = deliverReplayStep({
+        const result = deliverHeaterCommand({
             target: 0,
             write,
             retry,
@@ -24,14 +24,15 @@ describe('Replay step delivery', () => {
             sessionId: 'batch-1',
             connectionEpoch: 4,
         });
-        await vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS - 1);
+        await vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS - 1);
         expect(retry).not.toHaveBeenCalled();
         await vi.advanceTimersByTimeAsync(1);
         await expect(result).resolves.toBe(true);
         expect(write).toHaveBeenCalledExactlyOnceWith(0);
         expect(retry).toHaveBeenCalledExactlyOnceWith(0);
         expect(attempts.mock.calls).toEqual([[1], [2]]);
-        expect(captureReplayDeliveryResult).toHaveBeenCalledExactlyOnceWith({
+        expect(captureHeaterDeliveryResult).toHaveBeenCalledExactlyOnceWith({
+            origin: 'replay',
             outcome: 'recovered',
             target: 0,
             attempts: 2,
@@ -45,18 +46,18 @@ describe('Replay step delivery', () => {
     it('uses a third attempt after a retry error and stops scheduling after success', async () => {
         vi.useFakeTimers();
         const retry = vi.fn(async () => 0).mockRejectedValueOnce(new Error('temporary read failure'));
-        const result = deliverReplayStep({
+        const result = deliverHeaterCommand({
             target: 0,
             write: async () => 7,
             retry,
             signal: new AbortController().signal,
             onAttempt: vi.fn(),
         });
-        await vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS * 2);
+        await vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS * 2);
         await expect(result).resolves.toBe(true);
         await vi.advanceTimersByTimeAsync(60_000);
         expect(retry).toHaveBeenCalledTimes(2);
-        expect(captureReplayDeliveryResult).toHaveBeenCalledExactlyOnceWith(
+        expect(captureHeaterDeliveryResult).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 outcome: 'recovered',
                 attempts: 3,
@@ -69,7 +70,7 @@ describe('Replay step delivery', () => {
         vi.useFakeTimers();
         const write = vi.fn(async () => null);
         const retry = vi.fn(async () => 7);
-        const result = deliverReplayStep({
+        const result = deliverHeaterCommand({
             target: 0,
             write,
             retry,
@@ -80,7 +81,7 @@ describe('Replay step delivery', () => {
         await expect(result).resolves.toBe(false);
         expect(write).toHaveBeenCalledTimes(1);
         expect(retry).toHaveBeenCalledTimes(2);
-        expect(captureReplayDeliveryResult).toHaveBeenCalledExactlyOnceWith(
+        expect(captureHeaterDeliveryResult).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 outcome: 'exhausted',
                 attempts: 3,
@@ -93,7 +94,7 @@ describe('Replay step delivery', () => {
         vi.useFakeTimers();
         const controller = new AbortController();
         const retry = vi.fn(async () => 0);
-        const result = deliverReplayStep({
+        const result = deliverHeaterCommand({
             target: 0,
             write: async () => null,
             retry,
@@ -106,7 +107,7 @@ describe('Replay step delivery', () => {
         expect(vi.getTimerCount()).toBe(0);
         await vi.advanceTimersByTimeAsync(60_000);
         expect(retry).not.toHaveBeenCalled();
-        expect(captureReplayDeliveryResult).toHaveBeenCalledExactlyOnceWith(
+        expect(captureHeaterDeliveryResult).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 outcome: 'cancelled',
                 attempts: 1,
@@ -119,7 +120,7 @@ describe('Replay step delivery', () => {
         const controller = new AbortController();
         const retry = vi.fn(async () => 0);
         let finish!: (value: number) => void;
-        const result = deliverReplayStep({
+        const result = deliverHeaterCommand({
             target: 0,
             write: () =>
                 new Promise<number>((resolve) => {
@@ -133,19 +134,19 @@ describe('Replay step delivery', () => {
         finish(0);
         await expect(result).resolves.toBe(false);
         expect(retry).not.toHaveBeenCalled();
-        expect(captureReplayDeliveryResult).not.toHaveBeenCalled();
+        expect(captureHeaterDeliveryResult).not.toHaveBeenCalled();
     });
 
     it('records when a failed delivery has no retry support', async () => {
         await expect(
-            deliverReplayStep({
+            deliverHeaterCommand({
                 target: 50,
                 write: async () => null,
                 signal: new AbortController().signal,
                 onAttempt: vi.fn(),
             }),
         ).resolves.toBe(false);
-        expect(captureReplayDeliveryResult).toHaveBeenCalledExactlyOnceWith(
+        expect(captureHeaterDeliveryResult).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 outcome: 'retry_unavailable',
                 target: 50,
@@ -156,21 +157,21 @@ describe('Replay step delivery', () => {
 
     it('does not report ordinary first-attempt success', async () => {
         await expect(
-            deliverReplayStep({
+            deliverHeaterCommand({
                 target: 50,
                 write: async () => 50,
                 signal: new AbortController().signal,
                 onAttempt: vi.fn(),
             }),
         ).resolves.toBe(true);
-        expect(captureReplayDeliveryResult).not.toHaveBeenCalled();
+        expect(captureHeaterDeliveryResult).not.toHaveBeenCalled();
     });
 
     it('reports cancellation rather than recovery for a late successful retry', async () => {
         vi.useFakeTimers();
         const controller = new AbortController();
         let finish!: (value: number) => void;
-        const result = deliverReplayStep({
+        const result = deliverHeaterCommand({
             target: 0,
             write: async () => null,
             retry: () =>
@@ -180,11 +181,11 @@ describe('Replay step delivery', () => {
             signal: controller.signal,
             onAttempt: vi.fn(),
         });
-        await vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS);
+        await vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS);
         controller.abort();
         finish(0);
         await expect(result).resolves.toBe(false);
-        expect(captureReplayDeliveryResult).toHaveBeenCalledExactlyOnceWith(
+        expect(captureHeaterDeliveryResult).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 outcome: 'cancelled',
                 attempts: 2,

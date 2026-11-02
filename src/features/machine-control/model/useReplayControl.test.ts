@@ -6,8 +6,8 @@ import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type ControlCommand, createControlSender } from '../lib/controlSender';
 import { createGasOffDiagnostics } from '../lib/gasOffDiagnostics';
+import { HEATER_RETRY_DELAY_MS } from '../lib/heaterDelivery';
 import type { ReplayPoint } from '../lib/replay';
-import { REPLAY_RETRY_DELAY_MS } from '../lib/replayDelivery';
 import { PROPOSED_OBSERVATION_STALE_LIMIT_MS, type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -234,7 +234,7 @@ describe('Replay retries retain step ownership', () => {
         expect(h.get().active).toBe(true);
         expect(h.get().firedCount).toBe(0);
         expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
-        await act(async () => vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS));
+        await act(async () => vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS));
         expect(retryHeater).toHaveBeenCalledExactlyOnceWith(80);
         expect(h.get().deliveryAttempt).toBe(2);
         expect(h.writeHeater).toHaveBeenCalledTimes(1);
@@ -249,7 +249,7 @@ describe('Replay retries retain step ownership', () => {
         const h = await renderReplay({ retryHeater });
         h.writeHeater.mockResolvedValueOnce(null);
         await act(async () => h.get().toggle());
-        await act(async () => vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS * 2));
+        await act(async () => vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS * 2));
         expect(retryHeater).toHaveBeenCalledTimes(2);
         expect(h.get().active).toBe(false);
         expect(h.get().stopReason).toBe('writeFailed');
@@ -301,7 +301,7 @@ describe('Replay retries retain step ownership', () => {
         const h = await renderReplay({ retryHeater });
         h.writeHeater.mockResolvedValueOnce(null);
         await act(async () => h.get().toggle());
-        await act(async () => vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS));
+        await act(async () => vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS));
         await act(async () => h.get().stop());
         await act(async () => confirm(80));
         expect(h.get().active).toBe(false);
@@ -328,7 +328,7 @@ describe('Replay retries retain step ownership', () => {
             const h = await renderReplay(inputs);
             h.writeHeater.mockResolvedValueOnce(null);
             await act(async () => h.get().toggle());
-            await act(async () => vi.advanceTimersByTimeAsync(REPLAY_RETRY_DELAY_MS));
+            await act(async () => vi.advanceTimersByTimeAsync(HEATER_RETRY_DELAY_MS));
             expect(retryHeater).toHaveBeenCalledExactlyOnceWith(80);
 
             await h.rerender({ ...inputs, connectionEpoch: 2, reconnecting: true });

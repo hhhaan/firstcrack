@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react';
 import { createTransport } from '@sentry/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-    captureReplayDeliveryResult,
+    captureHeaterDeliveryResult,
     captureSidecarReadinessFailure,
     captureSidecarRequestFailure,
     resetSidecarFailureRateLimitForTests,
@@ -68,7 +68,7 @@ describe('fixed-message capture fingerprints vs Dedupe integration', () => {
                 return event;
             });
             for (const outcome of ['recovered', 'recovered', 'exhausted', 'cancelled', 'retry_unavailable'] as const) {
-                captureReplayDeliveryResult({
+                captureHeaterDeliveryResult({
                     outcome,
                     target: 50,
                     attempts: 3,
@@ -96,6 +96,39 @@ describe('fixed-message capture fingerprints vs Dedupe integration', () => {
                 session_id: 'batch-1',
                 connection_epoch: 4,
             });
+        }
+    });
+
+    it('records consecutive manual recoveries independently of Replay outcomes', async () => {
+        const events: Sentry.Event[] = [];
+        Sentry.withScope((scope) => {
+            scope.addEventProcessor((event) => {
+                events.push(event);
+                return event;
+            });
+            for (let command = 0; command < 2; command++) {
+                captureHeaterDeliveryResult({
+                    origin: 'manual',
+                    outcome: 'recovered',
+                    target: 50,
+                    attempts: 2,
+                    lastApplied: 50,
+                    elapsedMs: 600,
+                    connectionEpoch: 7,
+                });
+            }
+        });
+        await Sentry.flush(2000);
+        expect(sent).toBe(2);
+        expect(events).toHaveLength(2);
+        for (const event of events) {
+            expect(event.tags).toMatchObject({
+                event: 'manual_heater_delivery_result',
+                outcome: 'recovered',
+                origin: 'manual',
+            });
+            expect(event.fingerprint).toEqual(['manual-heater-delivery-result', 'recovered']);
+            expect(event.extra).toMatchObject({ attempts: 2, last_applied: 50, connection_epoch: 7 });
         }
     });
 });

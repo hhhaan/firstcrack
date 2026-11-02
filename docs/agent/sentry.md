@@ -50,14 +50,17 @@ command ID/sequence, origins, attempt count, acknowledgement latency, and at mos
 Retries share the window. Session/connection changes and superseding heater writes clear it.
 This monitor neither retries commands nor stops Replay. It does not read the PLC target register or prove flame state.
 
-Replay retry outcomes: search `event:replay_delivery_result`. After an initially failed delivery,
+Heater retry outcomes: search `event:replay_delivery_result` or `event:manual_heater_delivery_result`.
+After an initially failed delivery,
 the existing retry loop emits one info event: `recovered`, `exhausted` (three total attempts),
 `cancelled` (ownership ended), or `retry_unavailable`. Extra includes the logical target, total
 delivery attempts, last applied response, elapsed milliseconds, session ID, and connection epoch.
 These are message events, independent of the 10% trace sampling. Distinct delivery results survive
 SDK dedupe and group by outcome. The original request/hardware error is not captured again.
 Ordinary first-attempt successes and cancellations before any failed response are not reported.
-Manual/PID commands do not use this Replay retry loop. Recovery acknowledges the command response,
+Verified manual heater writes share the bounded delivery helper and carry `origin=manual`; Replay
+uses `origin=replay`. Manual results include the connection epoch but do not require a roast session.
+PID commands do not use this retry loop. Recovery acknowledges the command response,
 not physical heat or flame state; cancelled delivery can still have an in-flight PLC command.
 
 ## Edge

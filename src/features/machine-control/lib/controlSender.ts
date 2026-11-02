@@ -1,3 +1,5 @@
+import { deliverHeaterCommand } from './heaterDelivery';
+
 export type ControlRole = 'heater' | 'fan' | 'drum';
 export type ControlCommand = Partial<Record<ControlRole, number>>;
 /** commit 출처 — Replay 자동화 중단 시 미전송 heater만 고른다. safety는 DROP zero. */
@@ -53,6 +55,8 @@ interface Waiter {
     requested: ControlCommand;
     origin: ControlOrigin;
     retry?: ControlRetry;
+    heaterRevision?: number;
+    manualRetryEpoch?: number;
     resolve: (result: ControlCommand | null) => void;
     settled: boolean;
 }
@@ -80,6 +84,8 @@ const keepLeftover = (waiter: Waiter, leftover: ControlCommand, into: Waiter[]) 
         requested: leftover,
         origin: waiter.origin,
         retry: waiter.retry,
+        heaterRevision: waiter.heaterRevision,
+        manualRetryEpoch: waiter.manualRetryEpoch,
         resolve: () => {},
         settled: true,
     });
@@ -135,6 +141,9 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
     // dispose 세대 — 폐기 이후에 도착한 응답의 콜백을 무시한다. 그러지 않으면
     // 연결이 끊겨 상태를 비운 뒤에 늦게 온 응답이 옛 setpoint를 되살린다.
     let generation = 0;
+    let heaterRevision = 0;
+    let manualRetryEpoch: number | undefined;
+    let manualDelivery: AbortController | null = null;
 
     const flush = async (): Promise<void> => {
         if (inFlight) return;
@@ -147,35 +156,101 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
         const retry = queuedWaiters[0]?.retry;
         const count = retry ? 1 : queuedWaiters.findIndex((waiter) => waiter.retry != null);
         const sentWaiters = queuedWaiters.slice(0, count < 0 ? undefined : count);
-        const cmd = mergeQueued(sentWaiters);
+        let cmd = mergeQueued(sentWaiters);
         const origins: Partial<Record<ControlRole, ControlOrigin>> = {};
+        let sentHeaterRevision: number | undefined;
+        let sentManualRetryEpoch: number | undefined;
         for (const waiter of sentWaiters) {
             for (const role of rolesOf(waiter.requested)) origins[role] = waiter.origin;
+            if (waiter.requested.heater != null) {
+                sentHeaterRevision = waiter.heaterRevision;
+                sentManualRetryEpoch = waiter.manualRetryEpoch;
+            }
         }
         queuedWaiters = queuedWaiters.slice(sentWaiters.length);
         committed = mergeQueued(queuedWaiters);
         inFlightWaiters = sentWaiters;
         inFlight = true;
         notify(() => onSendingChange?.(true));
-        notify(() => transmissionObserver?.dispatched(cmd, origins));
+        const epoch = manualRetryEpoch;
+        if (sentManualRetryEpoch != null && (sentManualRetryEpoch !== epoch || sentHeaterRevision !== heaterRevision)) {
+            cmd = omitRoles(cmd, new Set(['heater']));
+            delete origins.heater;
+        }
+        const controller =
+            epoch != null && origins.heater === 'manual' && cmd.heater != null && !retry ? new AbortController() : null;
+        if (controller) manualDelivery = controller;
+        const sendAttempt = async (requested: ControlCommand, guardedRetry?: ControlRetry) => {
+            const attemptOrigins = Object.fromEntries(rolesOf(requested).map((role) => [role, origins[role]]));
+            notify(() => transmissionObserver?.dispatched(requested, attemptOrigins));
+            try {
+                return await (guardedRetry ? send(requested, guardedRetry) : send(requested));
+            } catch (error) {
+                if (gen === generation) notify(() => transmissionObserver?.failed(requested));
+                throw error;
+            }
+        };
         try {
-            const applied = await (retry ? send(cmd, retry) : send(cmd));
+            let applied: ControlCommand = {};
+            if (controller && cmd.heater != null && epoch != null) {
+                const target = cmd.heater;
+                let lastError: unknown;
+                const attempt = async (isRetry: boolean) => {
+                    try {
+                        const result = await sendAttempt(
+                            isRetry ? { heater: target } : cmd,
+                            isRetry ? { connectionEpoch: epoch } : undefined,
+                        );
+                        applied = { ...applied, ...result };
+                        return result.heater ?? null;
+                    } catch (error) {
+                        lastError = error;
+                        return null;
+                    }
+                };
+                const confirmed = await deliverHeaterCommand({
+                    origin: 'manual',
+                    target,
+                    write: () => attempt(false),
+                    retry: () => attempt(true),
+                    signal: controller.signal,
+                    connectionEpoch: epoch,
+                    onAttempt: () => {},
+                });
+                if (!confirmed && !controller.signal.aborted) {
+                    throw lastError ?? new Error('화력 설정값을 확인하지 못했습니다.');
+                }
+                if (controller.signal.aborted) applied = omitRoles(applied, new Set(['heater']));
+                // A heater-only recovery must not hide an initial fan/drum failure.
+                const missingOtherRoles = rolesOf(cmd).filter((role) => role !== 'heater' && applied[role] == null);
+                if (gen === generation && lastError && missingOtherRoles.length > 0) {
+                    notify(() =>
+                        onError?.(
+                            lastError,
+                            Object.fromEntries(missingOtherRoles.map((role) => [role, origins[role]])),
+                        ),
+                    );
+                }
+            } else if (rolesOf(cmd).length > 0) {
+                applied = await sendAttempt(cmd, retry);
+            }
             if (gen === generation) {
-                notify(() => transmissionObserver?.applied(cmd, applied));
+                const observedCommand = controller?.signal.aborted ? omitRoles(cmd, new Set(['heater'])) : cmd;
+                if (rolesOf(applied).length > 0) notify(() => transmissionObserver?.applied(observedCommand, applied));
                 for (const waiter of sentWaiters) {
                     settle(waiter, pickApplied(waiter.requested, applied));
                 }
                 inFlightWaiters = [];
-                notify(() => appliedObserver?.(applied));
+                if (rolesOf(applied).length > 0) notify(() => appliedObserver?.(applied));
             }
         } catch (err) {
             if (gen === generation) {
-                notify(() => transmissionObserver?.failed(cmd));
                 for (const waiter of sentWaiters) settle(waiter, null);
                 inFlightWaiters = [];
                 notify(() => onError?.(err, origins));
             }
         } finally {
+            if (manualDelivery === controller) manualDelivery = null;
             inFlight = false;
             if (gen === generation) notify(() => onSendingChange?.(false));
             // 이 슬롯이 비면 현재 세대의 대기 명령을 보낸다. dispose 뒤 새 commit이
@@ -187,6 +262,10 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
     return {
         /** 값 변경 — 화면만 따라가고 전송은 하지 않는다. 보내려면 commitNow. */
         queue(role: ControlRole, value: number): void {
+            if (role === 'heater') {
+                heaterRevision += 1;
+                manualDelivery?.abort();
+            }
             draft = { ...draft, [role]: value };
         },
         /**
@@ -219,7 +298,15 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
                 remaining.push(waiter);
             }
             return new Promise((resolve) => {
-                remaining.push({ requested: snapshot, origin, retry, resolve, settled: false });
+                remaining.push({
+                    requested: snapshot,
+                    origin,
+                    retry,
+                    heaterRevision,
+                    manualRetryEpoch: origin === 'manual' && !retry ? manualRetryEpoch : undefined,
+                    resolve,
+                    settled: false,
+                });
                 queuedWaiters = remaining;
                 committed = mergeQueued(queuedWaiters);
                 void flush();
@@ -247,6 +334,7 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
             return cancelled;
         },
         dispose(): void {
+            manualDelivery?.abort();
             draft = {};
             committed = {};
             generation += 1; // 진행 중인 요청의 콜백을 무효화한다
@@ -263,6 +351,14 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
         },
         setObserver(observer?: ControlSendObserver): void {
             sendObserver = observer;
+        },
+        setManualHeaterRetryEpoch(epoch: number | undefined): void {
+            if (manualRetryEpoch !== epoch) manualDelivery?.abort();
+            manualRetryEpoch = epoch;
+        },
+        cancelManualHeaterRetry(): void {
+            heaterRevision += 1;
+            manualDelivery?.abort();
         },
     };
 };

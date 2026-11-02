@@ -759,7 +759,7 @@ class S7Adapter:
                 raise ConnectionError("S7 재시도 중 제어권이 변경되었습니다.")
 
         def _write_all() -> None:
-            # One delivery attempt; Replay owns the bounded retry schedule.
+            # One delivery attempt; the caller owns the bounded retry schedule.
             if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S):
                 raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
             try:

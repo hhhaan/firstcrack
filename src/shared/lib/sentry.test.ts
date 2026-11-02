@@ -6,7 +6,7 @@ import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from './optimist
 import {
     buildSentryOptions,
     captureActionable,
-    captureReplayDeliveryResult,
+    captureHeaterDeliveryResult,
     captureRoastingImportFailure,
     captureSidecarReadinessFailure,
     captureSidecarRequestFailure,
@@ -56,7 +56,7 @@ it('does not let Replay outcome reporting failures affect command delivery', () 
         throw new Error('reporting unavailable');
     });
     expect(() =>
-        captureReplayDeliveryResult({
+        captureHeaterDeliveryResult({
             outcome: 'recovered',
             target: 0,
             attempts: 2,

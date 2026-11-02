@@ -414,11 +414,12 @@ export const captureSidecarReadinessFailure = (input: {
     });
 };
 
-export type ReplayDeliveryOutcome = 'recovered' | 'exhausted' | 'cancelled' | 'retry_unavailable';
+export type HeaterDeliveryOutcome = 'recovered' | 'exhausted' | 'cancelled' | 'retry_unavailable';
 
-/** One outcome after a failed Replay delivery, separate from the original hardware error. */
-export const captureReplayDeliveryResult = (input: {
-    outcome: ReplayDeliveryOutcome;
+/** One outcome after a failed heater delivery, separate from the original hardware error. */
+export const captureHeaterDeliveryResult = (input: {
+    origin?: 'manual' | 'replay';
+    outcome: HeaterDeliveryOutcome;
     target: number;
     attempts: number;
     lastApplied: number | null;
@@ -427,12 +428,17 @@ export const captureReplayDeliveryResult = (input: {
     connectionEpoch?: number;
 }) => {
     try {
-        Sentry.captureMessage(`Replay delivery result (${crypto.randomUUID()})`, {
+        const origin = input.origin ?? 'replay';
+        Sentry.captureMessage(`${origin} heater delivery result (${crypto.randomUUID()})`, {
             level: 'info',
-            fingerprint: ['replay-delivery-result', input.outcome],
+            fingerprint: [
+                origin === 'replay' ? 'replay-delivery-result' : 'manual-heater-delivery-result',
+                input.outcome,
+            ],
             tags: {
                 feature: 'machine-control',
-                event: 'replay_delivery_result',
+                event: origin === 'replay' ? 'replay_delivery_result' : 'manual_heater_delivery_result',
+                origin,
                 role: 'heater',
                 outcome: input.outcome,
             },
@@ -446,7 +452,7 @@ export const captureReplayDeliveryResult = (input: {
             },
         });
     } catch {
-        // Reporting must not affect delivery, cancellation, or the next Replay step.
+        // Reporting must not affect delivery, cancellation, or the next command.
     }
 };
 

@@ -37,6 +37,16 @@ const getStatus = vi.mocked(sidecar.getStatus);
 const setControl = vi.mocked(sidecar.setControl);
 const pidOff = vi.mocked(sidecar.pidOff);
 
+const verifiedHeaterStatus = {
+    ...writableHeaterStatus,
+    roaster: 'giesen_w45a_w60a',
+    connection_epoch: 7,
+    control: {
+        ...writableHeaterStatus.control,
+        limits: { heater: { min: 0, max: 100, unit: '%', verify_readback: true } },
+    },
+};
+
 const renderComposition = async (initial: MachineControlCompositionInput) => {
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useMachineControlComposition>;
@@ -201,6 +211,105 @@ describe('useMachineControlComposition', () => {
         expect(hook.get().replay.active).toBe(true);
         expect(hook.get().replay.firedCount).toBe(1);
         expect(hook.get().replay.stopReason).toBeNull();
+        await hook.unmount();
+    });
+
+    it('retries a BBP manual slider write and records the user command once', async () => {
+        getStatus.mockResolvedValue(verifiedHeaterStatus);
+        setControl.mockRejectedValueOnce(new Error('readback mismatch'));
+        const onHeaterCommitted = vi.fn();
+        const hook = await renderComposition({ ...base(), roasting: false, onHeaterCommitted });
+        await act(async () => {
+            hook.get().changeManual('heater', 50);
+            hook.get().commitManual();
+        });
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 50 });
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(setControl.mock.calls).toEqual([[{ heater: 50 }], [{ heater: 50 }, { connectionEpoch: 7 }]]);
+        expect(onHeaterCommitted).toHaveBeenCalledExactlyOnceWith(50, '%');
+        expect(hook.get().machine.desired.heater).toBe(50);
+        expect(logger.capture).not.toHaveBeenCalled();
+        await hook.unmount();
+    });
+
+    it('keeps a new slider draft after an old retry returns late', async () => {
+        getStatus.mockResolvedValue(verifiedHeaterStatus);
+        let finish!: (response: Awaited<ReturnType<typeof sidecar.setControl>>) => void;
+        setControl.mockRejectedValueOnce(new Error('readback mismatch')).mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        const onApplied = vi.fn();
+        const hook = await renderComposition({ ...base(), roasting: false, onApplied });
+        await act(async () => {
+            hook.get().changeManual('heater', 50);
+            hook.get().commitManual();
+        });
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        await act(async () => hook.get().changeManual('heater', 60));
+        await act(async () => finish({ ok: true, applied: { heater: 50 } }));
+        expect(hook.get().machine.desired.heater).toBe(60);
+        expect(onApplied).not.toHaveBeenCalled();
+        expect(setControl).toHaveBeenCalledTimes(2);
+        await act(async () => hook.get().commitManual());
+        expect(setControl).toHaveBeenLastCalledWith({ heater: 60 });
+        expect(onApplied).toHaveBeenCalledExactlyOnceWith({ heater: 60 });
+        await hook.unmount();
+    });
+
+    it.each(['new_input', 'pid', 'drop', 'reconnecting', 'disconnect', 'replay', 'unmount'] as const)(
+        'cancels a manual retry when %s takes ownership',
+        async (boundary) => {
+            getStatus.mockResolvedValue(verifiedHeaterStatus);
+            setControl.mockRejectedValueOnce(new Error('readback mismatch'));
+            const input = { ...base(), elapsed: 0 };
+            const hook = await renderComposition(input);
+            await act(async () => {
+                hook.get().changeManual('heater', 50);
+                hook.get().commitManual();
+            });
+            if (boundary === 'new_input') await act(async () => hook.get().changeManual('heater', 60));
+            if (boundary === 'pid') await hook.rerender({ ...input, pidRuntime: runtime('running') });
+            if (boundary === 'drop') await hook.rerender({ ...input, roastFinished: true });
+            if (boundary === 'reconnecting') await hook.rerender({ ...input, reconnecting: true });
+            if (boundary === 'disconnect') await hook.rerender({ ...input, sidecarConnected: false });
+            if (boundary === 'replay') await act(async () => hook.get().replay.toggle());
+            if (boundary === 'unmount') await hook.unmount();
+            await act(async () => vi.advanceTimersByTimeAsync(2000));
+            expect(setControl.mock.calls.filter(([command]) => command.heater === 50)).toHaveLength(1);
+            if (boundary !== 'unmount') await hook.unmount();
+        },
+    );
+
+    it('does not blindly retry manual writes without readback support', async () => {
+        getStatus.mockResolvedValue({ ...writableHeaterStatus, connection_epoch: 7 });
+        setControl.mockRejectedValue(new Error('write failed'));
+        const hook = await renderComposition({ ...base(), roasting: false });
+        await act(async () => {
+            hook.get().changeManual('heater', 50);
+            hook.get().commitManual();
+        });
+        await act(async () => vi.advanceTimersByTimeAsync(2000));
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 50 });
+        await hook.unmount();
+    });
+
+    it('cancels the old manual retry when status reports a new connection epoch', async () => {
+        getStatus.mockResolvedValue(verifiedHeaterStatus);
+        const hook = await renderComposition({ ...base(), roasting: false });
+        await act(async () => vi.advanceTimersByTimeAsync(900));
+        setControl.mockRejectedValueOnce(new Error('readback mismatch'));
+        await act(async () => {
+            hook.get().changeManual('heater', 50);
+            hook.get().commitManual();
+        });
+        getStatus.mockResolvedValue({ ...verifiedHeaterStatus, connection_epoch: 8 });
+        await act(async () => vi.advanceTimersByTimeAsync(100));
+        expect(hook.get().machine.connectionStatus?.connection_epoch).toBe(8);
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 50 });
         await hook.unmount();
     });
 

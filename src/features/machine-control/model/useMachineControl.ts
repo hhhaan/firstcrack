@@ -46,6 +46,7 @@ export const useMachineControl = (
     onCommitted?: (committed: ControlCommand) => void,
     onApplied?: (applied: ControlCommand) => void,
     observer?: ControlSendObserver,
+    manualHeaterRetryAllowed = true,
 ) => {
     const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
     const capability = connectionStatus?.control;
@@ -87,6 +88,19 @@ export const useMachineControl = (
     useEffect(() => sender.setOnApplied(handleApplied), [handleApplied, sender]);
 
     useEffect(() => () => sender.dispose(), [sender]);
+
+    useEffect(() => {
+        sender.setManualHeaterRetryEpoch(
+            manualHeaterRetryAllowed &&
+                sidecarConnected &&
+                connectionStatus?.connected &&
+                capability?.writable &&
+                !connectionStatus.reconnecting &&
+                capability.limits.heater?.verify_readback === true
+                ? connectionStatus.connection_epoch
+                : undefined,
+        );
+    }, [sender, manualHeaterRetryAllowed, sidecarConnected, connectionStatus, capability]);
 
     // 연결될 때 제어 능력을 확인한다. 끊기면 즉시 비활성화하고 대기 중인 명령을 버린다.
     useEffect(() => {
@@ -212,5 +226,6 @@ export const useMachineControl = (
         setValue,
         commitNow,
         cancelUnsentReplayHeater,
+        cancelManualHeaterRetry: sender.cancelManualHeaterRetry,
     };
 };

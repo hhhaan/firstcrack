@@ -1,7 +1,7 @@
-import { captureReplayDeliveryResult, type ReplayDeliveryOutcome } from '@shared/lib/sentry';
+import { captureHeaterDeliveryResult, type HeaterDeliveryOutcome } from '@shared/lib/sentry';
 
-export const REPLAY_DELIVERY_LIMIT = 3;
-export const REPLAY_RETRY_DELAY_MS = 500;
+export const HEATER_DELIVERY_LIMIT = 3;
+export const HEATER_RETRY_DELAY_MS = 500;
 
 const pauseForRetry = (signal: AbortSignal): Promise<boolean> =>
     new Promise((resolve) => {
@@ -12,12 +12,13 @@ const pauseForRetry = (signal: AbortSignal): Promise<boolean> =>
             resolve(ready);
         };
         const cancel = () => finish(false);
-        const timer = setTimeout(() => finish(true), REPLAY_RETRY_DELAY_MS);
+        const timer = setTimeout(() => finish(true), HEATER_RETRY_DELAY_MS);
         signal.addEventListener('abort', cancel, { once: true });
     });
 
-/** Keep one step pending through delivery and confirmation; owner cancellation wins over late responses. */
-export const deliverReplayStep = async ({
+/** One bounded heater delivery; owner cancellation wins over late responses. */
+export const deliverHeaterCommand = async ({
+    origin = 'replay',
     target,
     write,
     retry,
@@ -26,6 +27,7 @@ export const deliverReplayStep = async ({
     sessionId,
     connectionEpoch,
 }: {
+    origin?: 'manual' | 'replay';
     target: number;
     write: (target: number) => Promise<number | null>;
     retry?: (target: number) => Promise<number | null>;
@@ -39,9 +41,10 @@ export const deliverReplayStep = async ({
     let attempts = 0;
     let failed = false;
     let lastApplied: number | null = null;
-    const finish = (outcome: ReplayDeliveryOutcome) => {
+    const finish = (outcome: HeaterDeliveryOutcome) => {
         if (failed) {
-            captureReplayDeliveryResult({
+            captureHeaterDeliveryResult({
+                origin,
                 outcome,
                 target,
                 attempts,
@@ -53,7 +56,7 @@ export const deliverReplayStep = async ({
         }
         return outcome === 'recovered';
     };
-    for (let attempt = 1; attempt <= REPLAY_DELIVERY_LIMIT; attempt++) {
+    for (let attempt = 1; attempt <= HEATER_DELIVERY_LIMIT; attempt++) {
         if (cancelled()) return finish('cancelled');
         const send = attempt === 1 ? write : retry;
         if (!send) return finish('retry_unavailable');
@@ -68,9 +71,11 @@ export const deliverReplayStep = async ({
             applied = null;
         }
         lastApplied = applied;
-        failed ||= applied !== target;
+        // Manual controls accept the machine's clamped command; Replay needs its exact planned value.
+        const confirmed = applied != null && (origin === 'manual' || applied === target);
+        failed ||= !confirmed;
         if (cancelled()) return finish('cancelled');
-        if (applied === target) return finish('recovered');
+        if (confirmed) return finish('recovered');
     }
     return finish('exhausted');
 };

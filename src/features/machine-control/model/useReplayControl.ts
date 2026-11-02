@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
+import { deliverHeaterCommand } from '../lib/heaterDelivery';
 import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
-import { deliverReplayStep } from '../lib/replayDelivery';
 import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
@@ -533,7 +533,7 @@ export const useReplayControl = ({
         setWriting(true);
         const controller = new AbortController();
         deliveryController.current = controller;
-        void deliverReplayStep({
+        void deliverHeaterCommand({
             target: heater,
             write: writeHeater,
             retry: retryHeater,
