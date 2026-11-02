@@ -169,6 +169,7 @@ const DEFAULT_SETTINGS: RoastSettings = {
     preChargeDisplaySec: 60,
     alertsEnabled: true,
     alertSoundEnabled: true,
+    alertTpEnabled: true,
     alertSoundKind: 'pulse',
     alertRorCrashCPerMin: 0,
     alertBtMaxC: 250,
@@ -456,6 +457,7 @@ export const normalizeRoastSettings = (
         fcDualMarkEnabled,
         alertsEnabled: asBool(merged.alertsEnabled, DEFAULT_SETTINGS.alertsEnabled),
         alertSoundEnabled: asBool(merged.alertSoundEnabled, DEFAULT_SETTINGS.alertSoundEnabled),
+        alertTpEnabled: asBool(merged.alertTpEnabled, DEFAULT_SETTINGS.alertTpEnabled),
         alertSoundKind: isAlertSoundKind(merged.alertSoundKind)
             ? merged.alertSoundKind
             : DEFAULT_SETTINGS.alertSoundKind,
@@ -476,7 +478,8 @@ export const normalizeRoastSettings = (
 };
 
 let _settings: RoastSettings = { ...DEFAULT_SETTINGS };
-let _userTouched = false;
+/** Hold edits until saved preferences have loaded, so defaults cannot overwrite a saved mute. */
+let _pendingPatch: Partial<RoastSettings> | null = {};
 
 const _listeners = new Set<() => void>();
 
@@ -513,27 +516,21 @@ const _flush = async () => {
 const _hydrate = async () => {
     try {
         const stored = await settingsGet<Partial<RoastSettings>>(STORE_KEY);
-        if (_userTouched) return;
-
-        if (stored) {
-            _settings = normalizeRoastSettings(stored);
-            if ((_settings.pollIntervalMs as number) === 250) {
-                _settings = { ..._settings, pollIntervalMs: 500 };
-                void _flush();
-            }
+        const legacy = stored ? null : _consumeLegacyLocalStorage();
+        const restored = stored ?? legacy;
+        if (restored) {
+            const previous = normalizeRoastSettings(restored);
+            _settings = normalizeRoastSettings({ ...previous, ..._pendingPatch }, previous);
             _emit();
-            return;
-        }
-
-        const legacy = _consumeLegacyLocalStorage();
-        if (legacy) {
-            _settings = normalizeRoastSettings(legacy);
-            _emit();
-            await settingsSet(STORE_KEY, _settings);
+            if (legacy) await settingsSet(STORE_KEY, _settings);
         }
     } catch (err) {
         logger.capture(err, { scope: 'roastSettings.load' });
         // store unavailable (e.g., non-Tauri context) — keep defaults
+    } finally {
+        const needsSave = Object.keys(_pendingPatch ?? {}).length > 0;
+        _pendingPatch = null;
+        if (needsSave) await _flush();
     }
 };
 
@@ -544,7 +541,6 @@ const importGraphSettings = async (mapPatch: (previous: RoastSettings) => Partia
     const patch = mapPatch(_settings);
     if (Object.keys(patch).length === 0) return;
     const next = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
-    _userTouched = true;
     await settingsSet(STORE_KEY, next, { throwOnError: true });
     _settings = next;
     _emit();
@@ -560,10 +556,10 @@ export const importCropsterGraphSettings = (source: CropsterSettingsSnapshot) =>
     importGraphSettings((previous) => mapCropsterGraphSettings(source, previous).patch);
 
 export const updateRoastSettings = (patch: Partial<RoastSettings>) => {
-    _userTouched = true;
+    if (_pendingPatch !== null) _pendingPatch = { ..._pendingPatch, ...patch };
     _settings = normalizeRoastSettings({ ..._settings, ...patch }, _settings);
     _emit();
-    void _flush();
+    if (_pendingPatch === null) void _flush();
 };
 
 /** Patches one channel. Other channels keep their stored style. */

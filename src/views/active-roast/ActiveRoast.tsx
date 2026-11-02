@@ -519,6 +519,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         enabled: roastSettings.alertsEnabled,
         soundEnabled: roastSettings.alertSoundEnabled,
         soundKind: roastSettings.alertSoundKind,
+        tpEnabled: roastSettings.alertTpEnabled,
         rorCrashCPerMin: roastSettings.alertRorCrashCPerMin,
         btMaxC: roastSettings.alertBtMaxC,
         afterTurningPoint: turningPoints.length > 0,
