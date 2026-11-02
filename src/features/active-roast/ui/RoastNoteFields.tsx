@@ -2,6 +2,7 @@ import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+    controlHasRange,
     isBuiltinManualControlId,
     type ManualControlDraft,
     type ManualControlId,
@@ -33,6 +34,7 @@ export const RoastNoteFields = ({
     prefix,
     commentId,
     machineId,
+    onlyIds,
     autoFocus = false,
 }: {
     values: RoastNoteValues;
@@ -40,10 +42,15 @@ export const RoastNoteFields = ({
     prefix: string;
     commentId: string;
     machineId?: string | null;
+    /** When set, only these builtin channels. Custom virtual rows stay hidden. */
+    onlyIds?: readonly ManualControlId[];
     autoFocus?: boolean;
 }) => {
     const { t } = useTranslation();
-    const controls = manualControlsFor(useRoastSettings(), machineId).filter((control) => control.enabled);
+    const controls = manualControlsFor(useRoastSettings(), machineId).filter(
+        (control) =>
+            control.enabled && (!onlyIds || (isBuiltinManualControlId(control.id) && onlyIds.includes(control.id))),
+    );
     const measureRef = useRef<HTMLInputElement>(null);
     const commentRef = useRef<HTMLTextAreaElement>(null);
     const inputClass =
@@ -75,6 +82,7 @@ export const RoastNoteFields = ({
         <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
             {controls.map((control, index) => {
                 const label = labelFor(control.id, control.label);
+                const ranged = controlHasRange(control.id);
                 const unit = control.unit.trim();
                 const bounds = `${control.min}–${control.max}`;
                 return (
@@ -93,19 +101,26 @@ export const RoastNoteFields = ({
                                         ? t(`activeRoast.noteEntry.${control.id}Placeholder`)
                                         : undefined
                                 }
-                                inputMode="decimal"
+                                inputMode={ranged ? 'decimal' : 'text'}
                                 autoComplete="off"
                                 spellCheck={false}
-                                onChange={(event) => setValue(control.id, noteControlDraft(event.target.value))}
-                                className={`${inputClass} pr-16`}
+                                onChange={(event) =>
+                                    setValue(
+                                        control.id,
+                                        ranged ? noteControlDraft(event.target.value) : event.target.value,
+                                    )
+                                }
+                                className={ranged ? `${inputClass} pr-16` : inputClass}
                             />
-                            <span
-                                className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted"
-                                title={unit ? `${unit} ${bounds}` : bounds}
-                            >
-                                {unit ? <span>{unit}</span> : null}
-                                <span>{bounds}</span>
-                            </span>
+                            {ranged && (
+                                <span
+                                    className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted"
+                                    title={unit ? `${unit} ${bounds}` : bounds}
+                                >
+                                    {unit ? <span>{unit}</span> : null}
+                                    <span>{bounds}</span>
+                                </span>
+                            )}
                         </span>
                     </label>
                 );

@@ -145,7 +145,7 @@ export const manualControlsFor = (
     return settings.manualControlsByMachine?.[machineId] ?? [...shared];
 };
 
-/** Keystrokes: digits and one decimal point. */
+/** Keystrokes on a ranged control: digits and one decimal point. */
 export const noteControlDraft = (value: string) => sanitizeDecimal(value);
 
 /** Value to store. Drops a trailing dot left in the field while typing. */
@@ -153,9 +153,13 @@ export const noteControlValue = (value: string) => noteControlDraft(value).repla
 
 export const isNumericControlValue = (value: string) => /^\d+(\.\d+)?$/.test(value);
 
-/** Enabled fields keep a number inside that machine's range. A hidden field keeps what was already recorded. */
+/** Added controls carry a min/max. Gas, airflow, and drum stay free text. */
+export const controlHasRange = (id: string) => isVirtualControlId(id);
+
+/** Ranged fields keep a number inside that range. The others keep the typed text. */
 export const commitManualControl = (id: string, value: string, controls: readonly ManualControlSetting[]) => {
     const row = controls.find((item) => item.id === id);
+    if (!controlHasRange(id)) return value.trim();
     if (row && !row.enabled) return value.trim();
     const numeric = noteControlValue(value);
     if (!row || numeric === '') return numeric;

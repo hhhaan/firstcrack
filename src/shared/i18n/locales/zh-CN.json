@@ -419,7 +419,7 @@
                 "eventButtonLimit": "最多添加 8 个事件。",
                 "eventButtonShortcutUnset": "设置",
                 "recordVirtualControls": "虚拟写入",
-                "recordVirtualControlsDescription": "烘焙中右键记下的火力、风门和滚筒，画在机器没有读数的控制图上。不会发给机器。",
+                "recordVirtualControlsDescription": "只在不读取火力、风门和滚筒的机器上，把右键记下的数字额外画到控制图。已经读取这些值的机器只保留记录和备注。不会发给机器。",
                 "manualControls": "手动控制",
                 "manualControlsDescription": "默认的燃气、排风和滚筒只能开关。添加的控件是虚拟记录，不会发给机器。只保留范围内的数字。单位不写入记录，修改后较早记录的显示也会改变。",
                 "manualControlMachine": "机器",

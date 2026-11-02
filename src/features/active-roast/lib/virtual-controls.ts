@@ -1,5 +1,34 @@
+import { ROASTER_REGISTRY } from '@entities/machine';
 import type { AppliedRoastControl, RoastNoteControls } from '@shared/types/roast';
 import type { ControlData } from './chart-option/types';
+import type { ManualControlId } from './manual-controls';
+
+const NOTE_FIELD_BY_ROLE = { heater: 'gas', fan: 'airflow', drum: 'drum' } as const satisfies Record<
+    string,
+    ManualControlId
+>;
+
+const CONTROL_ROLES = new Set(['heater', 'fan', 'drum']);
+
+/**
+ * Right-click numbers become a control line only on machines that do not already
+ * read heater, fan, or drum. `virtual_readonly` withholds those samples on purpose.
+ */
+export const virtualControlLinesAllowed = (roasterKey: string | null | undefined): boolean => {
+    if (!roasterKey || roasterKey === 'virtual_readonly') return true;
+    const capabilities = ROASTER_REGISTRY[roasterKey]?.capabilities;
+    if (!capabilities) return true;
+    return !capabilities.some((role) => CONTROL_ROLES.has(role));
+};
+
+/** BBP notes can name the channels this machine already reads. Events stay off. */
+export const registeredNoteControlIds = (roasterKey: string | null | undefined): ManualControlId[] => {
+    const capabilities = roasterKey ? ROASTER_REGISTRY[roasterKey]?.capabilities : undefined;
+    if (!capabilities) return [];
+    return (['heater', 'fan', 'drum'] as const).flatMap((role) =>
+        capabilities.includes(role) ? [NOTE_FIELD_BY_ROLE[role]] : [],
+    );
+};
 
 export type VirtualControlChange = NonNullable<ControlData['changes']>[number];
 

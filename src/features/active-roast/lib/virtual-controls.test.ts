@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { holdControlSamples, manualNotesToControlChanges, withVirtualControlLines } from './virtual-controls';
+import {
+    holdControlSamples,
+    manualNotesToControlChanges,
+    registeredNoteControlIds,
+    virtualControlLinesAllowed,
+    withVirtualControlLines,
+} from './virtual-controls';
 
 describe('manualNotesToControlChanges', () => {
     it('reads gas, airflow, and drum typed on a roast note', () => {
@@ -14,6 +20,25 @@ describe('manualNotesToControlChanges', () => {
             { timeSec: 12, values: { heater: 70, fan: 50, drum: 55 }, virtual: true },
             { timeSec: 30, values: { fan: 1.2 }, virtual: true },
         ]);
+    });
+});
+
+describe('virtualControlLinesAllowed', () => {
+    it('keeps the line for machines that do not read heater, fan, or drum', () => {
+        expect(virtualControlLinesAllowed(null)).toBe(true);
+        expect(virtualControlLinesAllowed('phidget_tmp1101')).toBe(true);
+        expect(virtualControlLinesAllowed('virtual_readonly')).toBe(true);
+        expect(virtualControlLinesAllowed('giesen_standard')).toBe(false);
+        expect(virtualControlLinesAllowed('loring_smart_roast')).toBe(false);
+    });
+});
+
+describe('registeredNoteControlIds', () => {
+    it('names the channels a machine already reads', () => {
+        expect(registeredNoteControlIds('giesen_standard')).toEqual(['gas', 'airflow', 'drum']);
+        expect(registeredNoteControlIds('giesen_wxa')).toEqual(['gas', 'drum']);
+        expect(registeredNoteControlIds('phidget_tmp1101')).toEqual([]);
+        expect(registeredNoteControlIds(null)).toEqual([]);
     });
 });
 

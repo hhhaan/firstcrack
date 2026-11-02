@@ -18,7 +18,11 @@ import { makeBbpLogEntry } from '@features/active-roast/lib/bbp-events';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
-import { manualNotesToControlChanges } from '@features/active-roast/lib/virtual-controls';
+import {
+    manualNotesToControlChanges,
+    registeredNoteControlIds,
+    virtualControlLinesAllowed,
+} from '@features/active-roast/lib/virtual-controls';
 import { selectDropCancelable, selectReviewSnapshot, selectRoastSelection } from '@features/active-roast/model/batch';
 import { isChargedPhase, useRoastingStore } from '@features/active-roast/model/status';
 import { useAutoDetection } from '@features/active-roast/model/useAutoDetection';
@@ -981,7 +985,9 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                     ? [{ timeSec: entry.timeSec ?? 0, values: entry.appliedControl }]
                     : [],
             ),
-            ...(roastSettings.recordVirtualControls ? manualNotesToControlChanges(bbpChartEntries) : []),
+            ...(roastSettings.recordVirtualControls && virtualControlLinesAllowed(machineSnapshot?.machine_roaster_key)
+                ? manualNotesToControlChanges(bbpChartEntries)
+                : []),
         ],
         referenceXs: chart.visibleTargetXs,
         referenceDrum: chart.visibleTargetDrum,
@@ -1106,7 +1112,15 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                         unit={unit}
                         onCursorIdx={handleChartCursorIdx}
                         savedReview={reviewing}
-                        recordManualControls={phase === 'roasting' && roastSettings.recordVirtualControls}
+                        recordManualControls={
+                            phase === 'roasting' ||
+                            (bbpActive && registeredNoteControlIds(machineSnapshot?.machine_roaster_key).length > 0)
+                        }
+                        noteControlIds={
+                            phase === 'roasting'
+                                ? undefined
+                                : registeredNoteControlIds(machineSnapshot?.machine_roaster_key)
+                        }
                         machineId={machineSnapshot?.machine_id}
                         {...editing.chartHandlers}
                     />

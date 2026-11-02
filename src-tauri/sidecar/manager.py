@@ -879,20 +879,9 @@ class RoasterManager:
             "ror_et": ror_et,
             # None = 화력 피드백 채널 없음. 0으로 바꾸면 TSV에 "측정 0"으로 남아
             # Replay가 빈 기록을 진짜 화력 0으로 재생한다.
-            "heater": self._published_control(
-                "heater",
-                (
-                    reading.heater if "heater" in read_units else int(round(reading.heater))
-                ) if reading.heater is not None else None,
-            ),
-            "fan": self._published_control(
-                "fan",
-                reading.fan if "fan" in read_units else int(round(reading.fan)),
-            ),
-            "drum": self._published_control(
-                "drum",
-                reading.drum if "drum" in read_units else round(reading.drum, 1),
-            ),
+            "heater": self._published_control("heater", self._feedback_control("heater", reading.heater, read_units)),
+            "fan": self._published_control("fan", self._feedback_control("fan", reading.fan, read_units)),
+            "drum": self._published_control("drum", self._feedback_control("drum", reading.drum, read_units)),
             "timestamp": reading.timestamp,
             "sensor_clock": f"{self._sensor_clock_id}:{self._connection_epoch}",
             "processing": {
@@ -917,6 +906,14 @@ class RoasterManager:
         self._last_good = payload
         self._last_good_ts = time.monotonic()
         return payload
+
+    def _feedback_control(self, role: str, value: float | None, read_units: dict[str, str]) -> float | None:
+        """A filled 0 on a channel this machine does not read or write is not a measurement."""
+        if value is None or (not self.read_channels() and role not in self.write_limits()):
+            return None
+        if role in read_units:
+            return value
+        return round(value, 1) if role == "drum" else int(round(value))
 
     def _published_control(self, role: str, value: float | None) -> float | None:
         """읽기 전용 가상 머신은 화력·에어·드럼 샘플을 만들지 않는다.

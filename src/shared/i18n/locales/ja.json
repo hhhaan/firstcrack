@@ -419,7 +419,7 @@
                 "eventButtonLimit": "イベントは8個まで追加できます。",
                 "eventButtonShortcutUnset": "設定",
                 "recordVirtualControls": "仮想書き込み",
-                "recordVirtualControlsDescription": "焙煎中に右クリックで入れた火力・エア・ドラムを、マシン値が無いコントロールグラフに描きます。マシンには送りません。",
+                "recordVirtualControlsDescription": "火力・エア・ドラムを読まないマシンだけで、右クリックの数値をコントロールグラフに追加で描きます。すでに読むマシンは記録とコメントのままです。マシンには送りません。",
                 "manualControls": "手動コントロール",
                 "manualControlsDescription": "標準のガス・排気・ドラムはオンとオフだけです。追加したコントロールは仮想記録で、マシンには送りません。値はその範囲の数字だけ残り、単位は記録に保存されないため変えると以前の記録の表示も変わります。",
                 "manualControlMachine": "マシン",

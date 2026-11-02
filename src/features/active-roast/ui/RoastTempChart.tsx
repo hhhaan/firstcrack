@@ -26,6 +26,7 @@ import {
     commitNoteControls,
     hasNoteControl,
     isVirtualControlId,
+    type ManualControlId,
     manualControlsFor,
 } from '@features/active-roast/lib/manual-controls';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
@@ -118,8 +119,10 @@ interface Props {
     /** Saved curve. Drag stays put. Right-click labels and the roast log edit the record. */
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
-    /** Right-click gas, airflow, and drum. Only while a roast is running. */
+    /** Right-click gas, airflow, and drum. Roast, and BBP for channels the machine reads. */
     recordManualControls?: boolean;
+    /** BBP: only the machine's registered heater, fan, and drum fields. */
+    noteControlIds?: readonly ManualControlId[];
     /** Machine whose name, unit, and range apply to those fields. */
     machineId?: string | null;
     onAddEvent?: (event: string, timeSec: number) => void;
@@ -319,6 +322,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         savedReview = false,
         onAddNote,
         recordManualControls = true,
+        noteControlIds,
         machineId,
         onAddEvent,
         onMoveEvent,
@@ -1119,6 +1123,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             prefix="chart-note"
                             commentId="chart-note-input"
                             machineId={machineId}
+                            onlyIds={noteControlIds}
                             autoFocus
                         />
                     ) : (
@@ -1246,6 +1251,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             prefix="chart-marker"
                             commentId="chart-marker-note"
                             machineId={machineId}
+                            onlyIds={noteControlIds}
                         />
                     )}
                     <div className="flex items-center justify-end gap-1">

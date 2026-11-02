@@ -1,5 +1,6 @@
 import type { ControlData, RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import type { EventMarkerPatch } from '@features/active-roast/lib/event-marker-drag';
+import type { ManualControlId } from '@features/active-roast/lib/manual-controls';
 import type { PhaseSegment } from '@features/active-roast/lib/phases';
 import type { EventMarkerStyle, TemperatureUnit } from '@features/active-roast/model/settings';
 import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
@@ -73,8 +74,9 @@ interface RoastChartContainerProps {
     onEventMarkerDelete?: (logId: string) => void;
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
-    /** Gas, airflow, and drum fields. Live roast only; the chart right-click is the recorder. */
+    /** Gas, airflow, and drum fields. The chart right-click records them. */
     recordManualControls?: boolean;
+    noteControlIds?: readonly ManualControlId[];
     /** Machine whose name, unit, and range apply to those fields. */
     machineId?: string | null;
     onAddEvent?: (event: string, timeSec: number) => void;
@@ -141,6 +143,7 @@ export const RoastChartContainer = ({
     onAddEvent,
     onMoveEvent,
     recordManualControls = true,
+    noteControlIds,
     machineId,
 }: RoastChartContainerProps) => {
     const chartRef = useRef<RoastTempChartHandle>(null);
@@ -279,6 +282,7 @@ export const RoastChartContainer = ({
                 savedReview={savedReview}
                 onAddNote={onAddNote}
                 recordManualControls={recordManualControls}
+                noteControlIds={noteControlIds}
                 machineId={machineId}
                 onAddEvent={onAddEvent}
                 onMoveEvent={onMoveEvent}

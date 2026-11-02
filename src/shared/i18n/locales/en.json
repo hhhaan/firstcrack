@@ -419,7 +419,7 @@
                 "eventButtonLimit": "You can add up to 8 events.",
                 "eventButtonShortcutUnset": "Set",
                 "recordVirtualControls": "Virtual write",
-                "recordVirtualControlsDescription": "During a roast, numbers entered with a right-click draw on control channels the machine never reports. Nothing is sent to the machine.",
+                "recordVirtualControlsDescription": "Only on machines that do not read heat, air, or drum, numbers entered with a right-click are also drawn on the control chart. Machines that already read those channels keep the note and comment. Nothing is sent to the machine.",
                 "manualControls": "Manual controls",
                 "manualControlsDescription": "Gas, airflow, and drum can only be turned on or off. Added controls are virtual records and are not sent to the machine. Only numbers inside the range are kept. The unit is not stored on the record, so changing it updates how earlier roasts read.",
                 "manualControlMachine": "Machine",

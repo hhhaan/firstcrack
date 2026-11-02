@@ -634,7 +634,8 @@ describe('normalize — manual controls', () => {
         const mill = manualControlsFor(settings, 'mill');
         expect(commitManualControl('v_damper01', '70', mill)).toBe('70');
         expect(commitManualControl('v_damper01', '71', mill)).toBe('');
-        expect(commitManualControl('gas', '150', mill)).toBe('');
+        expect(commitManualControl('gas', '150', mill)).toBe('150');
+        expect(commitManualControl('gas', '1.2 kPa', mill)).toBe('1.2 kPa');
     });
 });
 

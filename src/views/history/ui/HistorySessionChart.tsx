@@ -28,7 +28,7 @@ import {
     storedEventsToMarkers,
 } from '@features/active-roast/lib/serialize-roast-events';
 import { rorUnitLabel, tempUnitLabel } from '@features/active-roast/lib/temperature';
-import { manualNotesToControlChanges } from '@features/active-roast/lib/virtual-controls';
+import { manualNotesToControlChanges, virtualControlLinesAllowed } from '@features/active-roast/lib/virtual-controls';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
 import {
     editedHeatSet,
@@ -317,7 +317,7 @@ export function HistorySessionChart({
     const { hasControls, controlData } = historyControls({
         changes: [
             ...storedEventsToControlChanges(storedEvents),
-            ...(recordVirtualControls
+            ...(recordVirtualControls && virtualControlLinesAllowed(session.machine_roaster_key)
                 ? manualNotesToControlChanges(
                       storedEvents.map((event) => ({
                           event: event.type,
