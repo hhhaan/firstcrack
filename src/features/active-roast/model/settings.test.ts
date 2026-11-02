@@ -462,6 +462,68 @@ describe('normalize — alert sound kind', () => {
     });
 });
 
+describe('alarm settings persistence', () => {
+    it('defaults a missing TP preference on and preserves saved mute preferences', () => {
+        expect(normalizeRoastSettings({ alertSoundEnabled: false })).toMatchObject({
+            alertSoundEnabled: false,
+            alertTpEnabled: true,
+        });
+        expect(normalizeRoastSettings({ alertTpEnabled: false, alertSoundEnabled: false })).toMatchObject({
+            alertSoundEnabled: false,
+            alertTpEnabled: false,
+        });
+        expect(normalizeRoastSettings({ alertTpEnabled: true, alertsEnabled: false })).toMatchObject({
+            alertsEnabled: false,
+            alertTpEnabled: true,
+        });
+        expect(normalizeRoastSettings({ alertTpEnabled: 'false' } as never).alertTpEnabled).toBe(true);
+    });
+
+    it('merges edits made during hydration without overwriting a saved global mute', async () => {
+        vi.resetModules();
+        vi.mocked(settingsSet).mockClear();
+        let restore!: (value: unknown) => void;
+        vi.mocked(settingsGet).mockReturnValueOnce(new Promise((resolve) => (restore = resolve)));
+        const settings = await import('./settings');
+        settings.updateRoastSettings({ alertTpEnabled: true });
+        expect(settingsSet).not.toHaveBeenCalled();
+        restore({ alertSoundEnabled: false, tempMinC: 145 });
+        await vi.waitFor(() => {
+            expect(settings.getRoastSettings()).toMatchObject({
+                alertSoundEnabled: false,
+                alertTpEnabled: true,
+                tempMinC: 145,
+            });
+            expect(settingsSet).toHaveBeenCalled();
+        });
+        const persisted = structuredClone(vi.mocked(settingsSet).mock.lastCall?.[1]);
+        vi.resetModules();
+        vi.mocked(settingsGet).mockResolvedValueOnce(persisted);
+        const restarted = await import('./settings');
+        expect(restarted.getRoastSettings()).toMatchObject({
+            alertSoundEnabled: false,
+            alertTpEnabled: true,
+            tempMinC: 145,
+        });
+    });
+
+    it('keeps an explicit mute made before saved settings arrive', async () => {
+        vi.resetModules();
+        let restore!: (value: unknown) => void;
+        vi.mocked(settingsGet).mockReturnValueOnce(new Promise((resolve) => (restore = resolve)));
+        const settings = await import('./settings');
+        settings.updateRoastSettings({ alertSoundEnabled: false });
+        restore({ alertSoundEnabled: true, alertTpEnabled: true, tempMinC: 145 });
+        await vi.waitFor(() =>
+            expect(settings.getRoastSettings()).toMatchObject({
+                alertSoundEnabled: false,
+                alertTpEnabled: true,
+                tempMinC: 145,
+            }),
+        );
+    });
+});
+
 describe('normalize — profile channels', () => {
     it('shows every stored profile channel when the keys are missing', () => {
         expect(normalizeRoastSettings({})).toMatchObject({

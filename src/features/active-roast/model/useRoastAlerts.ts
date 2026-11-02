@@ -9,6 +9,7 @@ type UseRoastAlertsParams = {
     enabled: boolean;
     soundEnabled: boolean;
     soundKind: AlertSoundKind;
+    tpEnabled: boolean;
     rorCrashCPerMin: number;
     btMaxC: number;
     /** RoR is legitimately negative until the turning point is confirmed. */
@@ -22,12 +23,13 @@ type UseRoastAlertsParams = {
 /**
  * Live threshold + time alarms. Runs while roasting; Drop/End silences threshold and
  * charge/FC/drop-before alarms, but leaves after-drop armed until End roast.
- * Beeps once per batch at TP and on the rising edge of each alarm kind.
+ * Optionally beeps once per batch at TP and on the rising edge of each alarm kind.
  */
 export const useRoastAlerts = ({
     enabled,
     soundEnabled,
     soundKind,
+    tpEnabled,
     rorCrashCPerMin,
     btMaxC,
     afterTurningPoint,
@@ -42,16 +44,9 @@ export const useRoastAlerts = ({
     const sessionId = useRoastingStore((s) => s.sessionId ?? s.completed?.snapshot.sessionId ?? null);
     const [active, setActive] = useState<RoastAlertKind[]>([]);
     const activeRef = useRef<RoastAlertKind[]>([]);
-    const soundRef = useRef(soundEnabled);
-    const soundKindRef = useRef(soundKind);
     const sessionRef = useRef(sessionId);
     const tpSeenRef = useRef(false);
     const rorReadyRef = useRef(false);
-
-    useEffect(() => {
-        soundRef.current = soundEnabled;
-        soundKindRef.current = soundKind;
-    }, [soundEnabled, soundKind]);
 
     const dropEntry = logEntries.find((e) => e.event === 'Drop');
     const dropped = dropEntry != null || logEntries.some((e) => e.event === 'End');
@@ -115,9 +110,12 @@ export const useRoastAlerts = ({
             activeRef.current = next;
             setActive(next);
         }
-        if ((rising.length > 0 || (newTp && !dropped)) && soundRef.current) playAlertSound(soundKindRef.current);
+        if (soundEnabled && (rising.length > 0 || (tpEnabled && newTp && !dropped))) playAlertSound(soundKind);
     }, [
         armed,
+        soundEnabled,
+        soundKind,
+        tpEnabled,
         sessionId,
         logEntries,
         dropped,

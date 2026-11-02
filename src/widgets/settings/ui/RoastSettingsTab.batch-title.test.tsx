@@ -54,3 +54,37 @@ it('selects profile or bean names independently of the title numbering', async (
         });
     }
 });
+
+it('persists the TP switch independently and keeps its preference while all alarm sound is muted', async () => {
+    const previous = getRoastSettings();
+    updateRoastSettings({ alertsEnabled: true, alertSoundEnabled: true, alertTpEnabled: false });
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    const toggle = (key: string) => {
+        const label = [...host.querySelectorAll('label')].find((row) =>
+            row.textContent?.startsWith(`settings.tabs.roast.${key}settings.tabs.roast.${key}Description`),
+        );
+        const input = label?.querySelector<HTMLInputElement>('input[role="switch"]');
+        if (!input) throw new Error(`Missing ${key} switch`);
+        return input;
+    };
+    try {
+        await act(async () => root.render(createElement(RoastSettingsTab)));
+        expect(toggle('alertTp').checked).toBe(false);
+        act(() => toggle('alertTp').click());
+        expect(getRoastSettings()).toMatchObject({ alertTpEnabled: true, alertSoundEnabled: true });
+        act(() => toggle('alertSound').click());
+        expect(getRoastSettings()).toMatchObject({ alertTpEnabled: true, alertSoundEnabled: false });
+        expect(toggle('alertTp').checked).toBe(true);
+        act(() => toggle('alertTp').click());
+        expect(getRoastSettings()).toMatchObject({ alertTpEnabled: false, alertSoundEnabled: false });
+        expect(settingsSet).toHaveBeenLastCalledWith(
+            'roast.settings',
+            expect.objectContaining({ alertTpEnabled: false, alertSoundEnabled: false }),
+            { debounce: true },
+        );
+    } finally {
+        act(() => root.unmount());
+        updateRoastSettings(previous);
+    }
+});
