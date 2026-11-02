@@ -70,22 +70,25 @@ test('a batch title does not change the profile reference', async ({ authedPage:
     await goNav(page, 'profiles');
     const rows = page.getByTestId('profile-reference-row');
     await expect(rows).toHaveCount(2);
-    await expect(rows.nth(1)).toContainText('Based on');
+    await expect(rows.nth(1)).toContainText('Current reference');
     await expect(rows.nth(1).getByRole('button', { name: 'Set as reference' })).toHaveCount(0);
 
     const referenceWrite = page
-        .waitForRequest((request) => request.method() === 'PATCH' && request.url().includes('/rest/v1/roast_profiles'), {
-            timeout: 1_000,
-        })
+        .waitForRequest(
+            (request) => request.method() === 'PATCH' && request.url().includes('/rest/v1/roast_profiles'),
+            {
+                timeout: 1_000,
+            },
+        )
         .then(() => true)
         .catch(() => false);
     await rows.nth(0).getByText('ZIPPER 4').click();
     expect(await referenceWrite).toBe(false);
     expect(patches).toEqual([]);
-    await expect(rows.nth(1)).toContainText('Based on');
+    await expect(rows.nth(1)).toContainText('Current reference');
 
     await rows.nth(0).getByRole('button', { name: 'Set as reference' }).click();
-    await expect(rows.nth(0)).toContainText('Based on');
+    await expect(rows.nth(0)).toContainText('Current reference');
     await expect(rows.nth(0).getByRole('button', { name: 'Set as reference' })).toHaveCount(0);
     expect(patches).toEqual(['s4']);
 

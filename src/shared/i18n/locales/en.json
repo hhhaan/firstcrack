@@ -1743,6 +1743,8 @@
             "roastLog": "Roast Log",
             "extraSensors": "Extra sensor readings",
             "batches": "Batches",
+            "currentReference": "Current reference",
+            "untitledBatch": "Untitled batch",
             "setReference": "Set as reference",
             "referenceFailed": "Could not change the reference curve."
         }

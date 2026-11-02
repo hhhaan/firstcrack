@@ -74,9 +74,9 @@ describe('ProfileReferenceBatches', () => {
     it('marks the current reference and changes it only from the set button', () => {
         list.current = batches;
         render();
-        const rows = [...host.querySelectorAll<HTMLTableRowElement>('[data-testid="profile-reference-row"]')];
+        const rows = [...host.querySelectorAll<HTMLLIElement>('[data-testid="profile-reference-row"]')];
         expect(rows.map((row) => row.dataset.current)).toEqual(['false', 'true']);
-        expect(rows[1]?.textContent).toContain('newProfileModal.basedOn');
+        expect(rows[1]?.textContent).toContain('profiles.detail.currentReference');
         expect(rows[1]?.textContent).toContain('#3 · PR31');
         expect(rows[0]?.textContent).toContain('profiles.detail.setReference');
         expect(rows[1]?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
@@ -117,7 +117,7 @@ describe('ProfileReferenceBatches', () => {
     it('does not write when the current reference row is clicked', () => {
         list.current = batches;
         render();
-        const current = host.querySelector<HTMLTableRowElement>('[data-current="true"]');
+        const current = host.querySelector<HTMLLIElement>('[data-current="true"]');
         act(() => current?.click());
         expect(current?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
         expect(mutateAsync).not.toHaveBeenCalled();
@@ -131,9 +131,9 @@ describe('ProfileReferenceBatches', () => {
         act(() => {
             root.render(createElement(ProfileReferenceBatches, { profileId: 'p1', sourceSessionId: 'missing' }));
         });
-        const rows = [...host.querySelectorAll<HTMLTableRowElement>('[data-testid="profile-reference-row"]')];
+        const rows = [...host.querySelectorAll<HTMLLIElement>('[data-testid="profile-reference-row"]')];
         expect(rows.map((row) => row.dataset.current)).toEqual(['true', 'false']);
-        expect(rows[0]?.textContent).toContain('newProfileModal.basedOn');
+        expect(rows[0]?.textContent).toContain('profiles.detail.currentReference');
         expect(mutateAsync).toHaveBeenCalledWith({
             id: 'p1',
             sourceSessionId: 's4',

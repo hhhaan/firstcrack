@@ -1755,6 +1755,8 @@
             "roastLog": "烘焙日志",
             "extraSensors": "附加传感器读数",
             "batches": "烘焙批次",
+            "currentReference": "当前基准",
+            "untitledBatch": "未命名批次",
             "setReference": "设为基准",
             "referenceFailed": "无法更改参考曲线。"
         }
