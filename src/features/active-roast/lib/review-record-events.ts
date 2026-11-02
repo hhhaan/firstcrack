@@ -4,6 +4,7 @@ import { isBbpAllowedEvent } from './bbp-events';
 import { isToggleableLogEvent } from './constants';
 import { isCustomRoastEvent } from './event-buttons';
 import { getFcDualStage } from './fc-dual-mark';
+import { hasNoteControl, noteControlFields, virtualFromUnknown } from './manual-controls';
 import { logEntryTimeSec } from './serialize-roast-events';
 
 /** Key marks the record RPC will insert once, and only when that type is absent. */
@@ -66,11 +67,6 @@ const editedTime = (entry: LogEntry): number | null => {
 
 const editedTemp = (entry: LogEntry): number | null =>
     entry.tempC != null && Number.isFinite(entry.tempC) ? entry.tempC : null;
-
-const controlValue = (entry: LogEntry, key: (typeof NOTE_CONTROLS)[number]): string | undefined => {
-    const value = entry[key]?.trim();
-    return value || undefined;
-};
 
 export const isReviewEditableEvent = (event: string): boolean =>
     event !== 'Charge' && event !== 'Drop' && event !== 'End';
@@ -135,23 +131,24 @@ export const reviewMarkToAdd = (entries: readonly LogEntry[], event: string, dua
 
 const applyNote = (raw: RawEvent, entry: LogEntry, timeSec: number, temp: number | null): RawEvent => {
     const note = entry.note.trim();
-    const controls = {
-        gas: controlValue(entry, 'gas'),
-        airflow: controlValue(entry, 'airflow'),
-        drum: controlValue(entry, 'drum'),
-    };
+    const controls = noteControlFields(entry);
+    const stored = noteControlFields({
+        gas: typeof raw.gas === 'string' ? raw.gas : undefined,
+        airflow: typeof raw.airflow === 'string' ? raw.airflow : undefined,
+        drum: typeof raw.drum === 'string' ? raw.drum : undefined,
+        virtual: virtualFromUnknown(raw.virtual),
+    });
     const storedNote = typeof raw.note === 'string' && raw.note.trim() ? raw.note : null;
     const noteSame = storedNote === (note || null);
-    const controlsSame = NOTE_CONTROLS.every((key) => {
-        const stored = typeof raw[key] === 'string' && raw[key] ? raw[key] : undefined;
-        return stored === controls[key];
-    });
+    const controlsSame = JSON.stringify(controls) === JSON.stringify(stored);
     if (sameNumber(raw.time_sec, timeSec) && sameTemp(raw.temp_c, temp) && noteSame && controlsSame) return raw;
     const next: RawEvent = { ...raw, time_sec: timeSec, temp_c: temp, note: note || null };
     for (const key of NOTE_CONTROLS) {
         if (controls[key]) next[key] = controls[key];
         else delete next[key];
     }
+    if (controls.virtual) next.virtual = controls.virtual;
+    else delete next.virtual;
     return next;
 };
 
@@ -185,10 +182,8 @@ const buildNew = (entry: LogEntry): { ok: true; event: RawEvent } | { ok: false;
     const temp = editedTemp(entry);
     if (type === 'Note') {
         const note = entry.note.trim();
-        const gas = controlValue(entry, 'gas');
-        const airflow = controlValue(entry, 'airflow');
-        const drum = controlValue(entry, 'drum');
-        if (!note && !gas && !airflow && !drum) return null;
+        const fields = noteControlFields(entry);
+        if (!note && !hasNoteControl(fields)) return null;
         return {
             ok: true,
             event: {
@@ -197,9 +192,7 @@ const buildNew = (entry: LogEntry): { ok: true; event: RawEvent } | { ok: false;
                 time_sec: time,
                 temp_c: temp,
                 note: note || null,
-                ...(gas ? { gas } : {}),
-                ...(airflow ? { airflow } : {}),
-                ...(drum ? { drum } : {}),
+                ...fields,
             },
         };
     }

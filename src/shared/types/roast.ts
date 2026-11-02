@@ -10,6 +10,8 @@ export type RoastNoteControls = {
     gas?: string;
     airflow?: string;
     drum?: string;
+    /** Added virtual controls, keyed by settings id. Not a machine channel. */
+    virtual?: Record<string, string>;
 };
 
 /** Live roast event log row (UI + in-memory). */

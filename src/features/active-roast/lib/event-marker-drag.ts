@@ -3,6 +3,7 @@ import { formatElapsed } from '@shared/lib/format';
 import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { NEAREST_BT_MAX_SEC } from './chart-option/markers';
 import { parseControlMarkerLogId } from './fan-drum-markers';
+import { virtualFromUnknown } from './manual-controls';
 import { logEntryTimeSec } from './serialize-roast-events';
 import { formatTemp } from './temperature';
 
@@ -165,7 +166,11 @@ export function applyEventMarkerEdit(
     const hasTime = nextTimeSec != null;
     const allowNote = (target.event === 'Heater' || target.event === 'Note') && nextNote != null;
     const allowControls =
-        target.event === 'Note' && (patch.gas !== undefined || patch.airflow !== undefined || patch.drum !== undefined);
+        target.event === 'Note' &&
+        (patch.gas !== undefined ||
+            patch.airflow !== undefined ||
+            patch.drum !== undefined ||
+            patch.virtual !== undefined);
     if (!hasTime && !allowNote && !allowControls) return entries;
     if (
         hasTime &&
@@ -181,6 +186,11 @@ export function applyEventMarkerEdit(
                 if (patch.gas !== undefined) next.gas = patch.gas.trim() || undefined;
                 if (patch.airflow !== undefined) next.airflow = patch.airflow.trim() || undefined;
                 if (patch.drum !== undefined) next.drum = patch.drum.trim() || undefined;
+                if (patch.virtual !== undefined) {
+                    const virtual = virtualFromUnknown(patch.virtual);
+                    if (virtual) next.virtual = virtual;
+                    else delete next.virtual;
+                }
             }
             if (!hasTime || nextTimeSec == null) return next;
             const boundedTimeSec =

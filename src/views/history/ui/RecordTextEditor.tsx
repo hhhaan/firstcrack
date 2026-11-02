@@ -203,7 +203,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                         const id = note.id ?? `legacy:${note.index}`;
                         const time = drafts[id] ?? note.time;
                         const controls = formatRoastNote(
-                            { gas: note.gas, airflow: note.airflow, drum: note.drum },
+                            { gas: note.gas, airflow: note.airflow, drum: note.drum, virtual: note.virtual },
                             ' · ',
                             session.machine_id,
                         );

@@ -1,9 +1,22 @@
 import { useRoastSettings } from '@features/active-roast/model/settings';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type ManualControlId, manualControlsFor, noteControlDraft } from '../lib/manual-controls';
+import {
+    isBuiltinManualControlId,
+    type ManualControlDraft,
+    type ManualControlId,
+    manualControlsFor,
+    noteControlDraft,
+} from '../lib/manual-controls';
 
-export type RoastNoteValues = { gas: string; airflow: string; drum: string; note: string };
+export type RoastNoteValues = ManualControlDraft & { note: string };
+
+export const emptyNoteValues = (): RoastNoteValues => ({ gas: '', airflow: '', drum: '', note: '', virtual: {} });
+
+export const noteValuesFilled = (values: RoastNoteValues) =>
+    [values.gas, values.airflow, values.drum, values.note, ...Object.values(values.virtual)].some((value) =>
+        value.trim(),
+    );
 
 const labelKey = (id: ManualControlId) => (id === 'drum' ? 'activeRoast.controls.drum' : `activeRoast.noteEntry.${id}`);
 
@@ -36,6 +49,20 @@ export const RoastNoteFields = ({
     const inputClass =
         'min-w-0 w-full rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus:border-(--color-primary)';
 
+    const labelFor = (id: string, custom: string) => {
+        const name = custom.trim();
+        if (name) return name;
+        return isBuiltinManualControlId(id) ? t(labelKey(id)) : id;
+    };
+    const valueFor = (id: string) => (isBuiltinManualControlId(id) ? values[id] : (values.virtual[id] ?? ''));
+    const setValue = (id: string, next: string) => {
+        if (isBuiltinManualControlId(id)) {
+            onChange({ ...values, [id]: next });
+            return;
+        }
+        onChange({ ...values, virtual: { ...values.virtual, [id]: next } });
+    };
+
     // biome-ignore lint/correctness/useExhaustiveDependencies: note changes update the textarea DOM before its height is measured
     useLayoutEffect(() => {
         const measure = measureRef.current;
@@ -47,7 +74,7 @@ export const RoastNoteFields = ({
     return (
         <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
             {controls.map((control, index) => {
-                const label = control.label.trim() || t(labelKey(control.id));
+                const label = labelFor(control.id, control.label);
                 const unit = control.unit.trim();
                 const bounds = `${control.min}–${control.max}`;
                 return (
@@ -60,14 +87,16 @@ export const RoastNoteFields = ({
                                 ref={index === 0 ? measureRef : undefined}
                                 id={`${prefix}-${control.id}`}
                                 autoFocus={autoFocus && index === 0}
-                                value={values[control.id]}
-                                placeholder={t(`activeRoast.noteEntry.${control.id}Placeholder`)}
+                                value={valueFor(control.id)}
+                                placeholder={
+                                    isBuiltinManualControlId(control.id)
+                                        ? t(`activeRoast.noteEntry.${control.id}Placeholder`)
+                                        : undefined
+                                }
                                 inputMode="decimal"
                                 autoComplete="off"
                                 spellCheck={false}
-                                onChange={(event) =>
-                                    onChange({ ...values, [control.id]: noteControlDraft(event.target.value) })
-                                }
+                                onChange={(event) => setValue(control.id, noteControlDraft(event.target.value))}
                                 className={`${inputClass} pr-16`}
                             />
                             <span

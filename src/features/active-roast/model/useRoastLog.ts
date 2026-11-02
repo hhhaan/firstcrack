@@ -3,6 +3,7 @@ import type { LogEntry, RoastNoteControls } from '@shared/types/roast';
 import { type SetStateAction, useCallback, useState } from 'react';
 import { isRemovableLogEvent, isToggleableLogEvent } from '../lib/constants';
 import { cycleFcDualEntries, withoutLogEvent } from '../lib/fc-dual-mark';
+import { hasNoteControl, noteControlFields } from '../lib/manual-controls';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TemperatureUnit } from './settings';
@@ -45,10 +46,8 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
             controls?: RoastNoteControls,
         ) => {
             const body = note.trim();
-            const gas = event === 'Note' ? controls?.gas?.trim() : undefined;
-            const airflow = event === 'Note' ? controls?.airflow?.trim() : undefined;
-            const drum = event === 'Note' ? controls?.drum?.trim() : undefined;
-            if (event === 'Note' && !body && !gas && !airflow && !drum) return;
+            const fields = event === 'Note' ? noteControlFields(controls) : {};
+            if (event === 'Note' && !body && !hasNoteControl(fields)) return;
             if (
                 historical &&
                 (!Number.isFinite(historical.timeSec) ||
@@ -79,9 +78,7 @@ export const useRoastLog = (unit: TemperatureUnit, rawBT: number | null, elapsed
                     temp: tempC !== null ? formatTemp(tempC, unit) : '',
                     tempC,
                     note: event === 'Note' ? body : note,
-                    ...(gas ? { gas } : {}),
-                    ...(airflow ? { airflow } : {}),
-                    ...(drum ? { drum } : {}),
+                    ...fields,
                 };
 
                 return [...prev, newEntry].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));

@@ -1,3 +1,4 @@
+import { virtualFromUnknown } from '@features/active-roast/lib/manual-controls';
 import { formatSignedElapsed } from '@shared/lib/format';
 import type { Json } from '@shared/types/database.types';
 
@@ -11,6 +12,7 @@ export type RecordedNote = {
     gas?: string;
     airflow?: string;
     drum?: string;
+    virtual?: Record<string, string>;
 };
 
 const rowOf = (item: unknown): Record<string, unknown> | null =>
@@ -29,6 +31,7 @@ export const recordedNotes = (raw: unknown): RecordedNote[] => {
         const gas = text(row.gas);
         const airflow = text(row.airflow);
         const drum = text(row.drum);
+        const virtual = virtualFromUnknown(row.virtual);
         notes.push({
             id: typeof row.id === 'string' && row.id ? row.id : null,
             index,
@@ -38,6 +41,7 @@ export const recordedNotes = (raw: unknown): RecordedNote[] => {
             ...(gas ? { gas } : {}),
             ...(airflow ? { airflow } : {}),
             ...(drum ? { drum } : {}),
+            ...(virtual ? { virtual } : {}),
         });
     });
     return notes.sort((a, b) => a.timeSec - b.timeSec || a.index - b.index);

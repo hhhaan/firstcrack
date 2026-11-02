@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { isRoastRecordConflict, roastSessionKeys, useRoastSession, useUpdateRoastRecord } from '@entities/roast';
+import { hasNoteControl, noteControlFields } from '@features/active-roast/lib/manual-controls';
 import { recordSummary } from '@features/active-roast/lib/record-summary';
 import { type ReviewEventReject, reviewEventsFromLog } from '@features/active-roast/lib/review-record-events';
 import {
@@ -209,10 +210,8 @@ export const appendReviewEntry = (
     controls?: RoastNoteControls,
 ): LogEntry[] => {
     const body = note.trim();
-    const gas = event === 'Note' ? controls?.gas?.trim() : undefined;
-    const airflow = event === 'Note' ? controls?.airflow?.trim() : undefined;
-    const drum = event === 'Note' ? controls?.drum?.trim() : undefined;
-    if (event === 'Note' && !body && !gas && !airflow && !drum) return entries;
+    const fields = event === 'Note' ? noteControlFields(controls) : {};
+    if (event === 'Note' && !body && !hasNoteControl(fields)) return entries;
     const next: LogEntry = {
         id: crypto.randomUUID(),
         time: formatElapsed(timeSec),
@@ -221,9 +220,7 @@ export const appendReviewEntry = (
         temp: tempC != null ? formatTemp(tempC, unit) : '',
         tempC,
         note: event === 'Note' ? body : note,
-        ...(gas ? { gas } : {}),
-        ...(airflow ? { airflow } : {}),
-        ...(drum ? { drum } : {}),
+        ...fields,
     };
     return [...entries, next].sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 };

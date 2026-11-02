@@ -596,40 +596,44 @@ describe('normalize — manual controls', () => {
         expect(normalizeRoastSettings({}).manualControlsByMachine).toEqual({});
     });
 
-    it('keeps a renamed unit and a hidden drum, and drops an unknown control', () => {
+    it('toggles built-in controls and keeps an added virtual control', () => {
         expect(
             normalizeRoastSettings({
                 manualControls: [
                     { id: 'gas', label: '버너압', unit: 'kPa', min: 0, max: 3, enabled: true },
                     { id: 'drum', label: '', unit: 'Hz', enabled: false },
                     { id: 'damper', label: '댐퍼', unit: '%', enabled: true },
+                    { id: 'v_damper01', label: '댐퍼', unit: 'kPa', min: 0, max: 3, enabled: true },
+                    { id: 'v_blank001', label: '  ', unit: '%', enabled: true },
                 ] as never,
             }).manualControls,
         ).toEqual([
-            { id: 'gas', label: '버너압', unit: 'kPa', min: 0, max: 3, enabled: true },
+            { id: 'gas', label: '', unit: '%', min: 0, max: 100, enabled: true },
             { id: 'airflow', label: '', unit: '%', min: 0, max: 100, enabled: true },
-            { id: 'drum', label: '', unit: 'Hz', min: 0, max: 100, enabled: false },
+            { id: 'drum', label: '', unit: 'RPM', min: 0, max: 100, enabled: false },
+            { id: 'v_damper01', label: '댐퍼', unit: 'kPa', min: 0, max: 3, enabled: true },
         ]);
     });
 
-    it('stores a range and a list on one machine, and leaves the others on the shared list', () => {
+    it('stores a virtual range on one machine, and leaves the others on the shared list', () => {
         const settings = normalizeRoastSettings({
             manualControlsByMachine: {
-                mill: [{ id: 'drum', label: '회전', unit: 'Hz', min: 20, max: 70, enabled: true }],
+                mill: [{ id: 'v_damper01', label: '댐퍼', unit: '%', min: 20, max: 70, enabled: true }],
                 '  ': [],
             } as never,
         });
         expect(settings.manualControlsByMachine.mill).toEqual([
             { id: 'gas', label: '', unit: '%', min: 0, max: 100, enabled: true },
             { id: 'airflow', label: '', unit: '%', min: 0, max: 100, enabled: true },
-            { id: 'drum', label: '회전', unit: 'Hz', min: 20, max: 70, enabled: true },
+            { id: 'drum', label: '', unit: 'RPM', min: 0, max: 100, enabled: true },
+            { id: 'v_damper01', label: '댐퍼', unit: '%', min: 20, max: 70, enabled: true },
         ]);
         expect(Object.keys(settings.manualControlsByMachine)).toEqual(['mill']);
         expect(manualControlsFor(settings, 'other')).toEqual(settings.manualControls);
         expect(manualControlsFor(settings, null)).toEqual(settings.manualControls);
         const mill = manualControlsFor(settings, 'mill');
-        expect(commitManualControl('drum', '70', mill)).toBe('70');
-        expect(commitManualControl('drum', '71', mill)).toBe('');
+        expect(commitManualControl('v_damper01', '70', mill)).toBe('70');
+        expect(commitManualControl('v_damper01', '71', mill)).toBe('');
         expect(commitManualControl('gas', '150', mill)).toBe('');
     });
 });

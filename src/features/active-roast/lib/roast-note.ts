@@ -1,7 +1,12 @@
 import type { RoastNoteControls } from '@shared/types/roast';
 import i18n from 'i18next';
 import { getRoastSettings } from '../model/settings';
-import { isNumericControlValue, type ManualControlSetting, manualControlsFor } from './manual-controls';
+import {
+    isBuiltinManualControlId,
+    isNumericControlValue,
+    type ManualControlSetting,
+    manualControlsFor,
+} from './manual-controls';
 
 const controlName = (control: ManualControlSetting) => {
     const custom = control.label.trim();
@@ -9,8 +14,12 @@ const controlName = (control: ManualControlSetting) => {
     if (control.id === 'drum') return i18n.t('activeRoast.controls.drum', { defaultValue: 'Drum' }) ?? 'Drum';
     if (control.id === 'airflow')
         return i18n.t('activeRoast.noteEntry.airflow', { defaultValue: 'Airflow' }) ?? 'Airflow';
-    return i18n.t('activeRoast.noteEntry.gas', { defaultValue: 'Gas' }) ?? 'Gas';
+    if (control.id === 'gas') return i18n.t('activeRoast.noteEntry.gas', { defaultValue: 'Gas' }) ?? 'Gas';
+    return '';
 };
+
+const storedControlValue = (entry: RoastNoteControls, control: ManualControlSetting) =>
+    isBuiltinManualControlId(control.id) ? entry[control.id] : entry.virtual?.[control.id];
 
 const controlText = (control: ManualControlSetting, value: string | undefined) => {
     const trimmed = value?.trim();
@@ -26,7 +35,7 @@ export const formatRoastNote = (
     machineId?: string | null,
 ): string => {
     const controls = manualControlsFor(getRoastSettings(), machineId);
-    return [...controls.map((control) => controlText(control, entry[control.id])), entry.note]
+    return [...controls.map((control) => controlText(control, storedControlValue(entry, control))), entry.note]
         .filter(Boolean)
         .join(separator);
 };

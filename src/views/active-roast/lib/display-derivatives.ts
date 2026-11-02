@@ -1,6 +1,7 @@
 import { getResolvedEventColor, isChartEventMarker } from '@features/active-roast/lib/chart-config';
 import type { RoastEventMarker } from '@features/active-roast/lib/chart-option';
 import { fanDrumMarkersFromLog } from '@features/active-roast/lib/fan-drum-markers';
+import { noteControlFields } from '@features/active-roast/lib/manual-controls';
 import { omitRepeatHeaterMarks } from '@features/active-roast/lib/repeat-heater';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { formatTemp, toDisplayTemp } from '@features/active-roast/lib/temperature';
@@ -141,9 +142,7 @@ export const buildEventMarkers = (logEntries: LogEntry[]): RoastEventMarker[] =>
                         temp: e.temp,
                         tempC: e.tempC,
                         note: e.note,
-                        ...(e.gas ? { gas: e.gas } : {}),
-                        ...(e.airflow ? { airflow: e.airflow } : {}),
-                        ...(e.drum ? { drum: e.drum } : {}),
+                        ...noteControlFields(e),
                     },
                 ];
             }),

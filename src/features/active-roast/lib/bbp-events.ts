@@ -1,6 +1,7 @@
 import { formatElapsed } from '@shared/lib/format';
 import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
 import type { TemperatureUnit } from '../model/settings';
+import { hasNoteControl, noteControlFields } from './manual-controls';
 import { serializeRoastEvents } from './serialize-roast-events';
 import { formatTemp } from './temperature';
 
@@ -91,10 +92,8 @@ export const makeBbpLogEntry = (
 ): LogEntry | null => {
     if (!isBbpAllowedEvent(event) || !Number.isFinite(timeSec)) return null;
     const body = note.trim();
-    const gas = extra?.gas?.trim();
-    const airflow = extra?.airflow?.trim();
-    const drum = extra?.drum?.trim();
-    if (event === 'Note' && !body && !gas && !airflow && !drum) return null;
+    const fields = noteControlFields(extra);
+    if (event === 'Note' && !body && !hasNoteControl(fields)) return null;
     const applied = extra?.appliedControl;
     return {
         id: crypto.randomUUID(),
@@ -104,9 +103,7 @@ export const makeBbpLogEntry = (
         temp: tempC != null && Number.isFinite(tempC) ? formatTemp(tempC, unit) : '',
         tempC: tempC != null && Number.isFinite(tempC) ? tempC : null,
         note: event === 'Note' ? body : note,
-        ...(gas ? { gas } : {}),
-        ...(airflow ? { airflow } : {}),
-        ...(drum ? { drum } : {}),
+        ...fields,
         ...(applied && Object.keys(applied).length > 0 ? { appliedControl: applied } : {}),
     };
 };

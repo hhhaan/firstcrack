@@ -7,6 +7,7 @@ import { formatSignedElapsed } from '@shared/lib/format';
 import { parseEditTime } from '@shared/lib/time-edit';
 import type { Json } from '@shared/types/database.types';
 import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
+import { noteControlFields, virtualFromUnknown } from './manual-controls';
 
 const formatStoredEventTemp = (tempC: number | null | undefined, unit: TemperatureUnit): string =>
     tempC != null && Number.isFinite(tempC) ? `${Math.round(toDisplayTemp(tempC, unit))}${tempUnitLabel(unit)}` : '—';
@@ -30,9 +31,7 @@ export const serializeRoastEvents = (logEntries: LogEntry[]): StoredRoastEvent[]
                     temp_c: e.tempC ?? null,
                     note: e.note || null,
                     ...(e.appliedControl ? { applied_control: e.appliedControl } : {}),
-                    ...(e.gas ? { gas: e.gas } : {}),
-                    ...(e.airflow ? { airflow: e.airflow } : {}),
-                    ...(e.drum ? { drum: e.drum } : {}),
+                    ...noteControlFields(e),
                 },
             ];
         })
@@ -75,9 +74,12 @@ export const parseStoredRoastEvents = (raw: unknown): StoredRoastEvent[] => {
             temp_c: optionalJsonNumber(o.temp_c),
             note: optionalJsonString(o.note),
             ...(Object.keys(appliedControl).length ? { applied_control: appliedControl } : {}),
-            ...(typeof o.gas === 'string' && o.gas ? { gas: o.gas } : {}),
-            ...(typeof o.airflow === 'string' && o.airflow ? { airflow: o.airflow } : {}),
-            ...(typeof o.drum === 'string' && o.drum ? { drum: o.drum } : {}),
+            ...noteControlFields({
+                ...(typeof o.gas === 'string' && o.gas ? { gas: o.gas } : {}),
+                ...(typeof o.airflow === 'string' && o.airflow ? { airflow: o.airflow } : {}),
+                ...(typeof o.drum === 'string' && o.drum ? { drum: o.drum } : {}),
+                virtual: virtualFromUnknown(o.virtual),
+            }),
         });
     }
     return out;
@@ -112,9 +114,7 @@ export const storedEventsToLogEntries = (
             tempC: e.temp_c ?? null,
             note: e.note ?? '',
             ...(includeControls && e.applied_control ? { appliedControl: e.applied_control } : {}),
-            ...(e.gas ? { gas: e.gas } : {}),
-            ...(e.airflow ? { airflow: e.airflow } : {}),
-            ...(e.drum ? { drum: e.drum } : {}),
+            ...noteControlFields(e),
         }));
 
 /** Only explicit acknowledged app writes supply control-chart change labels. */
@@ -142,9 +142,7 @@ export const storedEventsToMarkers = (
                 temp: e.temp_c != null ? `${Math.round(toDisplayTemp(e.temp_c, unit))}` : '',
                 tempC: e.temp_c ?? null,
                 note: e.note ?? '',
-                ...(e.gas ? { gas: e.gas } : {}),
-                ...(e.airflow ? { airflow: e.airflow } : {}),
-                ...(e.drum ? { drum: e.drum } : {}),
+                ...noteControlFields(e),
             })),
     ),
     ...fanDrumMarkersFromStored(events),
