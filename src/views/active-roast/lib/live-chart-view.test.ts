@@ -128,17 +128,32 @@ describe('resolveLiveChartView', () => {
         expect(view.xMaxFloor).toBe(900);
     });
 
-    it('clips the reference roast at five minutes and keeps a short BBP against Charge', () => {
+    it('keeps the full reference roast beyond five minutes and a short BBP against Charge', () => {
         const view = resolveLiveChartView({
             ...base,
             bbpActive: true,
             charged: false,
             bbpPoints: [bbpPt(0), bbpPt(240)],
             bbpTarget: [roastPt(0), roastPt(240)],
-            roastTarget: [roastPt(0), roastPt(90), roastPt(300), roastPt(780)],
+            roastTarget: [roastPt(-30), roastPt(0), roastPt(90), roastPt(300), roastPt(780)],
         });
         expect(view.livePoints.map((p) => p.time)).toEqual([0, 240]);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 240, 330, 540]);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 240, 330, 540, 1020]);
+        expect(view.xMaxFloor).toBe(900);
+    });
+
+    it('keeps the reference roast to its end as a long wait shifts it beyond the visible axis', () => {
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpPoints: [bbpPt(360), bbpPt(960)],
+            roastTarget: [roastPt(0), roastPt(300), roastPt(780), roastPt(1200)],
+        });
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 600]);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([510, 600, 900, 1380, 1800]);
+        expect(view.eventTimeOrigin).toBe(360);
+        expect(view.xMaxFloor).toBe(900);
     });
 
     it('keeps a 15 minute left-aligned wait when no reference roast is selected', () => {

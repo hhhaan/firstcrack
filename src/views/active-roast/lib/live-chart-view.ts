@@ -6,7 +6,6 @@ import { livePointsFromBbp } from './bbp-live-points';
 
 /** At most this much of the wait stays left of Charge. The chart origin is 0, not this mark. */
 export const BBP_LOOKBACK_SECONDS = 600;
-export const REFERENCE_ROAST_AHEAD_SECONDS = BBP_MAX_SECONDS - BBP_LOOKBACK_SECONDS;
 
 export type LiveChartView = {
     livePoints: LiveRoastPoint[];
@@ -75,7 +74,7 @@ export const resolveLiveChartView = (input: {
         };
     }
 
-    const ahead = input.roastTarget.filter((point) => point.t >= 0 && point.t <= REFERENCE_ROAST_AHEAD_SECONDS);
+    const ahead = input.roastTarget.filter((point) => point.t >= 0);
     const source = input.bbpTargetError ? [] : input.bbpTarget;
     const lastT = input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0;
     if (ahead.length > 0) {
