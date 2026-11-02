@@ -1286,8 +1286,11 @@ describe('RoastTempChart interactions', () => {
     it('keeps PDF colors and legend consistent when settings change while fonts load', async () => {
         const previous = getRoastSettings().curveStyles;
         const ref = createRef<RoastTempChartHandle>();
-        const fontReady = Promise.withResolvers<void>();
-        vi.mocked(document.fonts.load).mockReturnValueOnce(fontReady.promise.then(() => []));
+        let resolveFont = () => {};
+        const fontReady = new Promise<void>((resolve) => {
+            resolveFont = resolve;
+        });
+        vi.mocked(document.fonts.load).mockReturnValueOnce(fontReady.then(() => []));
         act(() => {
             updateRoastSettings({
                 curveStyles: { ...previous, bt: { ...previous.bt, color: '#e53935', lineType: 'dotted' } },
@@ -1301,7 +1304,7 @@ describe('RoastTempChart interactions', () => {
             expect(document.fonts.load).toHaveBeenCalledWith('400 8px SUIT');
             expect(paper.setOption).not.toHaveBeenCalled();
             act(() => updateRoastSettings({ curveStyles: { ...previous, bt: { ...previous.bt, color: '#00aa00' } } }));
-            fontReady.resolve();
+            resolveFont();
             const capture = await pending;
             expect(capture?.chartDataUrl).toBe('data:image/png;base64,qq');
             expect(capture?.legend).toEqual([
