@@ -414,6 +414,42 @@ export const captureSidecarReadinessFailure = (input: {
     });
 };
 
+export type ReplayDeliveryOutcome = 'recovered' | 'exhausted' | 'cancelled' | 'retry_unavailable';
+
+/** One outcome after a failed Replay delivery, separate from the original hardware error. */
+export const captureReplayDeliveryResult = (input: {
+    outcome: ReplayDeliveryOutcome;
+    target: number;
+    attempts: number;
+    lastApplied: number | null;
+    elapsedMs: number;
+    sessionId?: string | null;
+    connectionEpoch?: number;
+}) => {
+    try {
+        Sentry.captureMessage(`Replay delivery result (${crypto.randomUUID()})`, {
+            level: 'info',
+            fingerprint: ['replay-delivery-result', input.outcome],
+            tags: {
+                feature: 'machine-control',
+                event: 'replay_delivery_result',
+                role: 'heater',
+                outcome: input.outcome,
+            },
+            extra: {
+                target: input.target,
+                attempts: input.attempts,
+                last_applied: input.lastApplied,
+                elapsed_ms: input.elapsedMs,
+                session_id: input.sessionId,
+                connection_epoch: input.connectionEpoch,
+            },
+        });
+    } catch {
+        // Reporting must not affect delivery, cancellation, or the next Replay step.
+    }
+};
+
 const classOnlyCaptureError = (error: unknown): Error => {
     const name = error instanceof Error ? error.name : 'Error';
     const reported = new Error(name);

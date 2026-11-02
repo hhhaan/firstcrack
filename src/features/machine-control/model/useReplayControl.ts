@@ -539,6 +539,8 @@ export const useReplayControl = ({
             retry: retryHeater,
             signal: controller.signal,
             onAttempt: setDeliveryAttempt,
+            sessionId,
+            connectionEpoch,
         }).then((confirmed) => {
             if (gen !== writeGenRef.current) return;
             setPendingWrite(null);
@@ -566,6 +568,8 @@ export const useReplayControl = ({
         lastValidAgeHold,
         writeHeater,
         retryHeater,
+        sessionId,
+        connectionEpoch,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;

@@ -6,6 +6,7 @@ import { OPTIMISTIC_ID_REFUSED_CODE, OptimisticIdRefusedError } from './optimist
 import {
     buildSentryOptions,
     captureActionable,
+    captureReplayDeliveryResult,
     captureRoastingImportFailure,
     captureSidecarReadinessFailure,
     captureSidecarRequestFailure,
@@ -49,6 +50,21 @@ vi.mock('@sentry/react', async (importOriginal) => {
 
 // 모듈 평가(=import) 시점에 init이 불렸는지 본다. clearAllMocks 이후에는 관찰할 수 없으므로 여기서 고정.
 const initCallsOnImport = vi.mocked(Sentry.init).mock.calls.length;
+
+it('does not let Replay outcome reporting failures affect command delivery', () => {
+    vi.mocked(Sentry.captureMessage).mockImplementationOnce(() => {
+        throw new Error('reporting unavailable');
+    });
+    expect(() =>
+        captureReplayDeliveryResult({
+            outcome: 'recovered',
+            target: 0,
+            attempts: 2,
+            lastApplied: 0,
+            elapsedMs: 500,
+        }),
+    ).not.toThrow();
+});
 
 afterEach(() => {
     vi.clearAllMocks();
