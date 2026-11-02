@@ -71,15 +71,20 @@ describe('ProfileReferenceBatches', () => {
         for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
     });
 
-    it('marks the current reference and selects another batch without its heater plan', () => {
+    it('marks the current reference and changes it only from the set button', () => {
         list.current = batches;
         render();
         const rows = [...host.querySelectorAll<HTMLTableRowElement>('[data-testid="profile-reference-row"]')];
         expect(rows.map((row) => row.dataset.current)).toEqual(['false', 'true']);
         expect(rows[1]?.textContent).toContain('newProfileModal.basedOn');
         expect(rows[1]?.textContent).toContain('#3 · PR31');
+        expect(rows[0]?.textContent).toContain('profiles.detail.setReference');
+        expect(rows[1]?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
 
         act(() => rows[0]?.click());
+        expect(mutateAsync).not.toHaveBeenCalled();
+
+        act(() => rows[0]?.querySelector<HTMLButtonElement>('[data-testid="profile-reference-set"]')?.click());
 
         expect(mutateAsync).toHaveBeenCalledWith({
             id: 'p1',
@@ -109,11 +114,12 @@ describe('ProfileReferenceBatches', () => {
         expect(mutateAsync).not.toHaveBeenCalled();
     });
 
-    it('does not write when the current reference is chosen again', () => {
+    it('does not write when the current reference row is clicked', () => {
         list.current = batches;
         render();
         const current = host.querySelector<HTMLTableRowElement>('[data-current="true"]');
         act(() => current?.click());
+        expect(current?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
         expect(mutateAsync).not.toHaveBeenCalled();
     });
 
@@ -144,10 +150,10 @@ describe('ProfileReferenceBatches', () => {
         list.current = batches;
         mutateAsync.mockImplementationOnce(() => Promise.reject(new Error('update failed')));
         render();
-        const row = host.querySelector<HTMLTableRowElement>('[data-current="false"]');
+        const set = host.querySelector<HTMLButtonElement>('[data-testid="profile-reference-set"]');
 
         await act(async () => {
-            row?.click();
+            set?.click();
         });
 
         expect(useToastStore.getState().toasts.map((toast) => toast.message)).toEqual([

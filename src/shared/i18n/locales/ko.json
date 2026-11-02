@@ -1743,6 +1743,7 @@
             "roastLog": "로스팅 로그",
             "extraSensors": "추가 센서 읽기값",
             "batches": "로스팅 배치",
+            "setReference": "기준으로 설정",
             "referenceFailed": "기준 곡선을 바꾸지 못했습니다."
         }
     },

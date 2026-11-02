@@ -8,6 +8,9 @@ import { useRoastSettings } from '@features/active-roast';
 import { formatDateShort } from '@shared/lib/format';
 import { sessionBatchNumberLabel, sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
+import { Badge } from '@shared/ui/Badge';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
+import { Check } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -67,18 +70,36 @@ export const ProfileReferenceBatches = ({
     };
 
     return (
-        <div className="bg-surface dark:bg-surface-elevated mb-5 rounded-lg px-4 py-3" aria-busy={isPending}>
-            <p className="mb-2 text-[11px] font-medium tracking-[0.5px] text-muted uppercase">
-                {t('profiles.detail.batches')}
-            </p>
-            <div className="max-h-64 overflow-y-auto">
-                <table className="w-full border-collapse text-xs">
+        <div className="mb-5 overflow-hidden rounded-xl border border-border bg-main-bg" aria-busy={isPending}>
+            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <p className="text-xs font-medium text-primary">{t('profiles.detail.batches')}</p>
+                <Badge size="sm">{batches.length}</Badge>
+            </div>
+            <div className="visible-scrollbar max-h-96 overflow-auto">
+                <table
+                    className="w-full min-w-[660px] table-fixed border-collapse text-xs"
+                    aria-label={t('profiles.detail.batches')}
+                >
+                    <colgroup>
+                        <col className="w-28" />
+                        <col className="w-30" />
+                        <col />
+                        <col className={onOpenDetail ? 'w-64' : 'w-36'} />
+                    </colgroup>
                     <thead>
-                        <tr className="text-left text-muted">
-                            <th className="py-2 pr-4 font-medium">{t('history.table.date')}</th>
-                            <th className="py-2 pr-4 font-medium">{t('history.batchNumbers.label')}</th>
-                            <th className="py-2 pr-4 font-medium">{t('history.recordText.title')}</th>
-                            <th className="py-2 font-medium" />
+                        <tr className="sticky top-0 z-10 bg-surface-elevated text-left text-[11px] text-muted">
+                            <th scope="col" className="px-4 py-2.5 font-medium">
+                                {t('history.table.date')}
+                            </th>
+                            <th scope="col" className="px-3 py-2.5 font-medium">
+                                {t('history.batchNumbers.label')}
+                            </th>
+                            <th scope="col" className="px-3 py-2.5 font-medium">
+                                {t('history.recordText.title')}
+                            </th>
+                            <th scope="col" className="px-4 py-2.5 font-medium">
+                                <span className="sr-only">{t('profiles.detail.setReference')}</span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -90,45 +111,51 @@ export const ProfileReferenceBatches = ({
                                     key={batch.id}
                                     data-testid="profile-reference-row"
                                     data-current={current ? 'true' : 'false'}
-                                    tabIndex={0}
                                     aria-current={current ? 'true' : undefined}
-                                    onClick={() => select(batch)}
-                                    onKeyDown={(event) => {
-                                        if (event.target !== event.currentTarget) return;
-                                        if (event.key !== 'Enter' && event.key !== ' ') return;
-                                        event.preventDefault();
-                                        select(batch);
-                                    }}
-                                    className={`cursor-pointer border-t border-black/4 dark:border-border ${current ? 'bg-surface-elevated dark:bg-main-bg' : ''}`}
+                                    className={`border-t border-border transition-colors ${current ? 'bg-surface-elevated' : 'hover:bg-surface-elevated/60'}`}
                                 >
-                                    <td className="py-2 pr-4 font-mono text-muted">
+                                    <td className="whitespace-nowrap px-4 py-3 text-muted">
                                         {formatDateShort(batch.roasted_at)}
                                     </td>
-                                    <td className="py-2 pr-4 text-secondary tabular-nums">
+                                    <td className="whitespace-nowrap px-3 py-3 text-secondary">
                                         {sessionBatchNumberLabel(batch, totalBatchPrefix) ?? '—'}
                                     </td>
-                                    <td className="py-2 pr-4 font-medium text-primary">{title}</td>
-                                    <td className="py-2 text-right">
-                                        <span className="inline-flex items-center justify-end gap-2.5">
+                                    <td className="px-3 py-3">
+                                        <div className="flex min-w-0 items-center gap-2">
+                                            <span className="truncate font-medium text-primary" title={title}>
+                                                {title}
+                                            </span>
                                             {current && (
-                                                <span className="inline-flex items-center rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium tracking-[0.14px] text-secondary">
+                                                <Badge icon={<Check size={11} strokeWidth={1.5} aria-hidden="true" />}>
                                                     {t('newProfileModal.basedOn')}
-                                                </span>
+                                                </Badge>
                                             )}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-2 text-right">
+                                        <div className="flex items-center justify-end gap-2">
                                             {onOpenDetail && (
-                                                <button
-                                                    type="button"
+                                                <SurfaceButton
                                                     data-testid="profile-reference-detail"
-                                                    className="cursor-pointer border-none bg-transparent p-0 text-[12px] font-medium text-primary"
-                                                    onClick={(event) => {
-                                                        event.stopPropagation();
-                                                        onOpenDetail(batch.id);
-                                                    }}
+                                                    className="border-transparent bg-transparent text-secondary underline decoration-border underline-offset-4 hover:bg-surface"
+                                                    onClick={() => onOpenDetail(batch.id)}
                                                 >
                                                     {t('history.expanded.show')}
-                                                </button>
+                                                </SurfaceButton>
                                             )}
-                                        </span>
+                                            <div className="w-30 shrink-0">
+                                                {!current && (
+                                                    <SurfaceButton
+                                                        data-testid="profile-reference-set"
+                                                        disabled={isPending}
+                                                        className="w-full"
+                                                        onClick={() => select(batch)}
+                                                    >
+                                                        {t('profiles.detail.setReference')}
+                                                    </SurfaceButton>
+                                                )}
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             );

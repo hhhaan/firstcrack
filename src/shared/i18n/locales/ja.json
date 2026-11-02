@@ -1743,6 +1743,7 @@
             "roastLog": "ローストログ",
             "extraSensors": "追加センサーの読み取り値",
             "batches": "バッチ",
+            "setReference": "基準に設定",
             "referenceFailed": "基準カーブを変更できませんでした。"
         }
     },
