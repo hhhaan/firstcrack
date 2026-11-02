@@ -73,7 +73,7 @@ jobs:
 
       # These are SAME-JOB gates: a separate successful/failed workflow cannot
       # order this deployment. No billing function deploys before every gate passes.
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         if: steps.changed.outputs.functions != '[]'
         with:
           node-version: '24'
