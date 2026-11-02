@@ -89,10 +89,15 @@ and SDK deduplication can discard the event with hardware tags. Use WARNING for 
 
 S7 failures carry bounded `s7_operation` context across the executor boundary. It records the operation,
 stage, elapsed time, completed writes, and whether a compound actuator command reached its final zero.
+Command readback records `readback_role`, `readback_db`, `readback_offset`, `readback_expected_hex`,
+and `readback_observed_hex` alongside `readback_matched`. These are encoded register bytes, before
+logical scaling; Giesen logical heat 0 is raw `0001`, while raw `0000` is AUTO.
 A cancelled read can still have an active native call; `await_cancelled` does not mean that call stopped.
 These facts observe existing I/O and do not add PLC reads, writes, retries, or change time limits.
 Completed W60A button reports belong to Python; the webview reports only its own request failures with
 the action attached. Successful transmission is not proof of physical movement.
+Repeated failures during one control command's retries are deduplicated. One captured failure alone
+does not establish successful recovery or whether the HMI changed the setting.
 
 Search hardware incidents by `event` and `protocol` as well as release. Production Python events have
 been observed with `runtime=CPython ...`, so `runtime:sidecar` alone can miss them.

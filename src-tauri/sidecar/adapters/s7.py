@@ -633,7 +633,14 @@ class S7Adapter:
         )
         TRACE.record("rx", "s7", f"write_readback db={block_number} offset={start_byte} role={role}", observed_payload)
         if diagnostics is not None:
-            diagnostics.update(readback_matched=observed_payload == bytes(command_payload))
+            diagnostics.update(
+                readback_matched=observed_payload == bytes(command_payload),
+                readback_role=role,
+                readback_db=block_number,
+                readback_offset=start_byte,
+                readback_expected_hex=command_payload.hex(),
+                readback_observed_hex=observed_payload.hex(),
+            )
         # raw 0(AUTO)을 논리 0으로 clamp해 성공 처리하지 않도록 인코딩 바이트로 비교한다.
         if observed_payload != bytes(command_payload):
             TRACE.record("err", "s7", f"write_readback mismatch role={role}")

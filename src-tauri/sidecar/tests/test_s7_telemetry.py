@@ -333,19 +333,37 @@ def test_error_classification_cannot_mask_an_exception_with_broken_str():
     assert diagnostics.snapshot()["first_failure"]["error_code"] == "unknown"
 
 
-async def test_control_readback_failure_keeps_original_delivery_sequence(envelopes):
+@pytest.mark.parametrize("channel_type,value_offset,requested,expected_hex,observed_hex", [
+    (0, 1, 50, "0033", "0032"),
+    (0, 1, 0, "0001", "0000"),
+    (0, 1, 0, "0001", ""),
+    (0, 1, 0, "0001", "01"),
+    (1, 0, 12.5, "41480000", "41400000"),
+])
+async def test_control_readback_failure_keeps_original_delivery_sequence(
+    envelopes, channel_type, value_offset, requested, expected_hex, observed_hex,
+):
     adapter, plc = s7_adapter()
-    adapter._write_map = {"heater": {"db": 2, "offset": 14, "type": 0, "verify_readback": True}}
-    plc.db_read.return_value = bytearray(2)
+    adapter._write_map = {"heater": {
+        "db": 2, "offset": 14, "type": channel_type,
+        "value_offset": value_offset, "verify_readback": True,
+    }}
+    expected_payload = bytearray.fromhex(expected_hex)
+    plc.db_read.return_value = bytearray.fromhex(observed_hex)
     with pytest.raises(IOError) as caught:
-        await adapter.control(heater=50)
+        await adapter.control(heater=requested)
     RoasterManager()._capture_hardware_error(caught.value, "control_write_failed")
+    assert len(envelopes) == 1
     facts = envelopes[0]["contexts"]["s7_operation"]
     assert facts["completed_writes"] == 1 and facts["readback_matched"] is False
     assert facts["stage"] == "readback"
+    assert facts["readback_role"] == "heater"
+    assert (facts["readback_db"], facts["readback_offset"]) == (2, 14)
+    assert facts["readback_expected_hex"] == expected_hex
+    assert facts["readback_observed_hex"] == observed_hex
     assert [(c[0], c.args) for c in plc.mock_calls] == [
-        ("db_write", (2, 14, bytearray(b"\x00\x32"))),
-        ("db_read", (2, 14, 2)),
+        ("db_write", (2, 14, expected_payload)),
+        ("db_read", (2, 14, len(expected_payload))),
     ]
 
 
