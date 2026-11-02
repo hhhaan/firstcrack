@@ -78,7 +78,7 @@ export const ProfileReferenceBatches = ({
                 <p className="text-sm font-medium text-primary">{t('profiles.detail.batches')}</p>
                 <Badge size="sm">{batches.length}</Badge>
             </div>
-            <div className="visible-scrollbar max-h-128 overflow-y-auto">
+            <div className="visible-scrollbar max-h-80 overflow-y-auto">
                 <ul className="divide-y divide-border" aria-label={t('profiles.detail.batches')}>
                     {batches.map((batch) => {
                         const current = batch.id === resolvedId;
@@ -89,7 +89,7 @@ export const ProfileReferenceBatches = ({
                                 data-testid="profile-reference-row"
                                 data-current={current ? 'true' : 'false'}
                                 aria-current={current ? 'true' : undefined}
-                                className={`flex flex-col gap-3 border-l-2 px-4 py-3 transition-colors @lg:flex-row @lg:items-center @lg:justify-between ${current ? 'border-l-emerald-600 bg-emerald-50/80 dark:border-l-emerald-400 dark:bg-emerald-950/35' : 'border-l-transparent hover:bg-surface-elevated'}`}
+                                className={`flex flex-col gap-3 px-4 py-3 transition-colors @lg:flex-row @lg:items-center @lg:justify-between ${current ? 'bg-emerald-50/80 dark:bg-emerald-950/35' : 'hover:bg-surface-elevated'}`}
                             >
                                 <div className="min-w-0 flex-1">
                                     <p className="break-words text-sm font-medium leading-5 text-primary">{title}</p>
@@ -107,7 +107,7 @@ export const ProfileReferenceBatches = ({
                                     {onOpenDetail && (
                                         <SurfaceButton
                                             data-testid="profile-reference-detail"
-                                            className="border-transparent bg-transparent px-2 text-muted hover:bg-surface hover:text-primary"
+                                            className="border-transparent bg-transparent px-2 text-muted hover:bg-transparent hover:text-primary dark:border-transparent"
                                             onClick={() => onOpenDetail(batch.id)}
                                         >
                                             {t('history.expanded.show')}
