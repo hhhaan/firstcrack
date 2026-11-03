@@ -5,16 +5,16 @@ import {
     canonicalShortcut,
     conflictKey,
     isReservedShortcut,
-    normalizeKey,
     parseShortcut,
     parseShortcutPress,
+    resolveEventKey,
     type ShortcutBindingResult,
     shortcutBindingError,
-    shortcutChord,
+    shortcutCaptureError,
 } from '@shared/lib/shortcut-key';
 import { create } from 'zustand';
 
-export { canonicalShortcut, sameShortcut, shortcutBindingError } from '@shared/lib/shortcut-key';
+export { canonicalShortcut, sameShortcut, shortcutBindingError, shortcutCaptureError } from '@shared/lib/shortcut-key';
 export type { ShortcutBindingResult };
 
 export const SHORTCUTS = [
@@ -74,9 +74,9 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
         const owners = new Map<string, ShortcutId[]>();
         for (const [id, keys] of Object.entries(candidate) as [ShortcutId, string[]][]) {
             for (const key of keys) {
-                const chord = shortcutChord(key);
-                if (!chord) continue;
-                const comparable = conflictKey(chord);
+                const press = parseShortcutPress(key);
+                if (!press) continue;
+                const comparable = `${conflictKey(press.chord)}\0${press.count}`;
                 owners.set(comparable, [...(owners.get(comparable) ?? []), id]);
             }
         }
@@ -221,6 +221,7 @@ export const useShortcutKeys = (id: ShortcutId): string[] =>
 export function eventToShortcut(
     event: {
         key: string;
+        code?: string;
         metaKey?: boolean;
         ctrlKey?: boolean;
         altKey?: boolean;
@@ -228,8 +229,8 @@ export function eventToShortcut(
     },
     apple = isAppleOs(),
 ): string {
-    const key = normalizeKey(event.key);
-    if (['meta', 'control', 'alt', 'shift'].includes(key)) return '';
+    const key = resolveEventKey(event);
+    if (!key) return '';
     if (!apple && event.metaKey) return '';
     const modifiers = [
         (apple && event.metaKey) || (!apple && event.ctrlKey) ? 'mod' : '',
@@ -275,6 +276,7 @@ export function formatShortcut(keys: string | readonly string[], apple = isApple
                 if (key === 'alt') return apple ? '⌥' : 'Alt';
                 if (key === 'shift') return apple ? '⇧' : 'Shift';
                 if (key === 'enter') return '↵';
+                if (key === 'space') return 'Space';
                 if (key === 'escape') return 'Esc';
                 if (key === 'left') return '←';
                 if (key === 'right') return '→';

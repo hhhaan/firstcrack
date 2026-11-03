@@ -30,6 +30,7 @@ describe('shortcutToAccelerator', () => {
         const { shortcutToAccelerator } = await load();
         expect(shortcutToAccelerator('mod+shift+d')).toBe('CommandOrControl+Shift+D');
         expect(shortcutToAccelerator('mod+enter')).toBe('CommandOrControl+Enter');
+        expect(shortcutToAccelerator('mod+space')).toBe('CommandOrControl+Space');
         expect(shortcutToAccelerator('ctrl+alt+f4')).toBe('Control+Alt+F4');
         expect(shortcutToAccelerator('mod+left')).toBe('CommandOrControl+ArrowLeft');
     });

@@ -4,7 +4,7 @@ import {
     formatShortcut,
     SHORTCUTS,
     type ShortcutId,
-    shortcutBindingError,
+    shortcutCaptureError,
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
@@ -53,7 +53,7 @@ export function KeyboardShortcutsModal() {
             const customKeys = effectiveCustomShortcuts(customEvents, otherBindings).filter((item): item is string =>
                 Boolean(item),
             );
-            const failure = shortcutBindingError(chord, customKeys);
+            const failure = shortcutCaptureError(chord, [...otherBindings, ...customKeys]);
             if (failure) {
                 setError(failure);
                 return 'reject';

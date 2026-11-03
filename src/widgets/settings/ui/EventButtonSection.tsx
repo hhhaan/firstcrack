@@ -10,7 +10,7 @@ import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
 import {
     formatShortcut,
     type ShortcutBindingResult,
-    shortcutBindingError,
+    shortcutCaptureError,
     useShortcutStore,
 } from '@shared/store/keyboard-shortcuts';
 import { Trash2 } from 'lucide-react';
@@ -89,7 +89,7 @@ export function EventButtonSection() {
                 current.custom.filter((row) => row.id !== editingId),
                 globals,
             ).filter((item): item is string => Boolean(item));
-            const failure = shortcutBindingError(chord, [...globals, ...others]);
+            const failure = shortcutCaptureError(chord, [...globals, ...others]);
             if (failure) {
                 setShortcutError(failure);
                 return 'reject';

@@ -1,15 +1,8 @@
 import { FEATURE, useFeature } from '@shared/lib/features';
-import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
-import {
-    formatShortcut,
-    SHORTCUT_HOTKEY_OPTIONS,
-    shortcutHotkeys,
-    useShortcutKeys,
-    useShortcutStore,
-} from '@shared/store/keyboard-shortcuts';
+import { useBoundShortcut } from '@shared/lib/useDoubleShortcut';
+import { formatShortcut, useShortcutKeys, useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
-import { useHotkeys } from 'react-hotkeys-hook';
 import { isMachineControlPanelShown, MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
@@ -61,21 +54,15 @@ export const MachineControlPanel = ({
 
     const hasChannel = MACHINE_CONTROL_CHANNEL_ROLES.some((role) => limits[role] != null);
     const panelVisible = isMachineControlPanelShown({ pidActive, entitled, writable, hasChannel });
-    useHotkeys(
-        shortcutHotkeys(toggleControlKeys),
+    useBoundShortcut(
+        toggleControlKeys,
         (e) => {
             e.preventDefault();
             setCollapsed((collapsed) => !collapsed);
         },
-        {
-            enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked && toggleControlKeys.length > 0,
-            ...SHORTCUT_HOTKEY_OPTIONS,
-        },
+        { enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked, preventDefault: true },
         [hotkeysEnabled, panelVisible],
     );
-    useDoubleShortcut(toggleControlKeys, () => setCollapsed((collapsed) => !collapsed), {
-        enabled: hotkeysEnabled && panelVisible && !shortcutsBlocked,
-    });
     if (!panelVisible) return null;
 
     // PID가 화력을 잡고 있는 동안 heater 슬라이더를 열어 두면, 조작해도 다음 tick(1초)에

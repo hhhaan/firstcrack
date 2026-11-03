@@ -41,8 +41,9 @@ describe('keyboard shortcuts', () => {
         expect(useShortcutStore.getState().setBinding('yellow', 'tab')).toBe('reserved');
         expect(useShortcutStore.getState().setBinding('yellow', 'mod+shift+r')).toBe('reserved');
         expect(useShortcutStore.getState().setBinding('yellow', 'mod')).toBe('invalid');
-        expect(useShortcutStore.getState().setBinding('yellow', 'space')).toBe('invalid');
+        expect(useShortcutStore.getState().setBinding('yellow', 'capslock')).toBe('invalid');
         expect(useShortcutStore.getState().setBinding('exitFullscreen', 'x')).toBe('invalid');
+        expect(useShortcutStore.getState().setBinding('yellow', 'space')).toBeUndefined();
         expect(useShortcutStore.getState().setBinding('yellow', 'mod+4')).toBeUndefined();
         expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+4']);
     });
@@ -65,7 +66,10 @@ describe('keyboard shortcuts', () => {
         expect(parseShortcutBindings({ drop: ['Shift+Enter Shift+Enter'] })).toEqual({
             drop: ['shift+enter shift+enter'],
         });
-        expect(parseShortcutBindings({ drop: ['shift+enter shift+enter'], charge: ['shift+enter'] })).toEqual({});
+        expect(parseShortcutBindings({ drop: ['shift+enter shift+enter'], charge: ['shift+enter'] })).toEqual({
+            drop: ['shift+enter shift+enter'],
+            charge: ['shift+enter'],
+        });
     });
 
     it('captures and formats canonical shortcuts', () => {
@@ -76,10 +80,26 @@ describe('keyboard shortcuts', () => {
         expect(eventToShortcut({ key: '+', shiftKey: true })).toBe('+');
         expect(eventToShortcut({ key: '+', shiftKey: true, metaKey: true }, true)).toBe('mod++');
         expect(eventToShortcut({ key: 'Shift', shiftKey: true })).toBe('');
+        expect(eventToShortcut({ key: 'Enter' })).toBe('enter');
+        expect(eventToShortcut({ key: 'Enter', shiftKey: true })).toBe('shift+enter');
+        expect(eventToShortcut({ key: 'Process', code: 'Enter' })).toBe('enter');
+        expect(eventToShortcut({ key: 'Process', code: 'Enter', shiftKey: true })).toBe('shift+enter');
+        expect(eventToShortcut({ key: 'Unidentified', code: 'NumpadEnter', shiftKey: true })).toBe('shift+enter');
+        expect(eventToShortcut({ key: '\r', shiftKey: true })).toBe('shift+enter');
+        expect(eventToShortcut({ key: ' ' })).toBe('space');
+        expect(eventToShortcut({ key: ' ', shiftKey: true })).toBe('shift+space');
+        expect(eventToShortcut({ key: 'Process', code: 'Space' })).toBe('space');
+        expect(eventToShortcut({ key: 'Process', code: 'Space', shiftKey: true })).toBe('shift+space');
         expect(formatShortcut(['mod+,', 'f'], true)).toBe('⌘, / F');
+        expect(formatShortcut('space', true)).toBe('Space');
+        expect(formatShortcut('shift+space', false)).toBe('Shift+Space');
         expect(formatShortcut('mod++', true)).toBe('⌘+');
         expect(formatShortcut('shift+enter shift+enter', true)).toBe('⇧↵ ×2');
         expect(formatShortcut('shift+enter shift+enter', false)).toBe('Shift+↵ ×2');
+        expect(shortcutHotkeys(['enter'])).toBe('enter');
+        expect(shortcutHotkeys(['shift+enter'])).toBe('shift\tenter');
+        expect(shortcutHotkeys(['space'])).toBe('space');
+        expect(shortcutHotkeys(['shift+space'])).toBe('shift\tspace');
         expect(shortcutHotkeys(['shift+enter shift+enter', 'mod+1'])).toBe('mod\t1');
         expect(shortcutHotkeys(['mod+,', '+', 'mod+shift++', '>', '|'])).toBe(
             'mod\t,\n+\nshift\t+\nmod\tshift\t+\n>\n|',
@@ -99,16 +119,17 @@ describe('keyboard shortcuts', () => {
             return null;
         };
 
-        act(() => root.render(createElement(Hotkey, { keys: ['mod+,', 'x', '+'] })));
+        act(() => root.render(createElement(Hotkey, { keys: ['mod+,', 'x', '+', 'space'] })));
         act(() => {
             document.dispatchEvent(
                 new KeyboardEvent('keydown', { key: ',', metaKey: apple, ctrlKey: !apple, bubbles: true }),
             );
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true }));
             document.dispatchEvent(new KeyboardEvent('keydown', { key: '+', shiftKey: true, bubbles: true }));
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', code: 'Space', bubbles: true }));
         });
 
-        expect(hit).toHaveBeenCalledTimes(3);
+        expect(hit).toHaveBeenCalledTimes(4);
         act(() => root.unmount());
     });
 

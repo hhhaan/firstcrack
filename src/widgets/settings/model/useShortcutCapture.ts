@@ -46,16 +46,15 @@ export function useShortcutCapture({
         const onKeyDown = (event: KeyboardEvent) => {
             event.preventDefault();
             event.stopImmediatePropagation();
-            if (event.isComposing) return;
-            if (event.key === 'Escape') {
+            if (event.repeat) return;
+            const chord = eventToShortcut(event);
+            if (chord === 'escape') {
                 clearTimer();
                 arm = null;
                 setDraft(null);
                 onCancelRef.current();
                 return;
             }
-            if (event.repeat) return;
-            const chord = eventToShortcut(event);
             if (!chord) return;
             if (onCandidateRef.current(chord) === 'reject') {
                 clearTimer();

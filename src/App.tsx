@@ -2,7 +2,7 @@ import { cn } from '@shared/lib/cn';
 import { logger } from '@shared/lib/logger';
 import { setSentryIdentity } from '@shared/lib/sentry';
 import { supabase } from '@shared/lib/supabase';
-import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
+import { useBoundShortcut } from '@shared/lib/useDoubleShortcut';
 import { useToastStore } from '@shared/store/toast';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -17,12 +17,7 @@ import { useActiveWorkspace } from './entities/organization';
 import { useSidecarDeadListener } from './features/sidecar';
 import { UpdateCheckerProvider, UpdateDownloadBar, useUpdater } from './features/updater';
 import { useAuthStore } from './shared/store/auth';
-import {
-    SHORTCUT_HOTKEY_OPTIONS,
-    shortcutHotkeys,
-    useShortcutKeys,
-    useShortcutStore,
-} from './shared/store/keyboard-shortcuts';
+import { useShortcutKeys, useShortcutStore } from './shared/store/keyboard-shortcuts';
 import { setSidebarCollapsed, useSidebarPreferences } from './shared/store/sidebar-preferences';
 import { useThemeStore } from './shared/store/theme';
 import type { View } from './shared/types/view';
@@ -188,33 +183,19 @@ const AppShell = () => {
     const appKeysEnabled = Boolean(user) && !loading && !oauthPending && !recordingShortcut;
     const settingsOnFormTags = settingsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key));
     const shortcutsOnFormTags = shortcutsKeys.every((key) => /\b(mod|ctrl|alt)\+/.test(key));
-    useHotkeys(shortcutHotkeys(settingsKeys), () => toggleSettings(), {
-        ...SHORTCUT_HOTKEY_OPTIONS,
-        enabled: appKeysEnabled && !shortcutsOpen && settingsKeys.length > 0,
-        enableOnFormTags: settingsOnFormTags,
-        preventDefault: true,
-    });
-    useDoubleShortcut(settingsKeys, () => toggleSettings(), {
+    useBoundShortcut(settingsKeys, () => toggleSettings(), {
         enabled: appKeysEnabled && !shortcutsOpen,
         enableOnFormTags: settingsOnFormTags,
-    });
-    useHotkeys(shortcutHotkeys(shortcutsKeys), () => setShortcutsOpen(true), {
-        ...SHORTCUT_HOTKEY_OPTIONS,
-        enabled: appKeysEnabled && shortcutsKeys.length > 0,
-        enableOnFormTags: shortcutsOnFormTags,
         preventDefault: true,
     });
-    useDoubleShortcut(shortcutsKeys, () => setShortcutsOpen(true), {
+    useBoundShortcut(shortcutsKeys, () => setShortcutsOpen(true), {
         enabled: appKeysEnabled,
         enableOnFormTags: shortcutsOnFormTags,
-    });
-    useHotkeys(shortcutHotkeys(sidebarKeys), () => setSidebarCollapsed((current) => !current), {
-        ...SHORTCUT_HOTKEY_OPTIONS,
-        enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings' && sidebarKeys.length > 0,
         preventDefault: true,
     });
-    useDoubleShortcut(sidebarKeys, () => setSidebarCollapsed((current) => !current), {
+    useBoundShortcut(sidebarKeys, () => setSidebarCollapsed((current) => !current), {
         enabled: appKeysEnabled && !shortcutsOpen && view !== 'settings',
+        preventDefault: true,
     });
     useHotkeys(
         'escape',

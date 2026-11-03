@@ -1,14 +1,7 @@
-import { useDoubleShortcut } from '@shared/lib/useDoubleShortcut';
-import {
-    formatShortcut,
-    SHORTCUT_HOTKEY_OPTIONS,
-    shortcutHotkeys,
-    useShortcutKeys,
-    useShortcutStore,
-} from '@shared/store/keyboard-shortcuts';
+import { useBoundShortcut } from '@shared/lib/useDoubleShortcut';
+import { formatShortcut, useShortcutKeys, useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import { Maximize2, Settings2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
 import { useActiveRoastOnboardingStore } from '../model/onboarding';
 import { SpotlightTour, type TargetRect } from './SpotlightTour';
@@ -98,18 +91,7 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
         setTarget(null);
     }, [isLast, dismissSession]);
 
-    useHotkeys(
-        shortcutHotkeys(fullscreenKeys),
-        () => {
-            if (step.id === 'fullscreen') dismissSession();
-        },
-        {
-            enabled:
-                shouldShow && !!target && step.id === 'fullscreen' && !shortcutsBlocked && fullscreenKeys.length > 0,
-            ...SHORTCUT_HOTKEY_OPTIONS,
-        },
-    );
-    useDoubleShortcut(
+    useBoundShortcut(
         fullscreenKeys,
         () => {
             if (step.id === 'fullscreen') dismissSession();

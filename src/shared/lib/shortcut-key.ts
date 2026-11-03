@@ -10,10 +10,15 @@ const KEY_ALIASES: Record<string, string> = {
     arrowdown: 'down',
     return: 'enter',
     ' ': 'space',
+    '\r': 'enter',
+    '\n': 'enter',
 };
 const MODIFIERS = ['mod', 'ctrl', 'alt', 'shift'] as const;
+const MODIFIER_EVENT_KEYS = new Set(['meta', 'control', 'alt', 'shift']);
+const UNUSABLE_EVENT_KEYS = new Set(['', 'process', 'unidentified', 'dead']);
 const NAMED_KEYS = new Set([
     'enter',
+    'space',
     'escape',
     'tab',
     'backspace',
@@ -29,6 +34,18 @@ const NAMED_KEYS = new Set([
 ]);
 
 const normalizeKey = (key: string): string => KEY_ALIASES[key.toLowerCase()] ?? key.toLowerCase();
+
+const keyFromCode = (code: string): string => normalizeKey(code.replace(/^(?:Key|Digit|Numpad)/, ''));
+
+/** `event.key`, or `event.code` when IME leaves Process / Unidentified. */
+export function resolveEventKey(event: { key: string; code?: string }): string {
+    const fromKey = normalizeKey(event.key);
+    if (fromKey && !UNUSABLE_EVENT_KEYS.has(fromKey) && !MODIFIER_EVENT_KEYS.has(fromKey)) return fromKey;
+    if (!event.code) return '';
+    const fromCode = keyFromCode(event.code);
+    if (!fromCode || UNUSABLE_EVENT_KEYS.has(fromCode) || MODIFIER_EVENT_KEYS.has(fromCode)) return '';
+    return fromCode;
+}
 
 const isPunctuationKey = (key: string): boolean => {
     const code = key.charCodeAt(0);
@@ -100,15 +117,30 @@ export function canonicalShortcut(shortcut: string): string {
 
 /**
  * `undefined` means the key can be assigned. `taken` is other actions' keys.
- * A single and a double of the same chord conflict, so a single never has to wait.
+ * A single and a double of the same chord are different bindings.
  */
 export function shortcutBindingError(shortcut: string, taken: readonly string[]): ShortcutBindingResult {
     const parsed = parseShortcutPress(shortcut);
     if (!parsed) return 'invalid';
     if (RESERVED_KEYS.has(parsed.chord)) return 'reserved';
     const comparable = conflictKey(parsed.chord);
-    if (taken.some((key) => conflictKey(shortcutChord(key)) === comparable)) return 'conflict';
+    if (
+        taken.some((key) => {
+            const other = parseShortcutPress(key);
+            return Boolean(other && other.count === parsed.count && conflictKey(other.chord) === comparable);
+        })
+    )
+        return 'conflict';
     return undefined;
+}
+
+/** First press of a capture: allow it when only the other press-count is taken. */
+export function shortcutCaptureError(chord: string, taken: readonly string[]): ShortcutBindingResult {
+    const single = shortcutBindingError(chord, taken);
+    if (single === 'invalid' || single === 'reserved') return single;
+    const doubled = doubleShortcut(chord);
+    const bothTaken = single === 'conflict' && Boolean(doubled) && shortcutBindingError(doubled, taken) === 'conflict';
+    return bothTaken ? 'conflict' : undefined;
 }
 
 export function sameShortcut(a: string, b: string): boolean {
@@ -122,5 +154,3 @@ export function isReservedShortcut(shortcut: string): boolean {
     const chord = shortcutChord(shortcut);
     return chord !== '' && RESERVED_KEYS.has(chord);
 }
-
-export { normalizeKey };
