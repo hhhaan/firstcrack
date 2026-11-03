@@ -31,7 +31,7 @@ import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useRoastMonitorBridge } from '@features/active-roast/model/useRoastMonitorBridge';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
-import { MachineActuatorDock, MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
+import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
 import { editedHeatSet } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
@@ -1059,78 +1059,71 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                 data-bbp-span={chartFrame.bbpSpan}
             >
                 <div className="flex gap-0 flex-1 min-h-0 flex-row">
-                    <div className="flex min-w-0 min-h-0 flex-1 flex-col">
-                        <RoastChartContainer
-                            bbpRange={chartFrame.bbpRange}
-                            chartAreaRef={chart.chartAreaRef}
-                            mainChartHeight={chart.mainChartHeight}
-                            effectiveZoomRange={chart.effectiveZoomRange}
-                            isChartDragging={chart.isChartDragging}
-                            handleChartPointerDown={chart.handleChartPointerDown}
-                            handleChartPointerMove={chart.handleChartPointerMove}
-                            endChartDrag={chart.endChartDrag}
-                            xs={chart.visibleXs}
-                            btActual={chart.visibleBtActual}
-                            etActual={chart.visibleEtActual}
-                            rorActual={chart.visibleRorActual}
-                            rorEtActual={chart.visibleRorEtActual}
-                            targetXs={chart.visibleTargetXs}
-                            targetBt={chart.visibleTargetBt}
-                            targetEt={chart.visibleTargetEt}
-                            targetRor={chart.visibleTargetRor}
-                            targetEtRor={chart.visibleTargetEtRor}
-                            showTargetCurve={chartFrame.showTargetCurve}
-                            showProfileBt={roastSettings.showProfileBt}
-                            showProfileEt={roastSettings.showProfileEt}
-                            showProfileRor={roastSettings.showProfileRor}
-                            showProfileEtRor={roastSettings.showProfileEtRor}
-                            showProfileDrum={roastSettings.showProfileDrum}
-                            showProfileHeat={roastSettings.showProfileHeat}
-                            showProfileFan={roastSettings.showProfileFan}
-                            showTargetDeltaLabel={chartFrame.showTargetDeltaLabel}
-                            showET={roastSettings.showET}
-                            showRoR={roastSettings.showRoRChart}
-                            showRoRET={roastSettings.showRoRET}
-                            controlData={chartFrame.controlData}
-                            showControlDrum={roastSettings.showControlDrum}
-                            showControlHeat={roastSettings.showControlHeat}
-                            showControlFan={roastSettings.showControlFan}
-                            mergeControlChart={roastSettings.mergeControlChart}
-                            controlChartHeightPct={roastSettings.controlChartHeightPct}
-                            controlYMin={roastSettings.controlYMin}
-                            controlYMax={roastSettings.controlYMax}
-                            tempMinC={bbpTempMinC}
-                            tempMaxC={bbpTempMaxC}
-                            rorYMin={roastSettings.rorYMin}
-                            rorYMax={roastSettings.rorYMax}
-                            elapsed={chartFrame.elapsed}
-                            charged={chartFrame.charged}
-                            eventMarkerStyle={roastSettings.eventMarkerStyle}
-                            eventMarkers={chartFrame.eventMarkers}
-                            turningPoints={chartFrame.turningPoints}
-                            phaseSegments={chartFrame.phaseSegments}
-                            showFcBand={chartFrame.showFcBand}
-                            unit={unit}
-                            onCursorIdx={handleChartCursorIdx}
-                            savedReview={reviewing}
-                            recordManualControls={
-                                phase === 'roasting' ||
-                                (bbpActive && registeredNoteControlIds(machineSnapshot?.machine_roaster_key).length > 0)
-                            }
-                            noteControlIds={
-                                phase === 'roasting'
-                                    ? undefined
-                                    : registeredNoteControlIds(machineSnapshot?.machine_roaster_key)
-                            }
-                            machineId={machineSnapshot?.machine_id}
-                            {...editing.chartHandlers}
-                        />
-                        <MachineActuatorDock
-                            key={`${machineControl.machine.connectionStatus?.machine_id}:${machineControl.machine.connectionStatus?.connection_epoch}`}
-                            roaster={machineControl.machine.connectionStatus?.roaster ?? null}
-                            disabled={reviewing || !machineControl.machine.writable}
-                        />
-                    </div>
+                    <RoastChartContainer
+                        bbpRange={chartFrame.bbpRange}
+                        chartAreaRef={chart.chartAreaRef}
+                        mainChartHeight={chart.mainChartHeight}
+                        effectiveZoomRange={chart.effectiveZoomRange}
+                        isChartDragging={chart.isChartDragging}
+                        handleChartPointerDown={chart.handleChartPointerDown}
+                        handleChartPointerMove={chart.handleChartPointerMove}
+                        endChartDrag={chart.endChartDrag}
+                        xs={chart.visibleXs}
+                        btActual={chart.visibleBtActual}
+                        etActual={chart.visibleEtActual}
+                        rorActual={chart.visibleRorActual}
+                        rorEtActual={chart.visibleRorEtActual}
+                        targetXs={chart.visibleTargetXs}
+                        targetBt={chart.visibleTargetBt}
+                        targetEt={chart.visibleTargetEt}
+                        targetRor={chart.visibleTargetRor}
+                        targetEtRor={chart.visibleTargetEtRor}
+                        showTargetCurve={chartFrame.showTargetCurve}
+                        showProfileBt={roastSettings.showProfileBt}
+                        showProfileEt={roastSettings.showProfileEt}
+                        showProfileRor={roastSettings.showProfileRor}
+                        showProfileEtRor={roastSettings.showProfileEtRor}
+                        showProfileDrum={roastSettings.showProfileDrum}
+                        showProfileHeat={roastSettings.showProfileHeat}
+                        showProfileFan={roastSettings.showProfileFan}
+                        showTargetDeltaLabel={chartFrame.showTargetDeltaLabel}
+                        showET={roastSettings.showET}
+                        showRoR={roastSettings.showRoRChart}
+                        showRoRET={roastSettings.showRoRET}
+                        controlData={chartFrame.controlData}
+                        showControlDrum={roastSettings.showControlDrum}
+                        showControlHeat={roastSettings.showControlHeat}
+                        showControlFan={roastSettings.showControlFan}
+                        mergeControlChart={roastSettings.mergeControlChart}
+                        controlChartHeightPct={roastSettings.controlChartHeightPct}
+                        controlYMin={roastSettings.controlYMin}
+                        controlYMax={roastSettings.controlYMax}
+                        tempMinC={bbpTempMinC}
+                        tempMaxC={bbpTempMaxC}
+                        rorYMin={roastSettings.rorYMin}
+                        rorYMax={roastSettings.rorYMax}
+                        elapsed={chartFrame.elapsed}
+                        charged={chartFrame.charged}
+                        eventMarkerStyle={roastSettings.eventMarkerStyle}
+                        eventMarkers={chartFrame.eventMarkers}
+                        turningPoints={chartFrame.turningPoints}
+                        phaseSegments={chartFrame.phaseSegments}
+                        showFcBand={chartFrame.showFcBand}
+                        unit={unit}
+                        onCursorIdx={handleChartCursorIdx}
+                        savedReview={reviewing}
+                        recordManualControls={
+                            phase === 'roasting' ||
+                            (bbpActive && registeredNoteControlIds(machineSnapshot?.machine_roaster_key).length > 0)
+                        }
+                        noteControlIds={
+                            phase === 'roasting'
+                                ? undefined
+                                : registeredNoteControlIds(machineSnapshot?.machine_roaster_key)
+                        }
+                        machineId={machineSnapshot?.machine_id}
+                        {...editing.chartHandlers}
+                    />
 
                     {/* 그래프 | Machine Control | 온도 패널 — MC는 쓰기 가능 머신에서만 렌더 */}
                     <MachineControlPanel
