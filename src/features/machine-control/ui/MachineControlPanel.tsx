@@ -99,6 +99,8 @@ export const MachineControlPanel = ({
             {/* 접혀도 트리 유지 — 표시 전환이 PID/Replay 패널을 언마운트하지 않는다 */}
             <div className={collapsed ? 'hidden' : 'flex min-h-0 flex-1 flex-col gap-3'} aria-hidden={collapsed}>
                 <DoorCommandProbe
+                    key={`${machine.connectionStatus?.roaster}:${machine.connectionStatus?.machine_id}:${machine.connectionStatus?.connection_epoch}`}
+                    hidden={collapsed}
                     roaster={machine.connectionStatus?.roaster ?? null}
                     disabled={commandsLocked || !writable}
                 />
