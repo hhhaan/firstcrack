@@ -1,3 +1,5 @@
+import { cn } from '@shared/lib/cn';
+import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 
@@ -18,22 +20,23 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
             onClose={onClose}
             labelledBy="end-roast-modal-title"
             overlayClassName="z-[10000]"
-            contentClassName={modalPanel.sm}
+            contentClassName={cn(modalPanel.sm, 'p-5')}
         >
-            <h2
-                id="end-roast-modal-title"
-                className="font-(--font-mono) text-[28px] leading-[1.05] text-primary tracking-[-0.5px] mb-2.5"
-            >
-                로스팅을 종료할까요?
-            </h2>
-            <p className="text-sm text-secondary leading-[1.6] mb-5.5">
-                타이머가 {timeStr}에서 멈추고 로스트가 종료됩니다.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
+            <ModalHeader
+                title="로스팅을 종료할까요?"
+                titleId="end-roast-modal-title"
+                onClose={onClose}
+                closeLabel="닫기"
+                className="mb-2"
+                titleClassName="m-0 text-xl font-semibold leading-7 tracking-tight text-primary"
+                closeClassName="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted transition-colors hover:bg-surface hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+            <p className="mb-4 text-sm leading-6 text-muted">타이머가 {timeStr}에서 멈추고 로스트가 종료됩니다.</p>
+            <div className="flex justify-end gap-3">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-3 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] dark:border dark:border-border"
+                    className="h-8 min-w-18 cursor-pointer rounded-lg border border-border bg-main-bg px-4 text-sm text-primary transition-colors duration-100 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                     아니오
                 </button>
@@ -41,7 +44,7 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
                     type="button"
                     data-testid="end-roast-confirm"
                     onClick={onConfirm}
-                    className="w-full py-3 rounded-lg border-none bg-action text-on-action hover:bg-action/85 active:bg-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    className="h-8 min-w-18 cursor-pointer rounded-lg border-none bg-(--color-phase-danger-bg) px-4 text-sm text-(--color-phase-danger) transition-colors duration-100 hover:bg-(--color-phase-danger)/15 active:bg-(--color-phase-danger)/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                     예
                 </button>
