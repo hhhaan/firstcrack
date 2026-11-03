@@ -390,14 +390,11 @@ export const RoastSidePanel = ({
                         disabled={endDisabled}
                         aria-label={endRoastLabel()}
                         type="button"
-                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
+                        className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                             endDisabled
                                 ? 'bg-surface dark:bg-surface-elevated text-muted cursor-default'
-                                : 'cursor-pointer'
+                                : 'bg-action text-on-action hover:bg-action/85 active:bg-secondary cursor-pointer'
                         }`}
-                        style={
-                            endDisabled ? undefined : { background: PHASE_COLORS.dangerBg, color: PHASE_COLORS.danger }
-                        }
                     >
                         <Square size={12} />
                         {endRoastLabel()}

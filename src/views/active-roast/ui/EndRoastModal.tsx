@@ -46,7 +46,7 @@ export const EndRoastModal = ({ open, timeStr, onClose, onConfirm }: EndRoastMod
                     type="button"
                     data-testid="end-roast-confirm"
                     onClick={onConfirm}
-                    className="w-full py-3 rounded-lg border-none bg-[rgba(254,226,226,0.8)] dark:bg-[rgba(220,38,38,0.15)] text-[#dc2626] dark:text-[#f87171] text-sm font-(--font-mono) cursor-pointer tracking-[0.14px]"
+                    className="w-full py-3 rounded-lg border-none bg-action text-on-action hover:bg-action/85 active:bg-secondary text-sm font-(--font-mono) cursor-pointer tracking-[0.14px] transition-colors duration-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                     예
                 </button>
