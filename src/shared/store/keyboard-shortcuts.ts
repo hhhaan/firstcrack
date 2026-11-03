@@ -10,7 +10,6 @@ import {
     resolveEventKey,
     type ShortcutBindingResult,
     shortcutBindingError,
-    shortcutCaptureError,
 } from '@shared/lib/shortcut-key';
 import { create } from 'zustand';
 
