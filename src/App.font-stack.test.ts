@@ -37,6 +37,8 @@ describe('Korean font stack (Inter + SUIT)', () => {
         expect(appCss).toMatch(/font-family:\s*"Inconsolata"/);
         expect(appCss).toMatch(/url\(["']\/fonts\/Inconsolata-Variable\.woff2["']\)/);
         expect(appCss).toMatch(/--font-inconsolata:\s*"Inconsolata",\s*monospace/);
+        expect(appCss).toMatch(/\.font-inconsolata,\s*\.font-inconsolata canvas/);
+        expect(appCss).toMatch(/"zero"\s*0/);
         expect(appCss).not.toMatch(/fonts\.googleapis\.com|Pretendard/);
     });
 
@@ -62,6 +64,7 @@ describe('Korean font stack (Inter + SUIT)', () => {
         expect(designMd).toMatch(/["']Inter["'],\s*["']SUIT["']/);
         expect(designMd).toMatch(/public\/fonts\/InterVariable\.woff2/);
         expect(designMd).toMatch(/public\/fonts\/SUIT-Variable\.woff2/);
+        expect(designMd).toMatch(/"zero" 0/);
         expect(designMd).not.toMatch(/fonts\.googleapis\.com|Pretendard/);
     });
 });

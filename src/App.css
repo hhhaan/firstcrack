@@ -27,8 +27,9 @@
     font-display: swap;
 }
 
-/* 본문 "zero" 1은 점 0이다. 로스팅 숫자 Inconsolata는 기본 사선 0을 쓴다. */
-.font-inconsolata {
+/* 본문 "zero" 1은 점 0이다. Inconsolata 숫자(우측 패널·차트 캔버스)는 점 0를 끈다. */
+.font-inconsolata,
+.font-inconsolata canvas {
     letter-spacing: -0.03em;
     font-feature-settings:
         "kern" 1,

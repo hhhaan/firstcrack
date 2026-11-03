@@ -364,7 +364,7 @@ export const buildCompareChartOption = (
         }[];
         const t = list[0]?.axisValue;
         if (t == null || !Number.isFinite(t)) return '';
-        let html = `<div style="font-weight:500;color:${colors.axisLabel};margin-bottom:8px;font-family:${NUMBER_FONT_FAMILY},monospace">${fmtSec(Number(t))}</div>`;
+        let html = `<div style="font-weight:500;color:${colors.axisLabel};margin-bottom:8px;font-family:${NUMBER_FONT_FAMILY},monospace;letter-spacing:-0.03em;font-feature-settings:'kern' 1, 'tnum' 1, 'lnum' 1, 'zero' 0">${fmtSec(Number(t))}</div>`;
         for (const p of list) {
             const item = legend.get(p.seriesName ?? '');
             const value = Array.isArray(p.value) ? p.value[1] : p.value;
@@ -386,6 +386,7 @@ export const buildCompareChartOption = (
         yAxis: plotAxes,
         tooltip: {
             trigger: 'axis',
+            className: 'font-inconsolata',
             backgroundColor: colors.tooltipBg,
             borderWidth: 1,
             borderColor: colors.tooltipBorder,

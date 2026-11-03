@@ -27,6 +27,7 @@ export const captureRoastPdfChart = async ({
     const colors = getResolvedChartColors(true);
     const curves = resolveCurveStyles(curveStyles, canvasCurveTokens(colors));
     const el = document.createElement('div');
+    el.className = 'font-inconsolata';
     el.style.cssText = `position:absolute;left:-9999px;top:0;width:${width}px;height:${height}px`;
     document.body.appendChild(el);
     try {

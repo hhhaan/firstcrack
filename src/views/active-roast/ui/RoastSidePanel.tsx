@@ -270,7 +270,7 @@ export const RoastSidePanel = ({
             <div className="flex items-center justify-between border-t border-border-subtle pt-3">
                 <span className="text-xs text-muted font-semibold uppercase">Phase</span>
                 <span
-                    className="font-mono text-base font-medium leading-tight tracking-tight"
+                    className="font-(--font-body) text-base font-medium leading-tight tracking-tight"
                     style={{ color: roastPhaseColor }}
                 >
                     {roastPhaseName}

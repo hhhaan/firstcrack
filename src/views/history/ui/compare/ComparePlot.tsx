@@ -100,5 +100,5 @@ export const ComparePlot = ({
         fingerprint,
     ]);
 
-    return <div ref={elRef} className={className} />;
+    return <div ref={elRef} className={`${className} font-inconsolata`} />;
 };

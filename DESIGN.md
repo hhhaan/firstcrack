@@ -221,7 +221,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 - **영문:** `html[lang='en']` → SUIT 제외: `"Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`
 - **`font-variant-numeric: tabular-nums lining-nums`** — `body` + 전역 `*`. **컴포넌트에서 재선언 금지.**
 - `font-kerning: normal`; `font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1, "zero" 1`
-- 로스팅 화면 숫자(축·이벤트 시각·온도·히터·로그 시간): Inconsolata, `letter-spacing: -0.03em`. Phase 이름 등 단어는 `--font-mono`.
+- 로스팅 화면 숫자(축·이벤트 시각·온도·히터·로그 시간): Inconsolata, `letter-spacing: -0.03em`, `"zero" 0` (점 0 없음, 우측 패널과 동일). Phase 이름은 `--font-body`(Inter).
 - body: `16px` / `font-weight: 450` / `line-height: 1.5` / `letter-spacing: 0.24px` / `color: var(--color-primary)` / `background: var(--color-shell-bg)`
 
 #### Type scale (구현 관례)

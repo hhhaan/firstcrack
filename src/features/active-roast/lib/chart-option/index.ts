@@ -374,6 +374,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             yAxis,
             tooltip: {
                 trigger: 'axis',
+                className: 'font-inconsolata',
                 backgroundColor: colors.tooltipBg,
                 borderWidth: 1,
                 borderColor: colors.tooltipBorder,
@@ -425,6 +426,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         grid,
         tooltip: {
             trigger: 'axis',
+            className: 'font-inconsolata',
             backgroundColor: colors.tooltipBg,
             borderWidth: 1,
             borderColor: colors.tooltipBorder,
