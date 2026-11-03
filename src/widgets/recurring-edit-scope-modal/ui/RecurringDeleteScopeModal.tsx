@@ -1,6 +1,8 @@
+import { cn } from '@shared/lib/cn';
+import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
-import { Trash2 } from 'lucide-react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { EditScope } from './RecurringEditScopeModal';
 
@@ -16,8 +18,10 @@ interface RecurringDeleteScopeModalProps {
     isFirstInstance?: boolean;
 }
 
-export const RecurringDeleteScopeModal = ({
-    open,
+export const RecurringDeleteScopeModal = (props: RecurringDeleteScopeModalProps) =>
+    props.open ? <RecurringDeleteScopeDialog {...props} /> : null;
+
+const RecurringDeleteScopeDialog = ({
     onClose,
     onConfirm,
     batchLabel,
@@ -25,7 +29,8 @@ export const RecurringDeleteScopeModal = ({
     isFirstInstance = false,
 }: RecurringDeleteScopeModalProps) => {
     const { t } = useTranslation();
-    if (!open) return null;
+    const scopeGroup = useId();
+    const [selectedScope, setSelectedScope] = useState<EditScope>(isFirstInstance ? 'from_this' : 'single');
 
     const SCOPE_OPTIONS: {
         scope: EditScope;
@@ -56,59 +61,64 @@ export const RecurringDeleteScopeModal = ({
             onClose={onClose}
             labelledBy="recurring-delete-scope-title"
             overlayClassName="z-[10000]"
-            contentClassName={modalPanel.sm}
+            contentClassName={cn(modalPanel.sm, 'max-h-[calc(100dvh-48px)] overflow-y-auto p-5')}
         >
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400 flex items-center justify-center shrink-0">
-                    <Trash2 size={18} />
-                </div>
-                <div>
-                    <h2
-                        id="recurring-delete-scope-title"
-                        className="text-[18px] font-semibold text-primary tracking-[-0.3px] leading-tight"
-                    >
-                        {t('schedule.recurringDeleteScope.title')}
-                    </h2>
-                    <p className="text-[12px] text-muted mt-0.5 leading-snug">{batchLabel}</p>
-                </div>
-            </div>
-            <p className="text-[12px] text-secondary dark:text-primary bg-surface dark:bg-surface-elevated rounded-xl px-3 py-2 mb-5">
+            <ModalHeader
+                title={t('schedule.recurringDeleteScope.title')}
+                titleId="recurring-delete-scope-title"
+                onClose={onClose}
+                closeLabel={t('common.close')}
+                className="items-start"
+                titleClassName="m-0 text-xl font-semibold leading-7 tracking-tight text-primary"
+                subtitle={<p className="mt-1 break-words text-xs leading-5 text-muted">{batchLabel}</p>}
+                closeClassName="flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted transition-colors hover:bg-surface hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            />
+            <p className="mb-4 mt-3 text-xs leading-5 text-secondary">
                 {t('schedule.recurringDeleteScope.recurringBatch', { recurrence: recurrenceLabel })}
             </p>
 
-            {/* Scope options */}
-            <div className="flex flex-col gap-2 mb-4">
-                {options.map(({ scope, title, description }) => (
-                    <div
-                        key={scope}
-                        className="flex items-start gap-3 px-3.5 py-3 rounded-xl bg-surface dark:bg-surface-elevated hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer transition-colors border border-transparent dark:border-border hover:border-red-200 dark:hover:border-red-500/30"
-                        onClick={() => onConfirm(scope)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') onConfirm(scope);
-                        }}
-                    >
-                        <div className="w-8 h-8 rounded-lg bg-main-bg dark:bg-main-bg text-red-400 flex items-center justify-center shrink-0 mt-0.5">
-                            <Trash2 size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="text-[13px] font-semibold text-primary">{title}</div>
-                            <div className="text-[11px] text-muted mt-0.5 leading-snug">{description}</div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <fieldset className="m-0 min-w-0 border-none p-0">
+                <legend className="sr-only">{t('schedule.recurringDeleteScope.title')}</legend>
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+                    {options.map(({ scope, title, description }) => (
+                        <label
+                            key={scope}
+                            className={cn(
+                                'flex cursor-pointer items-start gap-3 px-3 py-3 transition-colors hover:bg-surface-elevated',
+                                selectedScope === scope && 'bg-surface-elevated',
+                            )}
+                        >
+                            <input
+                                type="radio"
+                                name={scopeGroup}
+                                value={scope}
+                                checked={selectedScope === scope}
+                                onChange={() => setSelectedScope(scope)}
+                                className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                            />
+                            <span className="min-w-0">
+                                <span className="block text-[13px] font-medium leading-5 text-primary">{title}</span>
+                                <span className="mt-1 block text-xs leading-5 text-muted">{description}</span>
+                            </span>
+                        </label>
+                    ))}
+                </div>
+            </fieldset>
 
-            {/* Cancel */}
-            <div>
+            <div className="mt-5 flex justify-end gap-3">
                 <button
                     type="button"
                     onClick={onClose}
-                    className="w-full py-2.5 rounded-xl border border-border dark:border-border bg-surface dark:bg-surface-elevated text-secondary dark:text-primary text-[13px] font-medium cursor-pointer hover:bg-surface-raised transition-colors shadow-(--shadow-inset)"
+                    className="h-8 min-w-18 cursor-pointer rounded-lg border border-border bg-main-bg px-4 text-sm text-primary transition-colors duration-100 hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                 >
                     {t('common.cancel')}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onConfirm(selectedScope)}
+                    className="h-8 min-w-18 cursor-pointer rounded-lg border-none bg-(--color-phase-danger-bg) px-4 text-sm text-(--color-phase-danger) transition-colors duration-100 hover:bg-(--color-phase-danger)/15 active:bg-(--color-phase-danger)/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                >
+                    {t('common.delete')}
                 </button>
             </div>
         </ModalShell>
