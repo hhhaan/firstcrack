@@ -345,22 +345,22 @@ describe('RoastTempChart interactions', () => {
             );
             const scale = fontScalePct / 100;
             expect(label.style.text).toBe('Yellow|00:05|185.0°C');
-            expect(label.style.font).toBe(`600 ${10 * scale}px monospace`);
+            expect(label.style.font).toBe(`600 ${12 * scale}px Inconsolata`);
             expect(label.x).toBe(50 + 16 * scale);
             expect(reference.y).toBe(8 * scale);
             const leader = rendered.children.find((child: { type: string }) => child.type === 'line');
             expect(leader.shape).toMatchObject({ x1: 50, y1: 65 });
-            expect(label.y).toBeGreaterThanOrEqual(reference.y + 14 * scale + 2 * scale);
+            expect(label.y).toBeGreaterThanOrEqual(reference.y + 17 * scale + 2 * scale);
             expect(label.y).toBeLessThan(150);
             expect(ref.current?.hitTestMarker({ clientX: label.x + 100 * scale, clientY: reference.y + 1 })).toBe(
                 false,
             );
             const point = {
-                clientX: label.x + label.style.text.length * 6 * scale - 1,
+                clientX: label.x + label.style.text.length * 8 * scale - 1,
                 clientY: label.y - 1,
             };
             expect(ref.current?.hitTestMarker(point)).toBe(true);
-            expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 6 })).toBe(false);
+            expect(ref.current?.hitTestMarker({ ...point, clientX: point.clientX + 8 })).toBe(false);
             act(() => expect(ref.current?.openMarkerEdit(point)).toBe(true));
             expect(ref.current?.beginMarkerDrag({ ...point, button: 0, pointerId: 7 })).toBe(true);
             expect(

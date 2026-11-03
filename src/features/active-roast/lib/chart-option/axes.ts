@@ -74,7 +74,7 @@ export const buildTooltipCrossPointer = (crossLineStyle: ReturnType<typeof build
     type: 'cross' as const,
     snap: false,
     animation: false,
-    label: { show: true, formatter: formatPointerLabel },
+    label: { show: true, formatter: formatPointerLabel, fontFamily: AXIS_LABEL_FONT.fontFamily },
     lineStyle: crossLineStyle,
     crossStyle: crossLineStyle,
 });
@@ -88,6 +88,7 @@ export const buildXAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
     label: {
         show: true,
         formatter: (p: { value: unknown }) => formatPointerLabel({ ...p, axisDimension: 'x' }),
+        fontFamily: AXIS_LABEL_FONT.fontFamily,
     },
     lineStyle: crossLineStyle,
 });
@@ -99,6 +100,7 @@ export const buildYAxisPointer = (crossLineStyle: ReturnType<typeof buildCrossLi
     label: {
         show: true,
         formatter: (p: { value: unknown }) => formatPointerLabel({ ...p, axisDimension: 'y' }),
+        fontFamily: AXIS_LABEL_FONT.fontFamily,
     },
     lineStyle: crossLineStyle,
 });

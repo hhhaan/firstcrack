@@ -410,8 +410,8 @@ describe('layoutCurveLabelBoxes', () => {
                 .map((marker) => ({ ...marker, color: '', timeStr: '', temp: '' })),
         });
         const rendered = buildCurveLabelSeries(curveLabels, scale).renderItem(
-            { dataIndex: 0, coordSys: { x: 0, y: 10, width: 700, height: 300 } },
-            { coord: ([time, bt]: number[]) => [time * 50, bt], getWidth: () => 800, getHeight: () => 400 },
+            { dataIndex: 0, coordSys: { x: 0, y: 10, width: 700, height: 400 } },
+            { coord: ([time, bt]: number[]) => [time * 50, bt], getWidth: () => 800, getHeight: () => 500 },
         );
         const labels = rendered?.children
             .filter((child) => child.type === 'text' && !/^(Yellow|FC Start)/.test(child.style.text))

@@ -99,7 +99,9 @@ export const ChannelChip = ({
                     −
                 </button>
                 {unsupported ? (
-                    <span className="min-w-6 text-center font-mono text-[12px] font-semibold text-primary">—</span>
+                    <span className="min-w-6 text-center font-inconsolata text-[14px] font-semibold text-primary">
+                        —
+                    </span>
                 ) : (
                     <input
                         data-channel-input
@@ -130,7 +132,7 @@ export const ChannelChip = ({
                                 setDraft(String(Math.min(max, Math.max(min, next))));
                             }
                         }}
-                        className="w-[3ch] border-0 bg-transparent p-0 text-center font-mono text-[12px] font-semibold text-primary tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed"
+                        className="w-[3ch] border-0 bg-transparent p-0 text-center font-inconsolata text-[14px] font-semibold text-primary tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed"
                     />
                 )}
                 {!unsupported && limit.unit && <span className="text-[10px] text-muted">{limit.unit}</span>}

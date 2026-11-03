@@ -38,7 +38,7 @@ export const RoastSummaryLiveStatus = () => {
                     <span className="text-xs font-semibold uppercase text-muted">{t('activeRoast.sidebar.bbp')}</span>
                     <span className="font-inconsolata text-xl font-medium leading-tight text-primary">{elapsed}</span>
                 </span>
-                <span className="font-(--font-mono) text-[11px] tracking-[0.14px] text-muted">{temps}</span>
+                <span className="font-inconsolata text-[13px] tracking-[0.14px] text-muted">{temps}</span>
             </div>
             {!fresh && <p className="m-0 mt-1 text-[11px] text-muted">{t('activeRoast.summary.liveUnavailable')}</p>}
         </section>

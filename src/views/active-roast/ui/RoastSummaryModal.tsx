@@ -233,13 +233,13 @@ export const RoastSummaryModal = ({
                         ].map(({ label, value }) => (
                             <div key={label} className="bg-surface dark:bg-[#262B31] rounded px-2 py-2">
                                 <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
-                                <div className="font-(--font-mono) text-[13px] text-primary">{value}</div>
+                                <div className="font-inconsolata text-[15px] text-primary">{value}</div>
                             </div>
                         ))}
                     </div>
 
                     {ambientLine ? (
-                        <p className="text-[11px] text-muted font-(--font-mono) tracking-[0.14px] mb-3.5">
+                        <p className="text-[13px] text-muted font-inconsolata tracking-[0.14px] mb-3.5">
                             {ambientLine}
                         </p>
                     ) : null}
@@ -263,7 +263,7 @@ export const RoastSummaryModal = ({
                                 <span
                                     id="roast-summary-batch-numbers"
                                     data-testid="roast-summary-batch-numbers"
-                                    className="shrink-0 text-[13px] text-muted font-(--font-mono)"
+                                    className="shrink-0 text-[15px] text-muted font-inconsolata"
                                 >
                                     {batchNumbers}
                                 </span>
@@ -281,7 +281,7 @@ export const RoastSummaryModal = ({
                                         key={`${entry.time}-${entry.event}-${index}`}
                                         className="flex items-center gap-1"
                                     >
-                                        <span className="text-[11px] font-(--font-mono) text-muted">{entry.time}</span>
+                                        <span className="text-[13px] font-inconsolata text-muted">{entry.time}</span>
                                         <span
                                             className="text-[11px] font-medium"
                                             style={{
@@ -489,7 +489,7 @@ export const RoastSummaryModal = ({
                                 data-testid="roast-summary-weight"
                                 {...register('weightGrams', { valueAsNumber: true })}
                                 placeholder="0.0"
-                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
                             />
                             <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
                         </div>
@@ -506,7 +506,7 @@ export const RoastSummaryModal = ({
                                 step={0.01}
                                 {...register('outputWeightKg', { valueAsNumber: true })}
                                 placeholder={t('activeRoast.summary.outputWeightPlaceholder')}
-                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-mono) outline-none box-border"
+                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
                             />
                             <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
                         </div>

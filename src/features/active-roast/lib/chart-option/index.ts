@@ -1,4 +1,9 @@
-import { chartFontScale, scaleChartPx, TEMP_Y_INTERVAL } from '@features/active-roast/lib/chart-config';
+import {
+    AXIS_LABEL_FONT,
+    chartFontScale,
+    scaleChartPx,
+    TEMP_Y_INTERVAL,
+} from '@features/active-roast/lib/chart-config';
 import { canvasCurveTokens, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '@features/active-roast/lib/curve-style';
 import { rorUnitLabel, tempUnitLabel, toDisplayRoR } from '@features/active-roast/lib/temperature';
 import type { EChartsOption } from 'echarts';
@@ -176,7 +181,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 show: !control,
                 position: 'insideTopLeft' as const,
                 color: colors.axisLabel,
-                fontSize: scaleChartPx(12, fontScale),
+                fontSize: scaleChartPx(AXIS_LABEL_FONT.fontSize, fontScale),
             },
             data: showBbp
                 ? [

@@ -60,12 +60,12 @@ export const SetpointControl = ({
     return (
         <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
             <div className="flex h-7 flex-col items-center justify-end">
-                <span className="font-mono text-[13px] font-semibold text-primary">
+                <span className="font-inconsolata text-[15px] font-semibold text-primary">
                     {unsupported ? '—' : `${Math.round(current)}${unit}`}
                 </span>
                 {/* 지시 중에는 머신 실측을 함께 보여준다 — 따라오고 있는지 눈으로 확인 */}
                 {pending && feedback != null && (
-                    <span className="font-mono text-[10px] text-muted">기기 {Math.round(feedback)}</span>
+                    <span className="font-inconsolata text-[12px] text-muted">기기 {Math.round(feedback)}</span>
                 )}
             </div>
             <div className="relative flex min-h-0 w-full flex-1 justify-center">

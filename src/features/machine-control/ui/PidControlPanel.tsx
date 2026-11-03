@@ -58,7 +58,7 @@ export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
             <div className="flex flex-col gap-1">
                 <div className="flex items-baseline justify-between">
                     <span className="text-[12px] font-medium text-secondary">Target</span>
-                    <span className="font-mono text-[12px] text-primary">{Math.round(pid.sv)}°C</span>
+                    <span className="font-inconsolata text-[14px] text-primary">{Math.round(pid.sv)}°C</span>
                 </div>
                 <input
                     type="range"
@@ -80,7 +80,7 @@ export const PidControlPanel = ({ pid, dropBehavior, replayActive }: Props) => {
             </div>
 
             {pid.engaged && (
-                <div className="flex justify-between font-mono text-[11px] text-muted">
+                <div className="flex justify-between font-inconsolata text-[13px] text-muted">
                     <span>duty {pid.duty != null ? `${Math.round(pid.duty)}%` : '—'}</span>
                     <span>BT {pid.pv != null ? `${pid.pv.toFixed(1)}°C` : '—'}</span>
                 </div>

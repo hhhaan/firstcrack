@@ -171,12 +171,12 @@ export const RoastLog = ({
                                 >
                                     {compactTitle}
                                 </span>
-                                <span className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted">
+                                <span className="shrink-0 whitespace-nowrap font-inconsolata text-[13px] text-muted">
                                     {entry.time}
                                 </span>
                                 {entry.temp ? (
                                     <span className="@container flex min-w-0 flex-1 items-center">
-                                        <span className="hidden whitespace-nowrap font-mono text-[11px] text-muted @[2.75rem]:inline">
+                                        <span className="hidden whitespace-nowrap font-inconsolata text-[13px] text-muted @[2.75rem]:inline">
                                             <span aria-hidden="true"> · </span>
                                             {entry.temp}
                                         </span>

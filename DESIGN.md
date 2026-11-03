@@ -187,7 +187,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 - 참조 곡선(BT·ET·RoR·Drum·Heater·Fan)은 라이브와 같은 채널 색의 `*-target` 토큰이다. 라이브보다 뒤에 그린다. 프로파일에 없는 채널과 저장되지 않은 ET RoR는 만들지 않는다. 결측 샘플은 null이며 0으로 채우거나 끊긴 구간을 잇지 않는다.
 - Heat target(프로파일 화력 지시)과 Heat set(라이브 지시)은 참조 Heater와 다른 시리즈다. 지시값을 참조 곡선으로 복제하지 않는다. 순서: 참조 제어 → Heat target → Heat set → 실측 Heat.
 - 주요 로스팅 이벤트(Charge·Yellow·FC·Drop·End·TP 및 사용자 정의 이벤트)는 BT 지점 근처에 짧은 연결선과 `이름|mm:ss|온도` 라벨로 표시한다. 라벨의 기본 위치는 지점 오른쪽 `16px`, 위 `22px`이며 TP·Drop·End는 아래에 배치한다. 오른쪽 공간이 부족하면 라벨을 지점 왼쪽으로 옮긴다. 인접 라벨은 시간순으로 겹침을 피하고 온도 plot 안으로 제한한다. 연결선은 이동하지 않는 곡선 지점과 최종 라벨 박스 가장자리를 잇는다. 라이브 Charge 라벨 숨김 규칙은 유지한다.
-- 메모·히터·배기·드럼 라벨은 차트 상단 `8px` 아래부터 시간순으로 위에서 아래로 쌓고, 같은 시각은 소스 순서를 유지한다. 각 이벤트의 시간축 위치 오른쪽 `4px`에서 왼쪽 정렬하며, 이벤트 점은 원래 위치에 유지한다. 복합 메모의 내부 줄바꿈은 유지한다. 모든 이벤트 라벨은 `600 10px monospace`이며 글자 크기 설정에 따라 연결선 여백·배치·클릭 영역을 함께 확대한다. 축 눈금·페이즈 바 글씨는 이 크기를 따르지 않는다.
+- 메모·히터·배기·드럼 라벨은 차트 상단 `8px` 아래부터 시간순으로 위에서 아래로 쌓고, 같은 시각은 소스 순서를 유지한다. 각 이벤트의 시간축 위치 오른쪽 `4px`에서 왼쪽 정렬하며, 이벤트 점은 원래 위치에 유지한다. 복합 메모의 내부 줄바꿈은 유지한다. 모든 이벤트 라벨은 `600 12px Inconsolata`이며 글자 크기 설정에 따라 연결선 여백·배치·클릭 영역을 함께 확대한다. 축 눈금·페이즈 바 글씨는 이 크기를 따르지 않는다.
 - 참조 이벤트는 원본 이벤트의 실선·색상·라벨을 유지하고, 선·라벨·점의 불투명도를 `0.3`으로 낮춘다.
 - `eventMarkerStyle`: `point`(곡선 위 점+상단 라벨), `callout`(BT 지점의 짧은 연결선과 이름·시간·온도), `tempLine`(온도 차트 세로선), `line`(온도·컨트롤 차트 세로선). 기본은 `line`. `callout`을 고르기 전에는 연결선을 그리지 않는다.
 
@@ -221,7 +221,7 @@ Light: 다중 레이어 저불투명도. Dark: 대비를 위해 opacity 0.2–0.
 - **영문:** `html[lang='en']` → SUIT 제외: `"Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif`
 - **`font-variant-numeric: tabular-nums lining-nums`** — `body` + 전역 `*`. **컴포넌트에서 재선언 금지.**
 - `font-kerning: normal`; `font-feature-settings: "kern" 1, "tnum" 1, "lnum" 1, "zero" 1`
-- 로스팅 우측 패널 숫자: Inconsolata, `letter-spacing: -0.03em`.
+- 로스팅 화면 숫자(축·이벤트 시각·온도·히터·로그 시간): Inconsolata, `letter-spacing: -0.03em`. Phase 이름 등 단어는 `--font-mono`.
 - body: `16px` / `font-weight: 450` / `line-height: 1.5` / `letter-spacing: 0.24px` / `color: var(--color-primary)` / `background: var(--color-shell-bg)`
 
 #### Type scale (구현 관례)
@@ -393,7 +393,7 @@ Settings content is centered at a maximum of 680px, or 760px for roasting contro
 |---|---|
 | Inter (Latin primary) | `public/fonts/InterVariable.woff2` |
 | SUIT (한글 폴백) | `public/fonts/SUIT-Variable.woff2` |
-| Inconsolata (로스팅 우측 패널 숫자) | `public/fonts/Inconsolata-Variable.woff2` |
+| Inconsolata (로스팅 숫자) | `public/fonts/Inconsolata-Variable.woff2` |
 | Icons | `lucide-react` |
 
 ---

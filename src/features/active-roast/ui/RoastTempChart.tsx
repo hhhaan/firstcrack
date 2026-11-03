@@ -1064,7 +1064,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 >
                     <div className="flex items-center justify-between px-1 text-[11px] text-(--color-text-primary)">
                         <span className="font-medium">{t('activeRoast.noteEntry.title')}</span>
-                        <span className="font-mono text-muted">{formatElapsed(noteForm.timeSec)}</span>
+                        <span className="font-inconsolata text-muted">{formatElapsed(noteForm.timeSec)}</span>
                     </div>
                     {onAddEvent && (
                         <div
@@ -1208,7 +1208,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 const next = clampMarkerTime(editForm.event, current + delta, currentTimeSec, axisMax);
                                 setEditForm({ ...editForm, time: formatElapsed(next) });
                             }}
-                            className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                            className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-inconsolata text-[14px] text-(--color-text-primary) outline-none"
                         />
                     </label>
                     {editForm.heat != null && (
@@ -1235,10 +1235,10 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                     }
                                     setEditForm({ ...editForm, heat: next });
                                 }}
-                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-mono text-xs text-(--color-text-primary) outline-none"
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-inconsolata text-[14px] text-(--color-text-primary) outline-none"
                             />
                             {editForm.heatSuffix && (
-                                <span className="font-mono text-xs text-(--color-text-primary)">
+                                <span className="font-inconsolata text-[14px] text-(--color-text-primary)">
                                     {editForm.heatSuffix}
                                 </span>
                             )}

@@ -18,7 +18,7 @@ interface Props {
 }
 
 const stepBtnCls =
-    'flex h-8 flex-1 items-center justify-center rounded-md border border-border bg-transparent font-mono text-xs text-secondary hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed';
+    'flex h-8 flex-1 items-center justify-center rounded-md border border-border bg-transparent font-inconsolata text-[14px] text-secondary hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed';
 
 /**
  * 숫자 버튼·±5는 5% 즉시 전송. 키보드는 1단위, 큰 숫자 입력은 Enter로 확정할 때 전송.
@@ -132,7 +132,7 @@ export const HeaterScale = ({
                 <div className="flex flex-col items-end">
                     <div className="flex items-baseline">
                         {unsupported ? (
-                            <span className="text-[28px] font-semibold leading-tight tracking-[-1px] text-primary">
+                            <span className="font-inconsolata text-[34px] font-semibold leading-tight tracking-[-1px] text-primary">
                                 —
                             </span>
                         ) : (
@@ -166,13 +166,13 @@ export const HeaterScale = ({
                                         setDraft(String(Math.min(max, Math.max(min, next))));
                                     }
                                 }}
-                                className="w-[3.5ch] border-0 bg-transparent p-0 text-right text-[28px] font-semibold leading-tight tracking-[-1px] text-primary tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed"
+                                className="w-[3.5ch] border-0 bg-transparent p-0 text-right font-inconsolata text-[34px] font-semibold leading-tight tracking-[-1px] text-primary tabular-nums outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed"
                             />
                         )}
                         {!unsupported && <span className="ml-0.5 text-sm tracking-normal text-muted">{unit}</span>}
                     </div>
                     {live && feedback != null && (
-                        <span className="font-mono text-[10px] text-muted">기기 {Math.round(feedback)}</span>
+                        <span className="font-inconsolata text-[12px] text-muted">기기 {Math.round(feedback)}</span>
                     )}
                 </div>
             </div>
@@ -223,7 +223,7 @@ export const HeaterScale = ({
                                 aria-pressed={tick === selected}
                                 onClick={() => commit(tick)}
                                 className={cn(
-                                    'pointer-events-auto absolute h-7 w-11 cursor-pointer rounded-md border font-mono text-[11px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed',
+                                    'pointer-events-auto absolute h-7 w-11 cursor-pointer rounded-md border font-inconsolata text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed',
                                     isTen ? 'left-0' : 'right-0',
                                     tick === selected
                                         ? 'border-(--color-control-heat) bg-(--color-control-heat-area) font-semibold text-primary'

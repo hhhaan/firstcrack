@@ -24,7 +24,7 @@ export function ReadFeedback() {
                                     `settings.firescope.feedback.${role === 'fan' && units.fan === 'Pa' ? 'airPressure' : role}`,
                                 )}
                             </dt>
-                            <dd className="m-0 font-mono text-primary">
+                            <dd className="m-0 font-inconsolata text-[14px] text-primary">
                                 {value == null ? '—' : formatFeedback(value, role, units)}
                             </dd>
                         </div>
@@ -35,7 +35,7 @@ export function ReadFeedback() {
                         <dt className="text-muted">
                             {reading.id === 'auto_status' ? t('machines.loringAuto.label') : reading.label}
                         </dt>
-                        <dd className="m-0 font-mono text-primary">
+                        <dd className="m-0 font-inconsolata text-[14px] text-primary">
                             {reading.id === 'auto_status'
                                 ? live.stale || reading.value == null
                                     ? '—'

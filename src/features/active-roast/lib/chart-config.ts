@@ -22,17 +22,19 @@ export const EVENT_MARK_LINE_WIDTH = 1;
 export const REFERENCE_CURVE_OPACITY = 0.2;
 /** Reference event guides, labels, and dots. Curves use {@link REFERENCE_CURVE_OPACITY}. */
 export const REFERENCE_EVENT_OPACITY = 0.3;
-export const PHASE_BAR_FONT_FAMILY = 'monospace';
+/** Bundled number face. Axis ticks, times, temps, and control values. Not phase names in the DOM. */
+export const NUMBER_FONT_FAMILY = 'Inconsolata';
+export const PHASE_BAR_FONT_FAMILY = NUMBER_FONT_FAMILY;
 export const PHASE_BAR_FONT_WEIGHT = 600;
 
 // ── Axis label typography ────────────────────────────────────────────────────
-export const AXIS_LABEL_FONT = { fontSize: 12, fontWeight: 500, fontFamily: 'monospace' as const } as const;
-export const AXIS_LABEL_FONT_SM = { fontSize: 10, fontFamily: 'monospace' as const } as const;
+export const AXIS_LABEL_FONT = { fontSize: 14, fontWeight: 500, fontFamily: NUMBER_FONT_FAMILY } as const;
+export const AXIS_LABEL_FONT_SM = { fontSize: 12, fontFamily: NUMBER_FONT_FAMILY } as const;
 
 // ── Event annotations follow BT; notes and control labels stack from the plot top.
-export const MARKER_LABEL_FONT_SIZE = 10;
+export const MARKER_LABEL_FONT_SIZE = 12;
 export const MARKER_LABEL_FONT_WEIGHT = 600;
-export const MARKER_LABEL_FONT_FAMILY = 'monospace';
+export const MARKER_LABEL_FONT_FAMILY = NUMBER_FONT_FAMILY;
 export const MARKER_LABEL_FONT =
     `${MARKER_LABEL_FONT_WEIGHT} ${MARKER_LABEL_FONT_SIZE}px ${MARKER_LABEL_FONT_FAMILY}` as const;
 
@@ -48,9 +50,9 @@ export const markerLabelFont = (scale: number) =>
         ? MARKER_LABEL_FONT
         : `${MARKER_LABEL_FONT_WEIGHT} ${scaleChartPx(MARKER_LABEL_FONT_SIZE, scale)}px ${MARKER_LABEL_FONT_FAMILY}`;
 /** Collision box height. The packer steps by this plus MARKER_LABEL_GAP_PX. */
-export const MARKER_LABEL_STACK_PX = 14;
+export const MARKER_LABEL_STACK_PX = 17;
 /** ASCII advance at MARKER_LABEL_FONT_SIZE. Hangul and other non-ASCII use the full em. */
-export const MARKER_LABEL_CHAR_WIDTH_PX = 6;
+export const MARKER_LABEL_CHAR_WIDTH_PX = 8;
 export const MARKER_LABEL_MIN_WIDTH_PX = 8;
 export const MARKER_LABEL_MAX_WIDTH_PX = 240;
 export const MARKER_LABEL_GAP_PX = 2;
@@ -219,7 +221,7 @@ export const DRUM_GRID_LEFT = 36;
 export const DRUM_GRID_RIGHT = 12;
 export const DRUM_GRID_TOP = 20;
 export const DRUM_GRID_BOTTOM = 40;
-export const DRUM_AXIS_LABEL_FONT_SIZE = 10;
+export const DRUM_AXIS_LABEL_FONT_SIZE = 12;
 export const DRUM_X_FALLBACK_MIN = 0;
 export const DRUM_X_FALLBACK_MAX = 1200;
 export const DRUM_Y_MIN = 0;

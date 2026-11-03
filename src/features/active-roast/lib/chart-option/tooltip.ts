@@ -1,11 +1,11 @@
-import { CHART_COLORS } from '@features/active-roast/lib/chart-config';
+import { CHART_COLORS, NUMBER_FONT_FAMILY } from '@features/active-roast/lib/chart-config';
 import { type CurveLineStyle, curveSwatchCss, type ResolvedCurveStyles } from '@features/active-roast/lib/curve-style';
 import { type FeedbackRole, feedbackLabel, formatFeedback } from '@shared/lib/feedback';
 import { fmtSec } from './axes';
 import type { ControlData } from './types';
 
 const tooltipRow = (style: CurveLineStyle, label: string, value: string) =>
-    `<div style="display:flex;gap:6px;align-items:center"><span style="${curveSwatchCss(style)}"></span>${label}: <span>${value}</span></div>`;
+    `<div style="display:flex;gap:6px;align-items:center;font-family:${NUMBER_FONT_FAMILY},monospace"><span style="${curveSwatchCss(style)}"></span>${label}: <span>${value}</span></div>`;
 
 const DRAWN_TOOLTIP_SERIES = new Set(['BT Actual', 'ET Actual', 'RoR', 'ET RoR', 'Drum', 'Heat', 'Heat set', 'Fan']);
 
@@ -100,7 +100,7 @@ export const createAxisTooltipFormatter = (opts: TooltipFormatterParams) => {
         );
         if (!hasDrawn) return '';
 
-        let html = `<div style="font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
+        let html = `<div style="font-family:${NUMBER_FONT_FAMILY},monospace;font-weight:500;color:${CHART_COLORS.tooltipTimeColor};margin-bottom:6px">${fmtSec(timeSec)}</div>`;
 
         const target = showControlHeat ? controlData?.heatTarget : undefined;
         if (target && timeSec <= target.xs[target.xs.length - 1]) {

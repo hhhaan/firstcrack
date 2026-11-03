@@ -1,6 +1,8 @@
 import {
+    AXIS_LABEL_FONT,
     CHART_GRID_LEFT,
     getResolvedChartColors,
+    NUMBER_FONT_FAMILY,
     ROR_Y_MAX,
     ROR_Y_MIN,
     TEMP_Y_INTERVAL,
@@ -213,7 +215,7 @@ export const buildCompareChartOption = (
                       name: singleAxisChannel.unit,
                       nameLocation: 'end' as const,
                       nameGap: 14,
-                      nameTextStyle: { ...axisNameStyle, fontSize: 12 },
+                      nameTextStyle: { ...axisNameStyle, fontSize: AXIS_LABEL_FONT.fontSize },
                   }),
             scale: controlTicks == null,
             axisLabel: {
@@ -242,7 +244,7 @@ export const buildCompareChartOption = (
     }
     for (const axis of Array.isArray(xAxis) ? xAxis : []) {
         axis.minorSplitLine = { show: false };
-        axis.axisLabel = { ...axis.axisLabel, fontSize: 12, hideOverlap: true };
+        axis.axisLabel = { ...axis.axisLabel, fontSize: AXIS_LABEL_FONT.fontSize, hideOverlap: true };
     }
     if (controlOnly) {
         plotAxes.splice(0, plotAxes.length);
@@ -257,7 +259,7 @@ export const buildCompareChartOption = (
                           name: unit,
                           nameLocation: 'end' as const,
                           nameGap: 14,
-                          nameTextStyle: { ...axisNameStyle, fontSize: 12 },
+                          nameTextStyle: { ...axisNameStyle, fontSize: AXIS_LABEL_FONT.fontSize },
                       }),
                 min: unit === '%' ? 0 : undefined,
                 max: unit === '%' ? 100 : undefined,
@@ -286,7 +288,7 @@ export const buildCompareChartOption = (
         });
     }
     for (const axis of plotAxes) {
-        axis.axisLabel = { ...axis.axisLabel, fontSize: 12 };
+        axis.axisLabel = { ...axis.axisLabel, fontSize: AXIS_LABEL_FONT.fontSize };
     }
     if (!hideAxisName && channels.some((channel) => channel.kind === 'temperature')) {
         const tempAxis = plotAxes.find((axis) => axis.position !== 'right');
@@ -296,7 +298,12 @@ export const buildCompareChartOption = (
             tempAxis.interval = TEMP_Y_INTERVAL;
             tempAxis.scale = false;
             tempAxis.splitLine = { show: true, lineStyle: { color: colors.gridLine } };
-            tempAxis.axisLabel = { ...axisLabelStyle, fontSize: 12, formatter: formatTempYLabel, hideOverlap: true };
+            tempAxis.axisLabel = {
+                ...axisLabelStyle,
+                fontSize: AXIS_LABEL_FONT.fontSize,
+                formatter: formatTempYLabel,
+                hideOverlap: true,
+            };
         }
     }
     const series: object[] = [];
@@ -340,8 +347,8 @@ export const buildCompareChartOption = (
                         showEndLabels && (channel.source === 'bt' || (controlOnly && channels[0]?.key === channel.key)),
                     formatter: s.batchLabel ?? String(s.batchIndex + 1).padStart(2, '0'),
                     color,
-                    fontSize: 12,
-                    fontFamily: 'monospace',
+                    fontSize: AXIS_LABEL_FONT.fontSize,
+                    fontFamily: NUMBER_FONT_FAMILY,
                     opacity: dimmed ? 0.15 : 1,
                 },
                 labelLayout: { moveOverlap: 'shiftY' },
@@ -357,7 +364,7 @@ export const buildCompareChartOption = (
         }[];
         const t = list[0]?.axisValue;
         if (t == null || !Number.isFinite(t)) return '';
-        let html = `<div style="font-weight:500;color:${colors.axisLabel};margin-bottom:8px;font-family:monospace">${fmtSec(Number(t))}</div>`;
+        let html = `<div style="font-weight:500;color:${colors.axisLabel};margin-bottom:8px;font-family:${NUMBER_FONT_FAMILY},monospace">${fmtSec(Number(t))}</div>`;
         for (const p of list) {
             const item = legend.get(p.seriesName ?? '');
             const value = Array.isArray(p.value) ? p.value[1] : p.value;

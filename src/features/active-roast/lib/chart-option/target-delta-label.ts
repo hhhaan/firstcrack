@@ -1,4 +1,4 @@
-import { scaleChartPx } from '@features/active-roast/lib/chart-config';
+import { NUMBER_FONT_FAMILY, scaleChartPx } from '@features/active-roast/lib/chart-config';
 import { interpolateProfileBT } from '@shared/data/roast-profiles';
 import type { TemperatureUnit } from '../../model/settings';
 
@@ -112,9 +112,9 @@ export const buildTargetDeltaMarkPoint = (params: BuildTargetDeltaMarkPointParam
             position: 'right' as const,
             distance: 6,
             formatter: formatTargetDeltaLabel(deltaDisplay),
-            fontSize: scaleChartPx(11, fontScale),
+            fontSize: scaleChartPx(13, fontScale),
             fontWeight: 700 as const,
-            fontFamily: 'monospace',
+            fontFamily: NUMBER_FONT_FAMILY,
             color: colors[status],
             backgroundColor: 'transparent',
             borderWidth: 0,

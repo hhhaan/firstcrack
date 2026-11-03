@@ -176,7 +176,7 @@ const ReplayPanelMessages = ({
             {chrome === 'running' &&
                 !observationHold &&
                 (replay.nextEvent && replay.nextEventTrigger ? (
-                    <p className="font-mono text-[11px] text-muted">
+                    <p className="font-inconsolata text-[13px] text-muted">
                         {t('activeRoast.replay.next', {
                             condition: formatReplayCondition(replay.nextEvent, replay.nextEventTrigger, unit),
                             heater: formatReplayHeater(replay.nextEvent.heater, heaterUnit),

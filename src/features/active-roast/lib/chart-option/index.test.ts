@@ -1,5 +1,6 @@
 import {
     CHART_GRID_LEFT,
+    CHART_GRID_RIGHT_WITH_ROR,
     CONTROL_CURVE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
@@ -344,11 +345,13 @@ describe('buildRoastChartOption font scale', () => {
                 bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
             });
             const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
-            expect(yAxis[0]?.axisLabel?.fontSize).toBe(12);
-            expect(option.grid).toMatchObject([{ left: CHART_GRID_LEFT, right: 32, bottom: 65 }]);
+            expect(yAxis[0]?.axisLabel?.fontSize).toBe(14);
+            expect(option.grid).toMatchObject([
+                { left: CHART_GRID_LEFT, right: CHART_GRID_RIGHT_WITH_ROR, bottom: 65 },
+            ]);
             const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
-            expect(bbp?.markArea?.label?.fontSize).toBe(12 * fontScale);
-            expect(markerLabelFont(fontScale)).toBe(`600 ${10 * fontScale}px monospace`);
+            expect(bbp?.markArea?.label?.fontSize).toBe(14 * fontScale);
+            expect(markerLabelFont(fontScale)).toBe(`600 ${12 * fontScale}px Inconsolata`);
         },
     );
 });
@@ -606,7 +609,7 @@ describe('buildRoastChartOption', () => {
             ).toEqual([]);
             expect(tall.labels.has('19')).toBe(true);
             expect(tall.labels.has('18')).toBe(true);
-            const mid = collect(520);
+            const mid = collect(640);
             try {
                 expect(mid.labels.has('19')).toBe(true);
                 expect(mid.labels.has('18')).toBe(true);
@@ -1642,7 +1645,7 @@ describe('buildRoastChartOption', () => {
         ]);
         expect(marks('Fan').map((mark) => mark.label.formatter)).toEqual(['1.2', '70']);
         expect(marks('Drum').map((mark) => mark.label.formatter)).toEqual(['55', '43']);
-        expect(marks('Heat')[0].label.fontSize).toBe(15);
+        expect(marks('Heat')[0].label.fontSize).toBe(18);
         for (const name of ['Drum Target', 'Heater Target', 'Fan Target']) expect(marks(name)).toEqual([]);
         expect(byName['Heat set']).not.toHaveProperty('markPoint');
     });

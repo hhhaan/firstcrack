@@ -28,7 +28,7 @@ export const lineSeriesBase = {
 const hasNumericSample = (values: readonly (number | null)[] | undefined): boolean =>
     values?.some((value) => value != null) ?? false;
 
-const CONTROL_CHANGE_FONT_SIZE = 10;
+const CONTROL_CHANGE_FONT_SIZE = 12;
 const CONTROL_CHANGE_DOT_PX = 4;
 /** Change stamp appears once the live tail is this far past the write. */
 const CONTROL_CHANGE_LABEL_DELAY_SEC = 5;
@@ -462,7 +462,7 @@ export interface PhaseSeriesParams {
     fontScale?: number;
 }
 
-const PHASE_BAR_LABEL_SIZE = 10;
+const PHASE_BAR_LABEL_SIZE = 12;
 
 const phaseBarFill = (name: string, colors: ResolvedChartColors) => {
     if (name === 'Maillard') return colors.phaseBarMaillard;

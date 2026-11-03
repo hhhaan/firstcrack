@@ -114,7 +114,7 @@ export const RoastNoteFields = ({
                             />
                             {ranged && (
                                 <span
-                                    className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center gap-1 font-mono text-[10px] tabular-nums text-muted"
+                                    className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center gap-1 font-inconsolata text-[12px] tabular-nums text-muted"
                                     title={unit ? `${unit} ${bounds}` : bounds}
                                 >
                                     {unit ? <span>{unit}</span> : null}
