@@ -61,7 +61,7 @@ vi.mock('./features/active-roast', () => ({
         selector: (state: { phase: string; startBatch: () => void; completeBatch: () => void }) => unknown,
     ) => selector({ phase: hooks.phase, startBatch: () => undefined, completeBatch: () => undefined }),
 }));
-vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined }));
+vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined, useProfileSync: () => undefined }));
 vi.mock('./features/sidecar', () => ({ useSidecarDeadListener: () => ({ isDead: false }) }));
 vi.mock('./features/updater', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./features/updater')>();

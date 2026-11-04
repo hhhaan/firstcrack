@@ -7,7 +7,7 @@ import { useToastStore } from '@shared/store/toast';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
-import { useOAuthDeepLink } from './features/auth';
+import { useOAuthDeepLink, useProfileSync } from './features/auth';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
@@ -69,6 +69,7 @@ const AppShell = () => {
     useEffect(() => init(), [init]);
     useEffect(() => initTheme(), [initTheme]);
     useOAuthDeepLink();
+    useProfileSync();
 
     // 이슈를 사용자/워크스페이스 단위로 좁힌다 (id만 — 이메일·이름은 보내지 않는다).
     // 로그아웃/워크스페이스 미확정 시 초기화되어 다음 사용자에게 새지 않는다.

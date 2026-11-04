@@ -120,6 +120,12 @@ QueryClientProvider
 
 Override per query only when server drift is user-visible before the next mutation (e.g. weather, coffee futures). Prefer documented TTLs next to the query.
 
+Account billing is an external-write exception: `useProfileSync` is mounted once in
+the app shell. It invalidates the signed-in account's profile on browser/native
+window focus and checks every 30 seconds while active, including delayed Polar
+webhooks. It shares `profileKeys` with plan gates and settings, pauses during
+profile edits, and leaves inventory/roast query defaults unchanged.
+
 ---
 
 ## Agent invariants
