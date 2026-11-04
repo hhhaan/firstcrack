@@ -21,7 +21,7 @@ Multi-seat teams share the **owner account's data**. There is no `org_id` column
 | Resolve owner id | `resolveWorkspaceOwnerId` in workspace store; **`useActiveWorkspace`** in `src/entities/organization/model.ts` |
 | Memberships API/queries | `src/entities/organization/api.ts`, `queries.ts`, `types.ts` |
 | Team invite | `src/features/team-invite/` |
-| Login / OAuth | `src/features/auth/`, `src/views/login/Login.tsx` |
+| Login / OAuth / email signup | `src/features/auth/`, `src/views/login/Login.tsx` |
 | DB | migrations `*workspaces*`, `workspace_security`, org role/directory |
 
 ---
@@ -75,6 +75,7 @@ Owner: one org per owner (`organizations.owner_id` unique). Plan SSoT remains `p
 - No secrets in `VITE_*` (bundled).
 - Supabase anon key is public by design; service role never in client.
 - OAuth deep link: `src/features/auth/` — keep redirect handling platform-safe.
+- Email signup lives in the desktop login screen (`signUpWithEmail`). Confirmation `emailRedirectTo` is `https://firstcrackiscoming.com/auth/callback?next=/`. After signup the app shows check-inbox, then sign-in.
 
 ---
 

@@ -13,6 +13,22 @@ export const mapAuthError = (error: unknown): AuthErrorCode => {
     const lower = errorMessage(error).toLowerCase();
 
     if (
+        code === 'user_already_registered' ||
+        code === 'user_already_exists' ||
+        /already registered|already exists|already been registered/i.test(lower)
+    ) {
+        return 'user_already_registered';
+    }
+
+    if (code === 'weak_password' || /password should be|password.*too weak|at least 8 character/i.test(lower)) {
+        return 'weak_password';
+    }
+
+    if (code === 'email_not_confirmed' || /email not confirmed|confirm your email/i.test(lower)) {
+        return 'email_not_confirmed';
+    }
+
+    if (
         code === 'invalid_credentials' ||
         code === 'invalid_grant' ||
         /invalid login|invalid credentials|invalid email or password|wrong password|user not found/i.test(lower)

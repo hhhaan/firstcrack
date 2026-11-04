@@ -19,7 +19,19 @@ function dropProfilePlanCache(userId: string | undefined): void {
 }
 
 /** Stable auth UI error codes — no raw Supabase strings in UI. */
-export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'session_replaced' | 'generic';
+export type AuthErrorCode =
+    | 'invalid_credentials'
+    | 'network'
+    | 'oauth_failed'
+    | 'session_replaced'
+    | 'user_already_registered'
+    | 'weak_password'
+    | 'email_not_confirmed'
+    | 'generic';
+
+export type SignUpResult = 'session' | 'confirm_email';
+
+const SIGNUP_EMAIL_REDIRECT = 'https://firstcrackiscoming.com/auth/callback?next=%2F';
 
 const OAUTH_TIMEOUT_MS = 90_000;
 let oauthTimeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -45,6 +57,8 @@ interface AuthActions {
     init: () => () => void;
     /** Email + Password 로그인. 실패 시 에러 throw. */
     signInWithEmail: (email: string, password: string) => Promise<void>;
+    /** Email + Password 가입. 세션이 오면 `session`, 확인 메일이면 `confirm_email`. */
+    signUpWithEmail: (email: string, password: string) => Promise<SignUpResult>;
     /** Google OAuth 시작 — 브라우저 리다이렉트 대기 상태로 전환 */
     startOAuth: () => void;
     /** OAuth 실패/타임아웃 시 대기 상태 해제. 인자 없으면 조용히 취소(Cancel). */
@@ -138,6 +152,24 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
         intentionalSignOut = false;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+    },
+
+    signUpWithEmail: async (email, password) => {
+        intentionalSignOut = false;
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: SIGNUP_EMAIL_REDIRECT },
+        });
+        if (error) throw error;
+        if (data.user && (data.user.identities?.length ?? 0) === 0) {
+            const already = Object.assign(new Error('User already registered'), {
+                code: 'user_already_registered',
+            });
+            throw already;
+        }
+        if (data.session) return 'session';
+        return 'confirm_email';
     },
 
     startOAuth: () => {

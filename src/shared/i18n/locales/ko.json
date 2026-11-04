@@ -84,11 +84,27 @@
     "auth": {
         "oauthCompleting": "로그인 완료 중…",
         "sessionReplacedTitle": "로그아웃됨",
+        "signInTitle": "로그인",
+        "signInLead": "이메일과 비밀번호를 입력해 계속하세요.",
+        "signUpTitle": "트라이얼 시작",
+        "signUpLead": "14일 Pro 트라이얼, 20배치.",
+        "signIn": "로그인",
+        "signingIn": "로그인 중...",
+        "createAccount": "계정 만들기",
+        "creatingAccount": "계정 만드는 중…",
+        "startFreeTrial": "무료 트라이얼 시작",
+        "noAccount": "계정이 없으신가요?",
+        "alreadyHaveAccount": "이미 계정이 있으신가요?",
+        "agreeToTerms": "<terms>이용약관</terms> 및 <privacy>개인정보 처리방침</privacy>에 동의합니다.",
+        "checkInbox": "받은편지함을 확인하세요. 확인 메일을 보냈습니다.",
         "errors": {
             "invalid_credentials": "이메일 또는 비밀번호가 올바르지 않습니다. 다시 시도해 주세요.",
             "network": "네트워크 오류입니다. 연결을 확인한 뒤 다시 시도해 주세요.",
             "oauth_failed": "로그인을 완료하지 못했습니다. 다시 시도해 주세요.",
             "session_replaced": "다른 기기에서 로그인되어 로그아웃되었습니다.",
+            "user_already_registered": "이미 가입된 이메일입니다. 로그인해 주세요.",
+            "weak_password": "비밀번호는 8자 이상이어야 합니다.",
+            "email_not_confirmed": "이메일을 확인한 뒤 로그인해 주세요.",
             "generic": "로그인에 실패했습니다. 다시 시도해 주세요."
         }
     },

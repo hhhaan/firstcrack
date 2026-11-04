@@ -84,11 +84,27 @@
     "auth": {
         "oauthCompleting": "Completing sign-in…",
         "sessionReplacedTitle": "Signed out",
+        "signInTitle": "Sign in",
+        "signInLead": "Welcome back. Enter your details to continue.",
+        "signUpTitle": "Start your trial",
+        "signUpLead": "14-day Pro trial, 20 batches.",
+        "signIn": "Sign in",
+        "signingIn": "Signing in...",
+        "createAccount": "Create account",
+        "creatingAccount": "Creating account…",
+        "startFreeTrial": "Start free trial",
+        "noAccount": "Don't have an account?",
+        "alreadyHaveAccount": "Already have an account?",
+        "agreeToTerms": "I agree to the <terms>Terms</terms> and <privacy>Privacy Policy</privacy>.",
+        "checkInbox": "Check your inbox — we sent a confirmation email.",
         "errors": {
             "invalid_credentials": "Incorrect email or password. Please try again.",
             "network": "Network error. Check your connection and try again.",
             "oauth_failed": "Sign-in could not be completed. Please try again.",
             "session_replaced": "You were signed out because this account signed in on another device.",
+            "user_already_registered": "An account with this email already exists. Sign in instead.",
+            "weak_password": "Password must be at least 8 characters.",
+            "email_not_confirmed": "Confirm your email, then sign in.",
             "generic": "Sign-in failed. Please try again."
         }
     },

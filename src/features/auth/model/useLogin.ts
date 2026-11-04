@@ -10,36 +10,62 @@ import { useCallback, useState } from 'react';
 // 동시에 만족해야 함. tauri://localhost/callback 같은 값은 두 조건을 모두 실패시켜 OAuth가 영원히 안 끝남.
 const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT ?? 'firstcrack://auth/callback';
 
+export type AuthScreen = 'sign-in' | 'sign-up' | 'check-inbox';
+
 export const useLogin = (onLogin?: () => void) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<AuthErrorCode | null>(null);
+    const [screen, setScreenState] = useState<AuthScreen>('sign-in');
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
     const signInWithEmail = useAuthStore((s) => s.signInWithEmail);
+    const signUpWithEmail = useAuthStore((s) => s.signUpWithEmail);
     const startOAuth = useAuthStore((s) => s.startOAuth);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const oauthError = useAuthStore((s) => s.oauthError);
 
     const displayError = error ?? oauthError;
 
+    const setScreen = useCallback(
+        (next: AuthScreen) => {
+            setScreenState(next);
+            setError(null);
+            cancelOAuth();
+            if (next !== 'sign-up') setAgreedToTerms(false);
+            if (next === 'check-inbox') setPassword('');
+        },
+        [cancelOAuth],
+    );
+
     const handleSubmit = useCallback(
         async (e: React.FormEvent) => {
             e.preventDefault();
+            if (screen === 'check-inbox') return;
             setLoading(true);
             setError(null);
             cancelOAuth(); // clear session_replaced / oauth notice
             try {
+                if (screen === 'sign-up') {
+                    if (!agreedToTerms) return;
+                    const result = await signUpWithEmail(email, password);
+                    if (result === 'session') onLogin?.();
+                    else setScreen('check-inbox');
+                    return;
+                }
                 await signInWithEmail(email, password);
                 onLogin?.();
             } catch (err: unknown) {
-                logger.capture(err, { scope: 'useLogin.signInWithEmail' });
+                logger.capture(err, {
+                    scope: screen === 'sign-up' ? 'useLogin.signUpWithEmail' : 'useLogin.signInWithEmail',
+                });
                 setError(mapAuthError(err));
             } finally {
                 setLoading(false);
             }
         },
-        [email, password, signInWithEmail, onLogin, cancelOAuth],
+        [screen, agreedToTerms, email, password, signInWithEmail, signUpWithEmail, onLogin, cancelOAuth, setScreen],
     );
 
     const handleGoogleOAuth = useCallback(async () => {
@@ -88,5 +114,9 @@ export const useLogin = (onLogin?: () => void) => {
         displayError,
         handleSubmit,
         handleGoogleOAuth,
+        screen,
+        setScreen,
+        agreedToTerms,
+        setAgreedToTerms,
     };
 };

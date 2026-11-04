@@ -84,11 +84,27 @@
     "auth": {
         "oauthCompleting": "サインインを完了しています…",
         "sessionReplacedTitle": "サインアウトしました",
+        "signInTitle": "サインイン",
+        "signInLead": "メールとパスワードを入力して続行します。",
+        "signUpTitle": "トライアルを開始",
+        "signUpLead": "14日間のProトライアル、20バッチ。",
+        "signIn": "サインイン",
+        "signingIn": "サインイン中...",
+        "createAccount": "アカウントを作成",
+        "creatingAccount": "アカウントを作成中…",
+        "startFreeTrial": "無料トライアルを開始",
+        "noAccount": "アカウントをお持ちでないですか？",
+        "alreadyHaveAccount": "すでにアカウントをお持ちですか？",
+        "agreeToTerms": "<terms>利用規約</terms>と<privacy>プライバシーポリシー</privacy>に同意します。",
+        "checkInbox": "受信トレイを確認してください。確認メールを送信しました。",
         "errors": {
             "invalid_credentials": "メールまたはパスワードが正しくありません。もう一度お試しください。",
             "network": "ネットワークエラーです。接続を確認してからもう一度お試しください。",
             "oauth_failed": "サインインを完了できませんでした。もう一度お試しください。",
             "session_replaced": "別のデバイスでログインされたため、サインアウトしました。",
+            "user_already_registered": "このメールはすでに登録されています。サインインしてください。",
+            "weak_password": "パスワードは8文字以上にしてください。",
+            "email_not_confirmed": "メールを確認してからサインインしてください。",
             "generic": "サインインに失敗しました。もう一度お試しください。"
         }
     },
