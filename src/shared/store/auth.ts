@@ -1,8 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import type { QueryClient } from '@tanstack/react-query';
-import i18n from 'i18next';
 import { create } from 'zustand';
-import { sendOsNotification } from '../lib/osNotification';
 import { profileKeys } from '../lib/query-keys';
 import { supabase } from '../lib/supabase';
 
@@ -19,12 +17,10 @@ function dropProfilePlanCache(userId: string | undefined): void {
 }
 
 /** Stable auth UI error codes — no raw Supabase strings in UI. */
-export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'session_replaced' | 'generic';
+export type AuthErrorCode = 'invalid_credentials' | 'network' | 'oauth_failed' | 'generic';
 
 const OAUTH_TIMEOUT_MS = 90_000;
 let oauthTimeoutId: ReturnType<typeof setTimeout> | undefined;
-/** True only for explicit user-initiated sign-out (settings etc.). */
-let intentionalSignOut = false;
 
 const clearOAuthTimeout = () => {
     if (oauthTimeoutId) {
@@ -49,14 +45,11 @@ interface AuthActions {
     startOAuth: () => void;
     /** OAuth 실패/타임아웃 시 대기 상태 해제. 인자 없으면 조용히 취소(Cancel). */
     cancelOAuth: (error?: AuthErrorCode) => void;
-    /** 로그아웃 (의도적 — 세션 교체 메시지 없음) */
+    /** 로그아웃 */
     signOut: () => Promise<void>;
 }
 
 /**
- * Concurrent sessions: Supabase "Single session per user" (Dashboard Auth → Sessions).
- * Old sessions die on next token refresh — not mid-request / not Realtime kick.
- * Client only surfaces a message when sign-out was not intentional.
  * Plan SSoT is React Query (`useEffectivePlan` / `useProfile`), not this store.
  */
 export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
@@ -102,22 +95,16 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             clearOAuthTimeout();
 
             if (!next) {
-                const replaced = Boolean(prevUser) && !intentionalSignOut;
-                intentionalSignOut = false;
                 dropProfilePlanCache(prevUser?.id);
                 set({
                     user: null,
                     loading: false,
                     oauthPending: false,
-                    oauthError: replaced ? 'session_replaced' : null,
+                    oauthError: null,
                 });
-                if (replaced) {
-                    sendOsNotification(i18n.t('auth.sessionReplacedTitle'), i18n.t('auth.errors.session_replaced'));
-                }
                 return;
             }
 
-            intentionalSignOut = false;
             dropProfilePlanCache(next.id);
             set({
                 user: next,
@@ -135,7 +122,6 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     },
 
     signInWithEmail: async (email, password) => {
-        intentionalSignOut = false;
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
     },
@@ -160,13 +146,9 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
     },
 
     signOut: async () => {
-        intentionalSignOut = true;
         const prevId = get().user?.id;
         const { error } = await supabase.auth.signOut();
-        if (error) {
-            intentionalSignOut = false;
-            throw error;
-        }
+        if (error) throw error;
         clearOAuthTimeout();
         dropProfilePlanCache(prevId);
         set({ user: null, oauthPending: false, oauthError: null });

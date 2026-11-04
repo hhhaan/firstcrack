@@ -56,7 +56,7 @@ const { workspaceOwnerId, isWorkspaceReady, isForeignWorkspace, authUserId } = u
 2. **Never** use `auth.user.id` alone for list filters / inserts when a foreign workspace can be active — use `workspaceOwnerId`.
 3. **Gate** mutations on `isWorkspaceReady` (see `useFulfillOrder`, `useCancelOrder`, roast save flow).
 4. **Host plan** for feature gates on foreign workspaces comes from membership `owner_plan` hydrated into `ownerPlanById` (not the member's personal plan).
-5. **Session replaced** handling in auth store ≠ intentional sign-out — do not clear workspace carelessly without understanding session-replaced tests (`src/shared/store/auth.session-replaced.test.ts`).
+5. **Session termination** clears auth state and the profile plan cache without inferring the cause. Preserve workspace selection; auth regression tests live in `src/shared/store/auth.test.ts`.
 
 ---
 

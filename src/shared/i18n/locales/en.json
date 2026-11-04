@@ -83,12 +83,10 @@
     },
     "auth": {
         "oauthCompleting": "Completing sign-in…",
-        "sessionReplacedTitle": "Signed out",
         "errors": {
             "invalid_credentials": "Incorrect email or password. Please try again.",
             "network": "Network error. Check your connection and try again.",
             "oauth_failed": "Sign-in could not be completed. Please try again.",
-            "session_replaced": "You were signed out because this account signed in on another device.",
             "generic": "Sign-in failed. Please try again."
         }
     },
