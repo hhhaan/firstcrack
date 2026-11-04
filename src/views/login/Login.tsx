@@ -449,7 +449,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="han@allyouneed.com"
+                                        placeholder="you@roastery.com"
                                         required
                                         style={{
                                             width: '100%',
