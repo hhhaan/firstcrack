@@ -52,7 +52,9 @@ node scripts/auth-email-templates.mjs          # rewrite HTML from the script SS
 SUPABASE_ACCESS_TOKEN=… node scripts/auth-email-templates.mjs --apply
 ```
 
-`--apply` PATCHes project `vjdgdolfxvnxushxrmff` subjects + HTML and sets `uri_allow_list` to localhost callbacks + `firstcrack://auth/callback` + `https://firstcrackiscoming.com/**`. It does not configure custom SMTP. Until SMTP is set, From stays `noreply@mail.app.supabase.io` and the built-in mailer may still append “powered by Supabase”.
+`--apply` PATCHes project `vjdgdolfxvnxushxrmff` subjects + HTML and sets `uri_allow_list` to localhost callbacks + `firstcrack://auth/callback` + `https://firstcrackiscoming.com/**`. It does not touch SMTP.
+
+Hosted SMTP (2026-11-04): Resend `smtp.resend.com:465`, user `resend`, From `First Crack <noreply@mail.firstcrackiscoming.com>`. Sending domain `mail.firstcrackiscoming.com` (Tokyo `ap-northeast-1`), DNS via Cloudflare Domain Connect. Password is the Resend sending API key in the Auth SMTP settings — never commit it.
 
 ## Env secrets (names only — never commit values)
 
