@@ -49,6 +49,7 @@ export const useLogin = (onLogin?: () => void) => {
             setError(null);
             cancelOAuth(); // clear session_replaced / oauth notice
             try {
+                const trimmedEmail = email.trim();
                 if (screen === 'sign-up') {
                     if (!agreedToTerms) return;
                     if (password.length < 8) {
@@ -59,12 +60,12 @@ export const useLogin = (onLogin?: () => void) => {
                         setError('password_mismatch');
                         return;
                     }
-                    const result = await signUpWithEmail(email, password);
+                    const result = await signUpWithEmail(trimmedEmail, password);
                     if (result === 'session') onLogin?.();
                     else setScreen('check-inbox');
                     return;
                 }
-                await signInWithEmail(email, password);
+                await signInWithEmail(trimmedEmail, password);
                 onLogin?.();
             } catch (err: unknown) {
                 logger.capture(err, {
