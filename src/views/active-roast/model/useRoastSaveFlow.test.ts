@@ -40,7 +40,14 @@ const mocks = vi.hoisted(() => ({
     invalidateScheduledBatchQueries: vi.fn(),
     upload: vi.fn(),
     message: vi.fn(),
+    plan: 'pro_plus',
+    releaseTrial: vi.fn(),
 }));
+vi.mock('@shared/lib/features', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@shared/lib/features')>()),
+    useEffectivePlan: () => mocks.plan,
+}));
+vi.mock('@entities/trial-event', () => ({ trialEventApi: { release: mocks.releaseTrial } }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: mocks.ownerId, isWorkspaceReady: true }),
 }));
@@ -146,6 +153,8 @@ beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
     mocks.ownerId = 'workspace-a';
+    mocks.plan = 'pro_plus';
+    mocks.releaseTrial.mockResolvedValue(undefined);
     mocks.fetchQuery.mockResolvedValue([]);
     mocks.invalidateQueries.mockResolvedValue(undefined);
     mocks.resumeSave.mockImplementation(async (pending: PendingRoastSave) => ({
@@ -613,6 +622,24 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
 });
 
 describe('explicit discard is scoped to the visible summary', () => {
+    it('retains an event-trial draft when releasing its slot fails', async () => {
+        mocks.plan = 'trial-event';
+        mocks.releaseTrial.mockRejectedValueOnce(new Error('offline'));
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        await act(async () => {
+            h.api.discardSummary();
+            await Promise.resolve();
+        });
+        expect(mocks.releaseTrial).toHaveBeenCalledWith('workspace-a', 's-a');
+        expect(listPendingRoastSaves().some((p) => p.params.sessionId === 's-a')).toBe(true);
+        expect(h.api.flow.summaryData?.sessionId).toBe('s-a');
+        await act(async () => {
+            h.api.discardSummary();
+            await Promise.resolve();
+        });
+        expect(listPendingRoastSaves()).toHaveLength(0);
+    });
     it('an old A discard callback cannot delete the new B checkpoint or summary', () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));

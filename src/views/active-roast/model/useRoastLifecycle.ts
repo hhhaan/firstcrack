@@ -29,6 +29,7 @@ export interface UseRoastLifecycleParams {
     setHoveredChartIndex: (index: number | null) => void;
     triggerChargeRef: React.RefObject<(bt?: number | null, chargeTimeMs?: number) => void>;
     replayActiveRef?: React.RefObject<boolean>;
+    trialEventPrepared?: boolean;
 }
 
 export interface UseRoastLifecycleReturn {
@@ -66,6 +67,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setHoveredChartIndex,
         triggerChargeRef,
         replayActiveRef,
+        trialEventPrepared,
     } = params;
     const roastSettings = useRoastSettings();
     const bbpEnabled = useFeature(FEATURE.bbp) && roastSettings.bbpEnabled;
@@ -92,29 +94,29 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
     }, [quota.exceeded, quota.isTrial, quota.max]);
 
     const handleEnterStandby = useCallback(() => {
-        if (phase !== 'preheating') return;
+        if (phase !== 'preheating' || trialEventPrepared === false) return;
         // read_only도 quota.exceeded(max=0)에 걸리므로 canWrite를 먼저 봐야 맞는 메시지가 뜬다.
-        if (!canWrite) {
+        if (!canWrite && trialEventPrepared !== true) {
             warnReadOnly();
             return;
         }
         // 자동 차지는 standby에서만 무장된다 — 여기서 막으면 수동/자동 양쪽이 함께 막힌다.
-        if (quota.exceeded) {
+        if (quota.exceeded && trialEventPrepared !== true) {
             warnQuotaExceeded();
             return;
         }
         enterStandby();
         sidecar.enterStandby().catch(() => {});
-    }, [phase, canWrite, warnReadOnly, enterStandby, quota.exceeded, warnQuotaExceeded]);
+    }, [phase, canWrite, warnReadOnly, enterStandby, quota.exceeded, warnQuotaExceeded, trialEventPrepared]);
 
     const handleManualCharge = useCallback(async () => {
-        if (isChargedPhase(useRoastingStore.getState().phase)) return false;
+        if (isChargedPhase(useRoastingStore.getState().phase) || trialEventPrepared === false) return false;
         // UX guard only — 저장 경로는 서버 트리거가 최종 차단한다.
-        if (!canWrite) {
+        if (!canWrite && trialEventPrepared !== true) {
             warnReadOnly();
             return false;
         }
-        if (quota.exceeded) {
+        if (quota.exceeded && trialEventPrepared !== true) {
             warnQuotaExceeded();
             return false;
         }
@@ -144,6 +146,7 @@ export const useRoastLifecycle = (params: UseRoastLifecycleParams): UseRoastLife
         setConnected,
         disableAutoChargeRef,
         rearmAutoChargeRef,
+        trialEventPrepared,
     ]);
 
     const resetEffects = useCallback(() => {

@@ -1,5 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { dayBatchesQuery, invalidateScheduledBatchQueries, planKeys, useDayBatches } from '@entities/plan';
+import { trialEventApi } from '@entities/trial-event';
 import { splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
 import { getRemainingDayBatches } from '@features/active-roast/lib/remaining-day-batches';
 import type { RoastSummaryForm } from '@features/active-roast/lib/roastSummarySchema';
@@ -21,7 +22,9 @@ import { isChargedPhase, type RoastPhase, useRoastingStore } from '@features/act
 import { type SaveRoastFormData, useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { i18n } from '@shared/i18n';
+import { useEffectivePlan } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
+import { trialEventKeys } from '@shared/lib/query-keys';
 import { useToastStore } from '@shared/store/toast';
 import type { PlanBatchHandoff, PlanBatchWithProgress } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
@@ -62,6 +65,7 @@ export const isLiveDetachedFromPending = (
     Boolean(live.awaitingNextCharge && !isChargedPhase(live.phase));
 
 export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
+    const currentPlan = useEffectivePlan();
     const { rawBT, ambientTemperature, ambientHumidity, onResetActiveRoast, savedProfileId } = params;
     const savedProfileIdRef = useRef(savedProfileId);
     useEffect(() => {
@@ -374,9 +378,26 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             completed.snapshot.sessionOwnerId !== summaryOwnerId
         )
             return;
-        clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
-        flow.discardSummary(summaryOwnerId, sessionId);
-    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
+        const owner = summaryOwnerId ?? workspaceOwnerId;
+        const discard = () => {
+            clearPendingRoastSave(owner, sessionId);
+            flow.discardSummary(summaryOwnerId, sessionId);
+        };
+        if (currentPlan === 'trial-event') {
+            void trialEventApi
+                .release(owner, sessionId)
+                .then(() => {
+                    discard();
+                    void qc.invalidateQueries({ queryKey: trialEventKeys.grant(owner) });
+                })
+                .catch((err) => {
+                    logger.capture(err, { feature: 'trial-event-discard' });
+                    useToastStore.getState().show(formatRoastSaveError(err));
+                });
+            return;
+        }
+        discard();
+    }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId, currentPlan, qc]);
 
     const handleStartNext = useCallback(
         async (row: PlanBatchWithProgress) => {

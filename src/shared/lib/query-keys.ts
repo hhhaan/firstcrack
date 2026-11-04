@@ -15,6 +15,10 @@ export const profileKeys = {
     detail: (userId: string) => ['profile', userId] as const,
 };
 
+export const trialEventKeys = {
+    grant: (userId: string) => ['trial-event-grant', userId] as const,
+};
+
 /** Roast profile roots — roast mutations re-derive stats cut from saved records. */
 export const roastProfileQueryRoots = {
     profiles: ['roast_profiles'] as const,

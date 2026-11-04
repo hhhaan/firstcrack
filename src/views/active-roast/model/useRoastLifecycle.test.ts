@@ -18,15 +18,15 @@ vi.mock('@shared/lib/sidecar', () => ({
     },
 }));
 
-const feature = vi.hoisted(() => ({ bbp: true }));
+const feature = vi.hoisted(() => ({ bbp: true, writable: true, exceeded: false }));
 vi.mock('@shared/lib/features', () => ({
     FEATURE: { bbp: 'bbp' },
     useFeature: () => feature.bbp,
-    useWriteAccess: () => true,
+    useWriteAccess: () => feature.writable,
 }));
 
 vi.mock('@features/active-roast/model/useBatchQuota', () => ({
-    useBatchQuota: () => ({ exceeded: false, isTrial: false, max: 99 }),
+    useBatchQuota: () => ({ exceeded: feature.exceeded, isTrial: false, max: 99 }),
 }));
 
 vi.mock('@shared/lib/tsv-writer', async (importOriginal) => {
@@ -48,6 +48,7 @@ const renderLifecycle = (
         disableAutoDrop?: () => void;
         triggerCharge?: () => void;
         replayActive?: boolean;
+        trialEventPrepared?: boolean;
     } = {},
 ) => {
     useRoastingStore.getState().setLogState({ entries: logEntries, unwind: false });
@@ -56,6 +57,7 @@ const renderLifecycle = (
     const Probe = () => {
         latest = useRoastLifecycle({
             phase: useRoastingStore.getState().phase,
+            trialEventPrepared: detection.trialEventPrepared,
             sidecarConnected: true,
             rawBT: 200,
             unit: 'C',
@@ -743,6 +745,37 @@ describe('manual Charge while ended (#630)', () => {
             expect(useRoastingStore.getState().phase).toBe('ended');
         } finally {
             h.unmount();
+        }
+    });
+});
+
+describe('event trial final reserved batch', () => {
+    it.each([true, false])('only a prepared slot bypasses full quota/expiry: %s', async (prepared) => {
+        feature.writable = false;
+        feature.exceeded = true;
+        useRoastingStore.setState({ phase: 'preheating', sessionId: null, sidecarConnected: true });
+        vi.mocked(sidecar.getStatus).mockResolvedValue({
+            connected: true,
+            roaster: '',
+            display_name: '',
+            brand: '',
+            capabilities: [],
+            uptime: 0,
+            error: null,
+        });
+        const triggerCharge = vi.fn(() => useRoastingStore.setState({ phase: 'roasting' }));
+        const h = renderLifecycle([], { trialEventPrepared: prepared, triggerCharge });
+        try {
+            act(() => h.result.handleEnterStandby());
+            expect(useRoastingStore.getState().phase).toBe(prepared ? 'standby' : 'preheating');
+            await act(async () => {
+                await h.result.handleManualCharge();
+            });
+            expect(triggerCharge).toHaveBeenCalledTimes(prepared ? 1 : 0);
+        } finally {
+            h.unmount();
+            feature.writable = true;
+            feature.exceeded = false;
         }
     });
 });

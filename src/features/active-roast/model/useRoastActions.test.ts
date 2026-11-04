@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRoastingStore } from './status';
 import { useRoastActions } from './useRoastActions';
+import type { ChargeAdmission } from './useTrialEventAdmission';
 
 vi.mock('@shared/lib/sidecar', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
@@ -18,7 +19,7 @@ vi.mock('@entities/organization', () => ({
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-const renderActions = () => {
+const renderActions = (admission?: ChargeAdmission) => {
     const root = createRoot(document.createElement('div'));
     const setLogEntries = vi.fn();
     const onDrop = vi.fn();
@@ -31,6 +32,7 @@ const renderActions = () => {
             setLogEntries,
             onDrop,
             storeStartCharge: useRoastingStore.getState().startCharge,
+            admission,
         });
         return null;
     };
@@ -39,6 +41,7 @@ const renderActions = () => {
     return {
         setLogEntries,
         onDrop,
+        unmount: () => act(() => root.unmount()),
         get result() {
             return latest;
         },
@@ -152,5 +155,34 @@ describe('handleAutoDrop', () => {
         expect(h.onDrop).toHaveBeenCalledTimes(1);
         expect(h.onDrop).toHaveBeenCalledWith({ timeSec: 430, bt: 200 });
         expect(h.setLogEntries).not.toHaveBeenCalled();
+    });
+});
+
+describe('event trial admission', () => {
+    beforeEach(() => {
+        resetStore();
+        vi.clearAllMocks();
+    });
+    it('uses the prepared server identity synchronously and keeps the Charge onset', () => {
+        const id = crypto.randomUUID();
+        const take = vi.fn().mockReturnValueOnce(id).mockReturnValue(null);
+        const h = renderActions({ ready: true, take });
+        const onset = Date.now() - 3000;
+        act(() => {
+            h.result.triggerCharge(190, onset);
+            h.result.triggerCharge(195);
+        });
+        expect(take).toHaveBeenCalledTimes(1);
+        expect(useRoastingStore.getState().sessionId).toBe(id);
+        expect(useRoastingStore.getState().roastStartMs).toBe(onset);
+        expect(sidecar.startRoast).toHaveBeenCalledTimes(1);
+        h.unmount();
+    });
+    it('does not Charge before a trial slot is ready', () => {
+        const h = renderActions({ ready: false, take: () => null });
+        act(() => h.result.triggerCharge(190));
+        expect(useRoastingStore.getState().phase).toBe('standby');
+        expect(sidecar.startRoast).not.toHaveBeenCalled();
+        h.unmount();
     });
 });

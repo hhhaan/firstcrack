@@ -31,9 +31,18 @@ const extract = (file, label, regex) => {
 
 const gateSql = latestDefining('enforce_batch_gate');
 const profileSql = latestDefining('profile_write_error');
+const eventSql = latestDefining('reserve_trial_event_batch');
 
 // SQL side (server authority) — anchors documented in the migration files.
 const server = {
+    TRIAL_EVENT_DURATION_DAYS: {
+        value: extract(eventSql, 'event duration hours', /interval '(\d+) hours'/) / 24,
+        file: eventSql,
+    },
+    TRIAL_EVENT_BATCH_CAP: {
+        value: extract(profileSql, 'event used batch cap', /g\.used_batches >= (\d+)/),
+        file: profileSql,
+    },
     PRO_MONTHLY_BATCH_CAP: { value: extract(gateSql, 'cap int := N', /cap int := (\d+)/), file: gateSql },
     TRIAL_DURATION_DAYS: {
         value: extract(profileSql, "interval 'N days'", /interval '(\d+) days'/),

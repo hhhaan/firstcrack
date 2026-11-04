@@ -431,12 +431,16 @@ export const createBatchActions = (
         identity.title = title.trim().slice(0, 120) || automaticBatchTitle(identity);
         set({ activeSelection: { ...selection, identity } });
     },
-    startCharge: (originMs?: number, ownerId?: string, charge?: { bt: number | null; unit: TemperatureUnit }) => {
+    startCharge: (
+        originMs?: number,
+        ownerId?: string,
+        charge?: { bt: number | null; unit: TemperatureUnit; sessionId?: string },
+    ) => {
         const state = get();
         if (isChargedPhase(state.phase)) return null;
         const now = Date.now();
         const origin = originMs != null && originMs > 0 && originMs <= now ? originMs : now;
-        const sessionId = crypto.randomUUID();
+        const sessionId = charge?.sessionId ?? crypto.randomUUID();
         const bbpCapture = captureBatchBbp(useBbpStore.getState(), sessionId, origin, state.livePoints);
         const transferred = bbpCapture ? splitBatchBbp(bbpCapture) : null;
         set({

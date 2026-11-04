@@ -33,6 +33,38 @@ export type Database = {
     };
     public: {
         Tables: {
+            trial_event_grants: {
+                Row: {
+                    user_id: string;
+                    started_at: string;
+                    ends_at: string;
+                    used_batches: number;
+                    reserved_batches: number;
+                };
+                Insert: {
+                    user_id: string;
+                    started_at: string;
+                    ends_at: string;
+                    used_batches?: number;
+                    reserved_batches?: number;
+                };
+                Update: {
+                    user_id?: string;
+                    started_at?: string;
+                    ends_at?: string;
+                    used_batches?: number;
+                    reserved_batches?: number;
+                };
+                Relationships: [
+                    {
+                        foreignKeyName: 'trial_event_grants_user_id_fkey';
+                        columns: ['user_id'];
+                        isOneToOne: true;
+                        referencedRelation: 'profiles';
+                        referencedColumns: ['id'];
+                    },
+                ];
+            };
             bean_stock_events: {
                 Row: {
                     bean_id: string;
@@ -2279,6 +2311,8 @@ export type Database = {
             };
         };
         Functions: {
+            reserve_trial_event_batch: { Args: { p_user_id: string; p_session_id: string }; Returns: string };
+            release_trial_event_batch: { Args: { p_user_id: string; p_session_id: string }; Returns: undefined };
             admin_auth_session_ips: {
                 Args: never;
                 Returns: {

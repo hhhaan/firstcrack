@@ -1,8 +1,10 @@
 import { useAuthStore } from '@shared/store/auth';
 import { resolveWorkspaceOwnerId, useWorkspaceStore } from '@shared/store/workspace';
 import { useState } from 'react';
-import { isWritablePlan, trialEndsAt } from './plan-matrix';
+import { isWritablePlan, TRIAL_EVENT_BATCH_CAP, trialEndsAt } from './plan-matrix';
 import { useEffectivePlan } from './useEffectivePlan';
+import { useExpiryClock } from './useExpiryClock';
+import { useTrialEventGrant } from './useTrialEventGrant';
 
 /**
  * UX mirror of the server write gate.
@@ -22,6 +24,15 @@ export function useWriteAccess(): boolean {
     const membershipOwnerIds = Object.keys(ownerPlanById);
     const workspaceOwnerId = resolveWorkspaceOwnerId(activeOwnerId, authUserId, membershipOwnerIds);
     const isForeignWorkspace = !!authUserId && !!workspaceOwnerId && workspaceOwnerId !== authUserId;
+    const { data: eventGrant } = useTrialEventGrant(workspaceOwnerId, plan === 'trial-event');
+    const eventNow = useExpiryClock(eventGrant?.ends_at);
+    if (plan === 'trial-event') {
+        return (
+            !!eventGrant &&
+            eventNow < new Date(eventGrant.ends_at).getTime() &&
+            eventGrant.used_batches < TRIAL_EVENT_BATCH_CAP
+        );
+    }
 
     // Shared org workspace → admin/host plan only (unified R/W on owner account).
     if (isForeignWorkspace) {

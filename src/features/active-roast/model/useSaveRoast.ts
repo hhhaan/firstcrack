@@ -22,7 +22,7 @@ import {
     useEffectivePlan,
 } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { inventoryQueryRoots, trialEventKeys } from '@shared/lib/query-keys';
 import { normalizeTotalBatchPrefix } from '@shared/lib/sessionRoastTitle';
 import { flushTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -253,6 +253,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
 /** Single post-save cache refresh — covers lost RPC (saveRoastCore never ran invalidation). */
 export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
+    void qc.invalidateQueries({ queryKey: trialEventKeys.grant(saved.user_id) });
     try {
         if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
         invalidateScheduledBatchQueries(qc);

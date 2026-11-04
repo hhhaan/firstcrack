@@ -7,3 +7,10 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
     if (error) throw error;
     return data;
 }
+
+/** Event grants are profile entitlements, shared by write gates and billing UI. */
+export async function fetchTrialEventGrant(userId: string) {
+    const { data, error } = await supabase.from('trial_event_grants').select('*').eq('user_id', userId).maybeSingle();
+    if (error) throw error;
+    return data;
+}

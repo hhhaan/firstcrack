@@ -20,7 +20,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { reviewHeaterToSave } from './review-heater';
 
-const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
+const READ_ONLY_CODES = [
+    'read_only_plan',
+    'trial_expired',
+    'trial_batch_cap',
+    'trial_event_expired',
+    'trial_event_batch_cap',
+];
 
 type PendingEdit = { entries: LogEntry[]; previous: LogEntry[] };
 

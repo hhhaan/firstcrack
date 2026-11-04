@@ -1,10 +1,16 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
 import { useCompletedSessionCount } from '@entities/roast';
-import { isPaidPlan, TRIAL_BATCH_CAP, trialEndsAt } from '@shared/lib/features';
+import {
+    isPaidPlan,
+    TRIAL_BATCH_CAP,
+    TRIAL_EVENT_BATCH_CAP,
+    trialEndsAt,
+    useTrialEventGrant,
+} from '@shared/lib/features';
+import { useExpiryClock } from '@shared/lib/features/useExpiryClock';
 import { logger } from '@shared/lib/logger';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsSection } from './SettingsSection';
 
@@ -67,22 +73,36 @@ export function BillingSettingsTab() {
     const { data: profile } = useProfile(workspaceOwnerId);
     const { data: completedCount } = useCompletedSessionCount(workspaceOwnerId);
     const currentPlan = profile?.plan ?? '';
-    const [nowMs] = useState(() => Date.now());
-    const daysLeft = profile
-        ? Math.max(0, Math.ceil((trialEndsAt(profile.created_at).getTime() - nowMs) / 86_400_000))
-        : 0;
-    const batchesLeft = Math.max(0, TRIAL_BATCH_CAP - (completedCount ?? 0));
+    const isEvent = currentPlan === 'trial-event';
+    const { data: eventGrant } = useTrialEventGrant(workspaceOwnerId, isEvent);
+    const endsAt = isEvent
+        ? eventGrant
+            ? new Date(eventGrant.ends_at).getTime()
+            : 0
+        : profile
+          ? trialEndsAt(profile.created_at).getTime()
+          : 0;
+    const nowMs = useExpiryClock(endsAt ? new Date(endsAt).toISOString() : null);
+    const daysLeft = profile ? Math.max(0, Math.ceil((endsAt - nowMs) / 86_400_000)) : 0;
+    const batchesLeft = Math.max(
+        0,
+        isEvent ? TRIAL_EVENT_BATCH_CAP - (eventGrant?.used_batches ?? 0) : TRIAL_BATCH_CAP - (completedCount ?? 0),
+    );
     const trialActive =
         !!profile && !isPaidPlan(currentPlan) && currentPlan !== 'read_only' && daysLeft > 0 && batchesLeft > 0;
-    const planName =
-        PLAN_NAMES[currentPlan] ??
-        (trialActive ? t('settings.tabs.billing.trial') : t('settings.tabs.billing.readOnly'));
+    const planName = isEvent
+        ? t('settings.tabs.billing.trialEvent')
+        : (PLAN_NAMES[currentPlan] ??
+          (trialActive ? t('settings.tabs.billing.trial') : t('settings.tabs.billing.readOnly')));
     const detailKey = PLAN_DESC[currentPlan];
-    const detail = trialActive
-        ? t('settings.tabs.billing.trialStatus', { days: daysLeft, batches: batchesLeft })
-        : detailKey
-          ? t(detailKey)
-          : t('settings.tabs.billing.readOnlyDesc');
+    const detail =
+        isEvent && !eventGrant
+            ? t('settings.tabs.billing.trialEventLoading')
+            : trialActive
+              ? t('settings.tabs.billing.trialStatus', { days: daysLeft, batches: batchesLeft })
+              : detailKey
+                ? t(detailKey)
+                : t('settings.tabs.billing.readOnlyDesc');
 
     const openCompare = async () => {
         try {

@@ -226,3 +226,15 @@ describe('tester plan', () => {
         expect(planHasFeature('tester', FEATURE.orderIntegration)).toBe(true);
     });
 });
+
+describe('trial-event', () => {
+    it('offers tester features without marking the account as paid', () => {
+        for (const key of Object.values(FEATURE)) {
+            expect(planHasFeature('trial-event', key)).toBe(planHasFeature('tester', key));
+        }
+        expect(isPaidPlan('trial-event')).toBe(false);
+        expect(isWritablePlan('trial-event')).toBe(true);
+        expect(planMaxMachines('trial-event')).toBeNull();
+        expect(planMaxBatchesPerMonth('trial-event')).toBeNull();
+    });
+});

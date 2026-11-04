@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { computeBatchQuota } from './useBatchQuota';
 
 describe('computeBatchQuota', () => {
+    it('event trial counts only its grant, including slots held by running batches', () => {
+        expect(computeBatchQuota({ plan: 'trial-event', lifetimeCount: 500, monthCount: 250, eventCount: 99 })).toEqual(
+            {
+                isTrial: true,
+                max: 100,
+                exceeded: false,
+            },
+        );
+        expect(computeBatchQuota({ plan: 'trial-event', eventCount: 100 }).exceeded).toBe(true);
+        expect(computeBatchQuota({ plan: 'tester', eventCount: 100, lifetimeCount: 1000 }).exceeded).toBe(false);
+    });
     it('trial: gated by lifetime cap, ignores month count', () => {
         expect(computeBatchQuota({ plan: 'trial', lifetimeCount: 19, monthCount: 999 }).exceeded).toBe(false);
         expect(computeBatchQuota({ plan: 'trial', lifetimeCount: 20, monthCount: 0 }).exceeded).toBe(true);

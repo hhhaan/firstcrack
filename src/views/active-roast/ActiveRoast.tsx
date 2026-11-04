@@ -30,6 +30,7 @@ import { useMenuBarMetrics } from '@features/active-roast/model/useMenuBarMetric
 import { useRoastAlerts } from '@features/active-roast/model/useRoastAlerts';
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useRoastMonitorBridge } from '@features/active-roast/model/useRoastMonitorBridge';
+import { useTrialEventAdmission } from '@features/active-roast/model/useTrialEventAdmission';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
 import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
 import { editedHeatSet } from '@features/machine-control/lib/heater-events';
@@ -319,6 +320,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
     const disableAutoDropRef = useRef<() => void>(() => {});
     const rearmAutoChargeRef = useRef<() => void>(() => {});
     const triggerChargeRef = useRef<(bt?: number | null, chargeTimeMs?: number) => void>(() => {});
+    const trialEventAdmission = useTrialEventAdmission();
 
     const lifecycle = useRoastLifecycle({
         phase,
@@ -335,6 +337,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         setHoveredChartIndex: chart.setHoveredChartIndex,
         triggerChargeRef,
         replayActiveRef,
+        trialEventPrepared: trialEventAdmission?.ready,
     });
 
     // ── 날씨 데이터 ───────────────────────────────────────────────
@@ -366,12 +369,12 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         setLogEntries,
         onDrop: (onset) => applyDropRef.current(onset),
         storeStartCharge,
+        admission: trialEventAdmission,
     });
 
     const triggerCharge = useCallback(
         (bt?: number | null, chargeTimeMs?: number) => {
             startChargeAction(bt, chargeTimeMs);
-            // Rearm auto Drop for this batch only. Drop's reset would re-arm too early (#484).
             resetAutoDetectionRef.current?.();
         },
         [startChargeAction],
@@ -391,7 +394,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         onAutoCharge: triggerCharge,
         onAutoDrop: handleAutoDrop,
         onTurningPoint: handleTurningPoint,
-        autoChargeEnabled: roastSettings.autoChargeEnabled,
+        autoChargeEnabled: roastSettings.autoChargeEnabled && (trialEventAdmission?.ready ?? true),
         autoChargeMode: roastSettings.autoChargeMode,
         pollIntervalMs,
         autoDropEnabled: roastSettings.autoDropEnabled,

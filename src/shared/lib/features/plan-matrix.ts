@@ -1,14 +1,14 @@
 import { FEATURE, type FeatureKey } from './keys';
 
-/** `profiles.plan` states: trial | read_only | pro | pro_plus | tester | enterprise (+ legacy free/team). */
+/** Event trials have tester features, but are neither paid nor unlimited trials. */
 /** `tester` is internal-only, entitled exactly like enterprise. Never sold — set by hand. */
 const PAID_PLANS = new Set(['pro', 'team', 'pro_plus', 'tester', 'enterprise']);
 
 /** Pro+ 이상. Legacy `team` maps to enterprise-class. */
-const PRO_PLUS_PLANS = new Set(['pro_plus', 'tester', 'enterprise', 'team']);
+const PRO_PLUS_PLANS = new Set(['pro_plus', 'tester', 'enterprise', 'team', 'trial-event']);
 
 /** E-commerce order integration + team host: enterprise-class (tester internal mirror). */
-const ORDER_INTEGRATION_PLANS = new Set(['enterprise', 'team', 'tester']);
+const ORDER_INTEGRATION_PLANS = new Set(['enterprise', 'team', 'tester', 'trial-event']);
 
 export function isPaidPlan(plan: string): boolean {
     return PAID_PLANS.has(plan);
@@ -16,7 +16,7 @@ export function isPaidPlan(plan: string): boolean {
 
 /** Trial runs at Pro core level; read_only (and legacy free) get nothing. */
 export function isCoreEntitled(plan: string): boolean {
-    return plan === 'trial' || isPaidPlan(plan);
+    return plan === 'trial' || plan === 'trial-event' || isPaidPlan(plan);
 }
 
 /** Known writable plans only — unknown/garbage strings are not writable. */
@@ -68,6 +68,10 @@ export const PRO_MONTHLY_BATCH_CAP = 200;
 export const TRIAL_DURATION_DAYS = 14;
 export const TRIAL_BATCH_CAP = 20;
 
+/** Explicitly enrolled outreach accounts; independent of signup and the ordinary trial. */
+export const TRIAL_EVENT_DURATION_DAYS = 90;
+export const TRIAL_EVENT_BATCH_CAP = 100;
+
 export function trialEndsAt(signupAt: string | Date): Date {
     return new Date(new Date(signupAt).getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
 }
@@ -85,13 +89,21 @@ export function canCompleteBatch(plan: string, completedThisMonth: number): bool
 }
 
 /** Matches the RAISE codes of the server batch gate (enforce_batch_gate / profile_write_error). */
-export type BatchGateCode = 'monthly_batch_cap' | 'trial_batch_cap' | 'trial_expired' | 'read_only_plan';
+export type BatchGateCode =
+    | 'monthly_batch_cap'
+    | 'trial_batch_cap'
+    | 'trial_expired'
+    | 'trial_event_batch_cap'
+    | 'trial_event_expired'
+    | 'read_only_plan';
 
 const GATE_MESSAGES: Record<BatchGateCode, (used: number, max: number) => string> = {
     monthly_batch_cap: (used, max) =>
         `Monthly batch limit reached (${used}/${max}). Upgrade to Pro+ for unlimited batches.`,
     trial_batch_cap: (used, max) => `Trial batch limit reached (${used}/${max}). Upgrade to keep roasting.`,
     trial_expired: () => 'Trial period has ended. Upgrade to keep roasting.',
+    trial_event_batch_cap: (used, max) => `Trial batch limit reached (${used}/${max}). Upgrade to keep roasting.`,
+    trial_event_expired: () => 'Trial period has ended. Upgrade to keep roasting.',
     read_only_plan: () => 'Subscription inactive — account is read-only. Upgrade to keep roasting.',
 };
 
@@ -121,6 +133,9 @@ function gateErrorText(e: unknown): string {
 /** Server gate RAISE → typed error (client pre-checks can be bypassed; this catches the authority path). */
 export function mapServerBatchGateError(e: unknown): BatchLimitError | null {
     const msg = gateErrorText(e);
+    if (msg.includes('trial_event_batch_cap'))
+        return new BatchLimitError(TRIAL_EVENT_BATCH_CAP, TRIAL_EVENT_BATCH_CAP, 'trial_event_batch_cap');
+    if (msg.includes('trial_event_expired')) return new BatchLimitError(0, 0, 'trial_event_expired');
     if (msg.includes('monthly_batch_cap')) {
         // DETAIL 'used=N cap=M' is the server's own number — the constant only covers a parse miss,
         // so a cap change deployed ahead of the app release still reports truthfully.
