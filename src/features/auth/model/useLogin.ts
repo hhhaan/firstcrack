@@ -15,6 +15,7 @@ export type AuthScreen = 'sign-in' | 'sign-up' | 'check-inbox';
 export const useLogin = (onLogin?: () => void) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<AuthErrorCode | null>(null);
@@ -34,6 +35,7 @@ export const useLogin = (onLogin?: () => void) => {
             setError(null);
             cancelOAuth();
             if (next !== 'sign-up') setAgreedToTerms(false);
+            if (next !== 'sign-up') setConfirmPassword('');
             if (next === 'check-inbox') setPassword('');
         },
         [cancelOAuth],
@@ -49,6 +51,14 @@ export const useLogin = (onLogin?: () => void) => {
             try {
                 if (screen === 'sign-up') {
                     if (!agreedToTerms) return;
+                    if (password.length < 8) {
+                        setError('weak_password');
+                        return;
+                    }
+                    if (password !== confirmPassword) {
+                        setError('password_mismatch');
+                        return;
+                    }
                     const result = await signUpWithEmail(email, password);
                     if (result === 'session') onLogin?.();
                     else setScreen('check-inbox');
@@ -65,7 +75,18 @@ export const useLogin = (onLogin?: () => void) => {
                 setLoading(false);
             }
         },
-        [screen, agreedToTerms, email, password, signInWithEmail, signUpWithEmail, onLogin, cancelOAuth, setScreen],
+        [
+            screen,
+            agreedToTerms,
+            email,
+            password,
+            confirmPassword,
+            signInWithEmail,
+            signUpWithEmail,
+            onLogin,
+            cancelOAuth,
+            setScreen,
+        ],
     );
 
     const handleGoogleOAuth = useCallback(async () => {
@@ -108,6 +129,8 @@ export const useLogin = (onLogin?: () => void) => {
         setEmail,
         password,
         setPassword,
+        confirmPassword,
+        setConfirmPassword,
         showPassword,
         setShowPassword,
         loading,

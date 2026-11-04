@@ -31,6 +31,10 @@ describe('mapAuthError', () => {
         expect(mapAuthError(new Error('Password should be at least 8 characters'))).toBe('weak_password');
     });
 
+    it('maps password mismatch by code', () => {
+        expect(mapAuthError({ code: 'password_mismatch', message: 'x' })).toBe('password_mismatch');
+    });
+
     it('maps unconfirmed email on sign-in', () => {
         expect(mapAuthError({ code: 'email_not_confirmed', message: 'x' })).toBe('email_not_confirmed');
         expect(mapAuthError(new Error('Email not confirmed'))).toBe('email_not_confirmed');

@@ -24,6 +24,10 @@ export const mapAuthError = (error: unknown): AuthErrorCode => {
         return 'weak_password';
     }
 
+    if (code === 'password_mismatch' || /passwords do not match/i.test(lower)) {
+        return 'password_mismatch';
+    }
+
     if (code === 'email_not_confirmed' || /email not confirmed|confirm your email/i.test(lower)) {
         return 'email_not_confirmed';
     }

@@ -26,6 +26,7 @@ export type AuthErrorCode =
     | 'session_replaced'
     | 'user_already_registered'
     | 'weak_password'
+    | 'password_mismatch'
     | 'email_not_confirmed'
     | 'generic';
 

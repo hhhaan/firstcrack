@@ -95,6 +95,8 @@
         "startFreeTrial": "开始免费试用",
         "noAccount": "还没有账户？",
         "alreadyHaveAccount": "已有账户？",
+        "confirmPassword": "确认密码",
+        "confirmPasswordPlaceholder": "再次输入密码",
         "agreeToTerms": "我同意<terms>条款</terms>和<privacy>隐私政策</privacy>。",
         "checkInbox": "请查收邮箱 — 我们已发送确认邮件。",
         "errors": {
@@ -104,6 +106,7 @@
             "session_replaced": "该账号已在其他设备登录，您已被退出。",
             "user_already_registered": "该邮箱已注册，请登录。",
             "weak_password": "密码至少需要 8 个字符。",
+            "password_mismatch": "两次输入的密码不一致。",
             "email_not_confirmed": "请先确认邮箱，然后再登录。",
             "generic": "登录失败，请重试。"
         }

@@ -55,6 +55,8 @@ export const Login = ({ onLogin }: LoginProps) => {
         setEmail,
         password,
         setPassword,
+        confirmPassword,
+        setConfirmPassword,
         showPassword,
         setShowPassword,
         loading,
@@ -568,6 +570,77 @@ export const Login = ({ onLogin }: LoginProps) => {
                                         </button>
                                     </div>
                                 </div>
+
+                                {isSignUp && (
+                                    <div style={{ marginBottom: 14 }}>
+                                        <label
+                                            style={{
+                                                display: 'block',
+                                                fontSize: 13,
+                                                fontWeight: 500,
+                                                color: 'var(--color-secondary)',
+                                                letterSpacing: '0.14px',
+                                                marginBottom: 6,
+                                            }}
+                                        >
+                                            {t('auth.confirmPassword')}
+                                        </label>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type={showPassword ? 'text' : 'password'}
+                                                value={confirmPassword}
+                                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                                placeholder={t('auth.confirmPasswordPlaceholder')}
+                                                autoComplete="new-password"
+                                                minLength={8}
+                                                required
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '10px 40px 10px 14px',
+                                                    borderRadius: 10,
+                                                    border: 'none',
+                                                    background: 'var(--color-surface)',
+                                                    fontSize: 14,
+                                                    color: 'var(--color-primary)',
+                                                    fontFamily: 'var(--font-body)',
+                                                    letterSpacing: '0.14px',
+                                                    outline: 'none',
+                                                    boxShadow: 'var(--shadow-inset)',
+                                                    transition: 'box-shadow 0.15s',
+                                                }}
+                                                onFocus={(e) => {
+                                                    e.target.style.boxShadow =
+                                                        'rgba(0,0,0,0.075) 0px 0px 0px 0.5px inset, rgba(147,197,253,0.5) 0px 0px 0px 3px';
+                                                }}
+                                                onBlur={(e) => {
+                                                    e.target.style.boxShadow = 'var(--shadow-inset)';
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowPassword((s) => !s)}
+                                                style={{
+                                                    position: 'absolute',
+                                                    right: 12,
+                                                    top: '50%',
+                                                    transform: 'translateY(-50%)',
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    padding: 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                }}
+                                            >
+                                                {showPassword ? (
+                                                    <EyeOff size={15} strokeWidth={1.5} color="var(--color-muted)" />
+                                                ) : (
+                                                    <Eye size={15} strokeWidth={1.5} color="var(--color-muted)" />
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {isSignUp && (
                                     <label

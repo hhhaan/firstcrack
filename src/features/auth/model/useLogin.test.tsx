@@ -97,6 +97,7 @@ describe('useLogin signup', () => {
         await act(async () => {
             hook().setEmail('a@b.com');
             hook().setPassword('password1');
+            hook().setConfirmPassword('password1');
             hook().setAgreedToTerms(true);
         });
         await act(async () => {
@@ -104,6 +105,25 @@ describe('useLogin signup', () => {
         });
         expect(signUpWithEmail).toHaveBeenCalledWith('a@b.com', 'password1');
         expect(hook().screen).toBe('check-inbox');
+        unmount();
+    });
+
+    it('does not sign up when passwords differ', async () => {
+        const { hook, unmount } = await mount();
+        await act(async () => {
+            hook().setScreen('sign-up');
+        });
+        await act(async () => {
+            hook().setEmail('a@b.com');
+            hook().setPassword('password1');
+            hook().setConfirmPassword('password2');
+            hook().setAgreedToTerms(true);
+        });
+        await act(async () => {
+            await hook().handleSubmit({ preventDefault: () => undefined } as unknown as FormEvent);
+        });
+        expect(signUpWithEmail).not.toHaveBeenCalled();
+        expect(hook().displayError).toBe('password_mismatch');
         unmount();
     });
 });
