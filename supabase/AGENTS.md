@@ -43,6 +43,17 @@ Shared modules: `functions/_shared/auth.ts`, `r2.ts`, `channels/*`, `webhook-aut
 
 ---
 
+## Auth emails
+
+Hosted Auth still sends the default GoTrue bodies unless templates are patched. HTML lives in `supabase/templates/` (ox tokens, English). Local `config.toml` `[auth.email.template.*]` points at those files.
+
+```bash
+node scripts/auth-email-templates.mjs          # rewrite HTML from the script SSoT
+SUPABASE_ACCESS_TOKEN=… node scripts/auth-email-templates.mjs --apply
+```
+
+`--apply` PATCHes project `vjdgdolfxvnxushxrmff` subjects + HTML and sets `uri_allow_list` to localhost callbacks + `firstcrack://auth/callback` + `https://firstcrackiscoming.com/**`. It does not configure custom SMTP. Until SMTP is set, From stays `noreply@mail.app.supabase.io` and the built-in mailer may still append “powered by Supabase”.
+
 ## Env secrets (names only — never commit values)
 
 | Area | Env names (typical) |

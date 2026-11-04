@@ -32,6 +32,7 @@
         "preview": "vite preview",
         "tauri": "tauri",
         "types:gen": "supabase gen types typescript --linked 2>/dev/null > src/shared/types/database.types.ts && node scripts/append-db-aliases.mjs",
+        "auth:emails": "node scripts/auth-email-templates.mjs",
         "build:sidecar": "bash scripts/build-sidecar.sh",
         "build:debug": "pnpm run build:sidecar && pnpm tauri build --debug && open 'src-tauri/target/debug/bundle/macos/First Crack.app'",
         "lint": "eslint --cache --cache-location node_modules/.cache/eslint src",

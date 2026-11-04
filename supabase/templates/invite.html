@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>You're invited to First Crack</title>
+  </head>
+  <body style="margin:0;padding:0;background-color:#fafaf9;color:#080503;font-family:'Instrument Sans',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased">
+    <div style="display:none;max-height:0;overflow:hidden;mso-hide:all">Accept your invite and create your First Crack account.</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#fafaf9;width:100%">
+      <tr>
+        <td align="center" style="padding:48px 24px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;width:100%">
+            <tr>
+              <td style="padding:0 0 28px 0">
+                <a href="https://firstcrackiscoming.com" style="color:#080503;text-decoration:none;font-size:15px;font-weight:600;letter-spacing:-0.02em">First Crack</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="background-color:#ffffff;border:1px solid rgba(8,5,3,0.08);padding:40px 32px">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="width:32px;border-top:1px solid #5e534a;vertical-align:middle;padding-right:10px"></td>
+                    <td style="font-family:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;font-weight:400;color:#5e534a;letter-spacing:0.04em;text-transform:uppercase;vertical-align:middle">Invite</td>
+                  </tr>
+                </table>
+                <h1 style="margin:16px 0 0 0;font-size:28px;font-weight:500;line-height:1.2;letter-spacing:-0.03em;color:#080503">You have been invited</h1>
+                <p style="margin:16px 0 0 0;font-size:16px;line-height:1.6;color:#5e534a">Accept to create your account and join the workspace.</p>
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:32px 0 0 0" width="100%">
+                  <tr>
+                    <td>
+                      <a href="{{ .ConfirmationURL }}" style="display:block;background-color:#080503;color:#ffffff;font-size:14px;font-weight:500;letter-spacing:-0.01em;text-align:center;text-decoration:none;padding:14px 24px;border-radius:0">Accept the invite</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin:24px 0 0 0;font-size:13px;line-height:1.55;color:#5e534a">
+                  Button not working? Copy this link:
+                </p>
+                <p style="margin:8px 0 0 0;font-size:12px;line-height:1.5;word-break:break-all">
+                  <a href="{{ .ConfirmationURL }}" style="color:#080503;text-decoration:underline;text-underline-offset:2px">{{ .ConfirmationURL }}</a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 4px 0 4px;font-size:12px;line-height:1.5;color:#5e534a">
+                If you didn't expect this invite, you can ignore this email.
+                <br />
+                <span style="color:rgba(8,5,3,0.45)">© First Crack</span>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
