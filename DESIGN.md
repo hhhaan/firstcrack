@@ -251,6 +251,8 @@ The ten primary views share an inset content panel in `src/App.tsx`: 0px top and
 
 Settings content is centered at a maximum of 680px, or 760px for roasting controls. Sections use 16px/24px medium headings, 32px spacing, and 16px rounded cards with thin row dividers. Row labels are 14px with 12px muted descriptions. Independent preferences use right-aligned switches; multi-selection uses left-aligned checkboxes and exclusive choices use radios. Profile forms place labels above inputs and pair business fields on wider screens.
 
+Authentication screens use the neutral `shell-bg` frame and a white `main-bg` inset panel with 16px corners. A slim header pairs the 24px FC logo and brand with a text-style language selector. The form is centered at a maximum of 340px; the outer screen scrolls on short windows. Login and signup share pill buttons and bordered rounded-xl fields, with no marketing panel or trial subtitle. The language selector uses the existing persisted locale preference before authentication.
+
 ---
 
 ## Components / primitives
