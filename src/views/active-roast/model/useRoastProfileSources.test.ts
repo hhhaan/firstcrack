@@ -2,7 +2,7 @@
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { useRoastProfileSelection } from './useRoastProfileSelection';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -52,8 +52,7 @@ describe('profile inventory candidates', () => {
             isActive: true,
             charged: false,
             userProfile: { default_roast_profile_id: 'p1' },
-            sourceCandidatesReady: true,
-            sourceCandidates: [{ beanId: 'historical', blendId: null, name: 'Historical' }, source],
+            registeredSources: { profileId: 'p1', workspaceOwnerId: null, ready: true, candidates: [source] },
         });
         await act(async () => {});
         expect(h.api.targetProfileId).toBe('p1');
@@ -93,117 +92,202 @@ describe('profile inventory candidates', () => {
         expect(useRoastingStore.getState().pendingProfileSource).toBeNull();
         h.unmount();
     });
-    it('replaces a deleted local default when a sole profile candidate arrives', () => {
-        const store = useRoastingStore.getState();
-        store.reset();
-        localStorage.setItem('fc_default_bean_id', 'deleted');
-        const props = {
-            isActive: true,
-            charged: false,
-            userProfile: null,
-            beansReady: true,
-            beans: [],
-            sourceCandidatesReady: false,
-        };
-        const h = mountHook(props);
-        h.rerender({
-            ...props,
-            sourceCandidatesReady: true,
-            sourceCandidates: [{ beanId: null, blendId: 'x1', name: 'Modern' }],
+    const single = { beanId: 'b', blendId: null, name: 'Registered B' };
+    const blend = { beanId: null, blendId: 'blend', name: 'Registered Blend' };
+    const sources = (
+        profileId: string | null,
+        candidates = [single],
+        ready = true,
+        workspaceOwnerId: string | null = null,
+    ) => ({
+        profileId,
+        candidates,
+        ready,
+        workspaceOwnerId,
+    });
+    const base = { isActive: true, charged: false, userProfile: null };
+
+    it('replaces a previous manual source once for each explicit new Target', async () => {
+        useRoastingStore.getState().prepareBean('a', 'Previous');
+        const h = mountHook({ ...base, registeredSources: sources('B') }, true);
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
         });
-        expect(h.api.selectedBlendId).toBe('x1');
+        expect(h.api.selectedBeanId).toBe('b');
+        expect(h.api.handoffBeanName).toBe('Registered B');
+        act(() => h.api.setSelectedBeanId('c', 'Manual'));
+        h.rerender({ ...base, registeredSources: sources('B', [blend]) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
+        expect(h.api.selectedBeanId).toBe('c');
+        h.rerender({ ...base, registeredSources: sources('C', [blend]) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('C');
+        });
+        expect(h.api.selectedBlendId).toBe('blend');
+        expect(h.api.handoffBeanName).toBe('Registered Blend');
         h.unmount();
     });
-    it('requires an explicit choice among several candidates instead of reusing a local default', () => {
-        const store = useRoastingStore.getState();
-        store.reset();
-        store.initializeBean('default-bean');
-        const h = mountHook({
-            isActive: true,
-            charged: false,
-            userProfile: null,
-            sourceCandidatesReady: true,
-            sourceCandidates: [
-                { beanId: 'b1', blendId: null, name: 'Single' },
-                { beanId: null, blendId: 'x1', name: 'Modern' },
-            ],
+    it('consumes a delayed default when a user chooses a source before it arrives', async () => {
+        const h = mountHook({ ...base, registeredSources: sources('B', [], false) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
         });
+        act(() => h.api.setSelectedBeanId('c', 'Manual'));
+        h.rerender({ ...base, registeredSources: sources('B') });
+        expect(h.api.selectedBeanId).toBe('c');
+        h.unmount();
+    });
+    it('ignores stale results across fast Target changes, including B → C → B', async () => {
+        const h = mountHook({ ...base, registeredSources: sources('B', [], false) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
+        const oldRequest = useRoastingStore.getState().prepared.profileSourceRequest;
+        await act(async () => {
+            await h.api.setUserSelectedTarget('C');
+        });
+        h.rerender({ ...base, registeredSources: sources('B') });
         expect(h.api.selectedBeanId).toBeNull();
-        expect(h.api.selectedBlendId).toBeNull();
-        h.unmount();
-    });
-    it('preserves the scheduled source when a profile has another sole candidate', () => {
-        const store = useRoastingStore.getState();
-        store.reset();
-        store.startBatch({
-            planBatchId: 'batch',
-            planId: 'plan',
-            beanId: null,
-            blendId: 'scheduled',
-            beanName: 'Schedule',
-            batchCount: 1,
-            completedSessions: 0,
-            batchSizeKg: 5,
-            profileId: null,
+        h.rerender({ ...base, registeredSources: sources('C', [blend]) });
+        expect(h.api.selectedBlendId).toBe('blend');
+        h.rerender({ ...base, registeredSources: sources('B', [], false) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
         });
-        const h = mountHook({
-            isActive: true,
-            charged: false,
-            userProfile: null,
-            sourceCandidatesReady: true,
-            sourceCandidates: [{ beanId: 'b1', blendId: null, name: 'Single' }],
+        act(() => useRoastingStore.getState().applyProfileSource(single, false, oldRequest));
+        expect(h.api.selectedBlendId).toBe('blend');
+        h.rerender({ ...base, registeredSources: sources('B') });
+        expect(h.api.selectedBeanId).toBe('b');
+        h.unmount();
+    });
+    it('clears for multiple registrations, preserves for none and Target removal, and consumes empty results', async () => {
+        useRoastingStore.getState().prepareBean('a', 'Previous');
+        const h = mountHook({ ...base, registeredSources: sources('B', [], false) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
         });
-        expect(h.api.selectedBlendId).toBe('scheduled');
-        h.unmount();
-    });
-    it('automatically selects a sole blend after candidates load and keeps manual overrides', async () => {
-        vi.useRealTimers();
-        useRoastingStore.getState().reset();
-        const props = {
-            isActive: true,
-            charged: false,
-            userProfile: { default_roast_profile_id: 'p1' },
-            sourceCandidatesReady: false,
-        };
-        const h = mountHook(props);
-        await act(async () => {});
-        expect(h.api.selectedBlendId).toBeNull();
-        const loaded = {
-            ...props,
-            sourceCandidatesReady: true,
-            sourceCandidates: [{ beanId: null, blendId: 'x1', name: 'Modern' }],
-        };
-        h.rerender(loaded);
-        expect(h.api.selectedBlendId).toBe('x1');
-        act(() => h.api.setSelectedBeanId('manual'));
-        h.rerender({ ...loaded, sourceCandidates: [{ beanId: null, blendId: 'x2', name: 'Other' }] });
-        expect(h.api.selectedBeanId).toBe('manual');
-        expect(h.api.selectedBlendId).toBeNull();
-        h.unmount();
-    });
-    it('clears a previous automatic pick for multiple candidates without changing the running batch', async () => {
-        vi.useRealTimers();
-        useRoastingStore.getState().reset();
-        const a = { beanId: 'b1', blendId: null, name: 'Single' };
-        const b = { beanId: null, blendId: 'x1', name: 'Modern' };
-        const props = {
-            isActive: true,
-            charged: false,
-            userProfile: { default_roast_profile_id: 'p1' },
-            sourceCandidatesReady: true,
-            sourceCandidates: [a],
-        };
-        const h = mountHook(props);
-        await act(async () => {});
-        expect(h.api.selectedBeanId).toBe('b1');
-        h.rerender({ ...props, sourceCandidates: [a, b] });
+        expect(h.api.selectedBeanId).toBe('a');
+        h.rerender({ ...base, registeredSources: sources('B', [single, blend]) });
         expect(h.api.selectedBeanId).toBeNull();
-        h.rerender({ ...props, sourceCandidates: [b] });
+        act(() => h.api.setSelectedBeanId('c'));
+        h.rerender({ ...base, registeredSources: sources('C', []) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('C');
+        });
+        expect(h.api.selectedBeanId).toBe('c');
+        h.rerender({ ...base, registeredSources: sources('C', [single]) });
+        expect(h.api.selectedBeanId).toBe('c');
+        await act(async () => {
+            await h.api.setUserSelectedTarget(null);
+        });
+        expect(h.api.selectedBeanId).toBe('c');
+        h.unmount();
+    });
+    it('preserves restored selection on mount rather than granting another automatic default', () => {
+        const store = useRoastingStore.getState();
+        store.initializeProfile('B');
+        store.prepareBean('restored', 'Restored');
+        const h = mountHook({ ...base, registeredSources: sources('B') });
+        expect(h.api.selectedBeanId).toBe('restored');
+        h.unmount();
+    });
+    it('preserves source and Target when Replay rejects a new Target', async () => {
+        useRoastingStore.getState().prepareBean('a');
+        const h = mountHook({ ...base, registeredSources: sources('B'), confirmTargetChange: async () => false });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
+        expect(h.api.targetProfileId).toBeNull();
+        expect(h.api.selectedBeanId).toBe('a');
+        expect(useRoastingStore.getState().prepared.profileSourceRequest).toBeNull();
+        h.unmount();
+    });
+    it('invalidates pending defaults at Charge and preserves the source through the completed snapshot', async () => {
+        useRoastingStore.getState().prepareBean('a', 'Charged A');
+        const h = mountHook({ ...base, registeredSources: sources('B', [], false) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
         act(() => {
             useRoastingStore.getState().startCharge();
         });
-        h.rerender({ ...props, charged: true });
-        expect(h.api.selectedBlendId).toBe('x1');
+        h.rerender({ ...base, registeredSources: sources('B') });
+        expect(h.api.selectedBeanId).toBe('a');
+        await act(async () => {
+            await h.api.setUserSelectedTarget('C');
+        });
+        h.rerender({ ...base, registeredSources: sources('C', [blend]) });
+        expect(h.api.selectedBeanId).toBe('a');
+        act(() => {
+            useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+        });
+        expect(useRoastingStore.getState().completed?.snapshot.selection).toMatchObject({
+            beanId: 'a',
+            beanName: 'Charged A',
+        });
+        expect(useRoastingStore.getState().completed?.summary).toMatchObject({
+            selectedBeanId: 'a',
+            handoffBeanName: 'Charged A',
+        });
+        h.unmount();
+    });
+    it('freezes the displayed automatic source id and name into the save snapshot', async () => {
+        const h = mountHook({ ...base, registeredSources: sources('B', [blend]) });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
+        expect(h.api.selectedBlendId).toBe('blend');
+        expect(h.api.handoffBeanName).toBe('Registered Blend');
+        act(() => {
+            useRoastingStore.getState().startCharge();
+        });
+        act(() => {
+            useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+        });
+        expect(useRoastingStore.getState().completed?.snapshot.selection).toMatchObject({
+            beanId: null,
+            blendId: 'blend',
+            beanName: 'Registered Blend',
+        });
+        expect(useRoastingStore.getState().completed?.summary).toMatchObject({
+            selectedBeanId: null,
+            selectedBlendId: 'blend',
+            handoffBeanName: 'Registered Blend',
+        });
+        h.rerender({ ...base, registeredSources: sources('B') });
+        expect(useRoastingStore.getState().completed?.snapshot.selection.blendId).toBe('blend');
+        h.unmount();
+    });
+    it('invalidates pending defaults on workspace switch and plan handoff', async () => {
+        const h = mountHook({ ...base, workspaceOwnerId: 'one', registeredSources: sources('B', [], false, 'one') });
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
+        const oldRequest = useRoastingStore.getState().prepared.profileSourceRequest;
+        h.rerender({ ...base, workspaceOwnerId: 'two', registeredSources: sources('B', [single], true, 'one') });
+        act(() => useRoastingStore.getState().applyProfileSource(single, false, oldRequest));
+        expect(h.api.selectedBeanId).toBeNull();
+        await act(async () => {
+            await h.api.setUserSelectedTarget('B');
+        });
+        act(() =>
+            useRoastingStore.getState().startBatch({
+                planBatchId: 'batch',
+                planId: 'plan',
+                beanId: null,
+                blendId: 'scheduled',
+                beanName: 'Schedule',
+                batchCount: 1,
+                completedSessions: 0,
+                batchSizeKg: 5,
+                profileId: 'B',
+            }),
+        );
+        h.rerender({ ...base, workspaceOwnerId: 'two', registeredSources: sources('B', [single], true, 'two') });
+        expect(h.api.selectedBlendId).toBe('scheduled');
+        expect(h.api.handoffBeanName).toBe('Schedule');
         h.unmount();
     });
 });
