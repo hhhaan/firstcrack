@@ -121,7 +121,7 @@ test('explicit Target changes restore its registered source while manual overrid
     await expect(roastSourceTrigger(page)).toHaveAttribute('data-value', a.id);
 });
 
-test('history and profile preview share display settings and retain stored ET RoR', async ({
+test('history keeps display settings and stored ET RoR', async ({
     authedPage: page,
     db,
 }) => {
@@ -155,18 +155,9 @@ test('history and profile preview share display settings and retain stored ET Ro
     });
     await expect.poll(async () => (await readChart(page))?.y[1]).toEqual({ min: -5, max: 20 });
     history = await readChart(page);
-    await goNav(page, 'profiles');
-    await expect(page.getByTestId('profile-saved-curve')).toBeVisible();
-    await expect
-        .poll(async () => (await readChart(page))?.series.find((s) => s.name === 'BT Actual')?.data)
-        .toEqual(history?.series.find((s) => s.name === 'BT Actual')?.data);
-    const preview = await readChart(page);
-    expect(preview?.series.map((s) => s.name)).toEqual(
+    expect(history?.series.map((s) => s.name)).toEqual(
         expect.arrayContaining(['BT Actual', 'ET Actual', 'RoR', 'ET RoR']),
     );
-    expect(preview?.y.slice(0, 2)).toEqual(history?.y.slice(0, 2));
-    await page.setViewportSize({ width: 1024, height: 768 });
-    await page.screenshot({ path: '/tmp/voc-1105-profile.png', fullPage: true });
 });
 
 test('BBP keeps a fixed fifteen-minute window and preserves the full reference roast', async ({

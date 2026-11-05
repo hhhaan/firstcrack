@@ -9,7 +9,6 @@ import {
 import { useRoastSettings } from '@features/active-roast';
 import { parseStoredRoastEvents, storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastLog } from '@features/active-roast/ui/RoastLog';
-import { SavedRoastCurve } from '@features/active-roast/ui/SavedRoastCurve';
 import { useCsvFileExport } from '@features/export-csv';
 import { profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
@@ -19,6 +18,7 @@ import type { TsvPoint } from '@shared/lib/tsv';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
+import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { AlertCircle, Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -203,13 +203,18 @@ export const ProfileDetail = ({
                         </Badge>
                     )}
                 </div>
-                {selectedHasReal && selectedRealCurve.length > 0 ? (
-                    <SavedRoastCurve key={chartKey} points={selectedRealCurve} events={sourceEvents} />
-                ) : (
-                    <p role="status" className="py-10 text-center text-sm text-muted">
-                        {t('profiles.detail.noRecordedData')}
-                    </p>
-                )}
+                <ProfileCurveChart
+                    key={chartKey}
+                    series={[
+                        {
+                            curve: selectedHasReal
+                                ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
+                                : generateProfileCurve(selected.drop_temp_celsius ?? 200, selected.duration_sec ?? 720),
+                            color: 'var(--color-primary)',
+                            label: selected.name,
+                        },
+                    ]}
+                />
             </div>
 
             <ProfileReferenceBatches
