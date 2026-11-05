@@ -83,10 +83,13 @@
     },
     "auth": {
         "oauthCompleting": "Completing sign-in…",
+        "roastSessionExpired": "Your sign-in session has expired. Roast controls and local recording continue. Finish your work and disconnect the roaster before signing in again.",
+        "signOutBlocked": "Finish roasting and disconnect the roaster before signing out.",
         "errors": {
             "invalid_credentials": "Incorrect email or password. Please try again.",
             "network": "Network error. Check your connection and try again.",
             "oauth_failed": "Sign-in could not be completed. Please try again.",
+            "session_expired": "Your session has expired. Please sign in again.",
             "generic": "Sign-in failed. Please try again."
         }
     },

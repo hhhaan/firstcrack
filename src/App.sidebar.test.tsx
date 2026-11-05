@@ -33,7 +33,7 @@ vi.mock('./shared/store/auth', () => ({
             loading: boolean;
             oauthPending: boolean;
             cancelOAuth: () => void;
-            init: () => void;
+            init: () => () => void;
         }) => unknown,
     ) =>
         selector({
@@ -41,7 +41,7 @@ vi.mock('./shared/store/auth', () => ({
             loading: false,
             oauthPending: false,
             cancelOAuth: () => undefined,
-            init: () => undefined,
+            init: () => () => undefined,
         }),
 }));
 vi.mock('./shared/store/theme', () => ({
@@ -62,6 +62,7 @@ vi.mock('./features/active-roast', () => ({
     ) => selector({ phase: hooks.phase, startBatch: () => undefined, completeBatch: () => undefined }),
 }));
 vi.mock('./features/auth', () => ({ useOAuthDeepLink: () => undefined }));
+vi.mock('./roastAuthProtection', () => ({ protectRoastSession: () => () => undefined }));
 vi.mock('./features/sidecar', () => ({ useSidecarDeadListener: () => ({ isDead: false }) }));
 vi.mock('./features/updater', async (importOriginal) => {
     const actual = await importOriginal<typeof import('./features/updater')>();
