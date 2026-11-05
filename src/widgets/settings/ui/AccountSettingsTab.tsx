@@ -54,6 +54,7 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
     const qc = useQueryClient();
     const user = useAuthStore((s) => s.user);
     const signOut = useAuthStore((s) => s.signOut);
+    const signOutBlocked = useAuthStore((s) => s.sessionProtectionActive);
     const { data: profile } = useProfile(user?.id ?? '');
     const updateProfile = useUpdateProfile(user?.id ?? '');
 
@@ -231,8 +232,14 @@ export function AccountSettingsTab({ onClose }: AccountSettingsTabProps) {
                         <button
                             type="button"
                             onClick={() => {
-                                void signOut().then(() => onClose());
+                                void signOut()
+                                    .then((signedOut) => {
+                                        if (signedOut) onClose();
+                                    })
+                                    .catch((error) => logger.capture(error, { context: 'sign out' }));
                             }}
+                            disabled={signOutBlocked}
+                            title={signOutBlocked ? t('auth.signOutBlocked') : undefined}
                             className={`${pillBtnCls} text-red-600 dark:text-red-400`}
                         >
                             {tk('signOut')}

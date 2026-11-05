@@ -8,6 +8,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRoastingStore } from './features/active-roast';
 import { useOAuthDeepLink } from './features/auth';
+import { protectRoastSession } from './roastAuthProtection';
 import type { PlanBatchHandoff } from './shared/types/database.types';
 import './App.css';
 import { Spinner } from '@shared/ui/Spinner';
@@ -63,10 +64,19 @@ const AppShell = () => {
     const oauthPending = useAuthStore((s) => s.oauthPending);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const init = useAuthStore((s) => s.init);
+    const sessionProtectionActive = useAuthStore((s) => s.sessionProtectionActive);
+    const reauthenticationRequired = useAuthStore((s) => s.reauthenticationRequired);
     // VOC: restore first-run theme picker — const theme = useThemeStore((s) => s.theme);
     const initTheme = useThemeStore((s) => s.initTheme);
 
-    useEffect(() => init(), [init]);
+    useEffect(() => {
+        const stopProtection = protectRoastSession();
+        const stopAuth = init();
+        return () => {
+            stopAuth();
+            stopProtection();
+        };
+    }, [init]);
     useEffect(() => initTheme(), [initTheme]);
     useOAuthDeepLink();
 
@@ -230,7 +240,7 @@ const AppShell = () => {
         setView('schedule');
     }, [completeBatch]);
 
-    if (loading || oauthPending)
+    if ((loading || oauthPending) && !sessionProtectionActive)
         return (
             <div
                 style={{
@@ -291,6 +301,14 @@ const AppShell = () => {
     return (
         <ErrorBoundary fallback={appShellFallback}>
             <div className="flex h-screen flex-col overflow-hidden bg-shell-bg">
+                {reauthenticationRequired && (
+                    <div
+                        role="status"
+                        className="shrink-0 border-b border-border bg-main-bg px-4 py-2 text-sm text-primary"
+                    >
+                        {t('auth.roastSessionExpired')}
+                    </div>
+                )}
                 {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery />
                 {shortcutsOpen && <KeyboardShortcutsModal />}

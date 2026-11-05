@@ -7,6 +7,8 @@ import { AccountSettingsTab } from './AccountSettingsTab';
 const mocks = vi.hoisted(() => ({
     mutateAsync: vi.fn(),
     invalidateQueries: vi.fn(),
+    signOut: vi.fn(),
+    signOutBlocked: false,
     profile: {
         display_name: '한승헌',
         business_name: null as string | null,
@@ -32,8 +34,17 @@ vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
 
 vi.mock('@shared/store/auth', () => ({
     useAuthStore: (
-        selector: (state: { user: { id: string; email: string }; signOut: () => Promise<void> }) => unknown,
-    ) => selector({ user: { id: 'u1', email: 'han@example.com' }, signOut: vi.fn() }),
+        selector: (state: {
+            user: { id: string; email: string };
+            signOut: () => Promise<boolean>;
+            sessionProtectionActive: boolean;
+        }) => unknown,
+    ) =>
+        selector({
+            user: { id: 'u1', email: 'han@example.com' },
+            signOut: mocks.signOut,
+            sessionProtectionActive: mocks.signOutBlocked,
+        }),
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -71,6 +82,8 @@ describe('AccountSettingsTab display name', () => {
         root = createRoot(container);
         mocks.mutateAsync.mockReset();
         mocks.mutateAsync.mockResolvedValue({});
+        mocks.signOut.mockReset();
+        mocks.signOutBlocked = false;
         mocks.profile.display_name = '한승헌';
         mocks.profile.business_name = null;
         mocks.profile.business_registration_number = null;
@@ -109,5 +122,17 @@ describe('AccountSettingsTab display name', () => {
 
         await act(async () => saveButton().click());
         expect(mocks.mutateAsync).toHaveBeenCalledWith(expect.objectContaining({ display_name: 'Ada Lovelace' }));
+    });
+
+    it('disables sign-out while machine work is protected', () => {
+        mocks.signOutBlocked = true;
+        act(() => root.render(createElement(AccountSettingsTab, { onClose: () => {} })));
+        const button = [...container.querySelectorAll('button')].find(
+            (el) => el.textContent === 'settings.tabs.account.signOut',
+        ) as HTMLButtonElement;
+        expect(button.disabled).toBe(true);
+        expect(button.title).toBe('auth.signOutBlocked');
+        button.click();
+        expect(mocks.signOut).not.toHaveBeenCalled();
     });
 });

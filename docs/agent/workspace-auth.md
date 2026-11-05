@@ -56,7 +56,7 @@ const { workspaceOwnerId, isWorkspaceReady, isForeignWorkspace, authUserId } = u
 2. **Never** use `auth.user.id` alone for list filters / inserts when a foreign workspace can be active — use `workspaceOwnerId`.
 3. **Gate** mutations on `isWorkspaceReady` (see `useFulfillOrder`, `useCancelOrder`, roast save flow).
 4. **Host plan** for feature gates on foreign workspaces comes from membership `owner_plan` hydrated into `ownerPlanById` (not the member's personal plan).
-5. **Session termination** clears auth state and the profile plan cache without inferring the cause. Preserve workspace selection; auth regression tests live in `src/shared/store/auth.test.ts`.
+5. **Session termination** outside protected machine work clears auth state and the profile plan cache without inferring the cause. Preserve workspace selection; auth regression tests live in `src/shared/store/auth.test.ts`.
 
 ---
 
@@ -75,6 +75,24 @@ Owner: one org per owner (`organizations.owner_id` unique). Plan SSoT remains `p
 - No secrets in `VITE_*` (bundled).
 - Supabase anon key is public by design; service role never in client.
 - OAuth deep link: `src/features/auth/` — keep redirect handling platform-safe.
+
+## Authentication loss during machine work
+
+`AppShell` binds `protectRoastSession` before initializing auth. Its synchronous
+roast-store subscription protects every non-idle phase, a connected/reconnecting
+machine, and a PID that is not off. Auth loss retains the local operator identity,
+workspace and cached plan with `reauthenticationRequired`; the same screen, polling,
+TSV writer and controllers remain mounted. Manual sign-out is blocked at both the
+button and store action, including the race where machine work starts during a
+pending sign-out. A different account cannot replace the local operator while protected.
+
+This does not extend cloud credentials or bypass RLS. Existing roast-save checkpoints
+retain failed cloud saves. Same-account session recovery clears the notice without
+clearing the plan cache. Otherwise, login is required once the operator finishes and
+disconnects the machine. Intentional sign-out uses local scope so another device's
+roast is not signed out. Regression: `auth.test.ts` and
+`e2e/tests/roast-auth-continuity.spec.ts` (real auth refresh refusal, live collection,
+TSV writes, subsequent Replay steps and manual control through a mocked roaster).
 
 ---
 
