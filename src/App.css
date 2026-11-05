@@ -131,7 +131,7 @@
     --color-phase-development: oklch(0.6 0.18 155);
     --color-phase-development-fill: oklch(0.6 0.18 155 / 0.26);
     --color-fc-band-fill: oklch(0.6 0.18 155 / 0.1);
-    --color-bbp-fill: oklch(0.55 0 0 / 0.055);
+    --color-bbp-fill: oklch(0.55 0 0 / 0.07);
     --color-phase-danger: #dc2626;
     --color-phase-danger-bg: rgba(220, 38, 38, 0.1);
 

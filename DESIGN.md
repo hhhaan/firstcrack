@@ -128,7 +128,7 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 | `--color-phase-development` | `oklch(0.6 0.18 155)` | `#81fba5` | Development |
 | `--color-phase-development-fill` | `oklch(0.6 0.18 155 / 0.26)` | `rgba(129, 251, 165, 0.18)` | Development fill |
 | `--color-fc-band-fill` | `oklch(0.6 0.18 155 / 0.1)` | `rgba(129, 251, 165, 0.08)` | FC band fill |
-| `--color-bbp-fill` | `oklch(0.55 0 0 / 0.055)` | `oklch(1 0 0 / 0.07)` | BBP 구간 배경 (격자 유지) |
+| `--color-bbp-fill` | `oklch(0.55 0 0 / 0.07)` | `oklch(1 0 0 / 0.07)` | BBP 구간 배경 (격자 유지) |
 | `--color-phase-danger` | `#dc2626` | `#ffffff` | Danger / 임계 (light red, dark white) |
 | `--color-phase-danger-bg` | `rgba(220, 38, 38, 0.1)` | `rgba(255, 255, 255, 0.12)` | Danger 배경 |
 
