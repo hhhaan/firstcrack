@@ -43,6 +43,7 @@ const controlMarks = (
     style: CurveLineStyle,
     fontScale: number,
     includeVirtual = false,
+    showTail = true,
 ) => {
     const text = {
         show: true,
@@ -80,7 +81,7 @@ const controlMarks = (
         if (tailTime != null && tailTime - change.timeSec < CONTROL_CHANGE_LABEL_DELAY_SEC) return [];
         return [mark(change.timeSec, value)];
     });
-    if (tailTime != null && typeof tail?.[1] === 'number') marks.push(mark(tailTime, tail[1]));
+    if (showTail && tailTime != null && typeof tail?.[1] === 'number') marks.push(mark(tailTime, tail[1]));
     return {
         step: 'end' as const,
         markPoint: { silent: true, animation: false, data: marks },
@@ -253,6 +254,8 @@ export interface ControlSeriesParams {
     curves: ResolvedCurveStyles;
     controlGuideMarkLines: object[];
     fontScale?: number;
+    /** Live readout at the series end. History leaves the right axis to RoR. */
+    showControlTailLabels?: boolean;
 }
 
 export const buildControlSeries = (params: ControlSeriesParams): object[] => {
@@ -268,6 +271,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
         curves,
         controlGuideMarkLines,
         fontScale = 1,
+        showControlTailLabels = true,
     } = params;
     const {
         xs: cxs,
@@ -321,7 +325,15 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data,
             lineStyle: { ...curves.drum.current },
             ...lineSeriesBase,
-            ...controlMarks(data, changes, 'drum', curves.drum.current, fontScale, virtualRoles?.includes('drum')),
+            ...controlMarks(
+                data,
+                changes,
+                'drum',
+                curves.drum.current,
+                fontScale,
+                virtualRoles?.includes('drum'),
+                showControlTailLabels,
+            ),
         });
     }
     // 세트포인트(지시)는 실측보다 먼저 넣는다 — 겹치는 구간에서 실선(실측)이 점선을 덮어야 한다
@@ -362,7 +374,15 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data,
             lineStyle: { ...curves.heat.current },
             ...lineSeriesBase,
-            ...controlMarks(data, changes, 'heater', curves.heat.current, fontScale, virtualRoles?.includes('heater')),
+            ...controlMarks(
+                data,
+                changes,
+                'heater',
+                curves.heat.current,
+                fontScale,
+                virtualRoles?.includes('heater'),
+                showControlTailLabels,
+            ),
         });
     }
     if (showControlFan) {
@@ -376,7 +396,15 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
             data,
             lineStyle: { ...curves.fan.current },
             ...lineSeriesBase,
-            ...controlMarks(data, changes, 'fan', curves.fan.current, fontScale, virtualRoles?.includes('fan')),
+            ...controlMarks(
+                data,
+                changes,
+                'fan',
+                curves.fan.current,
+                fontScale,
+                virtualRoles?.includes('fan'),
+                showControlTailLabels,
+            ),
         });
     }
     const guideOwner = series.find((item) => ['Drum', 'Heat', 'Fan'].includes((item as { name: string }).name));

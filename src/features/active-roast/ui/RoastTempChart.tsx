@@ -168,6 +168,7 @@ interface Props {
     xViewMax?: number;
     bbpRange?: { start: number; end: number; label?: string };
     hideChargeLabel?: boolean;
+    showControlTailLabels?: boolean;
 }
 
 export interface RoastTempChartHandle {
@@ -329,6 +330,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onAddEvent,
         onMoveEvent,
         hideChargeLabel = false,
+        showControlTailLabels = true,
         showET = true,
         showTargetCurve = true,
         showProfileBt,
@@ -511,6 +513,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 xViewMax,
                 bbpRange,
                 hideChargeLabel,
+                showControlTailLabels,
                 fontScale,
                 colors,
                 curveStyles,
@@ -569,6 +572,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             xViewMax,
             bbpRange,
             hideChargeLabel,
+            showControlTailLabels,
             fontScale,
             curveStyles,
             targetCurveTone,

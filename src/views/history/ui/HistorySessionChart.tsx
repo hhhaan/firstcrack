@@ -376,6 +376,7 @@ export function HistorySessionChart({
                     temperatureUnit={unit}
                     xViewMin={xView.min}
                     xViewMax={xView.max}
+                    showControlTailLabels={false}
                     bbpRange={bbpRange}
                     controlData={showControlBand ? controlData : undefined}
                     printControlData={controlData}

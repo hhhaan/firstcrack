@@ -115,6 +115,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xViewMax,
         bbpRange,
         hideChargeLabel = false,
+        showControlTailLabels = true,
         fontScale: fontScaleRaw,
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
@@ -357,6 +358,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             curves,
             controlGuideMarkLines: mergeControlChart ? [] : controlGuideMarkLines,
             fontScale,
+            showControlTailLabels,
         });
 
         tuneAxes({ xAxis, yAxis });

@@ -1711,6 +1711,27 @@ describe('buildRoastChartOption', () => {
         },
     );
 
+    it('omits the end control value when tail labels are hidden', () => {
+        const byName = seriesByName({
+            ...baseParams(),
+            showControlTailLabels: false,
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [20, 20],
+                heatPower: [60, 60],
+                fanSpeed: [50, 50],
+                changes: [{ timeSec: 10, values: { heater: 60, fan: 50, drum: 20 } }],
+            },
+        });
+        const times = (name: string) =>
+            (byName[name] as { markPoint?: { data: { coord: number[] }[] } }).markPoint?.data.map(
+                (mark) => mark.coord[0],
+            );
+        expect(times('Heat')).toEqual([10]);
+        expect(times('Fan')).toEqual([10]);
+        expect(times('Drum')).toEqual([10]);
+    });
+
     it('holds a change label until 5s after the write', () => {
         const heatMarks = (tailSec: number) => {
             const byName = seriesByName({

@@ -112,6 +112,8 @@ export interface ChartOptionParams {
     bbpRange?: { start: number; end: number; label?: string };
     /** Live chart: omit Charge curve label (t=0 clips it). History keeps it. */
     hideChargeLabel?: boolean;
+    /** Live control value drawn at the series end. History hides it so it does not sit on the RoR axis. */
+    showControlTailLabels?: boolean;
     /** 1, 1.5, or 2. Event, phase, target-delta, and BBP labels on the plot. Axes stay put. */
     fontScale?: number;
     colors: ResolvedChartColors;
