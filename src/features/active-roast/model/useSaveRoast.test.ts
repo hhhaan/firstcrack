@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { planBatchApi } from '@entities/plan';
 import { invalidateRoastSessionQueries } from '@entities/roast';
-import { BatchLimitError, resolveEffectivePlan, useEffectivePlan } from '@shared/lib/features';
+import { resolveEffectivePlan, useEffectivePlan } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
 import { useAuthStore } from '@shared/store/auth';
 import type { PlanBatchHandoff, RoastSession } from '@shared/types/database.types';
@@ -36,8 +36,6 @@ vi.mock('@entities/roast', async (importOriginal) => {
         ...actual,
         roastSessionApi: {
             ...actual.roastSessionApi,
-            countCompletedThisMonth: vi.fn().mockResolvedValue(0),
-            countCompletedTotal: vi.fn().mockResolvedValue(0),
             saveOp: (...args: unknown[]) => hookMocks.saveOp(...args),
             invalidateRoastSessionQueries: vi.fn().mockResolvedValue(undefined),
         },
@@ -92,8 +90,6 @@ function makeDeps(overrides: Partial<SaveRoastDeps> = {}): SaveRoastDeps {
     return {
         plan: 'pro',
         qc: new QueryClient({ defaultOptions: { queries: { retry: false } } }),
-        countCompletedThisMonth: vi.fn().mockResolvedValue(0),
-        countCompletedTotal: vi.fn().mockResolvedValue(0),
         saveOp: vi.fn().mockResolvedValue({ id: 'sess-db-1' }),
         flushCurve: vi.fn().mockResolvedValue(undefined),
         ...overrides,
@@ -183,22 +179,14 @@ describe('saveRoastCore', () => {
 
     beforeEach(() => vi.clearAllMocks());
 
-    it('월 배치 캡 도달 → BatchLimitError, saveOp 없음', async () => {
-        const deps = makeDeps({
-            countCompletedThisMonth: vi.fn().mockResolvedValue(9999),
-        });
-        await expect(saveRoastCore(deps, baseParams)).rejects.toBeInstanceOf(BatchLimitError);
-        expect(deps.saveOp).not.toHaveBeenCalled();
-    });
-
-    it('trial 20회 도달 → trial_batch_cap, saveOp 없음', async () => {
-        const deps = makeDeps({
-            plan: 'trial',
-            countCompletedTotal: vi.fn().mockResolvedValue(20),
-        });
-        await expect(saveRoastCore(deps, baseParams)).rejects.toMatchObject({ code: 'trial_batch_cap' });
-        expect(deps.saveOp).not.toHaveBeenCalled();
-    });
+    it.each(['trial', 'trial-event', 'pro', 'tester', 'pro_plus'])(
+        '%s lets the server finish an admitted Charge without a history-count precheck',
+        async (plan) => {
+            const deps = makeDeps({ plan });
+            await saveRoastCore(deps, baseParams);
+            expect(deps.saveOp).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it('writes roasted_at from the frozen start time, and null when that time is 0', async () => {
         const deps = makeDeps();
@@ -215,35 +203,6 @@ describe('saveRoastCore', () => {
                 session: expect.objectContaining({ roasted_at: null }),
             }),
         );
-    });
-
-    it('trial 19회 → 저장 통과 (월 캡 미적용)', async () => {
-        const deps = makeDeps({
-            plan: 'trial',
-            countCompletedTotal: vi.fn().mockResolvedValue(19),
-            countCompletedThisMonth: vi.fn().mockResolvedValue(9999),
-        });
-        const result = await saveRoastCore(deps, baseParams);
-        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
-    });
-
-    it('월 카운트 API 실패 → fail-open, 저장 성공 (서버 게이트 위임)', async () => {
-        const deps = makeDeps({
-            countCompletedThisMonth: vi.fn().mockRejectedValue(new Error('network down')),
-        });
-        const result = await saveRoastCore(deps, baseParams);
-        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
-        expect(deps.saveOp).toHaveBeenCalledTimes(1);
-    });
-
-    it('trial 카운트 API 실패 → fail-open, 저장 성공', async () => {
-        const deps = makeDeps({
-            plan: 'trial',
-            countCompletedTotal: vi.fn().mockRejectedValue(new Error('network down')),
-        });
-        const result = await saveRoastCore(deps, baseParams);
-        expect(result.savedSession).toEqual({ id: 'sess-db-1' });
-        expect(deps.saveOp).toHaveBeenCalledTimes(1);
     });
 
     it('read_only → 즉시 거부', async () => {
@@ -321,7 +280,6 @@ describe('saveRoastCore', () => {
             userId: 'snapshot-owner',
             formData: { ...baseParams.formData, linkedBatch: handoff },
         });
-        expect(deps.countCompletedThisMonth).toHaveBeenCalledWith('snapshot-owner');
         expect(deps.saveOp).toHaveBeenCalledWith(
             expect.objectContaining({
                 session: expect.objectContaining({ user_id: 'snapshot-owner', plan_batch_id: handoff.planBatchId }),

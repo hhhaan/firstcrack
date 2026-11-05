@@ -1,7 +1,9 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { i18n } from '@shared/i18n';
 import { formatElapsed } from '@shared/lib/format';
 import { logger } from '@shared/lib/logger';
 import { sidecar } from '@shared/lib/sidecar';
+import { useToastStore } from '@shared/store/toast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
@@ -9,6 +11,7 @@ import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
 import { isChargedPhase, useRoastingStore } from './status';
+import type { ChargeAdmission } from './useRoastChargeAdmission';
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;
@@ -18,8 +21,9 @@ interface UseRoastActionsParams {
     storeStartCharge: (
         originMs?: number,
         ownerId?: string,
-        charge?: { bt: number | null; unit: TemperatureUnit },
+        charge?: { bt: number | null; unit: TemperatureUnit; sessionId?: string },
     ) => string | null;
+    admission?: ChargeAdmission;
 }
 
 interface UseRoastActionsReturn {
@@ -36,22 +40,33 @@ export const useRoastActions = ({
     setLogEntries,
     onDrop,
     storeStartCharge,
+    admission,
 }: UseRoastActionsParams): UseRoastActionsReturn => {
     const { workspaceOwnerId } = useActiveWorkspace();
     const triggerCharge = useCallback(
         (btAtCharge?: number | null, chargeTimeMs?: number) => {
             // manual↔auto 이중 발화 차단 — 어느 쪽이든 선착이 이긴다 (#174)
             if (isChargedPhase(useRoastingStore.getState().phase)) return;
+            const reservedId = admission?.take();
+            if (admission && !reservedId) {
+                useToastStore.getState().show(i18n.t('planGate.charge_preparing'));
+                return;
+            }
             const now = Date.now();
-            const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
+            const origin = chargeTimeMs != null && chargeTimeMs > 0 && chargeTimeMs <= now ? chargeTimeMs : now;
             const btVal = btAtCharge ?? rawBT;
-            const sessionId = storeStartCharge(origin, workspaceOwnerId, { bt: btVal, unit });
+            const sessionId = storeStartCharge(origin, workspaceOwnerId, {
+                bt: btVal,
+                unit,
+                ...(reservedId && { sessionId: reservedId }),
+            });
             if (!sessionId) return;
+            admission?.confirm(sessionId, origin);
             sidecar.startRoast().catch((error) => {
                 logger.capture(error, { context: 'roast start' });
             });
         },
-        [unit, rawBT, storeStartCharge, workspaceOwnerId],
+        [unit, rawBT, storeStartCharge, workspaceOwnerId, admission],
     );
 
     const handleAutoDrop = useCallback(

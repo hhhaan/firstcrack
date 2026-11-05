@@ -23,6 +23,7 @@ describe('canConnectRoaster', () => {
         expect(roasterRequiresEnterprise(key)).toBe(true);
         expect(canConnectRoaster(key, 'enterprise')).toBe(true);
         expect(canConnectRoaster(key, 'tester')).toBe(true);
+        expect(canConnectRoaster(key, 'trial-event')).toBe(true);
         expect(canConnectRoaster(key, 'team')).toBe(false);
         expect(canConnectRoaster(key, 'pro_plus')).toBe(false);
         expect(canConnectRoaster(key, '')).toBe(false);

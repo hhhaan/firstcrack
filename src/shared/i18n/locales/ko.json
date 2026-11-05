@@ -635,6 +635,8 @@
                 "workspaceNote": "현재 워크스페이스 소유자의 플랜과 사용량입니다. 업그레이드는 내 계정에 적용됩니다.",
                 "current": "현재",
                 "trial": "체험판",
+                "trialEvent": "이벤트 체험",
+                "trialEventLoading": "체험 정보를 확인하고 있습니다.",
                 "readOnly": "조회 전용",
                 "available": "이용 가능",
                 "upgrade": "업그레이드",
@@ -2448,9 +2450,12 @@
         "insufficientRoastedStock": "원두 재고가 부족합니다. 재고관리 원두(벌크) 탭에서 재고를 보정한 뒤 다시 시도해 주세요."
     },
     "planGate": {
+        "charge_preparing": "배치 사용권을 확인하고 있습니다. 잠시 후 투입해 주세요.",
         "monthly_batch_cap": "이번 달 로스팅 한도({{used}}/{{max}})에 도달했습니다. 계속하려면 상위 플랜이 필요합니다.",
         "trial_batch_cap": "체험판 로스팅 한도({{used}}/{{max}})를 모두 사용했습니다. 계속하려면 구독이 필요합니다.",
+        "trial_event_batch_cap": "체험판 로스팅 한도({{used}}/{{max}})를 모두 사용했습니다. 계속하려면 구독이 필요합니다.",
         "trial_expired": "체험 기간이 종료되었습니다. 계속하려면 구독이 필요합니다.",
+        "trial_event_expired": "체험 기간이 종료되었습니다. 계속하려면 구독이 필요합니다.",
         "read_only_plan": "구독이 만료되어 현재 조회 전용 상태입니다. 구독하면 다시 로스팅을 저장할 수 있습니다."
     },
     "catalog": {

@@ -8,6 +8,7 @@ import { getRoastSettings, updateRoastSettings } from '@features/active-roast/mo
 import { useRoastingStore } from '@features/active-roast/model/status';
 import * as machineControlFeature from '@features/machine-control';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
+import { profileKeys, roastChargeKeys } from '@shared/lib/query-keys';
 import { roastCurveKeys } from '@shared/lib/roast-curve';
 import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests, initSessionTsv } from '@shared/lib/tsv-writer';
@@ -190,13 +191,14 @@ describe('ActiveRoast running clock (#627)', () => {
     let queryClient: QueryClient;
     const mounted: Array<() => void> = [];
 
-    const mount = () => {
+    const mount = (prepare?: (client: QueryClient) => void) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
         queryClient = new QueryClient({
             defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
         });
+        prepare?.(queryClient);
         act(() => {
             root.render(
                 createElement(
@@ -376,13 +378,27 @@ describe('ActiveRoast running clock (#627)', () => {
     });
 
     it('manual Charge starts roasting', async () => {
+        workspace.owner = 'owner';
+        workspace.ready = true;
         seed({
             phase: 'standby',
             roastStartMs: 0,
             elapsed: 0,
             liveData: { bt: 180, et: 200, ror: 0, ror_et: 0, heater: 20, fan: 0, drum: 0 },
         });
-        const unmount = mount();
+        const unmount = mount((client) => {
+            client.setQueryData(profileKeys.detail(''), { plan: 'tester' });
+            client.setQueryDefaults(roastChargeKeys.all('owner'), { staleTime: Infinity });
+            client.setQueryData(roastChargeKeys.usage('owner', 'tester'), {
+                plan: 'tester',
+                used_batches: 0,
+                reserved_batches: 0,
+                batch_cap: null,
+                period_start: '2026-09-01T00:00:00Z',
+                period_end: '2026-10-01T00:00:00Z',
+                denial_code: null,
+            });
+        });
         try {
             await flushMicrotasks();
             const charge = host.querySelector('[data-testid="roast-charge"]');

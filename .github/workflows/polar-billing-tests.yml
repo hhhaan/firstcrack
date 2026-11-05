@@ -9,6 +9,8 @@ on:
       - 'supabase/functions/polar-webhook/**'
       - 'supabase/functions/create-polar-checkout/**'
       - 'supabase/migrations/*polar*'
+      - 'supabase/migrations/*trial_event*'
+      - 'supabase/tests/trial-event*'
       - 'supabase/tests/polar-cutover.test.ts'
       - 'supabase/tests/polar-database-types.ts'
       - 'src/shared/types/database.types.ts'
@@ -24,6 +26,8 @@ on:
       - 'supabase/functions/polar-webhook/**'
       - 'supabase/functions/create-polar-checkout/**'
       - 'supabase/migrations/*polar*'
+      - 'supabase/migrations/*trial_event*'
+      - 'supabase/tests/trial-event*'
       - 'supabase/tests/polar-cutover.test.ts'
       - 'supabase/tests/polar-database-types.ts'
       - 'src/shared/types/database.types.ts'
@@ -60,5 +64,9 @@ jobs:
         env:
           POLAR_PGLITE_MODULE: ${{ runner.temp }}/polar-billing-tests/node_modules/@electric-sql/pglite/dist/index.js
         run: node supabase/tests/polar-cutover.test.ts
+      - name: Event trial entitlement and batch tests
+        env:
+          TRIAL_EVENT_PGLITE_MODULE: ${{ runner.temp }}/polar-billing-tests/node_modules/@electric-sql/pglite/dist/index.js
+        run: node supabase/tests/trial-event.test.ts
       - name: Billing Edge typecheck
         run: deno check --node-modules-dir=none --no-lock supabase/functions/polar-webhook/index.ts supabase/functions/create-polar-checkout/index.ts

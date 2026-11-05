@@ -635,6 +635,8 @@
                 "workspaceNote": "显示当前工作区所有者的套餐与用量。升级适用于你自己的账号。",
                 "current": "当前",
                 "trial": "试用",
+                "trialEvent": "活动试用",
+                "trialEventLoading": "正在确认试用信息。",
                 "readOnly": "只读",
                 "available": "可选",
                 "upgrade": "升级",
@@ -2448,9 +2450,12 @@
         "insufficientRoastedStock": "熟豆库存不足。请在库存管理的“熟豆（散装）”标签页调整库存后重试。"
     },
     "planGate": {
+        "charge_preparing": "正在确认批次额度，请稍后投豆。",
         "monthly_batch_cap": "已达到本月烘焙上限（{{used}}/{{max}}）。升级到更高套餐可继续烘焙。",
         "trial_batch_cap": "试用烘焙次数已用完（{{used}}/{{max}}）。订阅后可继续烘焙。",
+        "trial_event_batch_cap": "试用烘焙次数已用完（{{used}}/{{max}}）。订阅后可继续烘焙。",
         "trial_expired": "试用期已结束。订阅后可继续烘焙。",
+        "trial_event_expired": "试用期已结束。订阅后可继续烘焙。",
         "read_only_plan": "订阅已失效，当前为只读状态。订阅后即可继续保存烘焙。"
     },
     "catalog": {

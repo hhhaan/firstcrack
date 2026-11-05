@@ -1,7 +1,7 @@
 import { supabase } from '@shared/lib/supabase';
 import type { Database, Json, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
 import type { BatchTitleNumbering } from '@shared/types/roast';
-import { addMonths, endOfMonth, format, parse, startOfMonth } from 'date-fns';
+import { addMonths, format, parse } from 'date-fns';
 
 const SELECT_WITH_RELATIONS =
     '*, blends(name), beans(name, origin, region, variety, process, farm), roast_profiles!profile_id(name, target_level)';
@@ -146,32 +146,6 @@ export const roastSessionApi = {
         });
         if (error) throw error;
         return data as RoastSession;
-    },
-
-    /** Lifetime completed sessions (trial 20-batch cap). */
-    countCompletedTotal: async (userId: string): Promise<number> => {
-        const { count, error } = await supabase
-            .from('roast_sessions')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('status', 'completed');
-        if (error) throw error;
-        return count ?? 0;
-    },
-
-    /** Completed sessions in local calendar month (batch quota). */
-    countCompletedThisMonth: async (userId: string, now = new Date()): Promise<number> => {
-        const from = startOfMonth(now).toISOString();
-        const to = endOfMonth(now).toISOString();
-        const { count, error } = await supabase
-            .from('roast_sessions')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', userId)
-            .eq('status', 'completed')
-            .gte('roasted_at', from)
-            .lte('roasted_at', to);
-        if (error) throw error;
-        return count ?? 0;
     },
 
     update: async ({ id, ...patch }: RoastSessionUpdate): Promise<RoastSession> => {

@@ -5,7 +5,13 @@ import { useWriteAccess } from '@shared/lib/features';
 import type { Json, RoastSessionWithRelations } from '@shared/types/database.types';
 import { useTranslation } from 'react-i18next';
 
-const READ_ONLY_CODES = ['read_only_plan', 'trial_expired', 'trial_batch_cap'];
+const READ_ONLY_CODES = [
+    'read_only_plan',
+    'trial_expired',
+    'trial_batch_cap',
+    'trial_event_expired',
+    'trial_event_batch_cap',
+];
 
 /** One save path for History event + Heat set edits. Each save sends the row it was opened against. */
 export const useRoastRecordSave = (session: RoastSessionWithRelations) => {
