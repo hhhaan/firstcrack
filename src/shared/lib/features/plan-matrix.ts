@@ -59,12 +59,12 @@ export function canAddMachine(plan: string, realMachineCount: number): boolean {
     return realMachineCount < max;
 }
 
-/** Completed roast sessions per calendar month. `null` = unlimited. Pro = 200; Pro+ = unlimited. */
+/** Charges per UTC calendar month. `null` = unlimited. Pro = 200; Pro+ = unlimited. */
 // Anchors parsed by scripts/check-plan-caps.mjs (parity with the SQL batch-gate migration).
 // Keep the `NAME = <number>` shape — if you change the format, update the script.
 export const PRO_MONTHLY_BATCH_CAP = 200;
 
-/** Trial ends at whichever comes first: 14 days from signup or 20 lifetime completed batches. */
+/** Trial ends at whichever comes first: 14 days from signup or 20 lifetime Charges. */
 export const TRIAL_DURATION_DAYS = 14;
 export const TRIAL_BATCH_CAP = 20;
 
@@ -82,10 +82,16 @@ export function planMaxBatchesPerMonth(plan: string): number | null {
     return PRO_MONTHLY_BATCH_CAP;
 }
 
-export function canCompleteBatch(plan: string, completedThisMonth: number): boolean {
-    const max = planMaxBatchesPerMonth(plan);
+export function planChargeCap(plan: string): number | null {
+    if (plan === 'trial') return TRIAL_BATCH_CAP;
+    if (plan === 'trial-event') return TRIAL_EVENT_BATCH_CAP;
+    return planMaxBatchesPerMonth(plan);
+}
+
+export function canStartCharge(plan: string, chargesInPeriod: number): boolean {
+    const max = planChargeCap(plan);
     if (max == null) return true;
-    return completedThisMonth < max;
+    return chargesInPeriod < max;
 }
 
 /** Matches the RAISE codes of the server batch gate (enforce_batch_gate / profile_write_error). */

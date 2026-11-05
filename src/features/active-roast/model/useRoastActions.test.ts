@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRoastingStore } from './status';
 import { useRoastActions } from './useRoastActions';
-import type { ChargeAdmission } from './useTrialEventAdmission';
+import type { ChargeAdmission } from './useRoastChargeAdmission';
 
 vi.mock('@shared/lib/sidecar', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@shared/lib/sidecar')>();
@@ -166,7 +166,8 @@ describe('event trial admission', () => {
     it('uses the prepared server identity synchronously and keeps the Charge onset', () => {
         const id = crypto.randomUUID();
         const take = vi.fn().mockReturnValueOnce(id).mockReturnValue(null);
-        const h = renderActions({ ready: true, take });
+        const confirm = vi.fn();
+        const h = renderActions({ ready: true, take, confirm });
         const onset = Date.now() - 3000;
         act(() => {
             h.result.triggerCharge(190, onset);
@@ -176,10 +177,11 @@ describe('event trial admission', () => {
         expect(useRoastingStore.getState().sessionId).toBe(id);
         expect(useRoastingStore.getState().roastStartMs).toBe(onset);
         expect(sidecar.startRoast).toHaveBeenCalledTimes(1);
+        expect(confirm).toHaveBeenCalledExactlyOnceWith(id, onset);
         h.unmount();
     });
     it('does not Charge before a trial slot is ready', () => {
-        const h = renderActions({ ready: false, take: () => null });
+        const h = renderActions({ ready: false, take: () => null, confirm: vi.fn() });
         act(() => h.result.triggerCharge(190));
         expect(useRoastingStore.getState().phase).toBe('standby');
         expect(sidecar.startRoast).not.toHaveBeenCalled();

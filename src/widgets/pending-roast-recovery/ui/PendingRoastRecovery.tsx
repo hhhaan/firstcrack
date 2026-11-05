@@ -10,6 +10,7 @@ import {
     type PendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
+import { usePendingRoastCharges } from '@features/active-roast/model/usePendingRoastCharges';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { useAuthStore } from '@shared/store/auth';
@@ -34,6 +35,7 @@ const load = () => {
 export const PendingRoastRecovery = () => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    usePendingRoastCharges(workspaceOwnerId, isWorkspaceReady);
     const [state, setState] = useState(load);
     const [open, setOpen] = useState(false);
     const [discardTarget, setDiscardTarget] = useState<PendingRoastSave | null>(null);

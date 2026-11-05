@@ -2452,7 +2452,7 @@
         "insufficientRoastedStock": "원두 재고가 부족합니다. 재고관리 원두(벌크) 탭에서 재고를 보정한 뒤 다시 시도해 주세요."
     },
     "planGate": {
-        "trial_event_preparing": "체험 배치 사용권을 확인하고 있습니다. 잠시 후 투입해 주세요.",
+        "charge_preparing": "배치 사용권을 확인하고 있습니다. 잠시 후 투입해 주세요.",
         "monthly_batch_cap": "이번 달 로스팅 한도({{used}}/{{max}})에 도달했습니다. 계속하려면 상위 플랜이 필요합니다.",
         "trial_batch_cap": "체험판 로스팅 한도({{used}}/{{max}})를 모두 사용했습니다. 계속하려면 구독이 필요합니다.",
         "trial_event_batch_cap": "체험판 로스팅 한도({{used}}/{{max}})를 모두 사용했습니다. 계속하려면 구독이 필요합니다.",

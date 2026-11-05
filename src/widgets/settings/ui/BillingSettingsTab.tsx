@@ -1,13 +1,6 @@
 import { useActiveWorkspace } from '@entities/organization';
 import { useProfile } from '@entities/profile';
-import { useCompletedSessionCount } from '@entities/roast';
-import {
-    isPaidPlan,
-    TRIAL_BATCH_CAP,
-    TRIAL_EVENT_BATCH_CAP,
-    trialEndsAt,
-    useTrialEventGrant,
-} from '@shared/lib/features';
+import { TRIAL_BATCH_CAP, TRIAL_EVENT_BATCH_CAP, useRoastChargeUsage } from '@shared/lib/features';
 import { useExpiryClock } from '@shared/lib/features/useExpiryClock';
 import { logger } from '@shared/lib/logger';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -71,32 +64,22 @@ export function BillingSettingsTab() {
     const { t } = useTranslation();
     const { workspaceOwnerId, isForeignWorkspace, isWorkspaceReady } = useActiveWorkspace();
     const { data: profile } = useProfile(workspaceOwnerId);
-    const { data: completedCount } = useCompletedSessionCount(workspaceOwnerId);
     const currentPlan = profile?.plan ?? '';
     const isEvent = currentPlan === 'trial-event';
-    const { data: eventGrant } = useTrialEventGrant(workspaceOwnerId, isEvent);
-    const endsAt = isEvent
-        ? eventGrant
-            ? new Date(eventGrant.ends_at).getTime()
-            : 0
-        : profile
-          ? trialEndsAt(profile.created_at).getTime()
-          : 0;
+    const isTrial = currentPlan === 'trial' || isEvent;
+    const { data: usage } = useRoastChargeUsage(workspaceOwnerId, currentPlan, isWorkspaceReady);
+    const endsAt = usage?.period_end ? new Date(usage.period_end).getTime() : 0;
     const nowMs = useExpiryClock(endsAt ? new Date(endsAt).toISOString() : null);
     const daysLeft = profile ? Math.max(0, Math.ceil((endsAt - nowMs) / 86_400_000)) : 0;
-    const batchesLeft = Math.max(
-        0,
-        isEvent ? TRIAL_EVENT_BATCH_CAP - (eventGrant?.used_batches ?? 0) : TRIAL_BATCH_CAP - (completedCount ?? 0),
-    );
-    const trialActive =
-        !!profile && !isPaidPlan(currentPlan) && currentPlan !== 'read_only' && daysLeft > 0 && batchesLeft > 0;
+    const batchesLeft = Math.max(0, (isEvent ? TRIAL_EVENT_BATCH_CAP : TRIAL_BATCH_CAP) - (usage?.used_batches ?? 0));
+    const trialActive = !!profile && isTrial && !!usage && daysLeft > 0 && batchesLeft > 0;
     const planName = isEvent
         ? t('settings.tabs.billing.trialEvent')
         : (PLAN_NAMES[currentPlan] ??
           (trialActive ? t('settings.tabs.billing.trial') : t('settings.tabs.billing.readOnly')));
     const detailKey = PLAN_DESC[currentPlan];
     const detail =
-        isEvent && !eventGrant
+        isTrial && !usage
             ? t('settings.tabs.billing.trialEventLoading')
             : trialActive
               ? t('settings.tabs.billing.trialStatus', { days: daysLeft, batches: batchesLeft })

@@ -4,20 +4,22 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRoastingStore } from './status';
-import { useTrialEventAdmission } from './useTrialEventAdmission';
+import { useRoastChargeAdmission } from './useRoastChargeAdmission';
 
 const mocks = vi.hoisted(() => ({
     owner: 'owner-a',
+    ready: true,
     plan: 'trial-event',
     endsAt: '2099-01-01T00:00:00Z',
     used: 0,
     reserved: 0,
     reserve: vi.fn(),
-    charge: vi.fn(),
+    enqueue: vi.fn(),
     release: vi.fn(),
 }));
+vi.mock('./pendingRoastCharges', () => ({ enqueueRoastCharge: mocks.enqueue }));
 vi.mock('@entities/organization', () => ({
-    useActiveWorkspace: () => ({ workspaceOwnerId: mocks.owner, isWorkspaceReady: true }),
+    useActiveWorkspace: () => ({ workspaceOwnerId: mocks.owner, isWorkspaceReady: mocks.ready }),
 }));
 vi.mock('@shared/lib/settings-store', () => ({
     settingsGet: vi.fn().mockResolvedValue(null),
@@ -26,21 +28,21 @@ vi.mock('@shared/lib/settings-store', () => ({
 vi.mock('@shared/lib/features', async (original) => ({
     ...(await original<typeof import('@shared/lib/features')>()),
     useEffectivePlan: () => mocks.plan,
-    useTrialEventGrant: () => ({
-        data: { ends_at: mocks.endsAt, used_batches: mocks.used, reserved_batches: mocks.reserved },
+    useRoastChargeUsage: () => ({
+        data: { period_end: mocks.endsAt, batch_cap: 100, used_batches: mocks.used, reserved_batches: mocks.reserved },
     }),
 }));
-vi.mock('@entities/trial-event', () => ({
-    trialEventApi: { reserve: mocks.reserve, charge: mocks.charge, release: mocks.release },
+vi.mock('@entities/roast-charge', () => ({
+    roastChargeApi: { reserve: mocks.reserve, release: mocks.release },
 }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const cleanup: Array<() => void> = [];
 function mount() {
     const root = createRoot(document.createElement('div'));
     const qc = new QueryClient();
-    let value: ReturnType<typeof useTrialEventAdmission>;
+    let value: ReturnType<typeof useRoastChargeAdmission>;
     function Probe() {
-        value = useTrialEventAdmission();
+        value = useRoastChargeAdmission();
         return null;
     }
     const render = () =>
@@ -59,13 +61,14 @@ function mount() {
 }
 beforeEach(() => {
     mocks.owner = 'owner-a';
+    mocks.ready = true;
     mocks.plan = 'trial-event';
     mocks.endsAt = '2099-01-01T00:00:00Z';
     mocks.used = 0;
     mocks.reserved = 0;
     vi.clearAllMocks();
     mocks.reserve.mockResolvedValue(undefined);
-    mocks.charge.mockResolvedValue(undefined);
+    mocks.enqueue.mockResolvedValue(undefined);
     mocks.release.mockResolvedValue(undefined);
     useRoastingStore.getState().reset();
     useRoastingStore.setState({ phase: 'preheating' });
@@ -75,12 +78,35 @@ afterEach(() => {
 });
 
 describe('trial batch preflight', () => {
+    it('does not Charge for an unresolved workspace even on an unlimited plan', async () => {
+        mocks.plan = 'tester';
+        mocks.ready = false;
+        const h = mount();
+        await act(async () => {});
+        expect(h.value?.ready).toBe(false);
+        expect(h.value?.take()).toBeNull();
+        expect(mocks.reserve).not.toHaveBeenCalled();
+        expect(mocks.enqueue).not.toHaveBeenCalled();
+    });
+    it.each(['trial', 'pro'])('replaces the preparation when the %s billing period changes', async (plan) => {
+        mocks.plan = plan;
+        const h = mount();
+        await act(async () => {});
+        const oldId = mocks.reserve.mock.calls[0][1];
+        mocks.endsAt = '2100-01-01T00:00:00Z';
+        await act(async () => h.render());
+        expect(mocks.release).toHaveBeenCalledExactlyOnceWith('owner-a', oldId);
+        expect(mocks.reserve).toHaveBeenCalledTimes(2);
+        expect(h.value?.ready).toBe(true);
+        act(() => expect(h.value?.take()).toBe(mocks.reserve.mock.calls[1][1]));
+    });
     it('keeps the same Charge after Cancel Drop and only returns the unused next preparation', async () => {
         const h = mount();
         await act(async () => {});
         const id = mocks.reserve.mock.calls[0][1];
         await act(async () => {
             expect(h.value?.take()).toBe(id);
+            h.value?.confirm(id, Date.now());
             useRoastingStore
                 .getState()
                 .startCharge(Date.now() - 60_000, mocks.owner, { bt: 190, unit: 'C', sessionId: id });
@@ -96,7 +122,7 @@ describe('trial batch preflight', () => {
         });
         expect(useRoastingStore.getState().sessionId).toBe(id);
         expect(useRoastingStore.getState().phase).toBe('roasting');
-        expect(mocks.charge).toHaveBeenCalledExactlyOnceWith('owner-a', id);
+        expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ owner: 'owner-a', id }));
         expect(mocks.release).toHaveBeenCalledExactlyOnceWith('owner-a', nextId);
     });
     it('retries when capacity returns before an earlier refusal arrives', async () => {
@@ -118,16 +144,17 @@ describe('trial batch preflight', () => {
         expect(h.value?.ready).toBe(true);
     });
     it('commits Charge once without waiting for acknowledgement or refunding on teardown', async () => {
-        mocks.charge.mockImplementationOnce(() => new Promise<void>(() => {}));
+        mocks.enqueue.mockImplementationOnce(() => new Promise<void>(() => {}));
         const h = mount();
         await act(async () => {});
         const id = mocks.reserve.mock.calls[0][1];
         await act(async () => {
             expect(h.value?.take()).toBe(id);
+            h.value?.confirm(id, Date.now());
             expect(h.value?.take()).toBeNull();
             useRoastingStore.setState({ phase: 'roasting' });
         });
-        expect(mocks.charge).toHaveBeenCalledExactlyOnceWith('owner-a', id);
+        expect(mocks.enqueue).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ owner: 'owner-a', id }));
         expect(mocks.release).not.toHaveBeenCalled();
     });
     it('retries after unused capacity returns without cycling its own prepared slot', async () => {
@@ -192,6 +219,7 @@ describe('trial batch preflight', () => {
         const id = mocks.reserve.mock.calls[0][1];
         act(() => {
             expect(h.value?.take()).toBe(id);
+            h.value?.confirm(id, Date.now());
             useRoastingStore.getState().startCharge(undefined, mocks.owner, { bt: 190, unit: 'C', sessionId: id });
         });
         expect(mocks.release).not.toHaveBeenCalled();
@@ -236,7 +264,13 @@ describe('trial batch preflight', () => {
         await act(async () => {
             await Promise.resolve();
         });
-        expect(h.value).toBeUndefined();
+        expect(h.value?.ready).toBe(true);
+        act(() => {
+            const id = h.value?.take();
+            expect(id).toBeTruthy();
+            if (id) h.value?.confirm(id, Date.now());
+        });
+        expect(mocks.enqueue).toHaveBeenCalledTimes(1);
         expect(mocks.reserve).not.toHaveBeenCalled();
     });
 });

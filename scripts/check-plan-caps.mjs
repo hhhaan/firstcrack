@@ -13,7 +13,10 @@ const fail = (msg) => {
 
 /** Newest migration that DEFINES the function (not just calls it). */
 const latestDefining = (fnName) => {
-    const re = new RegExp(String.raw`CREATE\s+(OR\s+REPLACE\s+)?FUNCTION\s+(public\.)?${fnName}\s*\(`, 'i');
+    const re = new RegExp(
+        String.raw`CREATE\s+(OR\s+REPLACE\s+)?FUNCTION\s+(?:(?:public|private)\.)?${fnName}\s*\(`,
+        'i',
+    );
     const file = readdirSync(MIGRATIONS_DIR)
         .filter((f) => f.endsWith('.sql'))
         .sort()
@@ -29,9 +32,8 @@ const extract = (file, label, regex) => {
     return Number(m[1]);
 };
 
-const gateSql = latestDefining('enforce_batch_gate');
-const profileSql = latestDefining('profile_write_error');
-const eventSql = latestDefining('reserve_trial_event_batch');
+const usageSql = latestDefining('roast_charge_usage');
+const eventSql = latestDefining('reserve_roast_charge');
 
 // SQL side (server authority) — anchors documented in the migration files.
 const server = {
@@ -40,17 +42,20 @@ const server = {
         file: eventSql,
     },
     TRIAL_EVENT_BATCH_CAP: {
-        value: extract(profileSql, 'event used batch cap', /g\.used_batches >= (\d+)/),
-        file: profileSql,
+        value: extract(usageSql, 'event Charge cap', /IF plan = 'trial-event' THEN[\s\S]*?batch_cap := (\d+)/),
+        file: usageSql,
     },
-    PRO_MONTHLY_BATCH_CAP: { value: extract(gateSql, 'cap int := N', /cap int := (\d+)/), file: gateSql },
+    PRO_MONTHLY_BATCH_CAP: {
+        value: extract(usageSql, 'monthly Charge cap', /THEN batch_cap := (\d+)/),
+        file: usageSql,
+    },
     TRIAL_DURATION_DAYS: {
-        value: extract(profileSql, "interval 'N days'", /interval '(\d+) days'/),
-        file: profileSql,
+        value: extract(usageSql, "interval 'N days'", /interval '(\d+) days'/),
+        file: usageSql,
     },
     TRIAL_BATCH_CAP: {
-        value: extract(profileSql, 'completed count >= N', /'completed'\)\s*>=\s*(\d+)/),
-        file: profileSql,
+        value: extract(usageSql, 'trial Charge cap', /IF plan = 'trial' THEN\s*batch_cap := (\d+)/),
+        file: usageSql,
     },
 };
 

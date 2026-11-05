@@ -47,7 +47,7 @@ vi.mock('@shared/lib/features', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@shared/lib/features')>()),
     useEffectivePlan: () => mocks.plan,
 }));
-vi.mock('@entities/trial-event', () => ({ trialEventApi: { release: mocks.releaseTrial } }));
+vi.mock('@entities/roast-charge', () => ({ roastChargeApi: { release: mocks.releaseTrial } }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: mocks.ownerId, isWorkspaceReady: true }),
 }));

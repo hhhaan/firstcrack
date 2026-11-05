@@ -2452,7 +2452,7 @@
         "insufficientRoastedStock": "熟豆库存不足。请在库存管理的“熟豆（散装）”标签页调整库存后重试。"
     },
     "planGate": {
-        "trial_event_preparing": "正在确认试用批次额度，请稍后投豆。",
+        "charge_preparing": "正在确认批次额度，请稍后投豆。",
         "monthly_batch_cap": "已达到本月烘焙上限（{{used}}/{{max}}）。升级到更高套餐可继续烘焙。",
         "trial_batch_cap": "试用烘焙次数已用完（{{used}}/{{max}}）。订阅后可继续烘焙。",
         "trial_event_batch_cap": "试用烘焙次数已用完（{{used}}/{{max}}）。订阅后可继续烘焙。",

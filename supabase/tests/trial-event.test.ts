@@ -22,6 +22,13 @@ const mcpStart = mcpMigration.indexOf('CREATE FUNCTION private.mcp_write(');
 await db.exec(mcpMigration.slice(mcpStart, mcpMigration.indexOf('END $$;', mcpStart) + 'END $$;'.length));
 const mcpDefinitionMetadata = () => db.query("SELECT proowner, proacl, prosecdef, proconfig FROM pg_proc WHERE oid='private.mcp_write(text,text,text,text,jsonb)'::regprocedure");
 const mcpMetadataBefore = (await mcpDefinitionMetadata()).rows;
+const baselineTrial = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+const baselinePro = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+await db.query("INSERT INTO profiles(id,plan,created_at) VALUES($1,'trial',now()),($2,'pro',now())",[baselineTrial,baselinePro]);
+await db.query('INSERT INTO roast_sessions(user_id) SELECT $1 FROM generate_series(1,18)',[baselineTrial]);
+await db.query("INSERT INTO roast_sessions(user_id,roasted_at) VALUES($1,date_trunc('month',now())-interval '1 day')",[baselinePro]);
+await db.query('INSERT INTO roast_sessions(user_id,roasted_at) VALUES($1,NULL)',[baselinePro]);
+await db.query('INSERT INTO roast_sessions(user_id) SELECT $1 FROM generate_series(1,199)',[baselinePro]);
 await sql('../migrations/20261104150333_trial_event_access.sql');
 assert.deepEqual((await mcpDefinitionMetadata()).rows, mcpMetadataBefore);
 
@@ -42,11 +49,15 @@ async function asUser(userId: string, work: () => Promise<void>) {
         await db.exec("SELECT set_config('request.jwt.claim.sub','',false), set_config('request.jwt.claim.role','',false)");
     }
 }
-const reserve = (who: string, id: string) => db.query('SELECT reserve_trial_event_batch($1,$2)', [who,id]);
-const release = (who: string, id: string) => db.query('SELECT release_trial_event_batch($1,$2)', [who,id]);
-const charge = (who: string, id: string) => db.query('SELECT charge_trial_event_batch($1,$2)', [who,id]);
+const reserve = (who: string, id: string) => db.query('SELECT reserve_roast_charge($1,$2)', [who,id]);
+const release = (who: string, id: string) => db.query('SELECT release_roast_charge($1,$2)', [who,id]);
+const charge = (who: string, id: string) => db.query('SELECT record_roast_charge($1,$2,clock_timestamp())', [who,id]);
 const mcpGate = (who: string) => scalar("SELECT private.mcp_write($1,'fixture','fixture','invalid_tool','{}'::jsonb)->>'error'", [who]);
 const counters = async () => (await db.query('SELECT used_batches, reserved_batches FROM trial_event_grants WHERE user_id=$1',[owner])).rows[0];
+const usage = (who: string) => scalar('SELECT get_roast_charge_usage($1)',[who]) as Promise<{
+    plan:string; used_batches:number; reserved_batches:number; batch_cap:number|null;
+    period_start:string|null; period_end:string|null; denial_code:string|null;
+}>;
 await db.query("INSERT INTO profiles(id,plan,created_at) VALUES ($1,'tester',now()-interval '1 year'),($2,'tester',now()-interval '1 year'),($3,'trial',now()),($4,'trial',now()),($5,'trial',now())", [owner,tester,member,stranger,ordinary]);
 await db.query('INSERT INTO workspace_members VALUES($1,$2)',[owner,member]);
 await db.query("INSERT INTO roast_sessions(user_id) SELECT $1 FROM generate_series(1,150)",[owner]);
@@ -69,21 +80,22 @@ await asUser(stranger,async()=> {
     await assert.rejects(()=>reserve(owner,session), /workspace access denied/);
     await assert.rejects(()=>release(owner,session), /workspace access denied/);
     await assert.rejects(()=>charge(owner,session), /workspace access denied/);
+    await assert.rejects(()=>usage(owner), /workspace access denied/);
     await db.query("UPDATE profiles SET plan='trial-event' WHERE id=$1",[stranger]);
 });
 assert.equal(await scalar('SELECT plan FROM profiles WHERE id=$1',[stranger]),'trial');
 await asUser(owner,async()=> {
     await assert.rejects(()=>db.exec('UPDATE trial_event_grants SET used_batches=0'), /permission denied/);
-    await assert.rejects(()=>db.exec('SELECT * FROM private.trial_event_batches'), /permission denied/);
+    await assert.rejects(()=>db.exec('SELECT * FROM private.roast_charge_batches'), /permission denied/);
     await reserve(owner,session);
     await reserve(owner,session);
     assert.deepEqual(await counters(),{used_batches:0,reserved_batches:1});
     await release(owner,session);
     await release(owner,session);
     assert.deepEqual(await counters(),{used_batches:0,reserved_batches:0});
-    await assert.rejects(()=>reserve(owner,session),/invalid trial event reservation/);
-    await assert.rejects(()=>charge(owner,session),/invalid trial event reservation/);
-    await assert.rejects(()=>charge(owner,crypto.randomUUID()),/invalid trial event reservation/);
+    await assert.rejects(()=>reserve(owner,session),/invalid roast Charge reservation/);
+    await assert.rejects(()=>charge(owner,session),/invalid roast Charge reservation/);
+    await assert.rejects(()=>charge(owner,crypto.randomUUID()),/reservation required/);
     const invite=await scalar("SELECT create_org_invite('abcdefghijklmnopqrstuv')");
     assert.ok(invite);
     // A charged, discarded roast stays used even without any saved session.
@@ -159,6 +171,73 @@ await db.query("UPDATE profiles SET created_at=now()-interval '15 days' WHERE id
 assert.equal(await scalar('SELECT profile_write_error($1)',[ordinary]),'trial_expired');
 await asUser(tester,async()=> { for(let i=0;i<101;i++) await db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[tester]); });
 assert.equal(await scalar('SELECT count(*)::int FROM trial_event_grants WHERE user_id=$1',[tester]),0);
+// Existing ordinary trials retain completed-history usage and then count Charge,
+// including discarded sessions with no saved history. Their last save may finish late.
+const lastTrial = crypto.randomUUID();
+await asUser(baselineTrial,async()=> {
+    assert.equal((await usage(baselineTrial)).used_batches,18);
+    await db.query('DELETE FROM roast_sessions WHERE id=(SELECT id FROM roast_sessions WHERE user_id=$1 LIMIT 1)',[baselineTrial]);
+    assert.equal((await usage(baselineTrial)).used_batches,18);
+    const discarded = crypto.randomUUID();
+    await reserve(baselineTrial,discarded); await charge(baselineTrial,discarded); await release(baselineTrial,discarded);
+    await reserve(baselineTrial,lastTrial);
+    await charge(baselineTrial,lastTrial); await charge(baselineTrial,lastTrial);
+    assert.equal((await usage(baselineTrial)).used_batches,20);
+    assert.equal((await usage(baselineTrial)).batch_cap,20);
+    await assert.rejects(()=>reserve(baselineTrial,crypto.randomUUID()),/trial_batch_cap/);
+});
+await db.query("UPDATE profiles SET created_at=created_at-interval '15 days' WHERE id=$1",[baselineTrial]);
+await asUser(baselineTrial,async()=> {
+    await db.query(`WITH saved AS (INSERT INTO roast_sessions(id,user_id) VALUES($1,$2) RETURNING id,user_id)
+      INSERT INTO bean_stock_events(user_id,reference_id,delta_grams) SELECT user_id,id,-1000 FROM saved`,[lastTrial,baselineTrial]);
+    await db.query("UPDATE roast_sessions SET tsv_path='late-trial.tsv' WHERE id=$1",[lastTrial]);
+    assert.equal((await usage(baselineTrial)).used_batches,20);
+    await assert.rejects(()=>reserve(baselineTrial,crypto.randomUUID()),/trial_expired/);
+    await assert.rejects(()=>db.query("UPDATE roast_sessions SET notes='edit' WHERE id=$1",[lastTrial]),/trial_expired/);
+});
+
+// Pro's UTC monthly baseline excludes earlier months. Members share its last slot.
+await db.query('INSERT INTO workspace_members VALUES($1,$2)',[baselinePro,member]);
+const lastPro = crypto.randomUUID();
+await asUser(member,async()=> {
+    assert.equal((await usage(baselinePro)).used_batches,199);
+    await reserve(baselinePro,lastPro); await reserve(baselinePro,lastPro);
+    await assert.rejects(()=>reserve(baselinePro,crypto.randomUUID()),/monthly_batch_cap_exceeded/);
+    await charge(baselinePro,lastPro); await release(baselinePro,lastPro);
+    assert.equal((await usage(baselinePro)).used_batches,200);
+    await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[lastPro,baselinePro]);
+    await db.query('DELETE FROM roast_sessions WHERE id=$1',[lastPro]);
+    assert.equal((await usage(baselinePro)).used_batches,200);
+    // The monthly roast cap does not freeze unrelated inventory writes.
+    await db.query('INSERT INTO bean_stock_events(user_id,delta_grams) VALUES($1,1)',[baselinePro]);
+});
+// Moving the fixture to the preceding window models a completed monthly rollover.
+await db.query("UPDATE private.roast_charge_batches SET usage_at=usage_at-interval '1 month' WHERE user_id=$1",[baselinePro]);
+await asUser(baselinePro,async()=> {
+    assert.equal((await usage(baselinePro)).used_batches,0);
+    const next = crypto.randomUUID(); await reserve(baselinePro,next); await charge(baselinePro,next);
+    assert.equal((await usage(baselinePro)).used_batches,1);
+});
+
+// Unlimited plans record Charge without any online preparation or new limit.
+for(const planName of ['tester','pro_plus','enterprise','team']) {
+    const unlimitedOwner = crypto.randomUUID();
+    const foreignPending = crypto.randomUUID();
+    await db.query("INSERT INTO roast_sessions(id,user_id,status) VALUES($1,$2,'in_progress')",[foreignPending,baselinePro]);
+    await db.query('INSERT INTO profiles(id,plan) VALUES($1,$2)',[unlimitedOwner,planName]);
+    await asUser(unlimitedOwner,async()=> {
+        await assert.rejects(()=>charge(unlimitedOwner,foreignPending),/workspace access denied/);
+        await db.query('SELECT record_roast_charge($1,gen_random_uuid(),clock_timestamp()) FROM generate_series(1,201)',[unlimitedOwner]);
+        const before = await usage(unlimitedOwner);
+        assert.equal(before.used_batches,201); assert.equal(before.batch_cap,null); assert.equal(before.denial_code,null);
+        const id = crypto.randomUUID(); await charge(unlimitedOwner,id); await charge(unlimitedOwner,id); await release(unlimitedOwner,id);
+        await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[id,unlimitedOwner]);
+        assert.equal((await usage(unlimitedOwner)).used_batches,202);
+        // A delayed offline acknowledgement retains its occurrence month.
+        await db.query("SELECT record_roast_charge($1,gen_random_uuid(),date_trunc('month',now())-interval '1 day')",[unlimitedOwner]);
+        assert.equal((await usage(unlimitedOwner)).used_batches,202);
+    });
+}
 // Both Charge acknowledgements and saves can arrive after the admission deadline.
 const delayedOwner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const delayedCharge = crypto.randomUUID();
@@ -187,10 +266,12 @@ for(const user of [owner,tester]) {
 assert.equal(await scalar('SELECT plan FROM profiles WHERE id=$1',[owner]),'pro_plus');
 assert.equal(await scalar('SELECT plan FROM profiles WHERE id=$1',[tester]),'tester');
 assert.deepEqual(await counters(),{used_batches:100,reserved_batches:0});
-assert.equal(await scalar("SELECT has_function_privilege('anon','reserve_trial_event_batch(uuid,uuid)','EXECUTE')"),false);
-assert.equal(await scalar("SELECT has_function_privilege('anon','charge_trial_event_batch(uuid,uuid)','EXECUTE')"),false);
-assert.equal(await scalar("SELECT pg_get_function_result('public.charge_trial_event_batch(uuid,uuid)'::regprocedure)"),'void');
+assert.equal(await scalar("SELECT has_function_privilege('anon','reserve_roast_charge(uuid,uuid)','EXECUTE')"),false);
+assert.equal(await scalar("SELECT has_function_privilege('anon','get_roast_charge_usage(uuid)','EXECUTE')"),false);
+assert.equal(await scalar("SELECT has_function_privilege('authenticated','private.roast_charge_usage(uuid)','EXECUTE')"),false);
+assert.equal(await scalar("SELECT has_function_privilege('anon','record_roast_charge(uuid,uuid,timestamptz)','EXECUTE')"),false);
+assert.equal(await scalar("SELECT pg_get_function_result('public.record_roast_charge(uuid,uuid,timestamptz)'::regprocedure)"),'void');
 assert.equal(await scalar("SELECT relrowsecurity FROM pg_class WHERE oid='trial_event_grants'::regclass"),true);
 assert.deepEqual((await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='trial_event_grants' ORDER BY column_name")).rows.map((r: {column_name:string})=>r.column_name), ['ends_at','reserved_batches','started_at','used_batches','user_id']);
 await db.close();
-console.log('trial-event: enrollment, permissions, Charge/discard/retry/rollback, 100th batch, delayed acknowledgement/save, expiry, stock, deletion, legacy plans and Polar passed');
+console.log('Charge usage: baseline, all plan caps, unlimited/offline, permissions, discard/retry/rollback, expiry/months, late saves, stock, deletion and Polar passed');

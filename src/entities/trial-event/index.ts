@@ -1,1 +1,0 @@
-export { trialEventApi } from './api';

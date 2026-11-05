@@ -25,17 +25,18 @@ CREATE POLICY trial_event_workspace_read ON public.trial_event_grants
 
 CREATE SCHEMA IF NOT EXISTS private;
 -- No session FK: deleting a saved roast must not refund a completed batch.
-CREATE TABLE private.trial_event_batches (
+CREATE TABLE private.roast_charge_batches (
   session_id uuid PRIMARY KEY,
-  user_id uuid NOT NULL REFERENCES public.trial_event_grants(user_id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   state text NOT NULL CHECK (state IN ('reserved', 'charged', 'completed', 'released')),
-  reserved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  usage_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+  event_grant boolean NOT NULL DEFAULT false,
   completed_xid bigint
 );
-CREATE INDEX trial_event_batches_owner_idx ON private.trial_event_batches(user_id);
-ALTER TABLE private.trial_event_batches ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON private.trial_event_batches FROM PUBLIC, anon, authenticated;
-GRANT ALL ON private.trial_event_batches TO service_role;
+CREATE INDEX roast_charge_batches_owner_idx ON private.roast_charge_batches(user_id, usage_at);
+ALTER TABLE private.roast_charge_batches ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON private.roast_charge_batches FROM PUBLIC, anon, authenticated;
+GRANT ALL ON private.roast_charge_batches TO service_role;
 
 CREATE FUNCTION private.grant_trial_event() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
@@ -57,180 +58,219 @@ REVOKE ALL ON FUNCTION private.grant_trial_event() FROM PUBLIC, anon, authentica
 CREATE TRIGGER trg_trial_event_grant AFTER INSERT OR UPDATE OF plan ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION private.grant_trial_event();
 
--- A short row lock serializes reservations, completion and cancellation across
--- devices/workspace members. The session UUID is also the save retry identity.
-CREATE FUNCTION private.reserve_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS uuid
+-- Preserve pre-rollout consumption even if history is later deleted. We cannot
+-- reconstruct discarded historical Charges; completed history is the baseline.
+INSERT INTO private.roast_charge_batches(session_id, user_id, state, usage_at)
+  SELECT id, user_id, 'completed', coalesce(roasted_at, '-infinity'::timestamptz)
+  FROM public.roast_sessions WHERE status = 'completed';
+
+-- Internal read: callers must authorize before exposing it. Reservation/Charge
+-- mutations lock the profile first, so every plan shares one owner-level lock.
+CREATE FUNCTION private.roast_charge_usage(p_user_id uuid)
+RETURNS TABLE(plan text, used_batches integer, reserved_batches integer,
+  batch_cap integer, period_start timestamptz, period_end timestamptz, denial_code text)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE g public.trial_event_grants; b private.trial_event_batches; v_plan text;
+DECLARE g public.trial_event_grants; v_created timestamptz;
 BEGIN
-  IF auth.uid() IS NULL OR p_session_id IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
-    RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
-  END IF;
-  SELECT plan INTO v_plan FROM public.profiles WHERE id = p_user_id;
-  -- A checkout may have finished between the client's plan read and this call.
-  IF v_plan IN ('pro', 'pro_plus', 'enterprise', 'team', 'tester') THEN RETURN p_session_id; END IF;
-  IF v_plan IS DISTINCT FROM 'trial-event' THEN
-    RAISE EXCEPTION 'read_only_plan' USING ERRCODE = '23514';
-  END IF;
-  SELECT * INTO g FROM public.trial_event_grants WHERE user_id = p_user_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'trial_event_expired' USING ERRCODE = '23514'; END IF;
-  SELECT * INTO b FROM private.trial_event_batches WHERE session_id = p_session_id;
-  IF FOUND THEN
-    IF b.user_id <> p_user_id OR b.state <> 'reserved' THEN
-      RAISE EXCEPTION 'invalid trial event reservation' USING ERRCODE = '23514';
+  SELECT p.plan, p.created_at INTO plan, v_created FROM public.profiles p WHERE p.id = p_user_id;
+  used_batches := 0; reserved_batches := 0;
+  IF plan = 'trial-event' THEN
+    SELECT * INTO g FROM public.trial_event_grants WHERE user_id = p_user_id;
+    batch_cap := 100;
+    period_start := g.started_at; period_end := g.ends_at;
+    used_batches := coalesce(g.used_batches, 0); reserved_batches := coalesce(g.reserved_batches, 0);
+    IF g.user_id IS NULL OR clock_timestamp() >= period_end THEN denial_code := 'trial_event_expired';
+    ELSIF used_batches + reserved_batches >= batch_cap THEN denial_code := 'trial_event_batch_cap'; END IF;
+  ELSE
+    IF plan = 'trial' THEN
+      batch_cap := 20;
+      period_start := v_created; period_end := v_created + interval '14 days';
+    ELSE
+      period_start := date_trunc('month', clock_timestamp() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC';
+      period_end := (period_start AT TIME ZONE 'UTC' + interval '1 month') AT TIME ZONE 'UTC';
+      IF plan NOT IN ('pro_plus','tester','enterprise','team') THEN batch_cap := 200; END IF;
     END IF;
-    RETURN p_session_id;
+    SELECT count(*) FILTER (WHERE b.state IN ('charged','completed'))::integer,
+           count(*) FILTER (WHERE b.state = 'reserved')::integer
+      INTO used_batches, reserved_batches FROM private.roast_charge_batches b
+      WHERE b.user_id = p_user_id
+        AND (plan = 'trial' OR (b.usage_at >= period_start AND b.usage_at < period_end));
+    IF plan IS NULL OR plan = 'read_only' THEN batch_cap := 0; denial_code := 'read_only_plan';
+    ELSIF plan = 'trial' AND clock_timestamp() >= period_end THEN denial_code := 'trial_expired';
+    ELSIF used_batches + reserved_batches >= batch_cap THEN
+      denial_code := CASE WHEN plan = 'trial' THEN 'trial_batch_cap' ELSE 'monthly_batch_cap_exceeded' END;
+    END IF;
   END IF;
-  IF clock_timestamp() >= g.ends_at THEN RAISE EXCEPTION 'trial_event_expired' USING ERRCODE = '23514'; END IF;
-  IF g.used_batches + g.reserved_batches >= 100 THEN
-    RAISE EXCEPTION 'trial_event_batch_cap' USING ERRCODE = '23514';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.roast_sessions WHERE id = p_session_id) THEN
-    RAISE EXCEPTION 'session already exists' USING ERRCODE = '23514';
-  END IF;
-  INSERT INTO private.trial_event_batches(session_id, user_id, state) VALUES (p_session_id, p_user_id, 'reserved');
-  UPDATE public.trial_event_grants SET reserved_batches = reserved_batches + 1 WHERE user_id = p_user_id;
-  RETURN p_session_id;
+  RETURN NEXT;
 END;
 $$;
+REVOKE ALL ON FUNCTION private.roast_charge_usage(uuid) FROM PUBLIC, anon, authenticated;
 
--- Charge consumes a prepared UUID without waiting in the device's recording
--- path. A delayed acknowledgement/save uses the same UUID and cannot charge twice.
-CREATE FUNCTION private.charge_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE b private.trial_event_batches; v_plan text;
-BEGIN
-  IF auth.uid() IS NULL OR p_session_id IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
-    RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
-  END IF;
-  PERFORM 1 FROM public.trial_event_grants WHERE user_id = p_user_id FOR UPDATE;
-  SELECT * INTO b FROM private.trial_event_batches WHERE session_id = p_session_id;
-  IF NOT FOUND THEN
-    SELECT plan INTO v_plan FROM public.profiles WHERE id = p_user_id;
-    -- reserve can have returned without a ledger entry after a paid upgrade.
-    IF v_plan IN ('pro', 'pro_plus', 'enterprise', 'team', 'tester') THEN RETURN; END IF;
-    RAISE EXCEPTION 'invalid trial event reservation' USING ERRCODE = '23514';
-  END IF;
-  IF b.user_id <> p_user_id OR b.state = 'released' THEN
-    RAISE EXCEPTION 'invalid trial event reservation' USING ERRCODE = '23514';
-  END IF;
-  IF b.state IN ('charged', 'completed') THEN RETURN; END IF;
-  -- The reservation already owns capacity. Network delay past expiry does not
-  -- revoke a Charge made with that preparation or block the eventual save.
-  UPDATE private.trial_event_batches SET state = 'charged' WHERE session_id = p_session_id;
-  UPDATE public.trial_event_grants SET reserved_batches = reserved_batches - 1, used_batches = used_batches + 1
-    WHERE user_id = p_user_id;
-END;
-$$;
-
-CREATE FUNCTION private.release_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
+CREATE FUNCTION private.get_roast_charge_usage(p_user_id uuid) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
   IF auth.uid() IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
     RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
   END IF;
-  PERFORM 1 FROM public.trial_event_grants WHERE user_id = p_user_id FOR UPDATE;
-  UPDATE private.trial_event_batches SET state = 'released'
-    WHERE session_id = p_session_id AND user_id = p_user_id AND state = 'reserved';
+  RETURN (SELECT to_jsonb(u) FROM private.roast_charge_usage(p_user_id) u);
+END;
+$$;
+
+CREATE FUNCTION private.reserve_roast_charge(p_user_id uuid, p_session_id uuid) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE u record; b private.roast_charge_batches;
+BEGIN
+  IF auth.uid() IS NULL OR p_session_id IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
+    RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
+  SELECT * INTO b FROM private.roast_charge_batches WHERE session_id = p_session_id;
   IF FOUND THEN
+    IF b.user_id <> p_user_id OR b.state <> 'reserved' THEN
+      RAISE EXCEPTION 'invalid roast Charge reservation' USING ERRCODE = '23514';
+    END IF;
+    RETURN p_session_id;
+  END IF;
+  SELECT * INTO u FROM private.roast_charge_usage(p_user_id);
+  IF u.denial_code IS NOT NULL THEN RAISE EXCEPTION '%', u.denial_code USING ERRCODE = '23514'; END IF;
+  IF EXISTS (SELECT 1 FROM public.roast_sessions WHERE id = p_session_id) THEN
+    RAISE EXCEPTION 'session already exists' USING ERRCODE = '23514';
+  END IF;
+  INSERT INTO private.roast_charge_batches(session_id,user_id,state,event_grant)
+    VALUES (p_session_id,p_user_id,'reserved',u.plan = 'trial-event');
+  IF u.plan = 'trial-event' THEN
+    UPDATE public.trial_event_grants SET reserved_batches = reserved_batches + 1 WHERE user_id = p_user_id;
+  END IF;
+  RETURN p_session_id;
+END;
+$$;
+
+CREATE FUNCTION private.record_roast_charge(p_user_id uuid, p_session_id uuid, p_charged_at timestamptz) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE b private.roast_charge_batches; v_plan text;
+BEGIN
+  IF auth.uid() IS NULL OR p_session_id IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
+    RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
+  END IF;
+  SELECT plan INTO v_plan FROM public.profiles WHERE id = p_user_id FOR UPDATE;
+  SELECT * INTO b FROM private.roast_charge_batches WHERE session_id = p_session_id;
+  IF NOT FOUND THEN
+    -- Unlimited accounts keep recording offline. Their durable Charge outbox
+    -- carries the occurrence time; capped accounts must already hold admission.
+    IF v_plan NOT IN ('pro_plus','tester','enterprise','team') OR v_plan IS NULL THEN
+      RAISE EXCEPTION 'roast Charge reservation required' USING ERRCODE = '23514';
+    END IF;
+    IF p_charged_at IS NULL OR NOT isfinite(p_charged_at) OR p_charged_at > clock_timestamp() + interval '5 minutes' THEN
+      RAISE EXCEPTION 'invalid Charge time' USING ERRCODE = '22023';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.roast_sessions WHERE id = p_session_id AND user_id <> p_user_id) THEN
+      RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
+    END IF;
+    INSERT INTO private.roast_charge_batches(session_id,user_id,state,usage_at)
+      VALUES (p_session_id,p_user_id,'charged',p_charged_at);
+    RETURN;
+  END IF;
+  IF b.user_id <> p_user_id OR b.state = 'released' THEN
+    RAISE EXCEPTION 'invalid roast Charge reservation' USING ERRCODE = '23514';
+  END IF;
+  IF b.state IN ('charged','completed') THEN RETURN; END IF;
+  -- A prepared Charge belongs to its admitted period even if acknowledgement
+  -- arrives after midnight/expiry. The desktop retires unused slots at rollover.
+  UPDATE private.roast_charge_batches SET state = 'charged' WHERE session_id = p_session_id;
+  IF b.event_grant THEN
+    UPDATE public.trial_event_grants SET reserved_batches = reserved_batches - 1, used_batches = used_batches + 1
+      WHERE user_id = p_user_id;
+  END IF;
+END;
+$$;
+
+CREATE FUNCTION private.release_roast_charge(p_user_id uuid, p_session_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE b private.roast_charge_batches;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
+    RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.profiles WHERE id = p_user_id FOR UPDATE;
+  UPDATE private.roast_charge_batches SET state = 'released'
+    WHERE session_id = p_session_id AND user_id = p_user_id AND state = 'reserved' RETURNING * INTO b;
+  IF FOUND AND b.event_grant THEN
     UPDATE public.trial_event_grants SET reserved_batches = reserved_batches - 1 WHERE user_id = p_user_id;
   END IF;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION private.reserve_trial_event_batch(uuid, uuid), private.release_trial_event_batch(uuid, uuid),
-  private.charge_trial_event_batch(uuid, uuid)
-  FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA private TO authenticated;
-GRANT EXECUTE ON FUNCTION private.reserve_trial_event_batch(uuid, uuid), private.release_trial_event_batch(uuid, uuid),
-  private.charge_trial_event_batch(uuid, uuid)
-  TO authenticated;
-CREATE FUNCTION public.reserve_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS uuid
-LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
-  SELECT private.reserve_trial_event_batch(p_user_id, p_session_id);
-$$;
-CREATE FUNCTION public.release_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
-LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
-  SELECT private.release_trial_event_batch(p_user_id, p_session_id);
-$$;
-CREATE FUNCTION public.charge_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
-LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
-  SELECT private.charge_trial_event_batch(p_user_id, p_session_id);
-$$;
-REVOKE ALL ON FUNCTION public.reserve_trial_event_batch(uuid, uuid), public.release_trial_event_batch(uuid, uuid),
-  public.charge_trial_event_batch(uuid, uuid)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reserve_trial_event_batch(uuid, uuid), public.release_trial_event_batch(uuid, uuid),
-  public.charge_trial_event_batch(uuid, uuid)
-  TO authenticated;
+REVOKE ALL ON FUNCTION private.get_roast_charge_usage(uuid), private.reserve_roast_charge(uuid,uuid),
+  private.record_roast_charge(uuid,uuid,timestamptz), private.release_roast_charge(uuid,uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION private.get_roast_charge_usage(uuid), private.reserve_roast_charge(uuid,uuid),
+  private.record_roast_charge(uuid,uuid,timestamptz), private.release_roast_charge(uuid,uuid) TO authenticated;
+CREATE FUNCTION public.get_roast_charge_usage(p_user_id uuid) RETURNS jsonb
+LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$ SELECT private.get_roast_charge_usage(p_user_id); $$;
+CREATE FUNCTION public.reserve_roast_charge(p_user_id uuid, p_session_id uuid) RETURNS uuid
+LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$ SELECT private.reserve_roast_charge(p_user_id,p_session_id); $$;
+CREATE FUNCTION public.record_roast_charge(p_user_id uuid, p_session_id uuid, p_charged_at timestamptz) RETURNS void
+LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$ SELECT private.record_roast_charge(p_user_id,p_session_id,p_charged_at); $$;
+CREATE FUNCTION public.release_roast_charge(p_user_id uuid, p_session_id uuid) RETURNS void
+LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$ SELECT private.release_roast_charge(p_user_id,p_session_id); $$;
+REVOKE ALL ON FUNCTION public.get_roast_charge_usage(uuid), public.reserve_roast_charge(uuid,uuid),
+  public.record_roast_charge(uuid,uuid,timestamptz), public.release_roast_charge(uuid,uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_roast_charge_usage(uuid), public.reserve_roast_charge(uuid,uuid),
+  public.record_roast_charge(uuid,uuid,timestamptz), public.release_roast_charge(uuid,uuid) TO authenticated;
 
-CREATE FUNCTION private.complete_trial_event_batch() RETURNS trigger
+CREATE FUNCTION private.complete_roast_charge() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE g public.trial_event_grants; b private.trial_event_batches; v_plan text;
+DECLARE u record; b private.roast_charge_batches;
 BEGIN
   IF NEW.status IS DISTINCT FROM 'completed' THEN RETURN NEW; END IF;
   IF TG_OP = 'UPDATE' AND OLD.status = 'completed' THEN RETURN NEW; END IF;
-  SELECT plan INTO v_plan FROM public.profiles WHERE id = NEW.user_id;
-  IF v_plan IS DISTINCT FROM 'trial-event' AND NOT EXISTS (
-    SELECT 1 FROM private.trial_event_batches WHERE session_id = NEW.id AND user_id = NEW.user_id AND state IN ('reserved', 'charged')
-  ) THEN RETURN NEW; END IF;
-  SELECT * INTO g FROM public.trial_event_grants WHERE user_id = NEW.user_id FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'trial_event_expired' USING ERRCODE = '23514'; END IF;
-  SELECT * INTO b FROM private.trial_event_batches WHERE session_id = NEW.id;
+  PERFORM 1 FROM public.profiles WHERE id = NEW.user_id FOR UPDATE;
+  SELECT * INTO b FROM private.roast_charge_batches WHERE session_id = NEW.id;
   IF FOUND THEN
     IF b.user_id <> NEW.user_id OR b.state = 'released' THEN
-      RAISE EXCEPTION 'invalid trial event reservation' USING ERRCODE = '23514';
+      RAISE EXCEPTION 'invalid roast Charge reservation' USING ERRCODE = '23514';
     END IF;
     IF b.state = 'completed' THEN
-      -- BEFORE INSERT also runs for ON CONFLICT DO NOTHING retries.
       IF NOT EXISTS (SELECT 1 FROM public.roast_sessions WHERE id = NEW.id AND user_id = NEW.user_id) THEN
-        RAISE EXCEPTION 'completed trial event batch was deleted' USING ERRCODE = '23514';
+        RAISE EXCEPTION 'completed roast Charge was deleted' USING ERRCODE = '23514';
       END IF;
-    ELSIF b.state = 'reserved' THEN
-      -- A save may beat a delayed Charge acknowledgement. Finalize it here;
-      -- a later charge call is idempotent and a rollback retains the reservation.
+    ELSIF b.state = 'reserved' AND b.event_grant THEN
       UPDATE public.trial_event_grants SET reserved_batches = reserved_batches - 1, used_batches = used_batches + 1
         WHERE user_id = NEW.user_id;
     END IF;
-    UPDATE private.trial_event_batches SET state = 'completed', completed_xid = txid_current() WHERE session_id = NEW.id;
+    -- Saving is not another Charge. This also settles a missing acknowledgement.
+    UPDATE private.roast_charge_batches SET state = 'completed', completed_xid = txid_current() WHERE session_id = NEW.id;
   ELSE
-    -- Existing import/save clients can finish while the trial is still active.
-    -- A reservation is required to finish after expiry or after all slots are held.
-    IF clock_timestamp() >= g.ends_at THEN RAISE EXCEPTION 'trial_event_expired' USING ERRCODE = '23514'; END IF;
-    IF g.used_batches + g.reserved_batches >= 100 THEN
-      RAISE EXCEPTION 'trial_event_batch_cap' USING ERRCODE = '23514';
+    -- Legacy/import clients have no admission. Their first completed save is the
+    -- compatibility Charge; only active accounts with remaining capacity qualify.
+    SELECT * INTO u FROM private.roast_charge_usage(NEW.user_id);
+    IF u.denial_code IS NOT NULL THEN RAISE EXCEPTION '%', u.denial_code USING ERRCODE = '23514'; END IF;
+    INSERT INTO private.roast_charge_batches(session_id,user_id,state,event_grant,completed_xid)
+      VALUES (NEW.id,NEW.user_id,'completed',u.plan = 'trial-event',txid_current());
+    IF u.plan = 'trial-event' THEN
+      UPDATE public.trial_event_grants SET used_batches = used_batches + 1 WHERE user_id = NEW.user_id;
     END IF;
-    INSERT INTO private.trial_event_batches(session_id, user_id, state, completed_xid)
-      VALUES (NEW.id, NEW.user_id, 'completed', txid_current());
-    UPDATE public.trial_event_grants SET used_batches = used_batches + 1 WHERE user_id = NEW.user_id;
   END IF;
   RETURN NEW;
 END;
 $$;
-REVOKE ALL ON FUNCTION private.complete_trial_event_batch() FROM PUBLIC, anon, authenticated;
-CREATE TRIGGER trg_00_trial_event_batch BEFORE INSERT OR UPDATE ON public.roast_sessions
-  FOR EACH ROW EXECUTE FUNCTION private.complete_trial_event_batch();
+REVOKE ALL ON FUNCTION private.complete_roast_charge() FROM PUBLIC, anon, authenticated;
+CREATE TRIGGER trg_00_roast_charge BEFORE INSERT OR UPDATE ON public.roast_sessions
+  FOR EACH ROW EXECUTE FUNCTION private.complete_roast_charge();
 
 CREATE OR REPLACE FUNCTION public.profile_write_error(p_user_id uuid) RETURNS text
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = '' AS $$
-DECLARE v_plan text; v_created timestamptz; g public.trial_event_grants;
+DECLARE u record; v_plan text;
 BEGIN
-  SELECT plan, created_at INTO v_plan, v_created FROM public.profiles WHERE id = p_user_id;
+  SELECT plan INTO v_plan FROM public.profiles WHERE id = p_user_id;
   IF v_plan = 'read_only' THEN RETURN 'read_only_plan'; END IF;
-  IF v_plan = 'trial-event' THEN
-    -- Only a trusted trigger can write this transaction marker. It permits the
-    -- admitted roast's atomic stock/progress writes even on its final batch.
-    IF EXISTS (SELECT 1 FROM private.trial_event_batches
-      WHERE user_id = p_user_id AND state = 'completed' AND completed_xid = txid_current()) THEN RETURN NULL; END IF;
-    SELECT * INTO g FROM public.trial_event_grants WHERE user_id = p_user_id;
-    IF NOT FOUND OR clock_timestamp() >= g.ends_at THEN RETURN 'trial_event_expired'; END IF;
-    IF g.used_batches >= 100 THEN RETURN 'trial_event_batch_cap'; END IF;
-  END IF;
-  IF v_plan = 'trial' THEN
-    IF now() > v_created + interval '14 days' THEN RETURN 'trial_expired'; END IF;
-    IF (SELECT count(*) FROM public.roast_sessions WHERE user_id = p_user_id AND status = 'completed') >= 20 THEN
-      RETURN 'trial_batch_cap';
-    END IF;
+  IF EXISTS (SELECT 1 FROM private.roast_charge_batches WHERE user_id = p_user_id
+    AND state = 'completed' AND completed_xid = txid_current()) THEN RETURN NULL; END IF;
+  IF v_plan IN ('trial','trial-event') THEN
+    SELECT * INTO u FROM private.roast_charge_usage(p_user_id);
+    -- Preparations alone must not make the rest of the workspace read-only.
+    IF u.denial_code IN ('trial_expired','trial_event_expired') THEN RETURN u.denial_code; END IF;
+    IF u.used_batches >= u.batch_cap THEN RETURN u.denial_code; END IF;
   END IF;
   RETURN NULL;
 END;
@@ -238,23 +278,14 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.enforce_batch_gate() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE gate_err text; owner_plan text; used int; cap int := 200; month_start timestamptz; month_end timestamptz;
+DECLARE gate_err text;
 BEGIN
   IF NEW.status IS DISTINCT FROM 'completed' THEN RETURN NEW; END IF;
   IF TG_OP = 'UPDATE' AND OLD.status = 'completed' THEN RETURN NEW; END IF;
+  -- trg_00_roast_charge has already enforced admission/capacity. Counting saved
+  -- rows here would reject the already-paid-for final Charge or charge twice.
   gate_err := public.profile_write_error(NEW.user_id);
   IF gate_err IS NOT NULL THEN RAISE EXCEPTION '%', gate_err USING ERRCODE = '23514'; END IF;
-  SELECT plan INTO owner_plan FROM public.profiles WHERE id = NEW.user_id;
-  IF owner_plan IN ('trial', 'trial-event', 'pro_plus', 'tester', 'enterprise', 'team') THEN RETURN NEW; END IF;
-  month_start := date_trunc('month', timezone('utc', now()));
-  month_end := month_start + interval '1 month';
-  SELECT count(*)::int INTO used FROM public.roast_sessions
-    WHERE user_id = NEW.user_id AND status = 'completed' AND roasted_at >= month_start AND roasted_at < month_end
-      AND (TG_OP = 'INSERT' OR id IS DISTINCT FROM NEW.id);
-  IF used >= cap THEN
-    RAISE EXCEPTION 'monthly_batch_cap_exceeded' USING ERRCODE = '23514',
-      DETAIL = format('used=%s cap=%s plan=%s', used, cap, coalesce(owner_plan, 'null'));
-  END IF;
   RETURN NEW;
 END;
 $$;
@@ -270,7 +301,7 @@ BEGIN
   IF TG_TABLE_NAME = 'roast_sessions' AND TG_OP = 'UPDATE'
      AND (to_jsonb(NEW) - ARRAY['tsv_path','bbp_tsv_path','updated_at']) IS NOT DISTINCT FROM
          (to_jsonb(OLD) - ARRAY['tsv_path','bbp_tsv_path','updated_at'])
-     AND EXISTS (SELECT 1 FROM private.trial_event_batches WHERE user_id = v_user AND session_id = NEW.id AND state = 'completed')
+     AND EXISTS (SELECT 1 FROM private.roast_charge_batches WHERE user_id = v_user AND session_id = NEW.id AND state = 'completed')
   THEN RETURN NEW; END IF;
   gate_err := public.profile_write_error(v_user);
   IF gate_err IS NOT NULL THEN
@@ -452,13 +483,13 @@ BEGIN
   SELECT user_id INTO v_user FROM public.roast_day_plans
   WHERE id = COALESCE(NEW.plan_id, OLD.plan_id);
 
-  -- Finishing the derived progress of a committed event roast is allowed after
+  -- Finishing the derived progress of a committed roast is allowed after
   -- expiry. Only status may change, and the saved sessions must prove completion.
   IF TG_OP = 'UPDATE' AND NEW.status = 'done' AND OLD.status <> 'cancelled'
      AND NEW.exception_type IS DISTINCT FROM 'cancelled'
      AND (to_jsonb(NEW) - ARRAY['status','updated_at']) IS NOT DISTINCT FROM
          (to_jsonb(OLD) - ARRAY['status','updated_at'])
-     AND EXISTS (SELECT 1 FROM private.trial_event_batches e JOIN public.roast_sessions r ON r.id = e.session_id
+     AND EXISTS (SELECT 1 FROM private.roast_charge_batches e JOIN public.roast_sessions r ON r.id = e.session_id
        WHERE e.user_id = v_user AND e.state = 'completed' AND r.plan_batch_id = NEW.id)
      AND (SELECT count(*) FROM public.roast_sessions WHERE plan_batch_id = NEW.id AND status = 'completed') >= NEW.batch_count
   THEN RETURN NEW; END IF;

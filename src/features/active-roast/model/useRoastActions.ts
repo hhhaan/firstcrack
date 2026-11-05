@@ -11,7 +11,7 @@ import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
 import type { TemperatureUnit } from './settings';
 import { isChargedPhase, useRoastingStore } from './status';
-import type { ChargeAdmission } from './useTrialEventAdmission';
+import type { ChargeAdmission } from './useRoastChargeAdmission';
 
 interface UseRoastActionsParams {
     unit: TemperatureUnit;
@@ -49,11 +49,11 @@ export const useRoastActions = ({
             if (isChargedPhase(useRoastingStore.getState().phase)) return;
             const reservedId = admission?.take();
             if (admission && !reservedId) {
-                useToastStore.getState().show(i18n.t('planGate.trial_event_preparing'));
+                useToastStore.getState().show(i18n.t('planGate.charge_preparing'));
                 return;
             }
             const now = Date.now();
-            const origin = chargeTimeMs != null && chargeTimeMs <= now ? chargeTimeMs : now;
+            const origin = chargeTimeMs != null && chargeTimeMs > 0 && chargeTimeMs <= now ? chargeTimeMs : now;
             const btVal = btAtCharge ?? rawBT;
             const sessionId = storeStartCharge(origin, workspaceOwnerId, {
                 bt: btVal,
@@ -61,6 +61,7 @@ export const useRoastActions = ({
                 ...(reservedId && { sessionId: reservedId }),
             });
             if (!sessionId) return;
+            admission?.confirm(sessionId, origin);
             sidecar.startRoast().catch((error) => {
                 logger.capture(error, { context: 'roast start' });
             });

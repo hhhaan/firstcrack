@@ -1,84 +1,105 @@
-# Event trial
+# Charge usage and event trial
 
-`trial-event` is an explicitly assigned outreach entitlement. It has the same
-feature and machine access as `tester`, with 100 Charges over 90 days
-from its first assignment. The limits belong to the workspace owner and are shared
-by members. Existing `trial` and `tester` accounts are not migrated.
+Every plan counts one physical Charge as one use. Save, discard and Cancel Drop
+never refund or add another use. Limits belong to the workspace owner and are
+shared by members.
 
-## Enrollment and rollout
+| Plan | Allowance | Window |
+| --- | --- | --- |
+| `trial` | 20 Charges | 14 days from signup; lifetime usage |
+| `trial-event` | 100 Charges | 90 days from the first explicit grant |
+| `pro`, legacy `free` | 200 Charges | UTC calendar month |
+| `tester`, `pro_plus`, `enterprise`, legacy `team` | Unlimited | Charge totals are recorded by UTC month |
+| `read_only` | No new Charge | Existing records remain readable |
 
+The migration seeds the private usage ledger from existing completed history.
+Ordinary trial and monthly usage do not reset at rollout. Undated history counts
+for lifetime usage only, matching its previous exclusion from monthly counts.
+Historical discarded Charges cannot be reconstructed. Event grants exclude all
+pre-enrollment history and are not renewed by switching plans away and back.
+
+## Event enrollment and rollout
+
+`trial-event` has the same desktop features and machine access as `tester`.
 Release the migration and matching desktop version before enrolling accounts.
-Using the authorized administrative database path, set the owner's
-`profiles.plan` to `trial-event`. The AFTER trigger creates
-`trial_event_grants` once, recording `started_at` and `ends_at`. The existing
-billing-column guard prevents ordinary clients from assigning themselves access.
-Changing the plan away and back does not restart the period or restore batches.
-Earlier roast history does not consume the new allowance.
+Through the authorized administrative database path, set the owner's
+`profiles.plan` to `trial-event`. The AFTER trigger creates `trial_event_grants`
+once with its start/end dates. Existing trial/tester accounts keep their plan.
+Clients cannot assign themselves access or edit the allowance.
 
-Polar remains the paid checkout/subscription path. Its existing entitlement
-resolver upgrades `trial-event` on successful subscription events. Event trials
-do not create a Polar subscription or require a payment method. No automatic
-payment popup is included; existing plan settings and gate messages remain the
-upgrade entry points. MCP write access also requires an active event grant; the
-existing OAuth write scope and activation gates still apply. A future popup can use the grant's end date and counters.
+Polar remains the paid checkout/subscription path and upgrades event trials on
+successful subscription events. Event trials need no payment method or Polar
+subscription. No automatic payment popup is included. MCP write access still
+requires its existing scope/activation checks and an active event grant.
 
-## Batch and save behavior
+## Admission and recording
 
-During preheat/Charge wait, the desktop reserves a session UUID on the server.
-Charge consumes the prepared UUID synchronously; it does not wait for network
-authorization at the physical Charge event. Expiry prevents new Charges, while
-an admitted batch can still save after expiry. Charge confirms usage asynchronously
-using that UUID. Discarding after Charge never refunds it, and Cancel Drop resumes
-the same charged batch without consuming another use. Summary discard is a
-synchronous local action, so it cannot race a refund against Save or Cancel Drop.
-Only unused preparations are released. A refused preparation retries when refreshed
-capacity increases, without releasing/re-reserving its own final slot.
+Capped accounts reserve a session UUID during preheat/Charge wait. Charge takes
+that UUID synchronously and starts local recording without waiting for a network
+response. Preparation is scoped to owner, plan and period. A UTC month rollover
+refreshes usage and replaces an unused prior-period preparation. Trial expiry
+prevents new Charges; it does not restart a trial.
 
-The server locks the owner's grant for reservation, Charge, completion and release.
-Used and reserved batches together cannot exceed 100. Charge converts one
-reservation to one used batch; save records completion without charging again.
-If save beats a delayed Charge acknowledgement, its transaction finalizes the
-reservation instead. Rollback and retries never double-charge, and release ignores
-charged/completed UUIDs. The private ledger has no session FK, so deleting saved
-history never refunds use. Supported legacy/import saves without a
-reservation count only while the grant is active and has capacity.
+Authorized unlimited accounts need no network preparation. All accounts write a
+small durable Charge outbox entry after the running session starts. The app's
+recovery widget submits it, retrying after reconnection/remount for the active
+workspace. Leaving the roast view or discarding its summary does not discard the
+usage entry. Storage failures preserve an in-memory entry and report the error
+without interrupting physical recording; a forced exit during such a storage
+failure cannot guarantee recovery. Revoked access leaves the entry pending.
 
-The last admitted save may finish its atomic stock writes, curve path upload and
-derived plan completion after the limit. Ordinary later edits remain gated.
-Existing records stay readable.
+The server serializes admissions, Charge acknowledgements, saves and unused
+releases with the owner's profile row lock. The session UUID deduplicates every
+request. Used and held slots cannot exceed a capped plan's allowance. Prepared
+Charges belong to their admitted period even if acknowledged/saved after expiry
+or midnight. Unlimited offline Charges retain their occurrence month.
 
-Reservations deliberately do not expire automatically: a disconnected device may
-have charged already, even without a saved roast. Charge retries transport failures;
-if acknowledgement remains unavailable, the reservation still occupies capacity
-and saving can finalize it. Admission includes these occupied reservations even
-before the server can confirm them as used.
-A crash before Charge/cleanup can also leave an unused reservation. Support must
-confirm that Charge never occurred, including checking running sessions, pending
-saves and discarded roasts, before returning that exact reservation through
-`release_trial_event_batch(owner_id, session_id)` in the affected user's authorized
-session. A missing saved roast alone is not proof of an unused reservation. Never
-reset `used_batches` or delete the grant to recover a reservation.
+Saving only records completion. If it arrives before the Charge acknowledgement,
+it settles that same reservation; the later acknowledgement is a no-op. Legacy
+and import clients without admission count their first completed save as a
+compatibility Charge, only while active and below the cap. Retrying, rolling back
+or deleting saved history never creates/refunds usage. History lists, batch
+numbering and inventory still describe saved records, independently of billing.
+
+The final admitted roast can complete its atomic stock writes, curve upload and
+derived plan progress after the cap or trial expiry. The monthly roast cap does
+not freeze unrelated inventory writes. Summary discard is synchronous and has no
+network refund step, so Save/Cancel Drop cannot race a returned allowance.
+
+## Unused preparations
+
+Only preparations that never reached Charge may be returned with
+`release_roast_charge(owner_id, session_id)` in an authorized user session.
+Refused preparation retries when refreshed available capacity increases, without
+cycling its own last slot. Charged/completed UUIDs ignore release requests.
+
+Reservations deliberately do not expire automatically. A disconnected device may
+have charged even without a saved roast. Support must check the running session,
+Charge outbox, pending saves and discarded roasts before returning an orphaned
+preparation. A missing saved record alone is not proof that Charge never occurred.
+Never reset grant counters or delete the usage ledger to recover a preparation.
 
 ## Verification and deployment boundary
 
-`supabase/tests/trial-event.test.ts` applies the actual gate/entitlement migrations
-to `trial-event-fixture.sql` using pinned PGlite 0.3.14. It covers enrollment,
-workspace permissions, blocked client entitlement edits, reservation/retry/
-rollback, the final batch after expiry, stock/progress/curve completion, deletion,
-legacy plans and the actual Polar resolver. The billing CI workflow runs it.
-Frontend tests cover feature parity, separate counts, synchronous Charge,
-workspace switches, expiry, Cancel Drop, synchronous discard and capacity retry.
-PGlite is not a multi-connection
-concurrency stress test or a replay against the full production schema.
+`supabase/tests/trial-event.test.ts` uses pinned PGlite 0.3.14 with the real gates
+and Polar resolver on `trial-event-fixture.sql`. It covers baseline preservation,
+workspace isolation, trial/event/monthly caps, unlimited plans, discard, retries,
+rollback, late saves, stock/progress/upload, deletion and billing transitions.
 
-2026-11-05 (KST): Core verification, frontend build, lint and isolated SQL tests ran in
-the implementation workspace. The required Docker-backed local reset could not
-run: the default ECR registry was inaccessible and the official GHCR image failed
-to unpack because the Docker host ran out of space. Automatic approval review
-also declined a broad read-only export of hosted schema metadata. No production
-schema or accounts were changed. Public TypeScript additions were checked against
-the isolated SQL catalog; full local type generation remains pending. The draft
-PR records this outstanding validation. Before marking it ready or releasing,
-complete the local reset/type generation described in
-`supabase/AGENTS.md`, accounting for the historical bootstrap gap documented in
-`active-roast-save.md`.
+`python3 supabase/tests/roast-charge-concurrency.py <fresh-postgres-container>`
+applies that isolated schema to a disposable PostgreSQL 15 container. Eight
+concurrent admissions compete for the last slot of trial, event and Pro accounts;
+eight duplicate Charge/save requests still count once. An unlimited account also
+counts eight concurrent acknowledgements of the same UUID only once.
+Frontend tests cover synchronous Charge, preparation ownership/expiry/rollover,
+Cancel Drop, discard, outbox persistence/reconnect and workspace switches.
+
+2026-11-05: Isolated SQL and PostgreSQL 15 concurrency checks passed. The complete
+Supabase local reset and full local type generation remain outstanding: the
+repository's historical bootstrap omits its initial public tables (see
+`active-roast-save.md`). An earlier Supabase stack attempt also failed to unpack
+its image due to Docker host space, and automatic approval review declined a
+broad hosted-schema export. The isolated schema is not a substitute for the real
+pre-change schema. Public RPC types are checked against the isolated catalog.
+No production schema or user plans were changed. Complete the local reset/type
+generation required by `supabase/AGENTS.md` before release.

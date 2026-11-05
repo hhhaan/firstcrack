@@ -48,7 +48,7 @@ const renderLifecycle = (
         disableAutoDrop?: () => void;
         triggerCharge?: () => void;
         replayActive?: boolean;
-        trialEventPrepared?: boolean;
+        chargePrepared?: boolean;
     } = {},
 ) => {
     useRoastingStore.getState().setLogState({ entries: logEntries, unwind: false });
@@ -57,7 +57,7 @@ const renderLifecycle = (
     const Probe = () => {
         latest = useRoastLifecycle({
             phase: useRoastingStore.getState().phase,
-            trialEventPrepared: detection.trialEventPrepared,
+            chargePrepared: detection.chargePrepared,
             sidecarConnected: true,
             rawBT: 200,
             unit: 'C',
@@ -764,7 +764,7 @@ describe('event trial final reserved batch', () => {
             error: null,
         });
         const triggerCharge = vi.fn(() => useRoastingStore.setState({ phase: 'roasting' }));
-        const h = renderLifecycle([], { trialEventPrepared: prepared, triggerCharge });
+        const h = renderLifecycle([], { chargePrepared: prepared, triggerCharge });
         try {
             act(() => h.result.handleEnterStandby());
             expect(useRoastingStore.getState().phase).toBe(prepared ? 'standby' : 'preheating');
