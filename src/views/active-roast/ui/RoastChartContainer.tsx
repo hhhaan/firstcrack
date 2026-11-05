@@ -20,6 +20,8 @@ const applyMarkerPointer = (surface: HTMLElement, on: boolean) => {
 interface RoastChartContainerProps {
     chartAreaRef: Ref<HTMLDivElement | null>;
     mainChartHeight: number;
+    minTime: number;
+    maxTime: number;
     effectiveZoomRange: { start: number; end: number } | null;
     isChartDragging: boolean;
     handleChartPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -86,6 +88,8 @@ interface RoastChartContainerProps {
 export const RoastChartContainer = ({
     chartAreaRef,
     mainChartHeight,
+    minTime,
+    maxTime,
     effectiveZoomRange,
     isChartDragging,
     handleChartPointerDown,
@@ -300,8 +304,8 @@ export const RoastChartContainer = ({
                 showRoRET={showRoRET}
                 rorEtActual={rorEtActual}
                 temperatureUnit={unit}
-                xViewMin={effectiveZoomRange?.start}
-                xViewMax={effectiveZoomRange?.end}
+                xViewMin={effectiveZoomRange?.start ?? minTime}
+                xViewMax={effectiveZoomRange?.end ?? maxTime}
                 bbpRange={bbpRange}
                 controlData={controlData}
                 showControlDrum={showControlDrum}

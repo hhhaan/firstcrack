@@ -213,3 +213,90 @@ test('BBP keeps a fixed fifteen-minute window and preserves the full reference r
         if (elapsed === 180) await page.screenshot({ path: '/tmp/voc-1105-bbp.png', fullPage: true });
     }
 });
+
+test('a saved BBP reference is fully visible from the start and stays fixed as live measurements grow', async ({
+    authedPage: page,
+    db,
+}) => {
+    const bbpPath = `profiles/${E2E_USER.id}/voc-1105-bbp.tsv`;
+    db.tsvFiles.set(curvePath, curve);
+    db.tsvFiles.set(
+        bbpPath,
+        [
+            'time\tbt\tet\tror\theater\tfan\tdrum',
+            '# bbp_charge_offset_sec\t180',
+            '0\t210\t230\t\t20\t40\t50',
+            '60\t205\t225\t\t30\t40\t50',
+            '120\t195\t215\t\t50\t40\t50',
+            '179\t190\t210\t\t70\t40\t50',
+        ].join('\n'),
+    );
+    db.seedCompletedSession({
+        id: 'voc-reference',
+        profile_id: 'profile-b',
+        tsv_path: curvePath,
+        bbp_tsv_path: bbpPath,
+        bbp_seconds: 180,
+        duration_seconds: 720,
+    });
+    const saved = profile('profile-b', 'VOC Profile B');
+    const withBbp = {
+        ...saved,
+        source_session: { ...saved.source_session, bbp_tsv_path: bbpPath, bbp_seconds: 180 },
+    };
+    await installProfiles(page, [withBbp]);
+    await goNav(page, 'roast');
+    await page.getByRole('button', { name: 'Target:' }).click();
+    await page.getByRole('button', { name: 'VOC Profile B', exact: true }).click();
+    const expectedReference = [
+        [0, 210],
+        [60, 205],
+        [120, 195],
+        [179, 190],
+        [180, 190],
+        [240, 95],
+        [480, 170],
+        [481, 171],
+        [780, 200],
+        [900, 210],
+    ];
+    for (const elapsed of [0, 60, 180, 600, 900, 1200]) {
+        await page.evaluate(async (elapsed) => {
+            const base = '/src/features/active-roast/model/';
+            const { useBbpStore } = await import(`${base}bbp.ts`);
+            const { useRoastingStore } = await import(`${base}status.ts`);
+            const { updateRoastSettings } = await import(`${base}settings.ts`);
+            updateRoastSettings({
+                bbpEnabled: true,
+                showTargetCurve: true,
+                showControlChart: true,
+                autoChargeEnabled: false,
+                autoDropEnabled: false,
+            });
+            useRoastingStore.setState({ phase: 'standby', awaitingNextCharge: true });
+            const origin = Math.max(0, elapsed - 900);
+            useBbpStore
+                .getState()
+                .begin(
+                    Date.now() - elapsed * 1000,
+                    elapsed === 0
+                        ? []
+                        : [origin, elapsed].map((t) => ({ t, bt: 200, et: 220, heater: 50, fan: 40, drum: 55 })),
+                );
+        }, elapsed);
+        await expect
+            .poll(async () => (await readChart(page))?.series.find((s) => s.name === 'BT Target')?.data)
+            .toEqual(expectedReference);
+        const snapshot = await readChart(page);
+        expect(snapshot?.x[0]).toEqual({ min: 0, max: 900 });
+        if (elapsed > 0) {
+            expect(snapshot?.x[1]).toEqual(snapshot?.x[0]);
+            expect(snapshot?.series.find((s) => s.name === 'BT Actual')?.data).toContainEqual([
+                Math.min(elapsed, 900),
+                200,
+            ]);
+        }
+        if (elapsed === 0) await page.screenshot({ path: '/tmp/voc1105-bbp-reference-initial.png', fullPage: true });
+        if (elapsed === 180) await page.screenshot({ path: '/tmp/voc-1105-bbp.png', fullPage: true });
+    }
+});

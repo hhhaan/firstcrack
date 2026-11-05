@@ -87,14 +87,22 @@ export const resolveLiveChartView = (input: {
     );
     const liveStart = livePoints[0]?.time ?? 0;
     const liveEnd = livePoints[livePoints.length - 1]?.time ?? liveStart;
-    const targetEnd = source[0]?.bbpChargeOffsetSec ?? sampleExtent(source).max;
-    const referenceBbp = source.flatMap((point) => {
-        const time = seam + (point.t - targetEnd);
-        return point.t >= targetEnd - BBP_MAX_SECONDS && point.t < targetEnd ? [{ ...point, t: time, ror: null }] : [];
-    });
+    const sourceExtent = sampleExtent(source);
+    const explicitCharge = source[0]?.bbpChargeOffsetSec;
+    const targetEnd =
+        explicitCharge != null && Number.isFinite(explicitCharge) && explicitCharge >= sourceExtent.min
+            ? explicitCharge
+            : sourceExtent.max;
+    const targetOrigin = Math.max(0, targetEnd - BBP_MAX_SECONDS);
+    const referenceBbp = source.flatMap((point) =>
+        point.t >= targetOrigin && point.t <= targetEnd ? [{ ...point, t: point.t - targetOrigin, ror: null }] : [],
+    );
+    // The complete saved wait stays in place while measurements accumulate independently.
+    // Missing/failed BBP references retain the live-wait Charge preview fallback.
+    const referenceCharge = referenceBbp.length ? targetEnd - targetOrigin : seam;
     // Preserve every post-Charge reference sample. The chart clips at its viewport.
     const referenceRoast = input.roastTarget.flatMap((point) =>
-        point.t >= 0 ? [{ ...point, t: seam + point.t }] : [],
+        point.t >= 0 ? [{ ...point, t: referenceCharge + point.t }] : [],
     );
     return {
         livePoints,
