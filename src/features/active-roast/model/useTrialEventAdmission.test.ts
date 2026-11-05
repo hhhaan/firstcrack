@@ -10,18 +10,29 @@ const mocks = vi.hoisted(() => ({
     owner: 'owner-a',
     plan: 'trial-event',
     endsAt: '2099-01-01T00:00:00Z',
+    used: 0,
+    reserved: 0,
     reserve: vi.fn(),
+    charge: vi.fn(),
     release: vi.fn(),
 }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: mocks.owner, isWorkspaceReady: true }),
 }));
+vi.mock('@shared/lib/settings-store', () => ({
+    settingsGet: vi.fn().mockResolvedValue(null),
+    settingsSet: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@shared/lib/features', async (original) => ({
     ...(await original<typeof import('@shared/lib/features')>()),
     useEffectivePlan: () => mocks.plan,
-    useTrialEventGrant: () => ({ data: { ends_at: mocks.endsAt } }),
+    useTrialEventGrant: () => ({
+        data: { ends_at: mocks.endsAt, used_batches: mocks.used, reserved_batches: mocks.reserved },
+    }),
 }));
-vi.mock('@entities/trial-event', () => ({ trialEventApi: { reserve: mocks.reserve, release: mocks.release } }));
+vi.mock('@entities/trial-event', () => ({
+    trialEventApi: { reserve: mocks.reserve, charge: mocks.charge, release: mocks.release },
+}));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const cleanup: Array<() => void> = [];
 function mount() {
@@ -50,8 +61,11 @@ beforeEach(() => {
     mocks.owner = 'owner-a';
     mocks.plan = 'trial-event';
     mocks.endsAt = '2099-01-01T00:00:00Z';
+    mocks.used = 0;
+    mocks.reserved = 0;
     vi.clearAllMocks();
     mocks.reserve.mockResolvedValue(undefined);
+    mocks.charge.mockResolvedValue(undefined);
     mocks.release.mockResolvedValue(undefined);
     useRoastingStore.getState().reset();
     useRoastingStore.setState({ phase: 'preheating' });
@@ -61,6 +75,82 @@ afterEach(() => {
 });
 
 describe('trial batch preflight', () => {
+    it('keeps the same Charge after Cancel Drop and only returns the unused next preparation', async () => {
+        const h = mount();
+        await act(async () => {});
+        const id = mocks.reserve.mock.calls[0][1];
+        await act(async () => {
+            expect(h.value?.take()).toBe(id);
+            useRoastingStore
+                .getState()
+                .startCharge(Date.now() - 60_000, mocks.owner, { bt: 190, unit: 'C', sessionId: id });
+        });
+        await act(async () => {
+            useRoastingStore.setState({ sidecarConnected: true, elapsed: 60 });
+            useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+        });
+        expect(mocks.reserve).toHaveBeenCalledTimes(2);
+        const nextId = mocks.reserve.mock.calls[1][1];
+        await act(async () => {
+            expect(useRoastingStore.getState().cancelDrop(id)).not.toBeNull();
+        });
+        expect(useRoastingStore.getState().sessionId).toBe(id);
+        expect(useRoastingStore.getState().phase).toBe('roasting');
+        expect(mocks.charge).toHaveBeenCalledExactlyOnceWith('owner-a', id);
+        expect(mocks.release).toHaveBeenCalledExactlyOnceWith('owner-a', nextId);
+    });
+    it('retries when capacity returns before an earlier refusal arrives', async () => {
+        mocks.used = 99;
+        mocks.reserved = 1;
+        let refuse!: (error: Error) => void;
+        mocks.reserve.mockImplementationOnce(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    refuse = reject;
+                }),
+        );
+        const h = mount();
+        await act(async () => {});
+        mocks.reserved = 0;
+        await act(async () => h.render());
+        await act(async () => refuse(new Error('trial_event_batch_cap')));
+        expect(mocks.reserve).toHaveBeenCalledTimes(2);
+        expect(h.value?.ready).toBe(true);
+    });
+    it('commits Charge once without waiting for acknowledgement or refunding on teardown', async () => {
+        mocks.charge.mockImplementationOnce(() => new Promise<void>(() => {}));
+        const h = mount();
+        await act(async () => {});
+        const id = mocks.reserve.mock.calls[0][1];
+        await act(async () => {
+            expect(h.value?.take()).toBe(id);
+            expect(h.value?.take()).toBeNull();
+            useRoastingStore.setState({ phase: 'roasting' });
+        });
+        expect(mocks.charge).toHaveBeenCalledExactlyOnceWith('owner-a', id);
+        expect(mocks.release).not.toHaveBeenCalled();
+    });
+    it('retries after unused capacity returns without cycling its own prepared slot', async () => {
+        mocks.used = 99;
+        mocks.reserved = 1;
+        mocks.reserve.mockRejectedValueOnce(new Error('trial_event_batch_cap'));
+        const h = mount();
+        await act(async () => {});
+        expect(h.value?.ready).toBe(false);
+        expect(mocks.reserve).toHaveBeenCalledTimes(1);
+        await act(async () => h.render());
+        expect(mocks.reserve).toHaveBeenCalledTimes(1);
+        mocks.reserved = 0;
+        await act(async () => h.render());
+        expect(mocks.reserve).toHaveBeenCalledTimes(2);
+        expect(h.value?.ready).toBe(true);
+        mocks.reserved = 1;
+        await act(async () => h.render());
+        expect(h.value?.ready).toBe(true);
+        expect(mocks.reserve).toHaveBeenCalledTimes(2);
+        // Only cleanup of the refused attempt, never the usable final slot.
+        expect(mocks.release).toHaveBeenCalledTimes(1);
+    });
     it('returns an unused preparation when the deadline passes while the app stays open', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-11-04T00:00:00Z'));

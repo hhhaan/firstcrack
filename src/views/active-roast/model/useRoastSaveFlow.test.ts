@@ -622,23 +622,17 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
 });
 
 describe('explicit discard is scoped to the visible summary', () => {
-    it('retains an event-trial draft when releasing its slot fails', async () => {
+    it('discards a charged event-trial summary synchronously without refunding its allowance', async () => {
         mocks.plan = 'trial-event';
-        mocks.releaseTrial.mockRejectedValueOnce(new Error('offline'));
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
-        await act(async () => {
-            h.api.discardSummary();
-            await Promise.resolve();
-        });
-        expect(mocks.releaseTrial).toHaveBeenCalledWith('workspace-a', 's-a');
-        expect(listPendingRoastSaves().some((p) => p.params.sessionId === 's-a')).toBe(true);
-        expect(h.api.flow.summaryData?.sessionId).toBe('s-a');
-        await act(async () => {
-            h.api.discardSummary();
-            await Promise.resolve();
-        });
+        const save = h.api.handleSave;
+        act(() => h.api.discardSummary());
         expect(listPendingRoastSaves()).toHaveLength(0);
+        expect(h.api.flow.summaryData).toBeNull();
+        await act(async () => save(form));
+        expect(mocks.resumeSave).not.toHaveBeenCalled();
+        expect(mocks.releaseTrial).not.toHaveBeenCalled();
     });
     it('an old A discard callback cannot delete the new B checkpoint or summary', () => {
         const h = renderFlow({ sessionId: 's-a' });

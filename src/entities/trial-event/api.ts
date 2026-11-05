@@ -15,4 +15,11 @@ export const trialEventApi = {
         });
         if (error) throw error;
     },
+    async charge(userId: string, sessionId: string): Promise<void> {
+        const { error } = await supabase.rpc('charge_trial_event_batch', {
+            p_user_id: userId,
+            p_session_id: sessionId,
+        });
+        if (error) throw error;
+    },
 };

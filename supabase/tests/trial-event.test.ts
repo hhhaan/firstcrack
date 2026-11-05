@@ -44,6 +44,7 @@ async function asUser(userId: string, work: () => Promise<void>) {
 }
 const reserve = (who: string, id: string) => db.query('SELECT reserve_trial_event_batch($1,$2)', [who,id]);
 const release = (who: string, id: string) => db.query('SELECT release_trial_event_batch($1,$2)', [who,id]);
+const charge = (who: string, id: string) => db.query('SELECT charge_trial_event_batch($1,$2)', [who,id]);
 const mcpGate = (who: string) => scalar("SELECT private.mcp_write($1,'fixture','fixture','invalid_tool','{}'::jsonb)->>'error'", [who]);
 const counters = async () => (await db.query('SELECT used_batches, reserved_batches FROM trial_event_grants WHERE user_id=$1',[owner])).rows[0];
 await db.query("INSERT INTO profiles(id,plan,created_at) VALUES ($1,'tester',now()-interval '1 year'),($2,'tester',now()-interval '1 year'),($3,'trial',now()),($4,'trial',now()),($5,'trial',now())", [owner,tester,member,stranger,ordinary]);
@@ -67,6 +68,7 @@ await asUser(stranger,async()=> {
     assert.equal(await scalar('SELECT count(*)::int FROM trial_event_grants'),0);
     await assert.rejects(()=>reserve(owner,session), /workspace access denied/);
     await assert.rejects(()=>release(owner,session), /workspace access denied/);
+    await assert.rejects(()=>charge(owner,session), /workspace access denied/);
     await db.query("UPDATE profiles SET plan='trial-event' WHERE id=$1",[stranger]);
 });
 assert.equal(await scalar('SELECT plan FROM profiles WHERE id=$1',[stranger]),'trial');
@@ -80,8 +82,25 @@ await asUser(owner,async()=> {
     await release(owner,session);
     assert.deepEqual(await counters(),{used_batches:0,reserved_batches:0});
     await assert.rejects(()=>reserve(owner,session),/invalid trial event reservation/);
+    await assert.rejects(()=>charge(owner,session),/invalid trial event reservation/);
+    await assert.rejects(()=>charge(owner,crypto.randomUUID()),/invalid trial event reservation/);
     const invite=await scalar("SELECT create_org_invite('abcdefghijklmnopqrstuv')");
     assert.ok(invite);
+    // A charged, discarded roast stays used even without any saved session.
+    const discarded = crypto.randomUUID();
+    await reserve(owner,discarded);
+    await charge(owner,discarded);
+    await charge(owner,discarded);
+    await release(owner,discarded);
+    assert.deepEqual(await counters(),{used_batches:1,reserved_batches:0});
+    assert.equal(await scalar('SELECT count(*)::int FROM roast_sessions WHERE id=$1',[discarded]),0);
+    // Saving can beat a delayed Charge request; the late acknowledgement is free.
+    const savedFirst = crypto.randomUUID();
+    await reserve(owner,savedFirst);
+    await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[savedFirst,owner]);
+    await charge(owner,savedFirst);
+    await release(owner,savedFirst);
+    assert.deepEqual(await counters(),{used_batches:2,reserved_batches:0});
 });
 const last='77777777-7777-4777-8777-777777777777';
 const plan='88888888-8888-4888-8888-888888888888';
@@ -91,17 +110,24 @@ await db.query('INSERT INTO roast_plan_batches(id,plan_id) VALUES($1,$2)',[batch
 await asUser(member,async()=> {
     assert.equal(await scalar('SELECT count(*)::int FROM trial_event_grants'),1);
     await reserve(owner,last);
-    for(let i=0;i<99;i++) await db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[owner]);
+    for(let i=0;i<97;i++) await db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[owner]);
     assert.deepEqual(await counters(),{used_batches:99,reserved_batches:1});
     await assert.rejects(()=>reserve(owner,crypto.randomUUID()),/trial_event_batch_cap/);
     await assert.rejects(()=>db.query('INSERT INTO roast_sessions(id,user_id,weight_grams) VALUES($1,$2,-1)',[last,owner]),/check constraint/);
     assert.deepEqual(await counters(),{used_batches:99,reserved_batches:1});
+    await charge(owner,last);
+    await release(owner,last);
+    assert.deepEqual(await counters(),{used_batches:100,reserved_batches:0});
+    await assert.rejects(()=>reserve(owner,crypto.randomUUID()),/trial_event_batch_cap/);
+    await assert.rejects(()=>db.query('INSERT INTO roast_sessions(id,user_id,weight_grams) VALUES($1,$2,-1)',[last,owner]),/check constraint/);
+    assert.deepEqual(await counters(),{used_batches:100,reserved_batches:0});
 });
 await db.query("UPDATE trial_event_grants SET started_at=started_at-interval '91 days', ends_at=ends_at-interval '91 days' WHERE user_id=$1",[owner]);
 await asUser(owner,async()=> {
     assert.equal(await mcpGate(owner),'insufficient_plan');
     await db.exec("SELECT set_config('request.jwt.claim.role','authenticated',false)");
     await assert.rejects(()=>reserve(owner,crypto.randomUUID()),/trial_event_expired/);
+    await charge(owner,last);
     await assert.rejects(()=>db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[owner]),/trial_event_expired/);
     // The admitted roast and its atomic stock writes complete after expiry.
     await db.query(`WITH saved AS (INSERT INTO roast_sessions(id,user_id,plan_batch_id) VALUES($1,$2,$3) RETURNING id,user_id)
@@ -121,7 +147,7 @@ await asUser(owner,async()=> {
     assert.deepEqual(await counters(),{used_batches:100,reserved_batches:0});
     await assert.rejects(()=>db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[last,owner]),/was deleted/);
 });
-// MCP writes also stop at the completed cap even when the time window is active.
+// MCP writes also stop at the Charge cap even when the time window is active.
 await db.query("UPDATE trial_event_grants SET started_at=started_at+interval '91 days', ends_at=ends_at+interval '91 days' WHERE user_id=$1",[owner]);
 assert.equal(await mcpGate(owner),'insufficient_plan');
 // Ordinary trial stays at 20; tester remains unlimited.
@@ -133,6 +159,24 @@ await db.query("UPDATE profiles SET created_at=now()-interval '15 days' WHERE id
 assert.equal(await scalar('SELECT profile_write_error($1)',[ordinary]),'trial_expired');
 await asUser(tester,async()=> { for(let i=0;i<101;i++) await db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[tester]); });
 assert.equal(await scalar('SELECT count(*)::int FROM trial_event_grants WHERE user_id=$1',[tester]),0);
+// Both Charge acknowledgements and saves can arrive after the admission deadline.
+const delayedOwner = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+const delayedCharge = crypto.randomUUID();
+const delayedSave = crypto.randomUUID();
+await db.query("INSERT INTO profiles(id,plan) VALUES($1,'trial-event')",[delayedOwner]);
+await asUser(delayedOwner,async()=> {
+    await reserve(delayedOwner,delayedCharge);
+    await reserve(delayedOwner,delayedSave);
+});
+await db.query("UPDATE trial_event_grants SET started_at=started_at-interval '91 days', ends_at=ends_at-interval '91 days' WHERE user_id=$1",[delayedOwner]);
+await asUser(delayedOwner,async()=> {
+    await charge(delayedOwner,delayedCharge);
+    await release(delayedOwner,delayedCharge);
+    await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[delayedCharge,delayedOwner]);
+    await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[delayedSave,delayedOwner]);
+    await charge(delayedOwner,delayedSave);
+    assert.deepEqual((await db.query('SELECT used_batches,reserved_batches FROM trial_event_grants WHERE user_id=$1',[delayedOwner])).rows[0],{used_batches:2,reserved_batches:0});
+});
 // Actual Polar resolver upgrades event trials, retains tester, and never renews grants.
 const org='3b6494cb-8248-47d1-a5f2-65ff7ca9b8a8';
 for(const user of [owner,tester]) {
@@ -144,7 +188,9 @@ assert.equal(await scalar('SELECT plan FROM profiles WHERE id=$1',[owner]),'pro_
 assert.equal(await scalar('SELECT plan FROM profiles WHERE id=$1',[tester]),'tester');
 assert.deepEqual(await counters(),{used_batches:100,reserved_batches:0});
 assert.equal(await scalar("SELECT has_function_privilege('anon','reserve_trial_event_batch(uuid,uuid)','EXECUTE')"),false);
+assert.equal(await scalar("SELECT has_function_privilege('anon','charge_trial_event_batch(uuid,uuid)','EXECUTE')"),false);
+assert.equal(await scalar("SELECT pg_get_function_result('public.charge_trial_event_batch(uuid,uuid)'::regprocedure)"),'void');
 assert.equal(await scalar("SELECT relrowsecurity FROM pg_class WHERE oid='trial_event_grants'::regclass"),true);
 assert.deepEqual((await db.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='trial_event_grants' ORDER BY column_name")).rows.map((r: {column_name:string})=>r.column_name), ['ends_at','reserved_batches','started_at','used_batches','user_id']);
 await db.close();
-console.log('trial-event: enrollment, permissions, reservation/retry/rollback, 100th batch, expiry, stock, deletion, legacy plans and Polar passed');
+console.log('trial-event: enrollment, permissions, Charge/discard/retry/rollback, 100th batch, delayed acknowledgement/save, expiry, stock, deletion, legacy plans and Polar passed');

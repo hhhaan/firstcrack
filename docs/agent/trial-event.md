@@ -1,7 +1,7 @@
 # Event trial
 
 `trial-event` is an explicitly assigned outreach entitlement. It has the same
-feature and machine access as `tester`, with 100 completed batches over 90 days
+feature and machine access as `tester`, with 100 Charges over 90 days
 from its first assignment. The limits belong to the workspace owner and are shared
 by members. Existing `trial` and `tester` accounts are not migrated.
 
@@ -27,15 +27,20 @@ existing OAuth write scope and activation gates still apply. A future popup can 
 During preheat/Charge wait, the desktop reserves a session UUID on the server.
 Charge consumes the prepared UUID synchronously; it does not wait for network
 authorization at the physical Charge event. Expiry prevents new Charges, while
-an admitted batch can still save after expiry. Unused preparations and explicitly
-discarded summaries release their reservations. Uncertain discard failures keep
-the pending save intact.
+an admitted batch can still save after expiry. Charge confirms usage asynchronously
+using that UUID. Discarding after Charge never refunds it, and Cancel Drop resumes
+the same charged batch without consuming another use. Summary discard is a
+synchronous local action, so it cannot race a refund against Save or Cancel Drop.
+Only unused preparations are released. A refused preparation retries when refreshed
+capacity increases, without releasing/re-reserving its own final slot.
 
-The server locks the owner's grant for reservation, completion and release.
-Completed and reserved batches together cannot exceed 100. Completion converts
-one reservation to one used batch in the save transaction; rollback and retries
-do not double-charge it. The private ledger has no session FK, so deleting saved
-history never refunds completed use. Supported legacy/import saves without a
+The server locks the owner's grant for reservation, Charge, completion and release.
+Used and reserved batches together cannot exceed 100. Charge converts one
+reservation to one used batch; save records completion without charging again.
+If save beats a delayed Charge acknowledgement, its transaction finalizes the
+reservation instead. Rollback and retries never double-charge, and release ignores
+charged/completed UUIDs. The private ledger has no session FK, so deleting saved
+history never refunds use. Supported legacy/import saves without a
 reservation count only while the grant is active and has capacity.
 
 The last admitted save may finish its atomic stock writes, curve path upload and
@@ -43,11 +48,16 @@ derived plan completion after the limit. Ordinary later edits remain gated.
 Existing records stay readable.
 
 Reservations deliberately do not expire automatically: a disconnected device may
-still have an unsaved roast. A process crash before cleanup can leave an unused
-reservation. Support must check the affected device's pending saves and running
-session before returning that exact reservation through
+have charged already, even without a saved roast. Charge retries transport failures;
+if acknowledgement remains unavailable, the reservation still occupies capacity
+and saving can finalize it. Admission includes these occupied reservations even
+before the server can confirm them as used.
+A crash before Charge/cleanup can also leave an unused reservation. Support must
+confirm that Charge never occurred, including checking running sessions, pending
+saves and discarded roasts, before returning that exact reservation through
 `release_trial_event_batch(owner_id, session_id)` in the affected user's authorized
-session. Never reset `used_batches` or delete the grant to recover a reservation.
+session. A missing saved roast alone is not proof of an unused reservation. Never
+reset `used_batches` or delete the grant to recover a reservation.
 
 ## Verification and deployment boundary
 
@@ -57,7 +67,8 @@ workspace permissions, blocked client entitlement edits, reservation/retry/
 rollback, the final batch after expiry, stock/progress/curve completion, deletion,
 legacy plans and the actual Polar resolver. The billing CI workflow runs it.
 Frontend tests cover feature parity, separate counts, synchronous Charge,
-workspace switches, expiry and safe discard. PGlite is not a multi-connection
+workspace switches, expiry, Cancel Drop, synchronous discard and capacity retry.
+PGlite is not a multi-connection
 concurrency stress test or a replay against the full production schema.
 
 2026-11-05 (KST): Core verification, frontend build, lint and isolated SQL tests ran in

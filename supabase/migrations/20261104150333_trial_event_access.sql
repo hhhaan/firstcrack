@@ -1,5 +1,6 @@
 -- Outreach trial: Enterprise features, 90 days from the first explicit grant,
--- and 100 completed roast sessions. Existing trial/tester accounts are unchanged.
+-- and 100 Charges. Discarding after Charge never refunds use.
+-- Existing trial/tester accounts are unchanged.
 -- Set profiles.plan = 'trial-event' as an administrator to enroll an account.
 
 ALTER TABLE public.profiles DROP CONSTRAINT profiles_plan_check;
@@ -27,7 +28,7 @@ CREATE SCHEMA IF NOT EXISTS private;
 CREATE TABLE private.trial_event_batches (
   session_id uuid PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES public.trial_event_grants(user_id) ON DELETE CASCADE,
-  state text NOT NULL CHECK (state IN ('reserved', 'completed', 'released')),
+  state text NOT NULL CHECK (state IN ('reserved', 'charged', 'completed', 'released')),
   reserved_at timestamptz NOT NULL DEFAULT clock_timestamp(),
   completed_xid bigint
 );
@@ -93,6 +94,35 @@ BEGIN
 END;
 $$;
 
+-- Charge consumes a prepared UUID without waiting in the device's recording
+-- path. A delayed acknowledgement/save uses the same UUID and cannot charge twice.
+CREATE FUNCTION private.charge_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE b private.trial_event_batches; v_plan text;
+BEGIN
+  IF auth.uid() IS NULL OR p_session_id IS NULL OR NOT public.has_workspace_access(p_user_id) THEN
+    RAISE EXCEPTION 'workspace access denied' USING ERRCODE = '42501';
+  END IF;
+  PERFORM 1 FROM public.trial_event_grants WHERE user_id = p_user_id FOR UPDATE;
+  SELECT * INTO b FROM private.trial_event_batches WHERE session_id = p_session_id;
+  IF NOT FOUND THEN
+    SELECT plan INTO v_plan FROM public.profiles WHERE id = p_user_id;
+    -- reserve can have returned without a ledger entry after a paid upgrade.
+    IF v_plan IN ('pro', 'pro_plus', 'enterprise', 'team', 'tester') THEN RETURN; END IF;
+    RAISE EXCEPTION 'invalid trial event reservation' USING ERRCODE = '23514';
+  END IF;
+  IF b.user_id <> p_user_id OR b.state = 'released' THEN
+    RAISE EXCEPTION 'invalid trial event reservation' USING ERRCODE = '23514';
+  END IF;
+  IF b.state IN ('charged', 'completed') THEN RETURN; END IF;
+  -- The reservation already owns capacity. Network delay past expiry does not
+  -- revoke a Charge made with that preparation or block the eventual save.
+  UPDATE private.trial_event_batches SET state = 'charged' WHERE session_id = p_session_id;
+  UPDATE public.trial_event_grants SET reserved_batches = reserved_batches - 1, used_batches = used_batches + 1
+    WHERE user_id = p_user_id;
+END;
+$$;
+
 CREATE FUNCTION private.release_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
@@ -108,10 +138,12 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION private.reserve_trial_event_batch(uuid, uuid), private.release_trial_event_batch(uuid, uuid)
+REVOKE ALL ON FUNCTION private.reserve_trial_event_batch(uuid, uuid), private.release_trial_event_batch(uuid, uuid),
+  private.charge_trial_event_batch(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA private TO authenticated;
-GRANT EXECUTE ON FUNCTION private.reserve_trial_event_batch(uuid, uuid), private.release_trial_event_batch(uuid, uuid)
+GRANT EXECUTE ON FUNCTION private.reserve_trial_event_batch(uuid, uuid), private.release_trial_event_batch(uuid, uuid),
+  private.charge_trial_event_batch(uuid, uuid)
   TO authenticated;
 CREATE FUNCTION public.reserve_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS uuid
 LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
@@ -121,9 +153,15 @@ CREATE FUNCTION public.release_trial_event_batch(p_user_id uuid, p_session_id uu
 LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
   SELECT private.release_trial_event_batch(p_user_id, p_session_id);
 $$;
-REVOKE ALL ON FUNCTION public.reserve_trial_event_batch(uuid, uuid), public.release_trial_event_batch(uuid, uuid)
+CREATE FUNCTION public.charge_trial_event_batch(p_user_id uuid, p_session_id uuid) RETURNS void
+LANGUAGE sql SECURITY INVOKER SET search_path = '' AS $$
+  SELECT private.charge_trial_event_batch(p_user_id, p_session_id);
+$$;
+REVOKE ALL ON FUNCTION public.reserve_trial_event_batch(uuid, uuid), public.release_trial_event_batch(uuid, uuid),
+  public.charge_trial_event_batch(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.reserve_trial_event_batch(uuid, uuid), public.release_trial_event_batch(uuid, uuid)
+GRANT EXECUTE ON FUNCTION public.reserve_trial_event_batch(uuid, uuid), public.release_trial_event_batch(uuid, uuid),
+  public.charge_trial_event_batch(uuid, uuid)
   TO authenticated;
 
 CREATE FUNCTION private.complete_trial_event_batch() RETURNS trigger
@@ -134,7 +172,7 @@ BEGIN
   IF TG_OP = 'UPDATE' AND OLD.status = 'completed' THEN RETURN NEW; END IF;
   SELECT plan INTO v_plan FROM public.profiles WHERE id = NEW.user_id;
   IF v_plan IS DISTINCT FROM 'trial-event' AND NOT EXISTS (
-    SELECT 1 FROM private.trial_event_batches WHERE session_id = NEW.id AND user_id = NEW.user_id AND state = 'reserved'
+    SELECT 1 FROM private.trial_event_batches WHERE session_id = NEW.id AND user_id = NEW.user_id AND state IN ('reserved', 'charged')
   ) THEN RETURN NEW; END IF;
   SELECT * INTO g FROM public.trial_event_grants WHERE user_id = NEW.user_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'trial_event_expired' USING ERRCODE = '23514'; END IF;
@@ -148,7 +186,9 @@ BEGIN
       IF NOT EXISTS (SELECT 1 FROM public.roast_sessions WHERE id = NEW.id AND user_id = NEW.user_id) THEN
         RAISE EXCEPTION 'completed trial event batch was deleted' USING ERRCODE = '23514';
       END IF;
-    ELSE
+    ELSIF b.state = 'reserved' THEN
+      -- A save may beat a delayed Charge acknowledgement. Finalize it here;
+      -- a later charge call is idempotent and a rollback retains the reservation.
       UPDATE public.trial_event_grants SET reserved_batches = reserved_batches - 1, used_batches = used_batches + 1
         WHERE user_id = NEW.user_id;
     END IF;

@@ -2313,6 +2313,7 @@ export type Database = {
         Functions: {
             reserve_trial_event_batch: { Args: { p_user_id: string; p_session_id: string }; Returns: string };
             release_trial_event_batch: { Args: { p_user_id: string; p_session_id: string }; Returns: undefined };
+            charge_trial_event_batch: { Args: { p_user_id: string; p_session_id: string }; Returns: undefined };
             admin_auth_session_ips: {
                 Args: never;
                 Returns: {
