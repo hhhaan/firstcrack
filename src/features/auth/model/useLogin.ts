@@ -28,7 +28,7 @@ export const useLogin = (onLogin?: () => void) => {
             e.preventDefault();
             setLoading(true);
             setError(null);
-            cancelOAuth(); // clear session_replaced / oauth notice
+            cancelOAuth();
             try {
                 await signInWithEmail(email, password);
                 onLogin?.();
