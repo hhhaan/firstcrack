@@ -34,7 +34,7 @@ const readChart = async (page: import('@playwright/test').Page) => {
     }, modulePath);
 };
 
-test('BBP continues through Charge, expands time with headroom, and preserves manual zoom on both grids', async ({
+test('BBP stays at fifteen minutes, then expands after Charge while preserving manual zoom on both grids', async ({
     authedPage: page,
 }) => {
     await goNav(page, 'roast');
@@ -46,6 +46,7 @@ test('BBP continues through Charge, expands time with headroom, and preserves ma
         const { updateRoastSettings } = await import(`${base}settings.ts`);
         updateRoastSettings({
             bbpEnabled: true,
+            bbpJoinCharge: true,
             showControlChart: true,
             showControlHeat: true,
             autoChargeEnabled: false,
@@ -61,7 +62,7 @@ test('BBP continues through Charge, expands time with headroom, and preserves ma
             .setEvents([{ id: 'bbp-heat', time: '10:00', timeSec: 600, event: 'Heater', temp: '196°C', note: '90%' }]);
     });
 
-    await expect.poll(async () => (await readChart(page))?.axes[0].max).toBeGreaterThanOrEqual(940);
+    await expect.poll(async () => (await readChart(page))?.axes[0].max).toBe(900);
     await expect.poll(async () => (await readChart(page))?.markerTimes).toContain(600);
     const surface = page.getByLabel(
         'Temperature curve chart. Use wheel or plus and minus to zoom, drag or use left and right arrows to pan, and 0 to reset zoom.',

@@ -75,7 +75,7 @@ describe('displayed roast timeline interface', () => {
         useBbpStore.setState({ active: true, startMs: 1, points: [waitPoint(0), waitPoint(960)], events });
         await render();
         expect(timeline().entries).toEqual([expect.objectContaining({ id: 'visible', timeSec: 840 })]);
-        expect(timeline().chart.maxTime).toBe(1020);
+        expect(timeline().chart.maxTime).toBe(900);
         expect(timeline().frame.displayedElapsed).toBe(900);
         const read = timeline().editing.read;
         expect(read().editEntries(events, 'visible', { timeSec: 850 })).toEqual([
@@ -99,7 +99,7 @@ describe('displayed roast timeline interface', () => {
             useRoastingStore.setState({ livePoints: [point(0), point(10)] });
             useBbpStore.setState({ active: false });
         });
-        expect(timeline().chart.effectiveZoomRange).toEqual({ start: -119, end: -19 });
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: -119, end: -20 });
         expect(timeline().frame.bbpRange).toEqual({ start: -119, end: 0 });
         expect(timeline().editing.read().kind).toBe('live');
         await act(() => {
@@ -107,6 +107,85 @@ describe('displayed roast timeline interface', () => {
             useBbpStore.setState({ active: true, startMs: chargeMs + 1000, points: [waitPoint(0)] });
         });
         expect(timeline().chart.effectiveZoomRange).toBeNull();
+    });
+
+    it('preserves a zoomed measurement and event through a long wait, late reference, and Charge', async () => {
+        const chargeMs = Date.now();
+        const points = [300, 400, 500, 600, 900, 960, 1200].map(waitPoint);
+        useBbpStore.setState({
+            active: true,
+            startMs: chargeMs - 1_200_000,
+            points: points.filter((p) => p.t <= 900),
+            events: [entry('marked', 400)],
+        });
+        await render();
+        await act(() => timeline().chart.setZoomRange({ start: 300, end: 600 }));
+        await act(() => useBbpStore.setState({ points: points.filter((p) => p.t <= 960) }));
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: 240, end: 540 });
+        expect(timeline().chart.visibleControlXs).toEqual([240, 340, 440, 540]);
+        expect(timeline().entries[0].timeSec).toBe(340);
+        reference.roast = [0, 301, 720].map((t) => ({ ...waitPoint(t), ror: 1 }));
+        await render();
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: 240, end: 540 });
+        expect(timeline().chart.maxTime).toBe(900);
+        expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([900, 1201, 1620]);
+        await act(() => useBbpStore.setState({ points }));
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: 0, end: 300 });
+        expect(timeline().entries[0].timeSec).toBe(100);
+        await act(() => {
+            useRoastingStore.getState().startCharge(chargeMs, 'owner');
+            useRoastingStore.setState({ livePoints: [point(0), point(10)] });
+            useBbpStore.setState({ active: false });
+        });
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: -900, end: -600 });
+        expect(timeline().chart.visibleControlXs).toEqual([-900, -800, -700, -600]);
+        expect(timeline().entries.find((e) => e.id === 'marked')?.timeSec).toBe(-800);
+        expect(
+            timeline()
+                .chart.targetSeries.filter((p) => p.time >= 0)
+                .map((p) => p.time),
+        ).toEqual([0, 301, 720]);
+    });
+
+    it('shows the complete fixed BBP reference before measurements and leaves it fixed while live time rolls', async () => {
+        const chargeMs = Date.now();
+        const savedBbp = [20, 80, 180].map((t) => ({ ...waitPoint(t), ror: null, bbpChargeOffsetSec: 200 }));
+        reference = { bbp: savedBbp, roast: [0, 301, 720].map((t) => ({ ...waitPoint(t), ror: 1 })), bbpError: false };
+        const original = structuredClone(reference);
+        useBbpStore.setState({ active: true, startMs: chargeMs - 1_200_000, points: [] });
+        await render();
+        expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([20, 80, 180, 200, 501, 920]);
+        expect(timeline().chart.visibleControlXs).toEqual([]);
+        expect(timeline().chart.chartData.every((p) => p.btActual === null)).toBe(true);
+        for (const latest of [1, 180, 600, 900, 1200]) {
+            await act(() => useBbpStore.setState({ points: [waitPoint(latest)] }));
+            expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([20, 80, 180, 200, 501, 920]);
+            expect(timeline().chart.maxTime).toBe(900);
+            expect(timeline().chart.visibleControlXs).toEqual([Math.min(latest, 900)]);
+        }
+        await act(() => timeline().chart.setZoomRange({ start: 800, end: 900 }));
+        await act(() => {
+            reference = {
+                ...reference,
+                bbp: [40, 100].map((t) => ({ ...waitPoint(t), ror: null, bbpChargeOffsetSec: 200 })),
+            };
+            root.render(createElement(Probe));
+        });
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: 800, end: 900 });
+        expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([40, 100, 200, 501, 920]);
+        expect(original.bbp).toEqual(savedBbp);
+        await act(() => useBbpStore.setState({ points: [waitPoint(300), waitPoint(1200)] }));
+        await act(() => {
+            useRoastingStore.getState().startCharge(chargeMs, 'owner');
+            useRoastingStore.setState({ livePoints: [point(0)] });
+            useBbpStore.setState({ active: false });
+        });
+        expect(timeline().chart.effectiveZoomRange).toEqual({ start: -100, end: 0 });
+        expect(
+            timeline()
+                .chart.targetSeries.filter((p) => p.time >= 0)
+                .map((p) => p.time),
+        ).toEqual([0, 301, 720]);
     });
 
     it('reads the new Charge source when an old BBP editing callback runs', async () => {

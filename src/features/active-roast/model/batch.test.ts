@@ -511,7 +511,7 @@ describe('ad-hoc blend selection', () => {
         store.reset();
         store.prepareBlend('blend-a', 'Modern');
         store.startCharge(undefined, 'owner', { bt: 180, unit: 'C' });
-        store.applyProfileSource({ beanId: 'bean-b', blendId: null, name: 'Other' });
+        store.applyProfileSource({ beanId: 'bean-b', blendId: null, name: 'Other' }, false, null);
         expect(selectRoastSelection(useRoastingStore.getState())).toMatchObject({
             beanId: null,
             blendId: 'blend-a',
@@ -523,16 +523,18 @@ describe('ad-hoc blend selection', () => {
         store.cancelDrop();
         expect(selectRoastSelection(useRoastingStore.getState()).blendId).toBe('blend-a');
     });
-    it('replaces previous automatic sources while preserving explicit choices', () => {
+    it('consumes each explicit Target default once and invalidates it on manual choice', () => {
         const store = useRoastingStore.getState();
         store.reset();
-        store.applyProfileSource({ beanId: null, blendId: 'blend-a', name: 'Modern' });
-        store.applyProfileSource({ beanId: 'bean-a', blendId: null, name: 'Single' });
-        expect(useRoastingStore.getState().prepared.beanId).toBe('bean-a');
-        store.applyProfileSource(null);
-        expect(useRoastingStore.getState().prepared.beanId).toBeNull();
+        store.commitProfile('p1', null, null);
+        const request = useRoastingStore.getState().prepared.profileSourceRequest;
+        store.applyProfileSource({ beanId: null, blendId: 'blend-a', name: 'Modern' }, false, request);
+        store.applyProfileSource({ beanId: 'bean-a', blendId: null, name: 'Single' }, false, request);
+        expect(useRoastingStore.getState().prepared.blendId).toBe('blend-a');
+        store.commitProfile('p2', null, null);
+        const nextRequest = useRoastingStore.getState().prepared.profileSourceRequest;
         store.prepareBean('manual');
-        store.applyProfileSource({ beanId: null, blendId: 'blend-b', name: 'Other' });
+        store.applyProfileSource({ beanId: null, blendId: 'blend-b', name: 'Other' }, false, nextRequest);
         expect(useRoastingStore.getState().prepared.beanId).toBe('manual');
     });
 });

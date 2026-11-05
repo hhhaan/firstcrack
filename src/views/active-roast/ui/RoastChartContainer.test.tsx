@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, type ComponentProps, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RoastChartContainer } from './RoastChartContainer';
@@ -12,7 +12,7 @@ const marker = vi.hoisted(() => ({
     end: vi.fn(() => false),
     hitTest: vi.fn(() => false),
     openEdit: vi.fn(() => false),
-    props: null as { hideChargeLabel?: boolean } | null,
+    props: null as { hideChargeLabel?: boolean; xViewMin?: number; xViewMax?: number } | null,
 }));
 
 vi.mock('@features/active-roast/ui/RoastTempChart', async () => {
@@ -51,12 +51,14 @@ describe('RoastChartContainer pointer ownership', () => {
     const panMove = vi.fn();
     const panEnd = vi.fn();
 
-    const render = () => {
+    const render = (overrides: Partial<ComponentProps<typeof RoastChartContainer>> = {}) => {
         act(() => {
             root.render(
                 createElement(RoastChartContainer, {
                     chartAreaRef: { current: null },
                     mainChartHeight: 300,
+                    minTime: 0,
+                    maxTime: 900,
                     effectiveZoomRange: { start: 0, end: 60 },
                     isChartDragging: false,
                     handleChartPointerDown: panDown,
@@ -86,6 +88,7 @@ describe('RoastChartContainer pointer ownership', () => {
                     unit: 'C',
                     onCursorIdx: vi.fn(),
                     onEventMarkerDrag: vi.fn(),
+                    ...overrides,
                 }),
             );
         });
@@ -122,6 +125,24 @@ describe('RoastChartContainer pointer ownership', () => {
 
     it('hides Charge labels on the live chart', () => {
         expect(marker.props?.hideChargeLabel).toBe(true);
+    });
+
+    it('keeps automatic BBP bounds exact when subsecond measurements do not provide axis sentinels', () => {
+        render({ effectiveZoomRange: null, xs: [0.111, 899.5], minTime: 0, maxTime: 900 });
+        expect(marker.props?.xViewMin).toBe(0);
+        expect(marker.props?.xViewMax).toBe(900);
+    });
+
+    it('keeps the joined negative-time automatic bounds after Charge', () => {
+        render({ effectiveZoomRange: null, xs: [-119.9, 0], minTime: -120, maxTime: 780 });
+        expect(marker.props?.xViewMin).toBe(-120);
+        expect(marker.props?.xViewMax).toBe(780);
+    });
+
+    it('uses the manual zoom bounds ahead of the automatic viewport', () => {
+        render({ effectiveZoomRange: { start: -100, end: -20 }, minTime: -120, maxTime: 780 });
+        expect(marker.props?.xViewMin).toBe(-100);
+        expect(marker.props?.xViewMax).toBe(-20);
     });
 
     it('routes a claimed marker pointer without starting pan and clears on release', () => {

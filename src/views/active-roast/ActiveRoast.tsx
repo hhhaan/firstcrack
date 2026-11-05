@@ -224,8 +224,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         userProfile,
         beans,
         beansReady,
-        sourceCandidates: sourceOptions.candidates,
-        sourceCandidatesReady: sourceOptions.ready,
+        registeredSources: sourceOptions.registeredSources,
         confirmTargetChange,
         commitApprovedTarget,
         saveDefaultProfile,
@@ -1063,6 +1062,8 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
                         bbpRange={chartFrame.bbpRange}
                         chartAreaRef={chart.chartAreaRef}
                         mainChartHeight={chart.mainChartHeight}
+                        minTime={chart.minTime}
+                        maxTime={chart.maxTime}
                         effectiveZoomRange={chart.effectiveZoomRange}
                         isChartDragging={chart.isChartDragging}
                         handleChartPointerDown={chart.handleChartPointerDown}

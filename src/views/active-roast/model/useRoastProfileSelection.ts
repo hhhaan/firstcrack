@@ -38,8 +38,12 @@ export interface UseRoastProfileSelectionParams {
      */
     selectionEpoch?: string;
     workspaceOwnerId?: string | null;
-    sourceCandidates?: { beanId: string | null; blendId: string | null; name: string }[];
-    sourceCandidatesReady?: boolean;
+    registeredSources?: {
+        profileId: string | null;
+        workspaceOwnerId: string | null;
+        candidates: { beanId: string | null; blendId: string | null; name: string }[];
+        ready: boolean;
+    };
 }
 
 export interface UseRoastProfileSelectionReturn {
@@ -69,6 +73,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         workspaceOwnerId,
     } = params;
     const selection = useRoastingStore(selectRoastSelection);
+    const sourceRequest = useRoastingStore((state) => state.prepared.profileSourceRequest);
     const pendingProfileId = useRoastingStore((state) => state.pendingProfileId);
     const pendingProfileSource = useRoastingStore((state) => state.pendingProfileSource);
     const chargedRef = useRef(charged);
@@ -178,12 +183,19 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         }
     }, [charged, beansReady, beans, selection.beanId, selection.beanName]);
     useEffect(() => {
-        if (!isActive || charged || !params.sourceCandidatesReady) return;
-        const candidates = params.sourceCandidates ?? [];
-        useRoastingStore
-            .getState()
-            .applyProfileSource(candidates.length === 1 ? candidates[0] : null, candidates.length > 1);
-    }, [isActive, charged, params.sourceCandidatesReady, params.sourceCandidates]);
+        const sources = params.registeredSources;
+        if (
+            !isActive ||
+            charged ||
+            !sourceRequest ||
+            !sources?.ready ||
+            sources.profileId !== sourceRequest.profileId ||
+            sources.workspaceOwnerId !== sourceRequest.workspaceOwnerId
+        )
+            return;
+        const candidates = sources.candidates;
+        useRoastingStore.getState().applyProfileSource(candidates[0] ?? null, false, sourceRequest);
+    }, [isActive, charged, sourceRequest, params.registeredSources]);
     const setSelectedBlendId = useCallback(
         (id: string | null, name: string | null = null) => {
             const store = useRoastingStore.getState();

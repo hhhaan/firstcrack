@@ -106,3 +106,33 @@ export const historyControls = (input: {
         },
     };
 };
+
+/** Preserve the historical PDF fit independently of saved screen display settings. */
+type CurveSample = { bt?: number | null; et?: number | null; ror?: number | null };
+
+const finiteNumbers = (values: readonly (number | null | undefined)[]): number[] =>
+    values.filter((value): value is number => value != null && Number.isFinite(value));
+
+export const historyPrintTempBounds = (
+    actual: readonly CurveSample[],
+    target: readonly CurveSample[],
+    includeTarget: { bt: boolean; et: boolean } | null,
+    fallbackMin: number,
+    fallbackMax: number,
+): { tempMinC: number; tempMaxC: number } => {
+    const sampled = [
+        ...actual.flatMap((point) => [point.bt, point.et]),
+        ...(includeTarget
+            ? target.flatMap((point) => [includeTarget.bt ? point.bt : null, includeTarget.et ? point.et : null])
+            : []),
+    ];
+    const temperatures = finiteNumbers(sampled);
+    const tempLow = temperatures.length ? Math.min(...temperatures) : fallbackMin;
+    const tempHigh = temperatures.length ? Math.max(...temperatures) : fallbackMax;
+    const tempMid = (tempLow + tempHigh) / 2;
+    const tempSpan = Math.max(40, tempHigh - tempLow + 20);
+    return {
+        tempMinC: Math.floor((tempMid - tempSpan / 2) / 10) * 10,
+        tempMaxC: Math.ceil((tempMid + tempSpan / 2) / 10) * 10,
+    };
+};

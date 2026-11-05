@@ -149,6 +149,8 @@ interface Props {
     controlData?: ControlData;
     /** Saved commands can be exported without adding an empty on-screen feedback plot. */
     printControlData?: ControlData;
+    /** History retains its sample-fitted PDF range independently of the screen settings. */
+    printTempBounds?: { tempMinC: number; tempMaxC: number };
     showControlDrum?: boolean;
     showControlHeat?: boolean;
     showControlFan?: boolean;
@@ -166,6 +168,7 @@ interface Props {
     xViewMax?: number;
     bbpRange?: { start: number; end: number; label?: string };
     hideChargeLabel?: boolean;
+    showControlTailLabels?: boolean;
 }
 
 export interface RoastTempChartHandle {
@@ -327,6 +330,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         onAddEvent,
         onMoveEvent,
         hideChargeLabel = false,
+        showControlTailLabels = true,
         showET = true,
         showTargetCurve = true,
         showProfileBt,
@@ -347,6 +351,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         rorEtActual = [],
         controlData,
         printControlData,
+        printTempBounds,
         showControlDrum = true,
         showControlHeat = true,
         showControlFan = true,
@@ -500,14 +505,15 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 controlYMax,
                 phaseSegments,
                 showFcBand,
-                tempMinC,
-                tempMaxC,
+                tempMinC: print ? (printTempBounds?.tempMinC ?? tempMinC) : tempMinC,
+                tempMaxC: print ? (printTempBounds?.tempMaxC ?? tempMaxC) : tempMaxC,
                 rorYMin,
                 rorYMax,
                 xViewMin,
                 xViewMax,
                 bbpRange,
                 hideChargeLabel,
+                showControlTailLabels,
                 fontScale,
                 colors,
                 curveStyles,
@@ -548,6 +554,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             rorEtActual,
             controlData,
             printControlData,
+            printTempBounds,
             showControlDrum,
             showControlHeat,
             showControlFan,
@@ -565,6 +572,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             xViewMax,
             bbpRange,
             hideChargeLabel,
+            showControlTailLabels,
             fontScale,
             curveStyles,
             targetCurveTone,
