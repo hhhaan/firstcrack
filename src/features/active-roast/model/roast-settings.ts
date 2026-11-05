@@ -10,7 +10,7 @@ export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 /** Labels drawn inside the roast chart. Stored as 100–200 (1×–2×). */
 export type FontScalePct = number;
-/** line = vertical lines on the temperature and control charts | tempLine = temperature chart only | point = dot on BT | callout = short leader from the BT point */
+/** line = verticals on temp+control with top labels | tempLine = temp verticals + top labels | point = BT dot with curve-side labels | callout = short leader from the BT point */
 export type EventMarkerStyle = 'line' | 'tempLine' | 'point' | 'callout';
 /**
  * DROP 시 PID가 풀릴 때 화력 처리.

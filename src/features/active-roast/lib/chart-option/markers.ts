@@ -472,6 +472,8 @@ export const buildCurveLabels = ({
 }: CurveLabelBuildParams): CurveLabelItem[] => {
     const showDot = eventMarkerStyle === 'point';
     const callout = eventMarkerStyle === 'callout';
+    // point/callout sit on BT (TP·Drop·End below, others above). line/tempLine stay at the plot top.
+    const curveSide = showDot || callout;
     const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
         if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
         if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
@@ -487,7 +489,7 @@ export const buildCurveLabels = ({
             const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
             const onCurve = markerCurveY(nearest, marker.tempC, temperatureUnit);
             const atTop = noteAnchoredAtTop(marker.event);
-            const labelAtTop = !callout || atTop || isControlEvent(marker.event) || onCurve == null;
+            const labelAtTop = !curveSide || atTop || isControlEvent(marker.event) || onCurve == null;
             return [
                 {
                     marker,
@@ -527,7 +529,7 @@ export const buildCurveLabels = ({
                 color: colors?.markerLabelColor ?? '',
                 below: true,
                 showDot,
-                labelAtTop: !callout,
+                labelAtTop: !curveSide,
                 showLeader: callout,
             })),
     ];

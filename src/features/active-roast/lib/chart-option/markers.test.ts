@@ -217,37 +217,76 @@ describe('buildMarkers label position', () => {
         { timeSec: 520, event: 'FC Rolling', color: '#5a9', timeStr: '8:40', temp: '200°C' },
     ];
 
-    it.each(['point', 'tempLine', 'line'] as const)(
-        '%s keeps milestone labels at the top of the plot',
-        (eventMarkerStyle) => {
-            const { curveLabels, markPointData } = buildMarkers({
-                ...baseParams,
-                eventMarkerStyle,
-                eventMarkers: milestones,
-            });
-            expect(markPointData).toEqual([]);
-            expect(curveLabels).toEqual([
-                expect.objectContaining({
-                    timeSec: 480,
-                    y: 196,
-                    text: 'FC Start|08:00|196.0°C',
-                    below: true,
-                    labelAtTop: true,
-                    showLeader: false,
-                    showDot: eventMarkerStyle === 'point',
-                }),
-                expect.objectContaining({
-                    timeSec: 520,
-                    y: 200,
-                    text: 'FC Rolling|08:40|200.0°C',
-                    below: true,
-                    labelAtTop: true,
-                    showLeader: false,
-                    showDot: eventMarkerStyle === 'point',
-                }),
-            ]);
-        },
-    );
+    it.each(['tempLine', 'line'] as const)('%s keeps milestone labels at the top of the plot', (eventMarkerStyle) => {
+        const { curveLabels, markPointData } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle,
+            eventMarkers: milestones,
+        });
+        expect(markPointData).toEqual([]);
+        expect(curveLabels).toEqual([
+            expect.objectContaining({
+                timeSec: 480,
+                y: 196,
+                text: 'FC Start|08:00|196.0°C',
+                below: true,
+                labelAtTop: true,
+                showLeader: false,
+                showDot: false,
+            }),
+            expect.objectContaining({
+                timeSec: 520,
+                y: 200,
+                text: 'FC Rolling|08:40|200.0°C',
+                below: true,
+                labelAtTop: true,
+                showLeader: false,
+                showDot: false,
+            }),
+        ]);
+    });
+
+    it('point keeps milestone labels on the BT curve; TP, Drop, and End sit below', () => {
+        const { curveLabels, markPointData } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'point',
+            xs: [120, 200, 480, 520, 600, 640],
+            btActual: [108, 157, 196, 200, 205, 207],
+            eventMarkers: [
+                { timeSec: 200, event: 'Yellow', color: '#old', timeStr: '3:20', temp: '157°C' },
+                ...milestones,
+                { timeSec: 600, event: 'Drop', color: '#c00', timeStr: '10:00', temp: '205°C' },
+                { timeSec: 640, event: 'End', color: '#c00', timeStr: '10:40', temp: '207°C' },
+            ],
+            turningPoints: [{ timeSec: 120, temp: 108 }],
+        });
+        expect(markPointData).toEqual([]);
+        const byName = Object.fromEntries(curveLabels.map((label) => [label.text.split('|')[0], label]));
+        expect(byName.Yellow).toMatchObject({
+            y: 157,
+            below: false,
+            labelAtTop: false,
+            showLeader: false,
+            showDot: true,
+        });
+        expect(byName['FC Start']).toMatchObject({
+            y: 196,
+            below: false,
+            labelAtTop: false,
+            showLeader: false,
+            showDot: true,
+        });
+        expect(byName['FC Rolling']).toMatchObject({
+            y: 200,
+            below: false,
+            labelAtTop: false,
+            showLeader: false,
+            showDot: true,
+        });
+        expect(byName.Drop).toMatchObject({ y: 205, below: true, labelAtTop: false, showLeader: false, showDot: true });
+        expect(byName.End).toMatchObject({ y: 207, below: true, labelAtTop: false, showLeader: false, showDot: true });
+        expect(byName.TP).toMatchObject({ y: 108, below: true, labelAtTop: false, showLeader: false, showDot: true });
+    });
 
     it('callout follows BT with a short leader', () => {
         const { curveLabels, markPointData, allMarkLines } = buildMarkers({
