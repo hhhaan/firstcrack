@@ -5,6 +5,7 @@
     "entry": [
         "src/roast-monitor.tsx",
         "scripts/check-version-sync.mjs",
+        "scripts/vitest-localstorage.cjs",
         "supabase/tests/polar-database-types.ts",
         "supabase/tests/mcp-opaque.integration.ts",
         "supabase/tests/mcp-inventory.integration.ts"

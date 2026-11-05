@@ -69,6 +69,8 @@ export default defineConfig(async ({ command, mode }) => {
         },
         test: {
             globals: true,
+            // See scripts/vitest-localstorage.cjs. Must run before the jsdom environment.
+            execArgv: ['--require', fileURLToPath(new URL('./scripts/vitest-localstorage.cjs', import.meta.url))],
             include: [
                 'src/**/*.{test,spec}.{ts,tsx}',
                 'scripts/pinned-tool.test.mjs',
