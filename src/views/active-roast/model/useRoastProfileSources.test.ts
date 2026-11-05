@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { RoastSourceCandidate } from '@entities/roast-profile';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -96,7 +97,7 @@ describe('profile inventory candidates', () => {
     const blend = { beanId: null, blendId: 'blend', name: 'Registered Blend' };
     const sources = (
         profileId: string | null,
-        candidates = [single],
+        candidates: RoastSourceCandidate[] = [single],
         ready = true,
         workspaceOwnerId: string | null = null,
     ) => ({
