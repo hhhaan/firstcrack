@@ -79,24 +79,37 @@ export const useChartZoom = (
         origin: number;
     } | null>(null);
 
+    const effectiveZoomRange = useMemo(() => {
+        if (!zoomRange) return null;
+        const start = Math.max(minTime, zoomRange.start);
+        const end = Math.min(MAX_TIME, zoomRange.end);
+        return end > start ? { start, end } : null;
+    }, [zoomRange, minTime, MAX_TIME]);
+    // A retained interval may expire as the 15-minute BBP window rolls forward.
+    // Forget it so returning to automatic view also restores wheel and pan behavior.
+    useEffect(() => {
+        if (zoomRange && !effectiveZoomRange) setZoomRange(null);
+    }, [zoomRange, effectiveZoomRange, setZoomRange]);
+
     // Latest values for native wheel listener (avoid re-bind every render)
     const zoomRef = useRef({
         MAX_TIME,
         minTime,
         rightGridPad,
-        zoomRange,
+        zoomRange: effectiveZoomRange,
         wheelEnabled,
         setZoomRange,
     });
     useEffect(() => {
-        zoomRef.current = { MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled, setZoomRange };
-    }, [MAX_TIME, minTime, rightGridPad, zoomRange, wheelEnabled, setZoomRange]);
-
-    const effectiveZoomRange = useMemo(
-        () =>
-            zoomRange ? { start: Math.max(minTime, zoomRange.start), end: Math.min(MAX_TIME, zoomRange.end) } : null,
-        [zoomRange, minTime, MAX_TIME],
-    );
+        zoomRef.current = {
+            MAX_TIME,
+            minTime,
+            rightGridPad,
+            zoomRange: effectiveZoomRange,
+            wheelEnabled,
+            setZoomRange,
+        };
+    }, [MAX_TIME, minTime, rightGridPad, effectiveZoomRange, wheelEnabled, setZoomRange]);
 
     const onWheel = useCallback((event: WheelEvent) => {
         const el = chartNodeRef.current;

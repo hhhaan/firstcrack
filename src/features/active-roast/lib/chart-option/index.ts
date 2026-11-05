@@ -115,6 +115,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         xViewMax,
         bbpRange,
         hideChargeLabel = false,
+        showControlTailLabels = true,
         fontScale: fontScaleRaw,
         colors,
         curveStyles = DEFAULT_CURVE_STYLES,
@@ -230,7 +231,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             machineId,
         });
 
-    const hasRightYAxis = showRoR || hasControlSeries;
+    const hasRightYAxis = showRoR || showRoRET || hasControlSeries;
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(hasRightYAxis);
 
     const tempSeries = buildTempSeries({
@@ -357,6 +358,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             curves,
             controlGuideMarkLines: mergeControlChart ? [] : controlGuideMarkLines,
             fontScale,
+            showControlTailLabels,
         });
 
         tuneAxes({ xAxis, yAxis });

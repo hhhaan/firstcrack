@@ -9,6 +9,7 @@ export {
     type ProfileSource,
     profileSourceCandidates,
     type RoastSourceCandidate,
+    registeredProfileSourceCandidates,
     registeredProfileSources,
 } from './lib/source-candidates';
 export { type SessionSummary, summarizeSessionEvents } from './lib/summarize-session-events';

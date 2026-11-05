@@ -50,6 +50,7 @@ const baseParams = (): ChartOptionParams => ({
 it('prints each recorded control in its own plot while keeping screen controls intact', () => {
     const params: ChartOptionParams = {
         ...baseParams(),
+        showRoRET: true,
         xs: [0, 60, 600, 640],
         btActual: [190, 95, 210, 180],
         etActual: [200, 210, 240, 230],
@@ -121,6 +122,7 @@ it.each(['C', 'F'] as const)(
             const params: ChartOptionParams = {
                 ...baseParams(),
                 temperatureUnit: unit,
+                showRoRET: true,
                 xs,
                 btActual: [200, 195, 140, 100, 210, 190],
                 rorActual: [999, -140, -18, 14, 8, 800].map((value) => toDisplayRoR(value, unit)),
@@ -1709,6 +1711,27 @@ describe('buildRoastChartOption', () => {
         },
     );
 
+    it('omits the end control value when tail labels are hidden', () => {
+        const byName = seriesByName({
+            ...baseParams(),
+            showControlTailLabels: false,
+            controlData: {
+                xs: [0, 60],
+                drumTemp: [20, 20],
+                heatPower: [60, 60],
+                fanSpeed: [50, 50],
+                changes: [{ timeSec: 10, values: { heater: 60, fan: 50, drum: 20 } }],
+            },
+        });
+        const times = (name: string) =>
+            (byName[name] as { markPoint?: { data: { coord: number[] }[] } }).markPoint?.data.map(
+                (mark) => mark.coord[0],
+            );
+        expect(times('Heat')).toEqual([10]);
+        expect(times('Fan')).toEqual([10]);
+        expect(times('Drum')).toEqual([10]);
+    });
+
     it('holds a change label until 5s after the write', () => {
         const heatMarks = (tailSec: number) => {
             const byName = seriesByName({
@@ -1829,7 +1852,7 @@ describe('buildRoastChartOption', () => {
         const rorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showRoR: false }));
         expect(rorOff).toContain('RoR Target');
         expect(rorOff).not.toContain('RoR');
-        expect(rorOff).not.toContain('ET RoR');
+        expect(rorOff).toContain('ET RoR');
 
         const profileRorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileRor: false }));
         expect(profileRorOff).not.toContain('RoR Target');
@@ -2005,4 +2028,36 @@ describe('merged control chart', () => {
         expect(option.grid).toHaveLength(1);
         expect(option.yAxis).toHaveLength(2);
     });
+});
+
+it('preserves PDF sensor and control channels regardless of screen visibility without changing samples', () => {
+    const params: ChartOptionParams = {
+        ...baseParams(),
+        xs: [0, 60],
+        btActual: [190, 95],
+        etActual: [200, 210],
+        rorActual: [-2, 5],
+        rorEtActual: [3, null],
+        showET: false,
+        showRoR: false,
+        showRoRET: false,
+        showControlHeat: false,
+        showControlDrum: false,
+        showControlFan: true,
+        controlData: { xs: [0, 60], heatPower: [10, 20], fanSpeed: [30, 40], drumTemp: [50, 60] },
+    };
+    const snapshot = structuredClone(params);
+    const print = buildRoastChartOption({ ...params, print: true });
+    const series = Array.isArray(print.series) ? print.series : [];
+    expect(series.map((s) => s.name)).toEqual([
+        'BT Actual',
+        'ET Actual',
+        'RoR',
+        'ET RoR',
+        'Heat',
+        'Fan',
+        'Drum',
+        'Event curve labels',
+    ]);
+    expect(params).toEqual(snapshot);
 });

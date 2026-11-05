@@ -10,9 +10,11 @@ const mocks = vi.hoisted(() => ({
     query: { data: [] as TsvPoint[], isLoading: false, isError: false },
     roast: { points: [] as TsvPoint[], isLoading: false, isError: false },
     target: [] as TsvPoint[],
+    targetSource: 'session',
     chart: vi.fn(),
     useBbpCurve: vi.fn(),
     exportPdf: vi.fn(),
+    settingsOverrides: {} as Record<string, unknown>,
     dataUrl: 'data:image/jpeg;base64,qq',
 }));
 vi.mock('@entities/roast', () => ({
@@ -30,7 +32,7 @@ vi.mock('@features/export-history-pdf', () => ({
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [] }),
-    useResolvedProfileCurve: () => ({ points: mocks.target }),
+    useResolvedProfileCurve: () => ({ points: mocks.target, source: mocks.targetSource }),
     resolveSourceSession: () => null,
 }));
 vi.mock('@features/active-roast', async () => ({
@@ -38,6 +40,18 @@ vi.mock('@features/active-roast', async () => ({
     ...(await vi.importActual('@features/active-roast/lib/phases')),
     useRoastSettings: () => ({
         temperatureUnit: 'F',
+        showET: true,
+        showRoRChart: true,
+        showRoRET: true,
+        showControlChart: true,
+        showControlDrum: true,
+        showControlHeat: true,
+        showControlFan: true,
+        controlChartHeightPct: 21,
+        controlYMin: 0,
+        controlYMax: 100,
+        rorYMin: -5,
+        rorYMax: 20,
         tempMinC: 100,
         tempMaxC: 250,
         eventMarkerStyle: 'line',
@@ -48,6 +62,7 @@ vi.mock('@features/active-roast', async () => ({
         showProfileDrum: true,
         showProfileHeat: true,
         showProfileFan: true,
+        ...mocks.settingsOverrides,
     }),
     useCurveStyles: () => {
         const { CSS_CURVE_TOKENS, DEFAULT_CURVE_STYLES, resolveCurveStyles } = curveStyleModule;
@@ -121,7 +136,8 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
         t,
         bt,
         et,
-        ror: 5,
+        ror: -2,
+        rorEt: 3,
         heater: 20,
         fan: 30,
         drum: 60,
@@ -158,16 +174,23 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     expect(container.textContent).toContain('365');
     expect(mocks.chart).toHaveBeenLastCalledWith(
         expect.objectContaining({
-            report: true,
             xs: [-90, -2, 0, 60],
             btActual: [410, 365, 365, 302],
             etActual: [null, 194, 392, 410],
-            rorActual: [null, null, 9, 9],
-            tempMinC: 80,
-            tempMaxC: 220,
+            rorActual: [null, null, -3.6, -3.6],
+            rorEtActual: [5.4, 5.4, 5.4, 5.4],
+            showET: true,
+            showRoR: true,
+            showRoRET: true,
+            rorYMin: -5,
+            rorYMax: 20,
+            tempMinC: 100,
+            tempMaxC: 250,
+            printTempBounds: { tempMinC: 80, tempMaxC: 220 },
             bbpRange: { start: -92, end: 0 },
             xViewMin: -92,
             xViewMax: 120,
+            showControlTailLabels: false,
             eventMarkers: [{ event: 'Charge', timeSec: 0 }],
             controlData: expect.objectContaining({
                 xs: [-90, -2, 0, 60],
@@ -230,12 +253,79 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     await render();
     expect(mocks.chart).toHaveBeenLastCalledWith(
         expect.objectContaining({
-            tempMinC: 160,
-            tempMaxC: 210,
+            tempMinC: 100,
+            tempMaxC: 250,
             xViewMax: 11,
             height: 440,
         }),
     );
+    const originalPoints = structuredClone(mocks.roast.points);
+    const originalEvents = structuredClone(session.events);
+    mocks.settingsOverrides = {
+        tempMinC: 130,
+        tempMaxC: 240,
+        rorYMin: 0,
+        rorYMax: 15,
+        showET: false,
+        showRoRChart: false,
+        showRoRET: true,
+        showControlChart: false,
+        showPhaseBar: false,
+        showFcBand: false,
+    };
+    await render();
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        tempMinC: 130,
+        tempMaxC: 240,
+        rorYMin: 0,
+        rorYMax: 15,
+        showET: false,
+        showRoR: false,
+        showRoRET: true,
+        rorEtActual: [null, null],
+        controlData: undefined,
+        printControlData: expect.objectContaining({
+            changes: [{ timeSec: 30, values: { heater: 0, fan: 1.2, drum: 55 } }],
+        }),
+        printTempBounds: { tempMinC: 160, tempMaxC: 210 },
+        phaseSegments: [],
+        showFcBand: false,
+    });
+    expect(mocks.chart.mock.lastCall?.[0].report).toBeUndefined();
+    expect(container.textContent).not.toContain('ET ·');
+    expect(container.textContent).not.toContain('RoR ·');
+    expect(mocks.roast.points).toEqual(originalPoints);
+    expect(session.events).toEqual(originalEvents);
+    mocks.settingsOverrides = {
+        rorYMin: -5,
+        rorYMax: 20,
+        showControlChart: true,
+        showControlHeat: false,
+        mergeControlChart: true,
+        controlChartHeightPct: 35,
+        controlYMin: 10,
+        controlYMax: 80,
+    };
+    await render();
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        rorYMin: -5,
+        rorYMax: 20,
+        showControlHeat: false,
+        mergeControlChart: true,
+        controlChartHeightPct: 35,
+        controlYMin: 10,
+        controlYMax: 80,
+    });
+    mocks.target = [{ t: 0, bt: 400, et: null, ror: null, heater: null, fan: null, drum: null }];
+    mocks.targetSource = 'synthetic';
+    await render();
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        showTargetCurve: false,
+        targetXs: [],
+        tempMinC: 100,
+        tempMaxC: 250,
+        printTempBounds: { tempMinC: 170, tempMaxC: 410 },
+    });
     await act(async () => root.unmount());
 });
 

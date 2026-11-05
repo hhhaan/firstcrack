@@ -37,3 +37,10 @@ export const profileSourceCandidates = (
     }
     return [...unique.values()];
 };
+
+/** Only valid registrations decide the automatic default; history is selection-only. */
+export const registeredProfileSourceCandidates = (
+    profile: RegisteredProfile | null,
+    beans: { id: string; name: string }[],
+    blends: { id: string; name: string }[],
+): RoastSourceCandidate[] => profileSourceCandidates(profile, [], beans, blends);

@@ -21,7 +21,13 @@ export interface RoastSelection {
     profileName?: string | null;
     planBatchHandoff: PlanBatchHandoff | null;
 }
+/** Object identity is the selection generation, consumed once or invalidated by ownership changes. */
+export interface ProfileSourceRequest {
+    profileId: string;
+    workspaceOwnerId: string | null;
+}
 export interface PreparedRoast extends RoastSelection {
+    profileSourceRequest?: ProfileSourceRequest | null;
     workspaceOwnerId: string | null;
     sourceOrigin?: 'default' | 'profile' | 'user' | 'handoff';
     beanInitialized: boolean;
@@ -194,6 +200,7 @@ export const createBatchActions = (
             prepared: {
                 ...(previous.workspaceOwnerId === null ? previous : initialBatchState.prepared),
                 workspaceOwnerId,
+                profileSourceRequest: null,
             },
             ...(previous.workspaceOwnerId !== null && {
                 pendingBeanId: null,
@@ -230,6 +237,7 @@ export const createBatchActions = (
                 blendId: null,
                 beanName,
                 sourceOrigin: 'user',
+                profileSourceRequest: null,
                 beanInitialized: true,
             },
         });
@@ -249,6 +257,7 @@ export const createBatchActions = (
                 blendId,
                 beanName,
                 sourceOrigin: 'user',
+                profileSourceRequest: null,
                 beanInitialized: true,
             },
         });
@@ -287,20 +296,33 @@ export const createBatchActions = (
     },
     applyProfileSource: (
         source: { beanId: string | null; blendId: string | null; name: string } | null,
-        requiresChoice = false,
+        requiresChoice: boolean,
+        request: ProfileSourceRequest | null | undefined,
     ) => {
         const state = get();
         const prepared = state.prepared;
-        if (isChargedPhase(state.phase) || prepared.planBatchHandoff || prepared.sourceOrigin === 'user') return;
-        if (!source && !requiresChoice && prepared.sourceOrigin !== 'profile') return;
+        if (
+            !request ||
+            prepared.profileSourceRequest !== request ||
+            request.profileId !== prepared.profileId ||
+            request.workspaceOwnerId !== prepared.workspaceOwnerId ||
+            isChargedPhase(state.phase) ||
+            prepared.planBatchHandoff
+        )
+            return;
         set({
             prepared: {
                 ...prepared,
-                beanId: source?.beanId ?? null,
-                blendId: source?.blendId ?? null,
-                beanName: source?.name ?? null,
-                sourceOrigin: 'profile',
-                beanInitialized: true,
+                profileSourceRequest: null,
+                ...(source || requiresChoice
+                    ? {
+                          beanId: source?.beanId ?? null,
+                          blendId: source?.blendId ?? null,
+                          beanName: source?.name ?? null,
+                          sourceOrigin: 'profile' as const,
+                          beanInitialized: true,
+                      }
+                    : {}),
             },
         });
     },
@@ -329,11 +351,14 @@ export const createBatchActions = (
                 ...(state.prepared.profileId !== profileId && { profileName: null }),
                 profileInitialized: true,
                 profileUserSelected: true,
-                ...(!isChargedPhase(state.phase) &&
-                state.prepared.sourceOrigin === 'profile' &&
-                !state.prepared.planBatchHandoff
-                    ? { beanId: null, blendId: null, beanName: null }
-                    : {}),
+                profileSourceRequest:
+                    !isChargedPhase(state.phase) &&
+                    !state.prepared.planBatchHandoff &&
+                    !source &&
+                    profileId &&
+                    state.prepared.profileId !== profileId
+                        ? { profileId, workspaceOwnerId: expectedWorkspaceOwnerId }
+                        : null,
                 ...(!isChargedPhase(state.phase) && source
                     ? {
                           beanId: source.beanId,
@@ -355,6 +380,7 @@ export const createBatchActions = (
                 ...get().prepared,
                 blendId: handoff.blendId ?? null,
                 sourceOrigin: 'handoff',
+                profileSourceRequest: null,
                 beanId: handoff.beanId ?? null,
                 beanName: handoff.beanName || null,
                 planBatchHandoff: structuredClone(handoff),
@@ -441,6 +467,7 @@ export const createBatchActions = (
         const transferred = bbpCapture ? splitBatchBbp(bbpCapture) : null;
         set({
             phase: 'roasting',
+            prepared: { ...state.prepared, profileSourceRequest: null },
             bbpCapture,
             reviewSessionId: null,
             sessionId,

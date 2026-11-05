@@ -1,6 +1,11 @@
 import { useBeans } from '@entities/bean/queries';
 import { useBlends } from '@entities/blend';
-import { profileSourceCandidates, useProfileSourceHistory, useRoastProfiles } from '@entities/roast-profile';
+import {
+    profileSourceCandidates,
+    registeredProfileSourceCandidates,
+    useProfileSourceHistory,
+    useRoastProfiles,
+} from '@entities/roast-profile';
 import { useMemo } from 'react';
 
 export const useRoastSourceCandidates = (ownerId: string, profileId: string | null) => {
@@ -18,8 +23,23 @@ export const useRoastSourceCandidates = (ownerId: string, profileId: string | nu
             ),
         [profiles.data, profileId, history.data, beans.data, blends.data],
     );
+    const registeredCandidates = useMemo(
+        () =>
+            registeredProfileSourceCandidates(
+                profiles.data?.find((p) => p.id === profileId) ?? null,
+                beans.data ?? [],
+                blends.data ?? [],
+            ),
+        [profiles.data, profileId, beans.data, blends.data],
+    );
     return {
         candidates,
+        registeredSources: {
+            profileId,
+            workspaceOwnerId: ownerId,
+            candidates: registeredCandidates,
+            ready: Boolean(ownerId) && beans.isSuccess && blends.isSuccess && profiles.isSuccess,
+        },
         ready: beans.isSuccess && blends.isSuccess && profiles.isSuccess && (!profileId || history.isSuccess),
     };
 };

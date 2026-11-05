@@ -21,7 +21,9 @@ export interface UseChartPipelineParams {
     targetCurvePoints: TsvPoint[];
     xMin: number;
     xMaxFloor?: number;
+    xMaxFixed?: number;
     showRoR: boolean;
+    showRoRET?: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
     timelineKey?: string;
@@ -72,7 +74,9 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         targetCurvePoints,
         xMin,
         xMaxFloor = CHART_TOTAL_SECS,
+        xMaxFixed,
         showRoR,
+        showRoRET = false,
         showControlChart,
         unit,
         timelineKey = '',
@@ -85,10 +89,11 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
             key: timelineKey,
             origin: coordinateOrigin,
             minimumRight: xMaxFloor,
+            fixedRight: xMaxFixed,
             latest,
             span: Math.max(60, xMaxFloor - xMin),
         }),
-        [timelineKey, coordinateOrigin, xMaxFloor, latest, xMin],
+        [timelineKey, coordinateOrigin, xMaxFloor, xMaxFixed, latest, xMin],
     );
     const [previousExtent, rememberExtent] = useReducer(growLiveChartExtent, null);
     const extent = growLiveChartExtent(previousExtent, rangeInput);
@@ -105,7 +110,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
     );
 
     const minTime = xMin;
-    const chartRightGridPad = showRoR || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
+    const chartRightGridPad = showRoR || showRoRET || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
 
     const {
         setZoomRange,

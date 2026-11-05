@@ -12,13 +12,14 @@ samples to the latest 15 minutes (900s) and anchors their actual kept span at Ch
 Stored reference curves are not rewritten; only the live chart drops samples older
 than that window. The roast's 00:00 sample owns the Charge boundary, and RoR stays
 absent during BBP. Live waiting BBP is its own timeline starting at 0:00:
-the reference (dashed) and the measured curve share that axis, and only the
-measured interval is a translucent band so the grid stays visible. While waiting, the X axis is
-0:00–15:00 from the start (`xMaxFloor = BBP_MAX_SECONDS`). The gray band is
-still only the measured span (#547): the 15-minute FIFO cap is not a reserved
-background. No saved and no measured BBP means no BBP region, and a shorter
-recording — including samples that fill only part of the cap window — is drawn
-at that length on both the temperature and control grids. After Charge the live chart
+the reference (dashed) and the measured curve share that axis. While waiting, the X axis is
+0:00–15:00 from the start (`xMaxFloor = BBP_MAX_SECONDS`). A saved BBP reference
+fills `0` to that Charge with `--color-bbp-fill` from the start, so the profile
+seam stays visible while measurements accumulate. Missing or failed BBP
+references keep the measured span (#547). The 15-minute FIFO cap is not a
+reserved background. No saved and no measured BBP means no BBP region, and a
+shorter recording — including samples that fill only part of the cap window —
+is drawn at that length on both the temperature and control grids. After Charge the live chart
 keeps that batch's measured BBP at negative times and continues the roast at 00:00
 when `bbpJoinCharge` is on. It defaults to off. When it is off, the charged live chart,
 its event log, and History start at Charge. The pre-Charge wait chart is unchanged.

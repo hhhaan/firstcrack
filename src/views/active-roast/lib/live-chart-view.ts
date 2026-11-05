@@ -1,20 +1,20 @@
 import { type BbpCapture, batchBbpPoints, splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
-import { BBP_MAX_SECONDS, type BbpPoint, rebaseBbpWindow } from '@features/active-roast/model/bbp';
+import { BBP_MAX_SECONDS, type BbpPoint } from '@features/active-roast/model/bbp';
 import type { TsvPoint } from '@shared/lib/tsv';
 import type { LiveRoastPoint } from '../model/useSidecarPolling';
 import { livePointsFromBbp } from './bbp-live-points';
-
-const REFERENCE_ROAST_AHEAD_SECONDS = 300;
 
 export type LiveChartView = {
     livePoints: LiveRoastPoint[];
     targetPoints: TsvPoint[];
     xMin: number;
     xMaxFloor: number | undefined;
+    /** Fixed upper bound during BBP; roasting uses the growing extent. */
+    xMaxFixed?: number;
     bbpRange?: { start: number; end: number };
     /** Subtract from End-relative BBP event times to match the drawn axis. */
     eventTimeOrigin: number;
-    /** Extent and zoom. The wait chart's display times already start at 0. */
+    /** Absolute wait time subtracted from displayed coordinates, including zoom. */
     axisOrigin: number;
 };
 
@@ -73,55 +73,49 @@ export const resolveLiveChartView = (input: {
         };
     }
 
-    const ahead = input.roastTarget.filter((point) => point.t >= 0 && point.t <= REFERENCE_ROAST_AHEAD_SECONDS);
     const source = input.bbpTargetError ? [] : input.bbpTarget;
-    const lastT = input.bbpPoints[input.bbpPoints.length - 1]?.t ?? 0;
-    if (ahead.length > 0) {
-        const eventTimeOrigin = Math.max(0, lastT - BBP_MAX_SECONDS);
-        const seam = lastT - eventTimeOrigin;
-        const livePoints = livePointsFromBbp(
-            input.bbpPoints.flatMap((point) =>
-                point.t >= eventTimeOrigin && point.t <= lastT ? [{ ...point, t: point.t - eventTimeOrigin }] : [],
-            ),
-        );
-        const liveStart = livePoints[0]?.time ?? 0;
-        const liveEnd = livePoints[livePoints.length - 1]?.time ?? liveStart;
-        const targetEnd = source[0]?.bbpChargeOffsetSec ?? sampleExtent(source).max;
-        const referenceBbp = source.flatMap((point) => {
-            const time = seam + (point.t - targetEnd);
-            return time >= 0 && time < seam ? [{ ...point, t: time, ror: null }] : [];
-        });
-        const targetPoints = [...referenceBbp, ...ahead.map((point) => ({ ...point, t: seam + point.t }))].sort(
-            (a, b) => a.t - b.t,
-        );
-        return {
-            livePoints,
-            targetPoints,
-            xMin: 0,
-            xMaxFloor: BBP_MAX_SECONDS,
-            bbpRange: liveEnd > liveStart ? { start: liveStart, end: liveEnd } : undefined,
-            eventTimeOrigin,
-            axisOrigin: 0,
-        };
-    }
-
-    const latestSavedT = sampleExtent(source).max;
-    const saved = source.filter((p) => p.t >= latestSavedT - BBP_MAX_SECONDS);
-    const savedExtent = sampleExtent(saved);
-    const targetPoints = saved.map((p) => ({ ...p, t: p.t - savedExtent.min }));
-    const windowed = rebaseBbpWindow(input.bbpPoints, lastT);
-    const measuredStart = windowed[0]?.t ?? 0;
-    const measuredEnd = (windowed[windowed.length - 1]?.t ?? measuredStart) - measuredStart;
-    const clipOrigin = Math.max(0, lastT - BBP_MAX_SECONDS);
-    const eventTimeOrigin = clipOrigin + measuredStart;
-
+    const lastT = input.bbpPoints.reduce(
+        (latest, point) => (Number.isFinite(point.t) ? Math.max(latest, point.t) : latest),
+        0,
+    );
+    const origin = Math.max(0, lastT - BBP_MAX_SECONDS);
+    const seam = lastT - origin;
+    const livePoints = livePointsFromBbp(
+        input.bbpPoints.flatMap((point) =>
+            point.t >= origin && point.t <= lastT ? [{ ...point, t: point.t - origin }] : [],
+        ),
+    );
+    const liveStart = livePoints[0]?.time ?? 0;
+    const liveEnd = livePoints[livePoints.length - 1]?.time ?? liveStart;
+    const sourceExtent = sampleExtent(source);
+    const explicitCharge = source[0]?.bbpChargeOffsetSec;
+    const targetEnd =
+        explicitCharge != null && Number.isFinite(explicitCharge) && explicitCharge >= sourceExtent.min
+            ? explicitCharge
+            : sourceExtent.max;
+    const targetOrigin = Math.max(0, targetEnd - BBP_MAX_SECONDS);
+    const referenceBbp = source.flatMap((point) =>
+        point.t >= targetOrigin && point.t <= targetEnd ? [{ ...point, t: point.t - targetOrigin, ror: null }] : [],
+    );
+    // The complete saved wait stays in place while measurements accumulate independently.
+    // Missing/failed BBP references retain the live-wait Charge preview fallback.
+    const referenceCharge = referenceBbp.length ? targetEnd - targetOrigin : seam;
+    // Preserve every post-Charge reference sample. The chart clips at its viewport.
+    const referenceRoast = input.roastTarget.flatMap((point) =>
+        point.t >= 0 ? [{ ...point, t: referenceCharge + point.t }] : [],
+    );
     return {
-        livePoints: livePointsFromBbp(windowed.map((p) => ({ ...p, t: p.t - measuredStart }))),
-        targetPoints,
+        livePoints,
+        targetPoints: [...referenceBbp, ...referenceRoast].sort((a, b) => a.t - b.t),
         xMin: 0,
         xMaxFloor: BBP_MAX_SECONDS,
-        bbpRange: measuredEnd > 0 ? { start: 0, end: measuredEnd } : undefined,
-        eventTimeOrigin,
-        axisOrigin: eventTimeOrigin,
+        xMaxFixed: BBP_MAX_SECONDS,
+        bbpRange: referenceBbp.length
+            ? { start: 0, end: referenceCharge }
+            : liveEnd > liveStart
+              ? { start: liveStart, end: liveEnd }
+              : undefined,
+        eventTimeOrigin: origin,
+        axisOrigin: origin,
     };
 };
