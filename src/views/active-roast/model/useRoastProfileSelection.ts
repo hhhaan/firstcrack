@@ -194,9 +194,7 @@ export const useRoastProfileSelection = (params: UseRoastProfileSelectionParams)
         )
             return;
         const candidates = sources.candidates;
-        useRoastingStore
-            .getState()
-            .applyProfileSource(candidates.length === 1 ? candidates[0] : null, candidates.length > 1, sourceRequest);
+        useRoastingStore.getState().applyProfileSource(candidates[0] ?? null, false, sourceRequest);
     }, [isActive, charged, sourceRequest, params.registeredSources]);
     const setSelectedBlendId = useCallback(
         (id: string | null, name: string | null = null) => {

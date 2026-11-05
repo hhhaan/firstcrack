@@ -163,7 +163,7 @@ describe('profile inventory candidates', () => {
         expect(h.api.selectedBeanId).toBe('b');
         h.unmount();
     });
-    it('clears for multiple registrations, preserves for none and Target removal, and consumes empty results', async () => {
+    it('selects the first registration, preserves for none and Target removal, and consumes empty results', async () => {
         useRoastingStore.getState().prepareBean('a', 'Previous');
         const h = mountHook({ ...base, registeredSources: sources('B', [], false) });
         await act(async () => {
@@ -171,7 +171,9 @@ describe('profile inventory candidates', () => {
         });
         expect(h.api.selectedBeanId).toBe('a');
         h.rerender({ ...base, registeredSources: sources('B', [single, blend]) });
-        expect(h.api.selectedBeanId).toBeNull();
+        expect(h.api.selectedBeanId).toBe('b');
+        expect(h.api.selectedBlendId).toBeNull();
+        expect(h.api.handoffBeanName).toBe('Registered B');
         act(() => h.api.setSelectedBeanId('c'));
         h.rerender({ ...base, registeredSources: sources('C', []) });
         await act(async () => {
