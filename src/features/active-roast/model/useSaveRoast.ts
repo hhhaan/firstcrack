@@ -12,17 +12,9 @@ import { buildRoastedInbound } from '@features/active-roast/lib/roastedInbound';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { i18n } from '@shared/i18n';
 import { ensureSession } from '@shared/lib/ensureSession';
-import {
-    BatchLimitError,
-    canCompleteBatch,
-    isWritablePlan,
-    mapServerBatchGateError,
-    planMaxBatchesPerMonth,
-    TRIAL_BATCH_CAP,
-    useEffectivePlan,
-} from '@shared/lib/features';
+import { BatchLimitError, isWritablePlan, mapServerBatchGateError, useEffectivePlan } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
-import { inventoryQueryRoots } from '@shared/lib/query-keys';
+import { inventoryQueryRoots, roastChargeKeys } from '@shared/lib/query-keys';
 import { normalizeTotalBatchPrefix } from '@shared/lib/sessionRoastTitle';
 import { flushTsv, writeBbpTsv } from '@shared/lib/tsv-writer';
 import { useAuthStore } from '@shared/store/auth';
@@ -48,10 +40,8 @@ export function resolveDropTempCelsius(logEntries: LogEntry[], rawBT: number | n
 }
 
 export type SaveRoastDeps = {
-    plan: Parameters<typeof planMaxBatchesPerMonth>[0];
+    plan: string;
     qc: QueryClient;
-    countCompletedThisMonth: (userId: string) => Promise<number>;
-    countCompletedTotal: (userId: string) => Promise<number>;
     saveOp: typeof roastSessionApi.saveOp;
     flushCurve: (sessionId: string) => Promise<void>;
 };
@@ -64,7 +54,7 @@ export const resolveEffectiveBatch = (
 
 /** Core save path — testable without React hooks. */
 export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams): Promise<SaveRoastResult> {
-    const { plan, qc, countCompletedThisMonth, countCompletedTotal, saveOp, flushCurve } = deps;
+    const { plan, qc, saveOp, flushCurve } = deps;
 
     const { userId, sessionId } = params;
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -74,36 +64,9 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
         throw Object.assign(new Error('Unprepared roast save identity'), { code: '22P02' });
     }
 
-    // UX pre-checks only — the DB trigger (enforce_batch_gate) is the authority.
-    // Count failures (network etc.) fail open: skip the pre-check and let the
-    // server trigger decide. Only a successful count that exceeds the cap blocks.
-    if (!isWritablePlan(plan)) {
-        throw new BatchLimitError(0, 0, 'read_only_plan');
-    }
-    if (plan === 'trial') {
-        try {
-            const used = await countCompletedTotal(userId);
-            if (used >= TRIAL_BATCH_CAP) {
-                throw new BatchLimitError(used, TRIAL_BATCH_CAP, 'trial_batch_cap');
-            }
-        } catch (err) {
-            if (err instanceof BatchLimitError) throw err;
-            logger.capture(err, { context: 'saveRoast trial count pre-check' });
-        }
-    } else {
-        const monthCap = planMaxBatchesPerMonth(plan);
-        if (monthCap != null) {
-            try {
-                const used = await countCompletedThisMonth(userId);
-                if (!canCompleteBatch(plan, used)) {
-                    throw new BatchLimitError(used, monthCap);
-                }
-            } catch (err) {
-                if (err instanceof BatchLimitError) throw err;
-                logger.capture(err, { context: 'saveRoast monthly count pre-check' });
-            }
-        }
-    }
+    // Charge already owns its allowance. Only the server knows whether this is
+    // an admitted final batch; a completed-history pre-check would block its save.
+    if (!isWritablePlan(plan)) throw new BatchLimitError(0, 0, 'read_only_plan');
 
     const { formData, handoffBeanName, planBatchHandoff: paramsHandoff, ...payloadParams } = params;
     const effectiveBatch = resolveEffectiveBatch(paramsHandoff, formData.linkedBatch);
@@ -253,6 +216,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 
 /** Single post-save cache refresh — covers lost RPC (saveRoastCore never ran invalidation). */
 export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
+    void qc.invalidateQueries({ queryKey: roastChargeKeys.all(saved.user_id) });
     try {
         if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
         invalidateScheduledBatchQueries(qc);
@@ -291,8 +255,6 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                 {
                     plan,
                     qc,
-                    countCompletedThisMonth: roastSessionApi.countCompletedThisMonth,
-                    countCompletedTotal: roastSessionApi.countCompletedTotal,
                     saveOp: roastSessionApi.saveOp,
                     flushCurve: flushTsv,
                 },

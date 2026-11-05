@@ -13,8 +13,6 @@ export {
     isRoastRecordConflict,
     patchRoastSessionTsvPaths,
     roastSessionKeys,
-    useCompletedMonthSessionCount,
-    useCompletedSessionCount,
     useDeleteRoastSession,
     useRoastSession,
     useRoastSessionFilterMeta,

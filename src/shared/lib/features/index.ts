@@ -4,21 +4,25 @@ export {
     type BatchGateCode,
     BatchLimitError,
     canAddMachine,
-    canCompleteBatch,
+    canStartCharge,
     isCoreEntitled,
     isPaidPlan,
     isWritablePlan,
     mapServerBatchGateError,
     PRO_MONTHLY_BATCH_CAP,
+    planChargeCap,
     planHasFeature,
     planMaxBatchesPerMonth,
     planMaxMachines,
     TRIAL_BATCH_CAP,
     TRIAL_DURATION_DAYS,
+    TRIAL_EVENT_BATCH_CAP,
+    TRIAL_EVENT_DURATION_DAYS,
     trialEndsAt,
 } from './plan-matrix';
 export { type FeatureContext, resolveFeature } from './resolve';
 export { useAccountPlan } from './useAccountPlan';
 export { useEffectivePlan } from './useEffectivePlan';
 export { useFeature } from './useFeature';
+export { useRoastChargeUsage } from './useRoastChargeUsage';
 export { useWriteAccess } from './useWriteAccess';

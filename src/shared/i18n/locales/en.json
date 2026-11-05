@@ -654,6 +654,8 @@
                 "workspaceNote": "Showing this workspace owner's plan and usage. Upgrades apply to your own account.",
                 "current": "Current",
                 "trial": "Trial",
+                "trialEvent": "Event trial",
+                "trialEventLoading": "Checking trial access.",
                 "readOnly": "Read-only",
                 "available": "Available",
                 "upgrade": "Upgrade",
@@ -2467,9 +2469,12 @@
         "insufficientRoastedStock": "Not enough roasted stock. Adjust stock on the Roasted (bulk) tab in Inventory, then try again."
     },
     "planGate": {
+        "charge_preparing": "Checking batch access. Please wait before charging.",
         "monthly_batch_cap": "Monthly batch limit reached ({{used}}/{{max}}). Upgrade to Pro+ for unlimited batches.",
         "trial_batch_cap": "Trial batch limit reached ({{used}}/{{max}}). Upgrade to keep roasting.",
+        "trial_event_batch_cap": "Trial batch limit reached ({{used}}/{{max}}). Upgrade to keep roasting.",
         "trial_expired": "Trial period has ended. Upgrade to keep roasting.",
+        "trial_event_expired": "Trial period has ended. Upgrade to keep roasting.",
         "read_only_plan": "Subscription inactive — account is read-only. Upgrade to keep roasting."
     },
     "catalog": {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FEATURE, type FeatureKey } from './keys';
 import {
     canAddMachine,
-    canCompleteBatch,
+    canStartCharge,
     isCoreEntitled,
     isPaidPlan,
     isWritablePlan,
@@ -194,13 +194,13 @@ describe('planMaxBatchesPerMonth', () => {
 
     it('read_only completes nothing', () => {
         expect(planMaxBatchesPerMonth('read_only')).toBe(0);
-        expect(canCompleteBatch('read_only', 0)).toBe(false);
+        expect(canStartCharge('read_only', 0)).toBe(false);
     });
 
-    it('canCompleteBatch', () => {
-        expect(canCompleteBatch('pro', 199)).toBe(true);
-        expect(canCompleteBatch('pro', 200)).toBe(false);
-        expect(canCompleteBatch('pro_plus', 500)).toBe(true);
+    it('canStartCharge', () => {
+        expect(canStartCharge('pro', 199)).toBe(true);
+        expect(canStartCharge('pro', 200)).toBe(false);
+        expect(canStartCharge('pro_plus', 500)).toBe(true);
     });
 });
 
@@ -224,5 +224,17 @@ describe('tester plan', () => {
         expect(planMaxBatchesPerMonth('tester')).toBeNull();
         expect(planHasFeature('tester', FEATURE.team)).toBe(true);
         expect(planHasFeature('tester', FEATURE.orderIntegration)).toBe(true);
+    });
+});
+
+describe('trial-event', () => {
+    it('offers tester features without marking the account as paid', () => {
+        for (const key of Object.values(FEATURE)) {
+            expect(planHasFeature('trial-event', key)).toBe(planHasFeature('tester', key));
+        }
+        expect(isPaidPlan('trial-event')).toBe(false);
+        expect(isWritablePlan('trial-event')).toBe(true);
+        expect(planMaxMachines('trial-event')).toBeNull();
+        expect(planMaxBatchesPerMonth('trial-event')).toBeNull();
     });
 });

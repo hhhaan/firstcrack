@@ -374,7 +374,10 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
             completed.snapshot.sessionOwnerId !== summaryOwnerId
         )
             return;
-        clearPendingRoastSave(summaryOwnerId ?? workspaceOwnerId, sessionId);
+        const owner = summaryOwnerId ?? workspaceOwnerId;
+        // Charge has already consumed the allowance. Discard is a synchronous
+        // local action and cannot race a refund against Save or Cancel Drop.
+        clearPendingRoastSave(owner, sessionId);
         flow.discardSummary(summaryOwnerId, sessionId);
     }, [flow.discardSummary, flow.summaryData?.sessionId, summaryOwnerId, workspaceOwnerId]);
 

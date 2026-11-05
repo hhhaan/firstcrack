@@ -78,24 +78,6 @@ export const patchRoastSessionTsvPaths = (
     void qc.invalidateQueries({ queryKey: roastSessionKeys.detail(userId, roastSessionId) });
 };
 
-/** Lifetime completed sessions — trial quota display. */
-export const useCompletedSessionCount = (userId: string) =>
-    useQuery({
-        queryKey: roastSessionKeys.completedCount(userId),
-        queryFn: () => roastSessionApi.countCompletedTotal(userId),
-        staleTime: Infinity,
-        enabled: !!userId,
-    });
-
-/** Completed sessions this month — pro monthly quota. */
-export const useCompletedMonthSessionCount = (userId: string) =>
-    useQuery({
-        queryKey: roastSessionKeys.completedMonthCount(userId),
-        queryFn: () => roastSessionApi.countCompletedThisMonth(userId),
-        staleTime: Infinity,
-        enabled: !!userId,
-    });
-
 export const useRoastSessions = (userId: string, status?: RoastSession['status'], options?: { enabled?: boolean }) =>
     useQuery({
         queryKey: status ? roastSessionKeys.byStatus(userId, status) : roastSessionKeys.all(userId),

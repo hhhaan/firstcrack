@@ -40,7 +40,14 @@ const mocks = vi.hoisted(() => ({
     invalidateScheduledBatchQueries: vi.fn(),
     upload: vi.fn(),
     message: vi.fn(),
+    plan: 'pro_plus',
+    releaseTrial: vi.fn(),
 }));
+vi.mock('@shared/lib/features', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@shared/lib/features')>()),
+    useEffectivePlan: () => mocks.plan,
+}));
+vi.mock('@entities/roast-charge', () => ({ roastChargeApi: { release: mocks.releaseTrial } }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: mocks.ownerId, isWorkspaceReady: true }),
 }));
@@ -146,6 +153,8 @@ beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
     mocks.ownerId = 'workspace-a';
+    mocks.plan = 'pro_plus';
+    mocks.releaseTrial.mockResolvedValue(undefined);
     mocks.fetchQuery.mockResolvedValue([]);
     mocks.invalidateQueries.mockResolvedValue(undefined);
     mocks.resumeSave.mockImplementation(async (pending: PendingRoastSave) => ({
@@ -613,6 +622,18 @@ describe('completed batch identity at asynchronous and recovery boundaries', () 
 });
 
 describe('explicit discard is scoped to the visible summary', () => {
+    it('discards a charged event-trial summary synchronously without refunding its allowance', async () => {
+        mocks.plan = 'trial-event';
+        const h = renderFlow({ sessionId: 's-a' });
+        act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));
+        const save = h.api.handleSave;
+        act(() => h.api.discardSummary());
+        expect(listPendingRoastSaves()).toHaveLength(0);
+        expect(h.api.flow.summaryData).toBeNull();
+        await act(async () => save(form));
+        expect(mocks.resumeSave).not.toHaveBeenCalled();
+        expect(mocks.releaseTrial).not.toHaveBeenCalled();
+    });
     it('an old A discard callback cannot delete the new B checkpoint or summary', () => {
         const h = renderFlow({ sessionId: 's-a' });
         act(() => h.api.confirmEndRoast({ ...summary, sessionId: 's-a' }));

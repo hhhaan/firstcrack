@@ -15,6 +15,11 @@ export const profileKeys = {
     detail: (userId: string) => ['profile', userId] as const,
 };
 
+export const roastChargeKeys = {
+    all: (userId: string) => ['roast-charge-usage', userId] as const,
+    usage: (userId: string, plan: string) => ['roast-charge-usage', userId, plan] as const,
+};
+
 /** Roast profile roots — roast mutations re-derive stats cut from saved records. */
 export const roastProfileQueryRoots = {
     profiles: ['roast_profiles'] as const,
