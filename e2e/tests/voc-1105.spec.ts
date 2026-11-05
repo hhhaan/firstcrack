@@ -61,6 +61,7 @@ type ChartSnapshot = {
     x: { min: number; max: number }[];
     y: { min: number; max: number }[];
     series: { name: string; data: [number, number | null][] }[];
+    bbp?: { start: number; end: number } | null;
 };
 
 async function readChart(page: Page): Promise<ChartSnapshot | null> {
@@ -73,6 +74,9 @@ async function readChart(page: Page): Promise<ChartSnapshot | null> {
         const chart = element ? echarts.getInstanceByDom(element) : null;
         if (!chart) return null;
         const option = chart.getOption();
+        const bbpMark = option.series.find(
+            (s: { id?: string; markArea?: { data?: { xAxis?: number }[][] } }) => s.id === 'bbp-background',
+        )?.markArea?.data?.[0];
         return {
             x: option.xAxis.map((axis: { min: number; max: number }) => ({ min: axis.min, max: axis.max })),
             y: option.yAxis.map((axis: { min: number; max: number }) => ({ min: axis.min, max: axis.max })),
@@ -80,6 +84,10 @@ async function readChart(page: Page): Promise<ChartSnapshot | null> {
                 name: s.name,
                 data: s.data ?? [],
             })),
+            bbp:
+                bbpMark?.[0]?.xAxis != null && bbpMark?.[1]?.xAxis != null
+                    ? { start: bbpMark[0].xAxis, end: bbpMark[1].xAxis }
+                    : null,
         };
     }, modulePath);
 }
@@ -289,6 +297,7 @@ test('a saved BBP reference is fully visible from the start and stays fixed as l
             .toEqual(expectedReference);
         const snapshot = await readChart(page);
         expect(snapshot?.x[0]).toEqual({ min: 0, max: 900 });
+        expect(snapshot?.bbp).toEqual({ start: 0, end: 180 });
         if (elapsed > 0) {
             expect(snapshot?.x[1]).toEqual(snapshot?.x[0]);
             expect(snapshot?.series.find((s) => s.name === 'BT Actual')?.data).toContainEqual([

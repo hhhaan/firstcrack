@@ -110,7 +110,11 @@ export const resolveLiveChartView = (input: {
         xMin: 0,
         xMaxFloor: BBP_MAX_SECONDS,
         xMaxFixed: BBP_MAX_SECONDS,
-        bbpRange: liveEnd > liveStart ? { start: liveStart, end: liveEnd } : undefined,
+        bbpRange: referenceBbp.length
+            ? { start: 0, end: referenceCharge }
+            : liveEnd > liveStart
+              ? { start: liveStart, end: liveEnd }
+              : undefined,
         eventTimeOrigin: origin,
         axisOrigin: origin,
     };
