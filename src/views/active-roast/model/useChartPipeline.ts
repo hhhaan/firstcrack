@@ -21,6 +21,7 @@ export interface UseChartPipelineParams {
     targetCurvePoints: TsvPoint[];
     xMin: number;
     xMaxFloor?: number;
+    xMaxFixed?: number;
     showRoR: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
@@ -72,6 +73,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         targetCurvePoints,
         xMin,
         xMaxFloor = CHART_TOTAL_SECS,
+        xMaxFixed,
         showRoR,
         showControlChart,
         unit,
@@ -85,10 +87,11 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
             key: timelineKey,
             origin: coordinateOrigin,
             minimumRight: xMaxFloor,
+            fixedRight: xMaxFixed,
             latest,
             span: Math.max(60, xMaxFloor - xMin),
         }),
-        [timelineKey, coordinateOrigin, xMaxFloor, latest, xMin],
+        [timelineKey, coordinateOrigin, xMaxFloor, xMaxFixed, latest, xMin],
     );
     const [previousExtent, rememberExtent] = useReducer(growLiveChartExtent, null);
     const extent = growLiveChartExtent(previousExtent, rangeInput);

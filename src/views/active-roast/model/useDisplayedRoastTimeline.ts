@@ -180,6 +180,7 @@ export const useDisplayedRoastTimeline = (params: Params) => {
         timelineKey,
         coordinateOrigin: view.axisOrigin,
         xMin: view.xMin,
+        xMaxFixed: view.xMaxFixed,
         xMaxFloor: view.xMaxFloor ?? chartSpanSec(settings),
         showRoR: settings.showRoRChart,
         showControlChart: settings.showControlChart,

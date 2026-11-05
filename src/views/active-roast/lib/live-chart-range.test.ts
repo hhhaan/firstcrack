@@ -26,3 +26,12 @@ describe('automatic live time range', () => {
         expect(growLiveChartExtent(previous, { ...input, key: 'b', latest: 0 }).right).toBe(900);
     });
 });
+
+it.each([180, 600, 840, 900, 1200])('fixes the BBP viewport at 900 seconds after %i seconds', (latest) => {
+    const origin = Math.max(0, latest - 900);
+    const extent = growLiveChartExtent(null, { ...input, origin, latest: latest - origin, fixedRight: 900 });
+    expect(extent.right - origin).toBe(900);
+    expect(
+        growLiveChartExtent(extent, { ...input, origin, latest: latest - origin, fixedRight: 900 }).right - origin,
+    ).toBe(900);
+});
