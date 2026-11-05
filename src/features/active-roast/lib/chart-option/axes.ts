@@ -12,6 +12,7 @@ import {
     SINGLE_GRID_BOTTOM,
     TEMP_Y_INTERVAL,
     TEMP_Y_LABEL_INTERVAL,
+    TIME_AXIS_LABEL_ROTATE,
     TIME_X_INTERVAL_SEC,
     Y_AXIS_NAME_GAP,
 } from '@features/active-roast/lib/chart-config';
@@ -23,6 +24,15 @@ import type { TemperatureUnit } from '../../model/settings';
 import type { ChartOptionParams, ResolvedChartColors } from './types';
 
 export const fmtSec = (v: number) => `${v < 0 ? '-' : ''}${formatElapsed(Math.abs(v))}`;
+
+/** Screen time ticks. Print/report zero the rotate. */
+export const timeAxisLabel = (style: ReturnType<typeof buildAxisStyles>['axisLabelStyle']) => ({
+    ...style,
+    formatter: fmtSec,
+    rotate: TIME_AXIS_LABEL_ROTATE,
+    align: 'right' as const,
+    verticalAlign: 'top' as const,
+});
 
 /** Labels only at 0, 50, 100… — not from axis min (e.g. 20→300 → 50…300) */
 export const formatTempYLabel = (v: number) => {
@@ -238,7 +248,13 @@ export const applyReportAxes = (
         axis.minorSplitLine = { show: false };
         if (axis.type === 'value') {
             axis.interval = reportTimeIntervalSec(durationSec);
-            axis.axisLabel = { ...axis.axisLabel, hideOverlap: true };
+            axis.axisLabel = {
+                ...axis.axisLabel,
+                hideOverlap: true,
+                rotate: 0,
+                align: 'center',
+                verticalAlign: 'top',
+            };
         }
     }
     for (const axis of Array.isArray(axes.yAxis) ? axes.yAxis : []) {
@@ -280,7 +296,16 @@ export const applyPrintAxes = (
         axis.nameTextStyle = { ...font, verticalAlign: 'top' };
         axis.axisLine = { show: false, onZero: false };
         axis.axisTick = { show: false };
-        axis.axisLabel = { ...axis.axisLabel, ...font, margin: 4, show: true, hideOverlap: true };
+        axis.axisLabel = {
+            ...axis.axisLabel,
+            ...font,
+            margin: 4,
+            show: true,
+            hideOverlap: true,
+            rotate: 0,
+            align: 'center',
+            verticalAlign: 'top',
+        };
     }
     for (const [index, axis] of (Array.isArray(axes.yAxis) ? axes.yAxis : []).entries()) {
         axis.name =
@@ -387,7 +412,7 @@ export const buildDualGridLayout = (params: DualGridAxesParams) => {
             type: 'value' as const,
             min: xMin,
             max: xMax,
-            axisLabel: { formatter: fmtSec, ...axisLabelStyle },
+            axisLabel: timeAxisLabel(axisLabelStyle),
             axisTick: { show: false },
             axisPointer: xAxisPointer,
             interval: TIME_X_INTERVAL_SEC,
@@ -526,7 +551,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             nameTextStyle: axisNameStyle,
             min: xMin,
             max: xMax,
-            axisLabel: { formatter: (v: number) => fmtSec(v), ...axisLabelStyle },
+            axisLabel: timeAxisLabel(axisLabelStyle),
             axisLine: { onZero: false },
             axisPointer: xAxisPointer,
             interval: TIME_X_INTERVAL_SEC,

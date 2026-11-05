@@ -2,10 +2,12 @@ import {
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT_WITH_ROR,
     CONTROL_CURVE_WIDTH,
+    CONTROL_GRID_BOTTOM,
     MARKER_LABEL_FONT,
     markerLabelFont,
     REFERENCE_CURVE_OPACITY,
     TEMP_CURVE_WIDTH,
+    TIME_AXIS_LABEL_ROTATE,
 } from '@features/active-roast/lib/chart-config';
 import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
 import * as echarts from 'echarts';
@@ -356,6 +358,35 @@ describe('buildRoastChartOption font scale', () => {
     );
 });
 
+describe('time axis labels', () => {
+    const labeled = (option: ReturnType<typeof buildRoastChartOption>) => {
+        const axes = (Array.isArray(option.xAxis) ? option.xAxis : [option.xAxis]) as {
+            axisLabel?: { show?: boolean; rotate?: number; align?: string };
+        }[];
+        return axes.find((axis) => axis?.axisLabel?.show !== false)?.axisLabel;
+    };
+
+    it('tilts screen time ticks 45 degrees', () => {
+        const withControls = buildRoastChartOption({
+            ...baseParams(),
+            controlData: { xs: [0, 60], drumTemp: [50, 50], heatPower: [80, 60], fanSpeed: [20, 30] },
+        });
+        expect(labeled(withControls)).toMatchObject({
+            rotate: TIME_AXIS_LABEL_ROTATE,
+            align: 'right',
+        });
+        expect(labeled(buildRoastChartOption(baseParams()))).toMatchObject({
+            rotate: TIME_AXIS_LABEL_ROTATE,
+            align: 'right',
+        });
+    });
+
+    it('keeps print and report time ticks horizontal', () => {
+        expect(labeled(buildRoastChartOption({ ...baseParams(), print: true }))).toMatchObject({ rotate: 0 });
+        expect(labeled(buildRoastChartOption({ ...baseParams(), report: true }))).toMatchObject({ rotate: 0 });
+    });
+});
+
 describe('phase line', () => {
     const drying = {
         name: 'Drying',
@@ -381,7 +412,7 @@ describe('phase line', () => {
             phaseSegments: [drying],
             controlData: { xs: [0, 60], drumTemp: [50, 50], heatPower: [80, 60], fanSpeed: [20, 30] },
         });
-        expect(option.grid).toMatchObject([{ height: '76%' }, { top: '79%', bottom: 30 }]);
+        expect(option.grid).toMatchObject([{ height: '76%' }, { top: '79%', bottom: CONTROL_GRID_BOTTOM }]);
     });
 });
 
@@ -424,7 +455,7 @@ describe('buildRoastChartOption', () => {
         };
         const screen = buildRoastChartOption(params);
         const paper = buildRoastChartOption({ ...params, print: true });
-        expect(screen.grid).toMatchObject([{ bottom: 30 }]);
+        expect(screen.grid).toMatchObject([{ bottom: CONTROL_GRID_BOTTOM }]);
         expect(paper.grid).toMatchObject([
             { left: 40, right: 40 },
             { left: 40, right: 40 },

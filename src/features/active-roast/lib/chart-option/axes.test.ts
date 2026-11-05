@@ -1,7 +1,28 @@
+import { TIME_AXIS_LABEL_ROTATE } from '@features/active-roast/lib/chart-config';
 import { formatElapsed } from '@shared/lib/format';
 import { describe, expect, it } from 'vitest';
-import { buildCrossLineStyle, buildTooltipCrossPointer, buildXAxisPointer, buildYAxisPointer, fmtSec } from './axes';
+import {
+    buildAxisStyles,
+    buildCrossLineStyle,
+    buildTooltipCrossPointer,
+    buildXAxisPointer,
+    buildYAxisPointer,
+    fmtSec,
+    timeAxisLabel,
+} from './axes';
 import { mockChartColors } from './chart-colors.fixture';
+
+describe('timeAxisLabel', () => {
+    it('rotates 45 degrees clockwise from the tick', () => {
+        expect(timeAxisLabel(buildAxisStyles(mockChartColors).axisLabelStyle)).toMatchObject({
+            rotate: TIME_AXIS_LABEL_ROTATE,
+            align: 'right',
+            verticalAlign: 'top',
+            formatter: fmtSec,
+        });
+        expect(TIME_AXIS_LABEL_ROTATE).toBe(45);
+    });
+});
 
 describe('fmtSec', () => {
     it('wraps formatElapsed and prefixes negatives for axis ticks', () => {

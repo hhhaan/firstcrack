@@ -79,8 +79,11 @@ export const AXIS_MINOR_SPLIT_NUMBER = 2;
 // ── Multi-grid layout proportions (controlData mode) ────────────────────────
 // Defaults match controlChartHeightPct=21 (control ~21%, gap 3% under temp).
 export const CONTROL_GRID_GAP_PCT = 3;
-export const CONTROL_GRID_BOTTOM = 30;
+/** Room for 45° time labels under the control band. */
+export const CONTROL_GRID_BOTTOM = 48;
 export const MERGED_CONTROL_HEIGHT_RATIO = 0.25;
+/** Clockwise, Cropster-style. Print and report stay horizontal. */
+export const TIME_AXIS_LABEL_ROTATE = 45;
 
 /** Map control band height % → temp/control grid tops. */
 export function getControlGridLayout(heightPct: number): {

@@ -1,6 +1,7 @@
 import {
     AXIS_LABEL_FONT,
     CHART_GRID_LEFT,
+    CONTROL_GRID_BOTTOM,
     getResolvedChartColors,
     NUMBER_FONT_FAMILY,
     ROR_Y_MAX,
@@ -185,7 +186,7 @@ export const buildCompareChartOption = (
     const gridBox = (grid as { left: number; right: number; bottom?: number; containLabel?: boolean }[])[0];
     gridBox.left = COMPARE_GRID_LEFT;
     gridBox.right = rightMargin;
-    gridBox.bottom = 28;
+    gridBox.bottom = CONTROL_GRID_BOTTOM;
     gridBox.containLabel = false;
 
     const baseAxes = Array.isArray(yAxis) ? yAxis : [];
