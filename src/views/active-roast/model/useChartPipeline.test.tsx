@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { bbpDisplayTime } from '@features/active-roast/lib/bbp-events';
+import { CHART_GRID_LEFT, CHART_GRID_RIGHT_WITH_ROR } from '@features/active-roast/lib/chart-config';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { resolveLiveChartView } from '../lib/live-chart-view';
 import { type UseChartPipelineParams, type UseChartPipelineReturn, useChartPipeline } from './useChartPipeline';
 
@@ -206,5 +207,46 @@ it('returns an expired BBP zoom to the fixed automatic viewport and allows zoomi
         expect(chart?.maxTime).toBe(900);
     } finally {
         act(() => root.unmount());
+    }
+});
+
+it.each([
+    { label: 'ET RoR only', showRoR: false, showRoRET: true },
+    { label: 'BT RoR only', showRoR: true, showRoRET: false },
+])('anchors wheel zoom to the rendered right-axis plot for $label', ({ showRoR, showRoRET }) => {
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            observe() {}
+            disconnect() {}
+        },
+    );
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    let chart: UseChartPipelineReturn | undefined;
+    const Probe = () => {
+        chart = useChartPipeline({
+            livePoints: [point(0), point(100)],
+            targetCurvePoints: [],
+            xMin: 0,
+            xMaxFloor: 900,
+            showRoR,
+            showRoRET,
+            showControlChart: false,
+            unit: 'C',
+        });
+        return createElement('div', { ref: chart.chartAreaRef });
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        const area = host.firstElementChild as HTMLDivElement;
+        vi.spyOn(area, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 1000, 300));
+        const center = CHART_GRID_LEFT + (1000 - CHART_GRID_LEFT - CHART_GRID_RIGHT_WITH_ROR) / 2;
+        act(() => area.dispatchEvent(new WheelEvent('wheel', { deltaY: -1, clientX: center, cancelable: true })));
+        expect(chart?.effectiveZoomRange?.start).toBeCloseTo(90);
+        expect(chart?.effectiveZoomRange?.end).toBeCloseTo(810);
+    } finally {
+        act(() => root.unmount());
+        vi.unstubAllGlobals();
     }
 });

@@ -23,6 +23,7 @@ export interface UseChartPipelineParams {
     xMaxFloor?: number;
     xMaxFixed?: number;
     showRoR: boolean;
+    showRoRET?: boolean;
     showControlChart: boolean;
     unit: TemperatureUnit;
     timelineKey?: string;
@@ -75,6 +76,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         xMaxFloor = CHART_TOTAL_SECS,
         xMaxFixed,
         showRoR,
+        showRoRET = false,
         showControlChart,
         unit,
         timelineKey = '',
@@ -108,7 +110,7 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
     );
 
     const minTime = xMin;
-    const chartRightGridPad = showRoR || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
+    const chartRightGridPad = showRoR || showRoRET || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;
 
     const {
         setZoomRange,

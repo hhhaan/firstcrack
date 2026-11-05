@@ -19,6 +19,7 @@ type Settings = Pick<
     | 'temperatureUnit'
     | 'bbpJoinCharge'
     | 'showRoRChart'
+    | 'showRoRET'
     | 'showControlChart'
     | 'tempMinC'
     | 'tempMaxC'
@@ -183,6 +184,7 @@ export const useDisplayedRoastTimeline = (params: Params) => {
         xMaxFixed: view.xMaxFixed,
         xMaxFloor: view.xMaxFloor ?? chartSpanSec(settings),
         showRoR: settings.showRoRChart,
+        showRoRET: settings.showRoRET,
         showControlChart: settings.showControlChart,
         unit,
     });
