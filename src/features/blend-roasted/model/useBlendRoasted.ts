@@ -21,7 +21,7 @@ export const useBlendRoasted = () => {
                 userId: workspaceOwnerId,
                 opId: opSession.current.getOrCreate(),
             });
-            await roastedStockEventApi.insertBatch(events);
+            await roastedStockEventApi.insertBlendingOp(events);
             opSession.current.markSucceeded();
             return workspaceOwnerId;
         },

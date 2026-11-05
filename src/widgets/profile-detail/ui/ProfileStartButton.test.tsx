@@ -10,18 +10,28 @@ import { ProfileStartButton } from './ProfileStartButton';
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const inventory = vi.hoisted(() => {
     const history: ProfileSource[] = [];
-    return { ready: true, history, historyReady: true };
+    return {
+        ownerId: 'owner',
+        beansPending: false,
+        blendsPending: false,
+        historyPending: false,
+        beans: [{ id: 'b1', name: 'Single' }],
+        blends: [{ id: 'x1', name: 'Modern' }],
+        history,
+    };
 });
 vi.mock('@entities/bean/queries', () => ({
-    useBeans: () => ({ data: [{ id: 'b1', name: 'Single' }], isSuccess: inventory.ready }),
+    useBeans: () => ({ data: inventory.beans, isPending: inventory.beansPending }),
 }));
 vi.mock('@entities/blend', () => ({
-    useBlends: () => ({ data: [{ id: 'x1', name: 'Modern' }], isSuccess: inventory.ready }),
+    useBlends: () => ({ data: inventory.blends, isPending: inventory.blendsPending }),
 }));
-vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }) }));
+vi.mock('@entities/organization', () => ({
+    useActiveWorkspace: () => ({ workspaceOwnerId: inventory.ownerId }),
+}));
 vi.mock('@entities/roast-profile', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@entities/roast-profile')>()),
-    useProfileSourceHistory: () => ({ data: inventory.history, isSuccess: inventory.historyReady }),
+    useProfileSourceHistory: () => ({ data: inventory.history, isPending: inventory.historyPending }),
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
@@ -48,9 +58,13 @@ describe('ProfileStartButton', () => {
     afterEach(() => {
         act(() => root?.unmount());
         host?.remove();
-        inventory.ready = true;
+        inventory.ownerId = 'owner';
+        inventory.beansPending = false;
+        inventory.blendsPending = false;
+        inventory.historyPending = false;
+        inventory.beans = [{ id: 'b1', name: 'Single' }];
+        inventory.blends = [{ id: 'x1', name: 'Modern' }];
         inventory.history = [];
-        inventory.historyReady = true;
         onNavigate.mockClear();
         useRoastingStore.getState().reset();
     });
@@ -123,18 +137,57 @@ describe('ProfileStartButton', () => {
     });
 
     it('waits for history before deciding whether a choice is needed', () => {
-        inventory.historyReady = false;
+        inventory.historyPending = true;
         const button = render([{ bean_id: 'b1', blend_id: null }]);
         expect(button.disabled).toBe(true);
         act(() => button.click());
         expect(onNavigate).not.toHaveBeenCalled();
     });
 
-    it('waits for inventory before deciding whether a choice is needed', () => {
-        inventory.ready = false;
+    it.each(['beans', 'blends'] as const)('waits for %s before deciding whether a choice is needed', (list) => {
+        inventory[list === 'beans' ? 'beansPending' : 'blendsPending'] = true;
         const button = render([{ bean_id: 'b1', blend_id: null }]);
         expect(button.disabled).toBe(true);
         act(() => button.click());
         expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('starts with the loaded blend when the bean list failed', () => {
+        inventory.beans = [];
+        const button = render([
+            { bean_id: 'b1', blend_id: null },
+            { bean_id: null, blend_id: 'x1' },
+        ]);
+        expect(button.disabled).toBe(false);
+        act(() => button.click());
+        expect(onNavigate).toHaveBeenCalledWith('roast');
+        expect(useRoastingStore.getState().pendingProfileSource).toEqual({
+            beanId: null,
+            blendId: 'x1',
+            name: 'Modern',
+        });
+    });
+
+    it('starts with no source when a failed list was the only way to name one', () => {
+        inventory.beans = [];
+        const button = render([{ bean_id: 'b1', blend_id: null }]);
+        expect(button.disabled).toBe(false);
+        act(() => button.click());
+        expect(onNavigate).toHaveBeenCalledWith('roast');
+        expect(useRoastingStore.getState().pendingProfileSource).toBeNull();
+    });
+
+    it('does not wait when the workspace owner is missing', () => {
+        inventory.ownerId = '';
+        inventory.beansPending = true;
+        inventory.blendsPending = true;
+        inventory.historyPending = true;
+        inventory.beans = [];
+        inventory.blends = [];
+        const button = render([{ bean_id: 'b1', blend_id: null }]);
+        expect(button.disabled).toBe(false);
+        act(() => button.click());
+        expect(onNavigate).toHaveBeenCalledWith('roast');
+        expect(useRoastingStore.getState().pendingProfileSource).toBeNull();
     });
 });

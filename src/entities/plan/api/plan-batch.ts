@@ -18,6 +18,13 @@ export const planBatchApi = {
     updateRoastStatus,
     startForRoast,
     syncRoastProgress,
+    complete: async (batchId: string, deduct: boolean): Promise<void> => {
+        const { error } = await supabase.rpc('complete_plan_batch', {
+            p_batch_id: batchId,
+            p_deduct: deduct,
+        });
+        if (error) throw error;
+    },
     list: async (planId: string): Promise<PlanBatchWithProgress[]> => {
         const batchesResult = await supabase
             .from('roast_plan_batches')

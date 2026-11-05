@@ -18,8 +18,11 @@ export const useRoastSourceCandidates = (ownerId: string, profileId: string | nu
             ),
         [profiles.data, profileId, history.data, beans.data, blends.data],
     );
+    const inventoryOn = !!ownerId;
     return {
         candidates,
-        ready: beans.isSuccess && blends.isSuccess && profiles.isSuccess && (!profileId || history.isSuccess),
+        ready:
+            (!inventoryOn || (!beans.isPending && !blends.isPending && !profiles.isPending)) &&
+            (!inventoryOn || !profileId || !history.isPending),
     };
 };

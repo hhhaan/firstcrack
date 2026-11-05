@@ -52,14 +52,32 @@ export const useBeanStockSummaries = (userId: string) =>
 export const useBeanPurchaseCosts = (userId: string) =>
     useQuery({
         queryKey: stockEventKeys.purchaseCostsByUser(userId),
-        queryFn: () => beanStockEventApi.listPurchaseCostsByUser(userId),
+        queryFn: () => beanStockEventApi.getPurchaseWac(userId),
         enabled: !!userId,
     });
+
+const isStoredStockEvent = (error: unknown): boolean =>
+    typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
 
 export const useInsertStockEvent = () => {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: beanStockEventApi.insert,
+        mutationFn: async (event: BeanStockEventInsert) => {
+            try {
+                await beanStockEventApi.insert(event);
+            } catch (error) {
+                if (!event.reference_id || !isStoredStockEvent(error)) throw error;
+            }
+            let alertFailed = false;
+            if (event.user_id) {
+                try {
+                    await beanStockEventApi.computeInventoryAlerts(event.user_id);
+                } catch {
+                    alertFailed = true;
+                }
+            }
+            return { alertFailed };
+        },
         onMutate: async (newEvent: BeanStockEventInsert) => {
             const beanId = newEvent.bean_id;
             await qc.cancelQueries({ queryKey: stockEventKeys.summary(beanId) });
@@ -99,8 +117,6 @@ export const useInsertStockEvent = () => {
             void qc.invalidateQueries({ queryKey: stockEventKeys.purchaseCostsRoot });
             void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
             if (newEvent.user_id) {
-                await beanStockEventApi.computeInventoryAlerts(newEvent.user_id);
-                void qc.invalidateQueries({ queryKey: inventoryQueryRoots.inventoryAlerts });
                 void qc.invalidateQueries({ queryKey: dashboardKeys.all(newEvent.user_id) });
             }
         },

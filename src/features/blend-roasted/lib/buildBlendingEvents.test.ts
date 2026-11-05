@@ -61,5 +61,8 @@ describe('buildBlendingEvents', () => {
         expect(() =>
             buildBlendingEvents({ ...base, inputs: [{ beanId: 'b1', grams: 100 }], outputGrams: 0 }),
         ).toThrow();
+        expect(() =>
+            buildBlendingEvents({ ...base, inputs: [{ beanId: 'b1', grams: 200 }], outputGrams: 5000 }),
+        ).toThrow(/output exceeds input/);
     });
 });

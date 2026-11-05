@@ -20,7 +20,8 @@ export const isBatchStockShort = (
     const effectiveGrams = typeof summary === 'number' ? summary : summary?.effectiveGrams;
     const needed = batchGreenNeededGramsFromBatch(batch);
     if (needed <= 0) return false;
-    return (effectiveGrams ?? 0) < needed;
+    // effectiveGrams already subtracts this batch's own reservation.
+    return (effectiveGrams ?? 0) + needed < needed;
 };
 
 /** Green (g) required for all recurring instances within the reservation horizon. */

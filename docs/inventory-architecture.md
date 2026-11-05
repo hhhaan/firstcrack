@@ -17,7 +17,7 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 | `roasted_stock_events` | g (bulk roasted) | bean **or** blend (`single_source` CHECK: exactly one) | `roast_inbound` + / `packaging` − / `blend_consume` − / `blend_produce` + / `adjustment` ± / `write_off` − |
 | `product_stock_events` | bags (units) | product | `roast_inbound` + / `order_fulfillment` − / `order_cancel` + / `adjustment` ± / `write_off` − |
 
-- `roasted_stock_events.is_estimate`: when output weight is not measured, roast-level estimates inbound grams. Measured weight later **replaces** the same session row via `upsert_roasted_inbound` (the only intentional exception to pure append-only).
+- `roasted_stock_events.is_estimate`: when output weight is not measured, roast-level estimates inbound grams. Measured weight later **replaces** the same session row via `upsert_roasted_inbound` (the only intentional exception to pure append-only). A batch-level estimate covers only sessions that did not exist yet at batch completion. Output on an earlier session is its own inbound. Measured output on a later session removes that session's share from the batch estimate, and the last share deletes it. A second estimate is not stacked on the batch row.
 - Happy path: green `purchase` → roast green `roast` − + bulk `roast_inbound` + → packaging bulk − + product `roast_inbound` + → order `order_fulfillment` −.
 - Green pipeline `expected_inbound` was removed (`20260731000000`); physical inbound is `purchase` only (create + restock). `current` and `available` are the same event sum; `effective = available − reserved`.
 
@@ -31,10 +31,11 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 
 | Action | Code | Event |
 |---|---|---|
-| Bean create / restock | `src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts` | `purchase` (`reference_id` null) |
+| Bean create / restock | `src/widgets/add-bean-modal/ui/useAddBeanSubmit.ts` | `purchase` (stable `reference_id` until the insert succeeds) |
 | Roast save deduct | `src/views/active-roast/model/useRoastSaveFlow.ts` → `src/features/active-roast/model/useDeductRoastStock.ts` / server `save_roast_op` | `roast`, ref = session or batch id. Blends: `src/features/active-roast/lib/buildRoastStockEvents.ts` → `insert_stock_events_batch` RPC |
-| Schedule batch complete | `src/views/schedule/hooks/useScheduleDayView.ts` + `batchGreenNeededGramsFromBatch` (`src/shared/lib/batch-stock.ts`) | `roast`, ref = `plan_batch.id` (remaining sessions only) |
+| Schedule batch complete | `complete_plan_batch` via `planBatchApi.complete` | `roast` + estimate `roast_inbound`, ref = `plan_batch.id`. Remainder is counted under the batch lock |
 | Manual adjust | `src/features/adjust-*` (product/roasted); bean adjust UI where present | `adjustment` / `write_off` |
+| Purchase WAC | `get_purchase_wac` | read: per-bean `sum(grams * cost) / sum(grams)` over every purchase row |
 
 ### roasted_stock_events (bulk)
 
@@ -43,7 +44,7 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 | Roast save auto inbound | `src/features/active-roast/model/useSaveRoast.ts` + `lib/roastedInbound.ts` → `upsert_roasted_inbound` | `roast_inbound`, ref = session.id; estimate if unweighed |
 | History output edit | `src/views/history/ui/OutputWeightEditor.tsx` → same RPC | estimate → measured upsert; server resolves bean/blend from session + plan batch |
 | Packaging | `src/features/package-product/model/usePackageProduct.ts` → `insert_packaging_op` | bulk `packaging` − + product `roast_inbound` + **one TX** |
-| Blending | `src/features/blend-roasted/model/useBlendRoasted.ts` → `insert_roasted_stock_events_batch` | `blend_consume` − (per component bean) + `blend_produce` +, shared op id |
+| Blending | `src/features/blend-roasted/model/useBlendRoasted.ts` → `insert_blending_op` | `blend_consume` − (per component bean) + `blend_produce` +, shared op id. Output cannot exceed input |
 
 ### product_stock_events (finished goods)
 
@@ -51,8 +52,8 @@ All stock is the **SUM of append-only events**. There are no denormalized quanti
 |---|---|---|
 | Packaging inbound | `src/features/package-product` → `insert_packaging_op` | `roast_inbound` +, ref = packaging op uuid |
 | Order fulfill | `fulfill_order(p_order_id)` via `src/entities/order/api.ts` → `src/features/fulfill-order` | `order_fulfillment` −, ref = `order_line.id` |
-| Order cancel (restore) | `cancel_order(p_order_id)` via `src/entities/order/api.ts` → `src/features/cancel-order` | restores fulfilled lines (`order_cancel` +) |
-| Channel cancel / inbound | `sync_channel_orders_batch` RPC | atomically writes cancel/restore paths when platform status changes |
+| Order cancel (restore) | `cancel_order(p_order_id)` via `src/entities/order/api.ts` → `src/features/cancel-order` | restores the fulfillment ledger sum (`order_cancel` +), not the current line quantity |
+| Channel cancel / inbound | `sync_channel_orders_batch` RPC | ship uses the stored line quantity; cancel restores the fulfillment sum |
 
 **Never** insert multi-ledger ops with raw table inserts from the client. Use the RPCs above.
 

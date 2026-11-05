@@ -41,13 +41,16 @@ export const usePackageProduct = () => {
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     // H5: retry after timeout must reuse opId (partial unique), not mint a new one per attempt
     const opSession = useRef(createActionOpIdSession());
+    const stockBeforeMutate = useRef<number | null>(null);
 
     const mutation = useMutation({
         mutationFn: async ({ productId, units, note }: PackageProductParams) => {
             if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
 
             const product = await resolveProduct(qc, workspaceOwnerId, productId);
-            const opId = opSession.current.getOrCreate();
+            const opId = opSession.current.getOrCreate(
+                JSON.stringify([productId, units, product.bean_id, product.blend_id, product.net_weight_grams]),
+            );
             const { productEvents, roastedEvents } = buildPackagingEvents({
                 userId: workspaceOwnerId,
                 productId,
@@ -62,10 +65,10 @@ export const usePackageProduct = () => {
             // 경고용 부족량 — RQ 캐시 우선, miss 시 RPC 1회
             let shortageGrams: number | null = null;
             if (roastedEvents.length > 0) {
-                const stock = await ensureRoastedStock(qc, workspaceOwnerId);
                 const key = product.blend_id ? `blend:${product.blend_id}` : `bean:${product.bean_id}`;
-                const have = stock[key]?.grams ?? 0;
                 const need = units * product.net_weight_grams;
+                const snap = stockBeforeMutate.current;
+                const have = snap ?? (await ensureRoastedStock(qc, workspaceOwnerId))[key]?.grams ?? 0;
                 if (have < need) shortageGrams = need - have;
             }
 
@@ -78,6 +81,12 @@ export const usePackageProduct = () => {
             if (!workspaceOwnerId) return;
             const ownerId = workspaceOwnerId;
             const product = qc.getQueryData<Product[]>(productKeys.all(ownerId))?.find((p) => p.id === productId);
+            stockBeforeMutate.current = null;
+            if (product && (product.bean_id || product.blend_id)) {
+                const key = product.blend_id ? `blend:${product.blend_id}` : `bean:${product.bean_id}`;
+                const cached = qc.getQueryData<Record<string, RoastedStockSummary>>(roastedStockKeys.byUser(ownerId));
+                if (cached?.[key]) stockBeforeMutate.current = cached[key].grams;
+            }
 
             await qc.cancelQueries({ queryKey: productStockKeys.byUser(ownerId) });
             await qc.cancelQueries({ queryKey: roastedStockKeys.byUser(ownerId) });
