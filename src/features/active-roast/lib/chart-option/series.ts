@@ -229,16 +229,15 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
             lineStyle: { ...curves.ror.current },
             ...lineSeriesBase,
         },
-        showRoR &&
-            showRoRET && {
-                name: 'ET RoR',
-                type: 'line',
-                xAxisIndex: 0,
-                yAxisIndex: 1,
-                data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
-                lineStyle: { ...curves.etRor.current },
-                ...lineSeriesBase,
-            },
+        showRoRET && {
+            name: 'ET RoR',
+            type: 'line',
+            xAxisIndex: 0,
+            yAxisIndex: 1,
+            data: xs.map((x, i) => [x, rorEtActual[i] ?? null]),
+            lineStyle: { ...curves.etRor.current },
+            ...lineSeriesBase,
+        },
     ].filter(Boolean) as object[];
 };
 

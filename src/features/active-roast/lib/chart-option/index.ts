@@ -48,9 +48,6 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
               ...params,
               axisSettings: undefined,
               fontScale: 1,
-              showET: true,
-              showRoR: true,
-              showRoRET: params.rorEtActual.some((value) => value != null),
               showTargetCurve: false,
               showTargetDeltaLabel: false,
               eventMarkerStyle: 'callout' as const,
@@ -230,7 +227,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             machineId,
         });
 
-    const hasRightYAxis = showRoR || hasControlSeries;
+    const hasRightYAxis = showRoR || showRoRET || hasControlSeries;
     const { leftMargin, rightMargin, topMargin } = computeGridMargins(hasRightYAxis);
 
     const tempSeries = buildTempSeries({
@@ -285,6 +282,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             xAxisPointer,
             yAxisPointer,
             controlData,
+            showControlHeat,
+            showControlFan,
+            showControlDrum,
             curves,
             temperatureUnit,
         });

@@ -14,11 +14,13 @@ export const captureRoastPdfChart = async ({
     curveStyles,
     unit,
     hasEtRor,
+    visibleChannels,
 }: {
     makeOption: (colors: ReturnType<typeof getResolvedChartColors>) => echarts.EChartsOption;
     curveStyles: CurveStyles;
     unit: TemperatureUnit;
     hasEtRor: boolean;
+    visibleChannels?: { bt: boolean; et: boolean; ror: boolean };
 }): Promise<RoastPdfChart> => {
     await document.fonts.load(`400 ${roastPdfLayout.tickFontSize}px ${roastPdfLayout.fontFamily}`);
     const pixelRatio = 200 / 72;
@@ -37,9 +39,21 @@ export const captureRoastPdfChart = async ({
             return {
                 chartDataUrl: chart.getDataURL({ type: 'png', backgroundColor: 'rgba(0,0,0,0)', pixelRatio }),
                 legend: [
-                    { color: curves.bt.current.color, label: `BT (°${unit})`, lineType: 'solid' },
-                    { color: curves.et.current.color, label: `ET (°${unit})`, lineType: 'solid' },
-                    { color: curves.ror.current.color, label: `BT RoR (°${unit}/min)`, lineType: 'solid' },
+                    ...(visibleChannels?.bt !== false
+                        ? [{ color: curves.bt.current.color, label: `BT (°${unit})`, lineType: 'solid' as const }]
+                        : []),
+                    ...(visibleChannels?.et !== false
+                        ? [{ color: curves.et.current.color, label: `ET (°${unit})`, lineType: 'solid' as const }]
+                        : []),
+                    ...(visibleChannels?.ror !== false
+                        ? [
+                              {
+                                  color: curves.ror.current.color,
+                                  label: `BT RoR (°${unit}/min)`,
+                                  lineType: 'solid' as const,
+                              },
+                          ]
+                        : []),
                     ...(hasEtRor
                         ? [
                               {

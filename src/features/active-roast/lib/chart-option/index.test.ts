@@ -50,6 +50,7 @@ const baseParams = (): ChartOptionParams => ({
 it('prints each recorded control in its own plot while keeping screen controls intact', () => {
     const params: ChartOptionParams = {
         ...baseParams(),
+        showRoRET: true,
         xs: [0, 60, 600, 640],
         btActual: [190, 95, 210, 180],
         etActual: [200, 210, 240, 230],
@@ -121,6 +122,7 @@ it.each(['C', 'F'] as const)(
             const params: ChartOptionParams = {
                 ...baseParams(),
                 temperatureUnit: unit,
+                showRoRET: true,
                 xs,
                 btActual: [200, 195, 140, 100, 210, 190],
                 rorActual: [999, -140, -18, 14, 8, 800].map((value) => toDisplayRoR(value, unit)),
@@ -262,9 +264,9 @@ it.each([
         print: true,
         xs: [0, 30, 90],
         controlData,
-        showControlDrum: false,
-        showControlHeat: false,
-        showControlFan: false,
+        showControlDrum: true,
+        showControlHeat: true,
+        showControlFan: true,
         eventMarkers: [{ event: 'Drop', timeSec: 60, timeStr: '1:00', temp: '185°C', color: '#777' }],
     });
     expect(option.grid).toHaveLength(names.length + 1);
@@ -1829,7 +1831,7 @@ describe('buildRoastChartOption', () => {
         const rorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showRoR: false }));
         expect(rorOff).toContain('RoR Target');
         expect(rorOff).not.toContain('RoR');
-        expect(rorOff).not.toContain('ET RoR');
+        expect(rorOff).toContain('ET RoR');
 
         const profileRorOff = Object.keys(seriesByName({ ...baseParams(), ...fullReference, showProfileRor: false }));
         expect(profileRorOff).not.toContain('RoR Target');
@@ -2005,4 +2007,27 @@ describe('merged control chart', () => {
         expect(option.grid).toHaveLength(1);
         expect(option.yAxis).toHaveLength(2);
     });
+});
+
+it('keeps hidden sensor and control channels hidden in print without changing screen settings or samples', () => {
+    const params: ChartOptionParams = {
+        ...baseParams(),
+        xs: [0, 60],
+        btActual: [190, 95],
+        etActual: [200, 210],
+        rorActual: [-2, 5],
+        rorEtActual: [3, null],
+        showET: false,
+        showRoR: false,
+        showRoRET: true,
+        showControlHeat: false,
+        showControlDrum: false,
+        showControlFan: true,
+        controlData: { xs: [0, 60], heatPower: [10, 20], fanSpeed: [30, 40], drumTemp: [50, 60] },
+    };
+    const snapshot = structuredClone(params);
+    const print = buildRoastChartOption({ ...params, print: true });
+    const series = Array.isArray(print.series) ? print.series : [];
+    expect(series.map((s) => s.name)).toEqual(['BT Actual', 'ET RoR', 'Fan', 'Event curve labels']);
+    expect(params).toEqual(snapshot);
 });

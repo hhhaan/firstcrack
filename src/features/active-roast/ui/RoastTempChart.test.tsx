@@ -1296,7 +1296,13 @@ describe('RoastTempChart interactions', () => {
                 curveStyles: { ...previous, bt: { ...previous.bt, color: '#e53935', lineType: 'dotted' } },
             });
             root.render(
-                createElement(RoastTempChart, { ...baseProps, ref, temperatureUnit: 'F', rorEtActual: [1, null] }),
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    temperatureUnit: 'F',
+                    showRoRET: true,
+                    rorEtActual: [1, null],
+                }),
             );
         });
         try {
@@ -1320,6 +1326,41 @@ describe('RoastTempChart interactions', () => {
         } finally {
             act(() => updateRoastSettings({ curveStyles: previous }));
         }
+    });
+
+    it('exports only enabled populated sensor channels in the PDF and legend', async () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    showET: false,
+                    showRoR: false,
+                    showRoRET: true,
+                    rorEtActual: [1, null],
+                }),
+            ),
+        );
+        const capture = await ref.current?.capturePdf();
+        expect(capture?.legend.map((item) => item.label)).toEqual(['BT (°C)', 'ET RoR (°C/min)']);
+        const option = paper.setOption.mock.lastCall?.[0];
+        expect(option.series.map((series: { name: string }) => series.name)).toContain('ET RoR');
+        expect(option.series.map((series: { name: string }) => series.name)).not.toContain('ET Actual');
+        expect(option.series.map((series: { name: string }) => series.name)).not.toContain('RoR');
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    showET: false,
+                    showRoR: false,
+                    showRoRET: true,
+                    rorEtActual: [null, null],
+                }),
+            ),
+        );
+        expect((await ref.current?.capturePdf())?.legend.map((item) => item.label)).toEqual(['BT (°C)']);
     });
 
     it('exports saved controls without adding an empty on-screen feedback plot', async () => {

@@ -888,9 +888,25 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             makeOption: (colors) => makeOption(colors, true),
             curveStyles,
             unit: temperatureUnit,
-            hasEtRor: rorEtActual.some((value) => value != null),
+            hasEtRor: showRoRET && rorEtActual.some((value) => value != null),
+            visibleChannels: {
+                bt: btActual.some((value) => value != null),
+                et: showET && etActual.some((value) => value != null),
+                ror: showRoR && rorActual.some((value) => value != null),
+            },
         });
-    }, [makeOption, curveStyles, temperatureUnit, rorEtActual]);
+    }, [
+        makeOption,
+        curveStyles,
+        temperatureUnit,
+        rorEtActual,
+        btActual,
+        etActual,
+        rorActual,
+        showET,
+        showRoR,
+        showRoRET,
+    ]);
 
     useImperativeHandle(
         ref,

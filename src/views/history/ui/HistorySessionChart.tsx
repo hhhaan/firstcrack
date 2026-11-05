@@ -2,14 +2,12 @@ import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve, useHistoryChart } from '@entities/roast';
 import { resolveSourceSession, useResolvedProfileCurve, useRoastProfiles } from '@entities/roast-profile';
 import {
-    CurveSwatch,
     computePhaseSegments,
     formatTemp,
     type PhaseSegment,
     type TemperatureUnit,
     toDisplayRoR,
     toDisplayTemp,
-    useCurveStyles,
     useRoastingStore,
     useRoastSettings,
 } from '@features/active-roast';
@@ -20,6 +18,7 @@ import {
     referenceHasControls,
     toDisplayReferenceCurve,
 } from '@features/active-roast/lib/reference-curve';
+import { savedChartPresentation, savedControlsVisible } from '@features/active-roast/lib/saved-chart-presentation';
 import {
     parseStoredRoastEvents,
     patchStoredNoteEvent,
@@ -27,9 +26,9 @@ import {
     storedEventsToLogEntries,
     storedEventsToMarkers,
 } from '@features/active-roast/lib/serialize-roast-events';
-import { rorUnitLabel, tempUnitLabel } from '@features/active-roast/lib/temperature';
 import { manualNotesToControlChanges, virtualControlLinesAllowed } from '@features/active-roast/lib/virtual-controls';
 import { RoastTempChart, type RoastTempChartHandle } from '@features/active-roast/ui/RoastTempChart';
+import { SavedCurveLegend } from '@features/active-roast/ui/SavedCurveLegend';
 import {
     editedHeatSet,
     patchHeaterPlanMarker,
@@ -60,44 +59,6 @@ import {
     referenceStatusKey,
     roastChartStatusKey,
 } from '../lib/session-chart-view';
-
-type CurveSample = { bt?: number | null; et?: number | null; ror?: number | null };
-
-const finiteNumbers = (values: readonly (number | null | undefined)[]): number[] =>
-    values.filter((value): value is number => value != null && Number.isFinite(value));
-
-const reportTempBounds = (
-    actual: readonly CurveSample[],
-    target: readonly CurveSample[],
-    includeTarget: { bt: boolean; et: boolean } | null,
-    fallbackMin: number,
-    fallbackMax: number,
-): { tempMinC: number; tempMaxC: number } => {
-    const sampled = [
-        ...actual.flatMap((point) => [point.bt, point.et]),
-        ...(includeTarget
-            ? target.flatMap((point) => [includeTarget.bt ? point.bt : null, includeTarget.et ? point.et : null])
-            : []),
-    ];
-    const temperatures = finiteNumbers(sampled);
-    const tempLow = temperatures.length ? Math.min(...temperatures) : fallbackMin;
-    const tempHigh = temperatures.length ? Math.max(...temperatures) : fallbackMax;
-    const tempMid = (tempLow + tempHigh) / 2;
-    const tempSpan = Math.max(40, tempHigh - tempLow + 20);
-    return {
-        tempMinC: Math.floor((tempMid - tempSpan / 2) / 10) * 10,
-        tempMaxC: Math.ceil((tempMid + tempSpan / 2) / 10) * 10,
-    };
-};
-
-const sensorChannels = (
-    points: readonly CurveSample[],
-    unit: TemperatureUnit,
-): { key: 'bt' | 'et' | 'ror'; label: string; visible: boolean }[] => [
-    { key: 'bt', label: `BT · ${tempUnitLabel(unit)}`, visible: points.some((p) => p.bt != null) },
-    { key: 'et', label: `ET · ${tempUnitLabel(unit)}`, visible: points.some((p) => p.et != null) },
-    { key: 'ror', label: `RoR · ${rorUnitLabel(unit)}`, visible: points.some((p) => p.ror != null) },
-];
 
 function ChartMeta({
     session,
@@ -142,38 +103,6 @@ function ChartMeta({
     );
 }
 
-function ChartLegend({
-    points,
-    unit,
-    showTarget,
-    profileName,
-}: {
-    points: readonly CurveSample[];
-    unit: TemperatureUnit;
-    showTarget: boolean;
-    profileName: string;
-}) {
-    const curves = useCurveStyles();
-    const channels = sensorChannels(points, unit).filter((channel) => channel.visible);
-    if (points.length === 0) return null;
-    return (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px] font-medium text-secondary">
-            {channels.map((channel) => (
-                <span key={channel.label} className="inline-flex items-center gap-2">
-                    <CurveSwatch style={curves[channel.key].current} />
-                    {channel.label}
-                </span>
-            ))}
-            {showTarget && (
-                <span className="inline-flex min-w-0 items-center gap-2 text-muted">
-                    <CurveSwatch style={curves.bt.background} />
-                    {profileName}
-                </span>
-            )}
-        </div>
-    );
-}
-
 function PhaseShare({ phases }: { phases: PhaseSegment[] }) {
     const { t } = useTranslation();
     if (phases.length <= 1) return null;
@@ -207,11 +136,10 @@ export function HistorySessionChart({
     exportContainer: HTMLElement | null;
 }) {
     const { t } = useTranslation();
+    const settings = useRoastSettings();
     const {
         temperatureUnit: unit,
         eventMarkerStyle,
-        tempMinC,
-        tempMaxC,
         showTargetCurve,
         showProfileBt,
         showProfileEt,
@@ -222,7 +150,7 @@ export function HistorySessionChart({
         showProfileFan,
         bbpJoinCharge,
         recordVirtualControls,
-    } = useRoastSettings();
+    } = settings;
     const joinBbp = bbpJoinCharge !== false;
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const roast = useHistoryChart(orNull(session.tsv_path));
@@ -230,7 +158,8 @@ export function HistorySessionChart({
     const { data: profiles = [] } = useRoastProfiles(session.user_id);
     const profile = profileForSession(profiles, session);
     const source = resolveSourceSession(profile?.source_session);
-    const { points: targetPoints } = useResolvedProfileCurve(profile);
+    const { points: resolvedTargetPoints, source: targetSource } = useResolvedProfileCurve(profile);
+    const targetPoints = targetSource === 'synthetic' ? [] : resolvedTargetPoints;
     const targetBbp = useBbpCurve(session.user_id, orNull(profile?.source_session_id), source?.bbp_tsv_path);
     const actual = useMemo(() => {
         const points = roast.isError ? [] : roast.points;
@@ -300,13 +229,6 @@ export function HistorySessionChart({
     const referenceCurve = useMemo(() => referenceCurveFromPoints(target.points), [target.points]);
     const displayedTarget = useMemo(() => toDisplayReferenceCurve(referenceCurve, unit), [referenceCurve, unit]);
     const targetVisible = historyTargetVisible(showTargetCurve, target.points.length);
-    const tempBounds = reportTempBounds(
-        points,
-        target.points,
-        targetVisible ? { bt: showProfileBt, et: showProfileEt } : null,
-        tempMinC,
-        tempMaxC,
-    );
     const referenceControls = referenceHasControls(referenceCurve);
     const heatSet = useMemo(
         () =>
@@ -314,7 +236,7 @@ export function HistorySessionChart({
             points.map((p) => p.heaterSet ?? null),
         [points, session],
     );
-    const { hasControls, controlData } = historyControls({
+    const { controlData } = historyControls({
         changes: [
             ...storedEventsToControlChanges(storedEvents),
             ...(recordVirtualControls && virtualControlLinesAllowed(session.machine_roaster_key)
@@ -332,10 +254,10 @@ export function HistorySessionChart({
         points,
         heatSet,
         heatSetUnit: heaterUnit,
-        referenceControls,
+        referenceControls: targetVisible && referenceControls,
         displayedTarget,
     });
-    const showControlBand = hasControls || controlData != null;
+    const showControlBand = savedControlsVisible(controlData, settings, targetVisible);
     const bbpRange = mergedBbpRange(actual.bbpRange, target.bbpRange);
     const xView = historyXView({
         bbpStart: bbpRange?.start,
@@ -388,16 +310,22 @@ export function HistorySessionChart({
                         </button>,
                         exportContainer,
                     )}
-                <ChartLegend
+                <SavedCurveLegend
                     points={points}
-                    unit={unit}
-                    showTarget={targetVisible}
+                    settings={settings}
+                    showTarget={
+                        targetVisible &&
+                        (showProfileBt ||
+                            (showProfileEt && target.points.some((p) => p.et != null)) ||
+                            (showProfileRor && target.points.some((p) => p.ror != null)) ||
+                            (showProfileEtRor && displayedTarget.rorEt.some((value) => value != null)))
+                    }
                     profileName={profile?.name || t('history.table.profile')}
                 />
             </div>
             {points.length > 0 && (
                 <RoastTempChart
-                    report
+                    {...savedChartPresentation(settings)}
                     ref={chartRef}
                     xs={points.map((p) => p.t)}
                     btActual={points.map((p) => toDisplayTemp(p.bt, unit))}
@@ -424,16 +352,13 @@ export function HistorySessionChart({
                     onEventMarkerEdit={record.canWrite ? onEventMarkerEdit : undefined}
                     onEventMarkerDelete={record.canWrite ? onEventMarkerDelete : undefined}
                     machineId={session.machine_id}
-                    showRoRET={false}
                     temperatureUnit={unit}
-                    tempMinC={tempBounds.tempMinC}
-                    tempMaxC={tempBounds.tempMaxC}
                     xViewMin={xView.min}
                     xViewMax={xView.max}
                     bbpRange={bbpRange}
                     controlData={showControlBand ? controlData : undefined}
-                    printControlData={controlData}
-                    controlChartHeightPct={24}
+                    printControlData={showControlBand ? controlData : undefined}
+                    phaseSegments={settings.showPhaseBar ? phases : []}
                     height={showControlBand ? 440 : 360}
                 />
             )}
