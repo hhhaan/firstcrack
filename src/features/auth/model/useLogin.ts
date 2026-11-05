@@ -47,7 +47,7 @@ export const useLogin = (onLogin?: () => void) => {
             if (screen === 'check-inbox') return;
             setLoading(true);
             setError(null);
-            cancelOAuth(); // clear session_replaced / oauth notice
+            cancelOAuth();
             try {
                 if (screen === 'sign-up') {
                     if (!agreedToTerms) return;

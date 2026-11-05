@@ -1,5 +1,5 @@
 import { profileKeys } from '@shared/lib/query-keys';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type AuthCb = (event: string, session: { user: { id: string } } | null) => void;
 
@@ -30,20 +30,12 @@ vi.mock('../lib/osNotification', () => ({
     sendOsNotification: (...a: unknown[]) => sendOsNotification(...a),
 }));
 
-vi.mock('../lib/logger', () => ({
-    logger: { capture: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn(), log: vi.fn(), info: vi.fn() },
-}));
-
-vi.mock('i18next', () => ({
-    default: { t: (k: string) => k },
-}));
-
 import { bindAuthQueryClient, useAuthStore } from './auth';
 
 const user = { id: 'user-1' };
 const removeQueries = vi.fn();
 
-describe('auth session_replaced (single-session UX)', () => {
+describe('auth session lifecycle', () => {
     let cleanup: (() => void) | undefined;
 
     beforeEach(() => {
@@ -56,7 +48,7 @@ describe('auth session_replaced (single-session UX)', () => {
         from.mockReset();
         removeQueries.mockReset();
         bindAuthQueryClient({ removeQueries } as never);
-        // getSession resolves after init subscribed; keep loading true until we drive authCb
+        // Keep initialization pending until the test drives an auth event.
         getSession.mockReturnValue(new Promise(() => {}));
         signOut.mockResolvedValue({ error: null });
         useAuthStore.setState({
@@ -65,33 +57,47 @@ describe('auth session_replaced (single-session UX)', () => {
             oauthPending: false,
             oauthError: null,
         });
-        cleanup?.();
         cleanup = useAuthStore.getState().init();
     });
 
-    it('sets session_replaced + OS notice when session ends without intentional signOut', () => {
-        authCb?.('SIGNED_IN', { user });
-        expect(useAuthStore.getState().user?.id).toBe('user-1');
-
-        authCb?.('SIGNED_OUT', null);
-
-        expect(useAuthStore.getState().user).toBeNull();
-        expect(useAuthStore.getState().oauthError).toBe('session_replaced');
-        expect(sendOsNotification).toHaveBeenCalledWith('auth.sessionReplacedTitle', 'auth.errors.session_replaced');
+    afterEach(() => {
+        cleanup?.();
     });
 
-    it('does not set session_replaced on intentional signOut', async () => {
+    it('clears a terminated session without an auth error or OS notice', () => {
         authCb?.('SIGNED_IN', { user });
-        await useAuthStore.getState().signOut();
+        expect(useAuthStore.getState().user?.id).toBe('user-1');
+        useAuthStore.setState({ oauthPending: true, oauthError: 'oauth_failed' });
 
-        // store already cleared by signOut; auth event should stay quiet
         authCb?.('SIGNED_OUT', null);
 
+        expect(useAuthStore.getState()).toMatchObject({
+            user: null,
+            loading: false,
+            oauthPending: false,
+            oauthError: null,
+        });
+        expect(sendOsNotification).not.toHaveBeenCalled();
+    });
+
+    it.each(['before', 'after'])('signs out quietly when the auth event arrives %s the response', async (timing) => {
+        authCb?.('SIGNED_IN', { user });
+        if (timing === 'before') {
+            signOut.mockImplementation(async () => {
+                authCb?.('SIGNED_OUT', null);
+                return { error: null };
+            });
+        }
+        await useAuthStore.getState().signOut();
+
+        if (timing === 'after') authCb?.('SIGNED_OUT', null);
+
+        expect(useAuthStore.getState().user).toBeNull();
         expect(useAuthStore.getState().oauthError).toBeNull();
         expect(sendOsNotification).not.toHaveBeenCalled();
     });
 
-    it('does not set session_replaced when never signed in', () => {
+    it('initializes without a session quietly', () => {
         authCb?.('INITIAL_SESSION', null);
         expect(useAuthStore.getState().oauthError).toBeNull();
         expect(sendOsNotification).not.toHaveBeenCalled();
@@ -117,5 +123,30 @@ describe('auth session_replaced (single-session UX)', () => {
         removeQueries.mockClear();
         authCb?.('SIGNED_OUT', null);
         expect(removeQueries).toHaveBeenCalledWith({ queryKey: profileKeys.detail('user-1') });
+    });
+
+    it('preserves the user and cache when signOut fails', async () => {
+        authCb?.('SIGNED_IN', { user });
+        removeQueries.mockClear();
+        const error = new Error('sign-out failed');
+        signOut.mockResolvedValue({ error });
+
+        await expect(useAuthStore.getState().signOut()).rejects.toBe(error);
+
+        expect(useAuthStore.getState().user).toEqual(user);
+        expect(removeQueries).not.toHaveBeenCalled();
+        expect(sendOsNotification).not.toHaveBeenCalled();
+    });
+
+    it('keeps the signed-in user and cache on token refresh', () => {
+        authCb?.('SIGNED_IN', { user });
+        removeQueries.mockClear();
+
+        authCb?.('TOKEN_REFRESHED', { user });
+
+        expect(useAuthStore.getState().user).toEqual(user);
+        expect(useAuthStore.getState().oauthError).toBeNull();
+        expect(removeQueries).not.toHaveBeenCalled();
+        expect(sendOsNotification).not.toHaveBeenCalled();
     });
 });

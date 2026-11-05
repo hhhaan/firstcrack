@@ -83,7 +83,6 @@
     },
     "auth": {
         "oauthCompleting": "サインインを完了しています…",
-        "sessionReplacedTitle": "サインアウトしました",
         "signInTitle": "サインイン",
         "signInLead": "メールとパスワードを入力して続行します。",
         "signUpTitle": "トライアルを開始",
@@ -103,7 +102,6 @@
             "invalid_credentials": "メールまたはパスワードが正しくありません。もう一度お試しください。",
             "network": "ネットワークエラーです。接続を確認してからもう一度お試しください。",
             "oauth_failed": "サインインを完了できませんでした。もう一度お試しください。",
-            "session_replaced": "別のデバイスでログインされたため、サインアウトしました。",
             "user_already_registered": "このメールはすでに登録されています。サインインしてください。",
             "weak_password": "パスワードは8文字以上にしてください。",
             "password_mismatch": "パスワードが一致しません。",
