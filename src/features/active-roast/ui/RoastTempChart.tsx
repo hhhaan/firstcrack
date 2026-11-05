@@ -149,6 +149,8 @@ interface Props {
     controlData?: ControlData;
     /** Saved commands can be exported without adding an empty on-screen feedback plot. */
     printControlData?: ControlData;
+    /** History retains its sample-fitted PDF range independently of the screen settings. */
+    printTempBounds?: { tempMinC: number; tempMaxC: number };
     showControlDrum?: boolean;
     showControlHeat?: boolean;
     showControlFan?: boolean;
@@ -347,6 +349,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         rorEtActual = [],
         controlData,
         printControlData,
+        printTempBounds,
         showControlDrum = true,
         showControlHeat = true,
         showControlFan = true,
@@ -500,8 +503,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 controlYMax,
                 phaseSegments,
                 showFcBand,
-                tempMinC,
-                tempMaxC,
+                tempMinC: print ? (printTempBounds?.tempMinC ?? tempMinC) : tempMinC,
+                tempMaxC: print ? (printTempBounds?.tempMaxC ?? tempMaxC) : tempMaxC,
                 rorYMin,
                 rorYMax,
                 xViewMin,
@@ -548,6 +551,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             rorEtActual,
             controlData,
             printControlData,
+            printTempBounds,
             showControlDrum,
             showControlHeat,
             showControlFan,
@@ -888,25 +892,9 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             makeOption: (colors) => makeOption(colors, true),
             curveStyles,
             unit: temperatureUnit,
-            hasEtRor: showRoRET && rorEtActual.some((value) => value != null),
-            visibleChannels: {
-                bt: btActual.some((value) => value != null),
-                et: showET && etActual.some((value) => value != null),
-                ror: showRoR && rorActual.some((value) => value != null),
-            },
+            hasEtRor: rorEtActual.some((value) => value != null),
         });
-    }, [
-        makeOption,
-        curveStyles,
-        temperatureUnit,
-        rorEtActual,
-        btActual,
-        etActual,
-        rorActual,
-        showET,
-        showRoR,
-        showRoRET,
-    ]);
+    }, [makeOption, curveStyles, temperatureUnit, rorEtActual]);
 
     useImperativeHandle(
         ref,

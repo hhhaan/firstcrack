@@ -21,9 +21,6 @@ export const buildPrintControls = (
         controlData: ControlData;
         curves: ResolvedCurveStyles;
         temperatureUnit: TemperatureUnit;
-        showControlHeat?: boolean;
-        showControlFan?: boolean;
-        showControlDrum?: boolean;
     },
 ) => {
     const { controlData: source, curves, xMin, xMax } = params;
@@ -57,8 +54,6 @@ export const buildPrintControls = (
             style: curves.drum.current,
         },
     ].flatMap<PrintControl>((channel) => {
-        const shown = { heater: params.showControlHeat, fan: params.showControlFan, drum: params.showControlDrum };
-        if (shown[channel.role] === false) return [];
         const data: [number, number | null][] = [];
         source.xs.forEach((time, index) => {
             if (!inRange(index)) return;

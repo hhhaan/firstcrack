@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     query: { data: [] as TsvPoint[], isLoading: false, isError: false },
     roast: { points: [] as TsvPoint[], isLoading: false, isError: false },
     target: [] as TsvPoint[],
+    targetSource: 'session',
     chart: vi.fn(),
     useBbpCurve: vi.fn(),
     exportPdf: vi.fn(),
@@ -31,7 +32,7 @@ vi.mock('@features/export-history-pdf', () => ({
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [] }),
-    useResolvedProfileCurve: () => ({ points: mocks.target }),
+    useResolvedProfileCurve: () => ({ points: mocks.target, source: mocks.targetSource }),
     resolveSourceSession: () => null,
 }));
 vi.mock('@features/active-roast', async () => ({
@@ -185,6 +186,7 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             rorYMax: 20,
             tempMinC: 100,
             tempMaxC: 250,
+            printTempBounds: { tempMinC: 80, tempMaxC: 220 },
             bbpRange: { start: -92, end: 0 },
             xViewMin: -92,
             xViewMax: 120,
@@ -281,7 +283,10 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
         showRoRET: true,
         rorEtActual: [null, null],
         controlData: undefined,
-        printControlData: undefined,
+        printControlData: expect.objectContaining({
+            changes: [{ timeSec: 30, values: { heater: 0, fan: 1.2, drum: 55 } }],
+        }),
+        printTempBounds: { tempMinC: 160, tempMaxC: 210 },
         phaseSegments: [],
         showFcBand: false,
     });
@@ -309,6 +314,16 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
         controlChartHeightPct: 35,
         controlYMin: 10,
         controlYMax: 80,
+    });
+    mocks.target = [{ t: 0, bt: 400, et: null, ror: null, heater: null, fan: null, drum: null }];
+    mocks.targetSource = 'synthetic';
+    await render();
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        showTargetCurve: false,
+        targetXs: [],
+        tempMinC: 100,
+        tempMaxC: 250,
+        printTempBounds: { tempMinC: 170, tempMaxC: 410 },
     });
     await act(async () => root.unmount());
 });

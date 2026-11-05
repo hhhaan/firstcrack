@@ -264,9 +264,9 @@ it.each([
         print: true,
         xs: [0, 30, 90],
         controlData,
-        showControlDrum: true,
-        showControlHeat: true,
-        showControlFan: true,
+        showControlDrum: false,
+        showControlHeat: false,
+        showControlFan: false,
         eventMarkers: [{ event: 'Drop', timeSec: 60, timeStr: '1:00', temp: '185°C', color: '#777' }],
     });
     expect(option.grid).toHaveLength(names.length + 1);
@@ -2009,7 +2009,7 @@ describe('merged control chart', () => {
     });
 });
 
-it('keeps hidden sensor and control channels hidden in print without changing screen settings or samples', () => {
+it('preserves PDF sensor and control channels regardless of screen visibility without changing samples', () => {
     const params: ChartOptionParams = {
         ...baseParams(),
         xs: [0, 60],
@@ -2019,7 +2019,7 @@ it('keeps hidden sensor and control channels hidden in print without changing sc
         rorEtActual: [3, null],
         showET: false,
         showRoR: false,
-        showRoRET: true,
+        showRoRET: false,
         showControlHeat: false,
         showControlDrum: false,
         showControlFan: true,
@@ -2028,6 +2028,15 @@ it('keeps hidden sensor and control channels hidden in print without changing sc
     const snapshot = structuredClone(params);
     const print = buildRoastChartOption({ ...params, print: true });
     const series = Array.isArray(print.series) ? print.series : [];
-    expect(series.map((s) => s.name)).toEqual(['BT Actual', 'ET RoR', 'Fan', 'Event curve labels']);
+    expect(series.map((s) => s.name)).toEqual([
+        'BT Actual',
+        'ET Actual',
+        'RoR',
+        'ET RoR',
+        'Heat',
+        'Fan',
+        'Drum',
+        'Event curve labels',
+    ]);
     expect(params).toEqual(snapshot);
 });

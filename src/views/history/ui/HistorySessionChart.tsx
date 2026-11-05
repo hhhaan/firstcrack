@@ -51,6 +51,7 @@ import { sessionDropTime } from '../lib/record-heat';
 import {
     curveStatusKey,
     historyControls,
+    historyPrintTempBounds,
     historyTargetVisible,
     historyXView,
     mergedBbpRange,
@@ -229,6 +230,26 @@ export function HistorySessionChart({
     const referenceCurve = useMemo(() => referenceCurveFromPoints(target.points), [target.points]);
     const displayedTarget = useMemo(() => toDisplayReferenceCurve(referenceCurve, unit), [referenceCurve, unit]);
     const targetVisible = historyTargetVisible(showTargetCurve, target.points.length);
+    // The PDF historically fitted all samples, including a synthetic reference when enabled.
+    // Keep that print policy separate from the measured-only reference shown on screen.
+    const printTarget = useMemo(
+        () =>
+            joinBbp
+                ? combineBbpCurve(
+                      resolvedTargetPoints,
+                      targetBbp.isError ? [] : (targetBbp.data ?? []),
+                      source?.bbp_seconds,
+                  ).points
+                : resolvedTargetPoints,
+        [joinBbp, resolvedTargetPoints, targetBbp.isError, targetBbp.data, source?.bbp_seconds],
+    );
+    const printTempBounds = historyPrintTempBounds(
+        points,
+        printTarget,
+        historyTargetVisible(showTargetCurve, printTarget.length) ? { bt: showProfileBt, et: showProfileEt } : null,
+        settings.tempMinC,
+        settings.tempMaxC,
+    );
     const referenceControls = referenceHasControls(referenceCurve);
     const heatSet = useMemo(
         () =>
@@ -254,7 +275,7 @@ export function HistorySessionChart({
         points,
         heatSet,
         heatSetUnit: heaterUnit,
-        referenceControls: targetVisible && referenceControls,
+        referenceControls,
         displayedTarget,
     });
     const showControlBand = savedControlsVisible(controlData, settings, targetVisible);
@@ -357,7 +378,8 @@ export function HistorySessionChart({
                     xViewMax={xView.max}
                     bbpRange={bbpRange}
                     controlData={showControlBand ? controlData : undefined}
-                    printControlData={showControlBand ? controlData : undefined}
+                    printControlData={controlData}
+                    printTempBounds={printTempBounds}
                     phaseSegments={settings.showPhaseBar ? phases : []}
                     height={showControlBand ? 440 : 360}
                 />

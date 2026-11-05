@@ -1328,7 +1328,7 @@ describe('RoastTempChart interactions', () => {
         }
     });
 
-    it('exports only enabled populated sensor channels in the PDF and legend', async () => {
+    it('preserves PDF channels and legend regardless of screen channel toggles', async () => {
         const ref = createRef<RoastTempChartHandle>();
         act(() =>
             root.render(
@@ -1337,17 +1337,22 @@ describe('RoastTempChart interactions', () => {
                     ref,
                     showET: false,
                     showRoR: false,
-                    showRoRET: true,
+                    showRoRET: false,
                     rorEtActual: [1, null],
                 }),
             ),
         );
         const capture = await ref.current?.capturePdf();
-        expect(capture?.legend.map((item) => item.label)).toEqual(['BT (°C)', 'ET RoR (°C/min)']);
+        expect(capture?.legend.map((item) => item.label)).toEqual([
+            'BT (°C)',
+            'ET (°C)',
+            'BT RoR (°C/min)',
+            'ET RoR (°C/min)',
+        ]);
         const option = paper.setOption.mock.lastCall?.[0];
         expect(option.series.map((series: { name: string }) => series.name)).toContain('ET RoR');
-        expect(option.series.map((series: { name: string }) => series.name)).not.toContain('ET Actual');
-        expect(option.series.map((series: { name: string }) => series.name)).not.toContain('RoR');
+        expect(option.series.map((series: { name: string }) => series.name)).toContain('ET Actual');
+        expect(option.series.map((series: { name: string }) => series.name)).toContain('RoR');
         act(() =>
             root.render(
                 createElement(RoastTempChart, {
@@ -1355,12 +1360,42 @@ describe('RoastTempChart interactions', () => {
                     ref,
                     showET: false,
                     showRoR: false,
-                    showRoRET: true,
+                    showRoRET: false,
                     rorEtActual: [null, null],
                 }),
             ),
         );
-        expect((await ref.current?.capturePdf())?.legend.map((item) => item.label)).toEqual(['BT (°C)']);
+        expect((await ref.current?.capturePdf())?.legend.map((item) => item.label)).toEqual([
+            'BT (°C)',
+            'ET (°C)',
+            'BT RoR (°C/min)',
+        ]);
+    });
+
+    it('uses the historical fitted range only for PDF and leaves the screen option intact', async () => {
+        const ref = createRef<RoastTempChartHandle>();
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    ref,
+                    tempMinC: 130,
+                    tempMaxC: 240,
+                    printTempBounds: { tempMinC: 80, tempMaxC: 220 },
+                    showET: false,
+                    showRoR: false,
+                    showRoRET: false,
+                }),
+            ),
+        );
+        const screen = setOption.mock.lastCall?.[0];
+        const snapshot = screen.yAxis.map((axis: object) => ({ ...axis }));
+        expect(screen.yAxis[0]).toMatchObject({ min: 130, max: 240 });
+        const calls = setOption.mock.calls.length;
+        await ref.current?.capturePdf();
+        expect(paper.setOption.mock.lastCall?.[0].yAxis[0]).toMatchObject({ min: 50, max: 250 });
+        expect(setOption.mock.calls).toHaveLength(calls);
+        expect(screen.yAxis).toEqual(snapshot);
     });
 
     it('exports saved controls without adding an empty on-screen feedback plot', async () => {
