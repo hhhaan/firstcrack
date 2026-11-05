@@ -304,6 +304,12 @@ BEGIN
      AND EXISTS (SELECT 1 FROM private.roast_charge_batches WHERE user_id = v_user AND session_id = NEW.id AND state = 'completed')
   THEN RETURN NEW; END IF;
   gate_err := public.profile_write_error(v_user);
+  -- shortcut: schedule writes get 24h admission grace; use a save-scoped RPC if stricter billing is needed.
+  IF TG_TABLE_NAME = 'roast_day_plans'
+     AND gate_err IN ('trial_expired','trial_event_expired','trial_batch_cap','trial_event_batch_cap')
+     AND EXISTS (SELECT 1 FROM private.roast_charge_batches WHERE user_id = v_user
+       AND state IN ('reserved','charged') AND usage_at > clock_timestamp() - interval '24 hours')
+  THEN RETURN NEW; END IF;
   IF gate_err IS NOT NULL THEN
     RAISE EXCEPTION '%', gate_err USING ERRCODE = '23514', DETAIL = format('table=%s user=%s', TG_TABLE_NAME, v_user);
   END IF;
@@ -495,6 +501,11 @@ BEGIN
   THEN RETURN NEW; END IF;
 
   gate_err := public.profile_write_error(v_user);
+  -- Match day-plan grace so summary/recovery can materialize the occurrence before saving.
+  IF gate_err IN ('trial_expired','trial_event_expired','trial_batch_cap','trial_event_batch_cap')
+     AND EXISTS (SELECT 1 FROM private.roast_charge_batches WHERE user_id = v_user
+       AND state IN ('reserved','charged') AND usage_at > clock_timestamp() - interval '24 hours')
+  THEN RETURN NEW; END IF;
   IF gate_err IS NOT NULL THEN
     RAISE EXCEPTION '%', gate_err
       USING ERRCODE = 'check_violation',

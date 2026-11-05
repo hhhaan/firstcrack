@@ -75,9 +75,67 @@ beforeEach(() => {
 });
 afterEach(() => {
     for (const fn of cleanup.splice(0)) fn();
+    vi.useRealTimers();
 });
 
 describe('trial batch preflight', () => {
+    it.each(['online', 'timer'])('recovers an exhausted reservation on %s with the same UUID', async (trigger) => {
+        vi.useFakeTimers();
+        mocks.reserve.mockRejectedValue(trigger === 'online' ? new TypeError('Failed to fetch') : { status: 503 });
+        const h = mount();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3100);
+        });
+        expect(h.value.ready).toBe(false);
+        const id = mocks.reserve.mock.calls[0][1];
+        mocks.reserve.mockResolvedValue(undefined);
+        await act(async () => {
+            if (trigger === 'online') {
+                window.dispatchEvent(new Event('online'));
+                window.dispatchEvent(new Event('online'));
+            } else await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(h.value.ready).toBe(true);
+        expect(mocks.reserve.mock.calls.every((call) => call[1] === id)).toBe(true);
+        expect(mocks.release).not.toHaveBeenCalled();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(mocks.reserve).toHaveBeenCalledTimes(4);
+    });
+    it('stops retrying and releases an uncertain reservation when leaving Charge wait', async () => {
+        vi.useFakeTimers();
+        mocks.reserve.mockRejectedValue(new TypeError('Failed to fetch'));
+        const h = mount();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3100);
+        });
+        const id = mocks.reserve.mock.calls[0][1];
+        await act(async () => {
+            useRoastingStore.setState({ phase: 'idle' });
+        });
+        await act(async () => {
+            window.dispatchEvent(new Event('online'));
+            await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(h.value.ready).toBe(false);
+        expect(mocks.reserve).toHaveBeenCalledTimes(3);
+        expect(mocks.release).toHaveBeenCalledWith('owner-a', id);
+    });
+    it('does not retry an authorization refusal on reconnect or a timer', async () => {
+        vi.useFakeTimers();
+        mocks.reserve.mockRejectedValue({ status: 403 });
+        const h = mount();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(3100);
+        });
+        await act(async () => {
+            window.dispatchEvent(new Event('online'));
+            await vi.advanceTimersByTimeAsync(10_000);
+        });
+        expect(h.value.ready).toBe(false);
+        expect(mocks.reserve).toHaveBeenCalledTimes(1);
+    });
     it('does not Charge for an unresolved workspace even on an unlimited plan', async () => {
         mocks.plan = 'tester';
         mocks.ready = false;

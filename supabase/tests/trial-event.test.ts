@@ -117,8 +117,8 @@ await asUser(owner,async()=> {
 const last='77777777-7777-4777-8777-777777777777';
 const plan='88888888-8888-4888-8888-888888888888';
 const batch='99999999-9999-4999-8999-999999999999';
-await db.query('INSERT INTO roast_day_plans(id,user_id) VALUES($1,$2)',[plan,owner]);
-await db.query('INSERT INTO roast_plan_batches(id,plan_id) VALUES($1,$2)',[batch,plan]);
+// An old discarded Charge must not leave schedule writes open indefinitely.
+await db.query("UPDATE private.roast_charge_batches SET usage_at=now()-interval '25 hours' WHERE user_id=$1 AND state='charged'",[owner]);
 await asUser(member,async()=> {
     assert.equal(await scalar('SELECT count(*)::int FROM trial_event_grants'),1);
     await reserve(owner,last);
@@ -133,6 +133,9 @@ await asUser(member,async()=> {
     await assert.rejects(()=>reserve(owner,crypto.randomUUID()),/trial_event_batch_cap/);
     await assert.rejects(()=>db.query('INSERT INTO roast_sessions(id,user_id,weight_grams) VALUES($1,$2,-1)',[last,owner]),/check constraint/);
     assert.deepEqual(await counters(),{used_batches:100,reserved_batches:0});
+    const capPlan = crypto.randomUUID();
+    await db.query('INSERT INTO roast_day_plans(id,user_id) VALUES($1,$2)',[capPlan,owner]);
+    await db.query('INSERT INTO roast_plan_batches(plan_id) VALUES($1)',[capPlan]);
 });
 await db.query("UPDATE trial_event_grants SET started_at=started_at-interval '91 days', ends_at=ends_at-interval '91 days' WHERE user_id=$1",[owner]);
 await asUser(owner,async()=> {
@@ -141,6 +144,9 @@ await asUser(owner,async()=> {
     await assert.rejects(()=>reserve(owner,crypto.randomUUID()),/trial_event_expired/);
     await charge(owner,last);
     await assert.rejects(()=>db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[owner]),/trial_event_expired/);
+    // Summary materializes a recurring occurrence in separate requests before saving.
+    await db.query('INSERT INTO roast_day_plans(id,user_id) VALUES($1,$2)',[plan,owner]);
+    await db.query('INSERT INTO roast_plan_batches(id,plan_id) VALUES($1,$2)',[batch,plan]);
     // The admitted roast and its atomic stock writes complete after expiry.
     await db.query(`WITH saved AS (INSERT INTO roast_sessions(id,user_id,plan_batch_id) VALUES($1,$2,$3) RETURNING id,user_id)
       INSERT INTO bean_stock_events(user_id,reference_id,delta_grams) SELECT user_id,id,-1000 FROM saved`,[last,owner,batch]);
@@ -249,12 +255,38 @@ await asUser(delayedOwner,async()=> {
 });
 await db.query("UPDATE trial_event_grants SET started_at=started_at-interval '91 days', ends_at=ends_at-interval '91 days' WHERE user_id=$1",[delayedOwner]);
 await asUser(delayedOwner,async()=> {
+    // An acknowledgement can be offline while the admitted save resolves its schedule.
+    const pendingPlan = crypto.randomUUID();
+    await db.query('INSERT INTO roast_day_plans(id,user_id) VALUES($1,$2)',[pendingPlan,delayedOwner]);
+    await db.query('INSERT INTO roast_plan_batches(plan_id) VALUES($1)',[pendingPlan]);
     await charge(delayedOwner,delayedCharge);
     await release(delayedOwner,delayedCharge);
     await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[delayedCharge,delayedOwner]);
     await db.query('INSERT INTO roast_sessions(id,user_id) VALUES($1,$2)',[delayedSave,delayedOwner]);
     await charge(delayedOwner,delayedSave);
     assert.deepEqual((await db.query('SELECT used_batches,reserved_batches FROM trial_event_grants WHERE user_id=$1',[delayedOwner])).rows[0],{used_batches:2,reserved_batches:0});
+});
+const staleOwner = crypto.randomUUID();
+const staleCharge = crypto.randomUUID();
+const stalePlan = crypto.randomUUID();
+await db.query("INSERT INTO profiles(id,plan,created_at) VALUES($1,'trial',now())",[staleOwner]);
+await asUser(staleOwner,async()=> { await reserve(staleOwner,staleCharge); });
+await db.query("UPDATE profiles SET created_at=now()-interval '15 days' WHERE id=$1",[staleOwner]);
+await asUser(staleOwner,async()=> {
+    await db.query('INSERT INTO roast_day_plans(id,user_id) VALUES($1,$2)',[stalePlan,staleOwner]);
+    await db.query('INSERT INTO roast_plan_batches(plan_id) VALUES($1)',[stalePlan]);
+    await assert.rejects(()=>db.query('INSERT INTO roast_day_plans(user_id) VALUES($1)',[tester]),/row-level security/);
+});
+await db.query("UPDATE private.roast_charge_batches SET usage_at=now()-interval '25 hours' WHERE session_id=$1",[staleCharge]);
+await asUser(staleOwner,async()=> {
+    await assert.rejects(()=>db.query('INSERT INTO roast_day_plans(user_id) VALUES($1)',[staleOwner]),/trial_expired/);
+    await assert.rejects(()=>db.query('INSERT INTO roast_plan_batches(plan_id) VALUES($1)',[stalePlan]),/trial_expired/);
+});
+await db.query("UPDATE private.roast_charge_batches SET usage_at=now() WHERE session_id=$1",[staleCharge]);
+await db.query("UPDATE profiles SET plan='read_only' WHERE id=$1",[staleOwner]);
+await asUser(staleOwner,async()=> {
+    await assert.rejects(()=>db.query('INSERT INTO roast_day_plans(user_id) VALUES($1)',[staleOwner]),/read_only_plan/);
+    await assert.rejects(()=>db.query('INSERT INTO roast_plan_batches(plan_id) VALUES($1)',[stalePlan]),/read_only_plan/);
 });
 // Actual Polar resolver upgrades event trials, retains tester, and never renews grants.
 const org='3b6494cb-8248-47d1-a5f2-65ff7ca9b8a8';

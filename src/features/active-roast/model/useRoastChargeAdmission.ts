@@ -11,7 +11,7 @@ import {
 import { useExpiryClock } from '@shared/lib/features/useExpiryClock';
 import { logger } from '@shared/lib/logger';
 import { roastChargeKeys } from '@shared/lib/query-keys';
-import { retryUnlessClientRefusal } from '@shared/lib/sentry';
+import { isClientRefusal, retryUnlessClientRefusal } from '@shared/lib/sentry';
 import { useToastStore } from '@shared/store/toast';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -59,15 +59,17 @@ export function useRoastChargeAdmission(): ChargeAdmission {
         const owner = workspaceOwnerId;
         let id: string;
         let alive = true;
+        let retryTimer: ReturnType<typeof setTimeout> | undefined;
         const invalidate = () => void qc.invalidateQueries({ queryKey: roastChargeKeys.all(owner) });
         const release = (reservationId: string) =>
             void roastChargeApi
                 .release(owner, reservationId)
                 .then(invalidate)
                 .catch((err) => logger.capture(err, { feature: 'roast-charge-release' }));
-        const prepare = () => {
+        const prepare = (reservationId: string = crypto.randomUUID()) => {
+            clearTimeout(retryTimer);
             retryPreparation.current = null;
-            id = crypto.randomUUID();
+            id = reservationId;
             const attemptId = id;
             const capacityAtStart = previousCapacity.current;
             void reserve({ owner, id: attemptId })
@@ -81,7 +83,12 @@ export function useRoastChargeAdmission(): ChargeAdmission {
                     invalidate();
                 })
                 .catch((err) => {
-                    // A transport failure can hide a committed reservation; release is idempotent.
+                    if (alive && !isClientRefusal(err)) {
+                        // The response may be lost after commit; retry the same reservation.
+                        retryPreparation.current = () => prepare(attemptId);
+                        retryTimer = setTimeout(() => retryPreparation.current?.(), 5000);
+                        return;
+                    }
                     release(attemptId);
                     if (alive) {
                         if (
@@ -97,15 +104,19 @@ export function useRoastChargeAdmission(): ChargeAdmission {
                     }
                 });
         };
+        const retryOnline = () => retryPreparation.current?.();
+        window.addEventListener('online', retryOnline);
         prepare();
         return () => {
             alive = false;
-            retryPreparation.current = null;
+            clearTimeout(retryTimer);
+            window.removeEventListener('online', retryOnline);
             setReadyScope(null);
-            if (slot.current?.id === id) {
+            if (slot.current?.id === id || retryPreparation.current) {
                 slot.current = null;
                 release(id);
             }
+            retryPreparation.current = null;
         };
     }, [eligible, workspaceOwnerId, scope, reserve, qc]);
 

@@ -66,12 +66,23 @@ derived plan progress after the cap or trial expiry. The monthly roast cap does
 not freeze unrelated inventory writes. Summary discard is synchronous and has no
 network refund step, so Save/Cancel Drop cannot race a returned allowance.
 
+For trial plans, a reserved/charged admission less than 24 hours old also permits
+day-plan and plan-batch writes after the cap or expiry. This lets summary/recovery
+materialize a recurring occurrence before the session save. The grace deliberately
+allows other schedule edits during that window; it ends when no recent unfinished
+admission remains. It does not allow new Charges, unrelated inventory/history edits,
+MCP writes or writes for an explicitly `read_only` owner. Workspace ownership checks
+still apply. Strict save-only enforcement can replace this with a dedicated RPC later.
+
 ## Unused preparations
 
 Only preparations that never reached Charge may be returned with
 `release_roast_charge(owner_id, session_id)` in an authorized user session.
 Refused preparation retries when refreshed available capacity increases, without
 cycling its own last slot. Charged/completed UUIDs ignore release requests.
+After transport/5xx retries are exhausted, preparation retries the same UUID on
+reconnection or after five seconds. It keeps that uncertain reservation until
+success or leaving the admission scope, so a lost response cannot reserve twice.
 
 Reservations deliberately do not expire automatically. A disconnected device may
 have charged even without a saved roast. Support must check the running session,
@@ -103,3 +114,8 @@ broad hosted-schema export. The isolated schema is not a substitute for the real
 pre-change schema. Public RPC types are checked against the isolated catalog.
 No production schema or user plans were changed. Complete the local reset/type
 generation required by `supabase/AGENTS.md` before release.
+
+2026-11-06: Recovery/grace regressions passed in PGlite, alongside 54 related
+frontend tests, type checks and changed-file Biome checks. Node 26 tests used
+`NODE_OPTIONS=--no-experimental-webstorage` for jsdom storage. The local reset
+could not run because Docker was stopped; full-schema validation remains pending.
