@@ -1357,7 +1357,7 @@ describe('RoastTempChart interactions', () => {
             expect(printOption.grid[0].height).toBeGreaterThan(200);
             expect(
                 Number(printOption.grid[1].top) - Number(printOption.grid[0].top) - Number(printOption.grid[0].height),
-            ).toBeCloseTo(14.4 + 32);
+            ).toBeCloseTo(roastPdfLayout.plotGap + roastPdfLayout.axisSpace);
             expect(
                 printOption.series.find((series: { name: string }) => series.name === 'BT Actual').lineStyle.color,
             ).toBe('#009d4c');

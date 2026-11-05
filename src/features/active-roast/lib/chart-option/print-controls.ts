@@ -91,7 +91,7 @@ export const buildPrintControls = (
     const yAxis: YAXisComponentOption[] = Array.isArray(baseY) ? baseY : [];
     applyReportAxes({ xAxis, yAxis }, params.colors, xMax - xMin, params.temperatureUnit, 50);
 
-    const axisSpace = 32;
+    const axisSpace = roastPdfLayout.axisSpace;
     const controlWeights = channels.map((channel) => (channel.role === 'heater' ? 1.5 : 1));
     const rowHeight =
         (roastPdfLayout.chartHeight -
