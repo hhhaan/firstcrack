@@ -8,7 +8,14 @@ import {
 } from '@shared/lib/query-keys';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { Bean, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
-import { type QueryClient, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    type InvalidateOptions,
+    type QueryClient,
+    useInfiniteQuery,
+    useMutation,
+    useQuery,
+    useQueryClient,
+} from '@tanstack/react-query';
 import { roastSessionApi } from './api';
 import {
     beginOptimisticRoastSessionDelete,
@@ -39,14 +46,35 @@ export const roastSessionKeys = {
  * (a profile link change must not leave the previous profile stale).
  * `refetchType: 'all'` — these reads are often unmounted; default `active` left Infinity caches stale.
  */
-export const invalidateRoastSessionQueries = async (qc: QueryClient, userId: string) => {
-    await Promise.all([
-        qc.invalidateQueries({ queryKey: roastSessionKeys.all(userId), refetchType: 'all' }),
-        qc.invalidateQueries({ queryKey: [...roastProfileQueryRoots.profiles, userId], refetchType: 'all' }),
-        qc.invalidateQueries({ queryKey: dashboardKeys.all(userId), refetchType: 'all' }),
-        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.beanHistory, refetchType: 'all' }),
-        qc.invalidateQueries({ queryKey: roastProfileQueryRoots.consistency, refetchType: 'all' }),
-    ]);
+export const invalidateRoastSessionQueries = async (
+    qc: QueryClient,
+    userId: string,
+    options?: Pick<InvalidateOptions, 'throwOnError'>,
+) => {
+    const roots = [
+        roastSessionKeys.all(userId),
+        [...roastProfileQueryRoots.profiles, userId],
+        dashboardKeys.all(userId),
+        roastProfileQueryRoots.beanHistory,
+        roastProfileQueryRoots.consistency,
+    ];
+    if (!options?.throwOnError) {
+        await Promise.all(roots.map((queryKey) => qc.invalidateQueries({ queryKey, refetchType: 'all' })));
+        return;
+    }
+    // Root-level refetch rejects early; durable save must wait for every matching query.
+    const results = await Promise.allSettled(
+        roots.flatMap((queryKey) =>
+            qc
+                .getQueryCache()
+                .findAll({ queryKey })
+                .map((query) =>
+                    qc.invalidateQueries({ queryKey: query.queryKey, exact: true, refetchType: 'all' }, options),
+                ),
+        ),
+    );
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed?.status === 'rejected') throw failed.reason;
 };
 
 /** Alias used by Active Roast save — same helper as update/delete/setOutput. */

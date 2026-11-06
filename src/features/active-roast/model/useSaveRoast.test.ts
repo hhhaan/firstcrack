@@ -557,11 +557,11 @@ describe('refreshCachesAfterRoastSave', () => {
             plan_batch_id: 'batch-1',
         } as RoastSession);
         expect(sync).not.toHaveBeenCalled();
-        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner', { throwOnError: true });
         sync.mockRestore();
     });
 
-    it('reports final refresh failure and still rejects', async () => {
+    it('propagates final refetch failure without reporting it twice', async () => {
         vi.mocked(invalidateRoastSessionQueries).mockRejectedValueOnce(new Error('refetch down'));
         const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -572,11 +572,8 @@ describe('refreshCachesAfterRoastSave', () => {
                 plan_batch_id: 'batch-1',
             } as RoastSession),
         ).rejects.toThrow('refetch down');
-        expect(capture).toHaveBeenCalledWith(expect.any(Error), {
-            context: 'refreshCachesAfterRoastSave',
-            planBatchId: 'batch-1',
-        });
-        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        expect(capture).not.toHaveBeenCalled();
+        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner', { throwOnError: true });
         capture.mockRestore();
     });
 
@@ -589,7 +586,7 @@ describe('refreshCachesAfterRoastSave', () => {
             plan_batch_id: null,
         } as RoastSession);
         expect(sync).not.toHaveBeenCalled();
-        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
+        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner', { throwOnError: true });
         sync.mockRestore();
     });
 });

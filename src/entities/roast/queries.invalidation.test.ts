@@ -37,6 +37,23 @@ describe('roastSessionKeys shape', () => {
 });
 
 describe('roast session mutation invalidation', () => {
+    it('keeps refetch failures non-throwing for existing mutation callers', async () => {
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
+        const queryFn = vi
+            .fn(async () => {
+                throw new Error('refetch failed');
+            })
+            .mockResolvedValueOnce([]);
+        const queryKey = roastSessionKeys.all(uid);
+        await qc.fetchQuery({ queryKey, queryFn });
+
+        await expect(invalidateRoastSessionQueries(qc, uid)).resolves.toBeUndefined();
+
+        expect(queryFn).toHaveBeenCalledTimes(2);
+        expect(qc.getQueryState(queryKey)?.error?.message).toBe('refetch failed');
+        qc.clear();
+    });
+
     it('invalidateRoastSessionQueries hits all(userId) + dashboard with refetchType all', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const spy = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue(undefined);

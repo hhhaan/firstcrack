@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
+import { roastSessionKeys } from '@entities/roast';
+import { logger } from '@shared/lib/logger';
+import { dashboardKeys, inventoryQueryRoots, roastedStockKeys } from '@shared/lib/query-keys';
 import type { PlanBatchHandoff, PlanBatchWithProgress, RoastSession } from '@shared/types/database.types';
+import { QueryCache, QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPendingRoastSave, type PendingRoastParams, readPendingRoastSave } from '../model/pendingRoastSave';
+import { refreshCachesAfterRoastSave } from '../model/useSaveRoast';
 import { splitBatchBbp } from './batch-timeline';
 import {
     isPendingRoastSaveActive,
@@ -239,6 +244,99 @@ describe('shared durable save coordinator', () => {
         expect(retry.syncRoastCurve).not.toHaveBeenCalled();
         expect(retry.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved);
     });
+    it.each(['same-root', 'cross-root'] as const)(
+        'retains pending after a real refetch failure until every sibling settles (%s first)',
+        async (first) => {
+            const sameRoot = deferred();
+            const crossRoot = deferred();
+            const onQueryError = vi.fn();
+            const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
+            const qc = new QueryClient({
+                queryCache: new QueryCache({ onError: onQueryError }),
+                defaultOptions: { queries: { retry: false, staleTime: Infinity, gcTime: Infinity } },
+            });
+            const failedRead = vi
+                .fn()
+                .mockResolvedValueOnce(0)
+                .mockRejectedValueOnce(new Error('network refetch failed'))
+                .mockResolvedValue(1);
+            const sameRootRead = vi
+                .fn(async () => {
+                    await sameRoot.promise;
+                    return 1;
+                })
+                .mockResolvedValueOnce(0);
+            const crossRootRead = vi
+                .fn(async () => {
+                    await crossRoot.promise;
+                    return 1;
+                })
+                .mockResolvedValueOnce(0);
+            await Promise.all([
+                qc.fetchQuery({ queryKey: roastSessionKeys.all('owner'), queryFn: failedRead }),
+                qc.fetchQuery({
+                    queryKey: roastSessionKeys.detail('owner', ID),
+                    queryFn: sameRootRead,
+                }),
+                qc.fetchQuery({ queryKey: dashboardKeys.all('owner'), queryFn: crossRootRead }),
+            ]);
+            const invalidations = vi.spyOn(qc, 'invalidateQueries');
+            const d = deps({ refreshCaches: vi.fn((session) => refreshCachesAfterRoastSave(qc, session)) });
+            let settled = false;
+            const activeWork = resumePendingRoastSave(d);
+            const work = activeWork.then((result) => {
+                settled = true;
+                return result;
+            });
+            await vi.waitFor(() => {
+                expect(onQueryError).toHaveBeenCalledTimes(1);
+                expect(sameRootRead).toHaveBeenCalledTimes(2);
+                expect(crossRootRead).toHaveBeenCalledTimes(2);
+            });
+            (first === 'same-root' ? sameRoot : crossRoot).resolve();
+            await vi.waitFor(() =>
+                expect(
+                    qc.getQueryState(
+                        first === 'same-root' ? roastSessionKeys.detail('owner', ID) : dashboardKeys.all('owner'),
+                    )?.fetchStatus,
+                ).toBe('idle'),
+            );
+            expect(settled).toBe(false);
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+            expect(readPendingRoastSave('owner', ID)).toMatchObject({
+                db: 'saved',
+                batch: 'synced',
+                profile: 'synced',
+            });
+            expect(resumePendingRoastSave(d)).toBe(activeWork);
+            (first === 'same-root' ? crossRoot : sameRoot).resolve();
+            expect((await work).syncPending).toBe(true);
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
+            const kept = readPendingRoastSave('owner', ID);
+            if (!kept) throw new Error('Missing pending snapshot');
+            expect(kept.error).toBe('network refetch failed');
+            expect(capture).not.toHaveBeenCalled();
+            for (const queryKey of [inventoryQueryRoots.beanStockEvents, roastedStockKeys.byUser('owner')]) {
+                expect(invalidations).toHaveBeenCalledWith({ queryKey, refetchType: 'all' });
+            }
+            const retry = deps({
+                pending: kept,
+                findSession: vi.fn(async () => saved),
+                refreshCaches: vi.fn((session) => refreshCachesAfterRoastSave(qc, session)),
+            });
+            expect((await resumePendingRoastSave(retry)).syncPending).toBeUndefined();
+            expect(readPendingRoastSave('owner', ID)).toBeNull();
+            expect(retry.saveRoast).not.toHaveBeenCalled();
+            expect(retry.resolveForRoast).not.toHaveBeenCalled();
+            expect(retry.syncBatch).not.toHaveBeenCalled();
+            expect(retry.syncRoastCurve).not.toHaveBeenCalled();
+            expect(retry.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved);
+            expect(failedRead).toHaveBeenCalledTimes(3);
+            expect(onQueryError).toHaveBeenCalledTimes(1);
+            expect(capture).not.toHaveBeenCalled();
+            qc.clear();
+        },
+    );
     it('waits for the other stage when persisting a successful stage fails', async () => {
         const batch = deferred();
         const curve = deferred();
