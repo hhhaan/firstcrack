@@ -143,7 +143,7 @@ async def test_owner_change_during_retry_preflight_prevents_resend(verified):
         await manager.control(heater=0)
 
     def preflight(db, offset, size):
-        manager._heater_command_version += 1
+        manager._control_versions["heater"] += 1
         return registers[(db, offset)][:size]
 
     plc.db_read.side_effect = preflight

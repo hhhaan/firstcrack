@@ -641,6 +641,8 @@ class S7Adapter:
                 readback_expected_hex=command_payload.hex(),
                 readback_observed_hex=observed_payload.hex(),
             )
+        if len(observed_payload) != len(command_payload):
+            raise IOError(f"S7 설정값 읽기 길이 불일치: role={role}")
         # raw 0(AUTO)을 논리 0으로 clamp해 성공 처리하지 않도록 인코딩 바이트로 비교한다.
         if observed_payload != bytes(command_payload):
             TRACE.record("err", "s7", f"write_readback mismatch role={role}")
@@ -777,9 +779,9 @@ class S7Adapter:
 
         await diagnostics.run(_write_all)
 
-    async def retry_control(self, heater: float, is_current: Callable[[], bool]) -> None:
+    async def retry_control(self, role: str, value: float, is_current: Callable[[], bool]) -> None:
         """Confirm a possibly applied command before deciding whether to send it again."""
-        await self.control(heater=heater, _confirm_first=True, _is_current=is_current)
+        await self.control(**{role: value}, _confirm_first=True, _is_current=is_current)
 
     @property
     def write_map(self) -> dict[str, dict[str, Any]]:

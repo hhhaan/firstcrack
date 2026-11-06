@@ -405,9 +405,9 @@ class RoasterManager:
         # heater_set 출처. 수동·Replay·PID 쓰기가 전부 control()을 지나므로 여기서 잡힌다.
         # 본체 조작반에서 돌린 값은 모른다 — 세트포인트 셀 readback이 붙기 전까지.
         self._last_applied: dict[str, float] = {}
-        self._heater_command_version = 0
-        self._heater_request: tuple[int, float] | None = None
-        self._heater_retry_count = 0
+        self._control_versions = {"heater": 0, "fan": 0, "drum": 0}
+        self._control_requests: dict[str, tuple[int, float]] = {}
+        self._control_retry_counts: dict[str, int] = {}
         self._ror_window_secs: float = config.ROR_WINDOW_SECS
         self._pid: PidRunner | None = None
         self._pid_task: asyncio.Task[None] | None = None
@@ -1031,35 +1031,47 @@ class RoasterManager:
 
         applied = clamp_command({k: float(v) for k, v in requested.items()}, write_map)
         epoch = self._connection_epoch
+        retry_role = next(iter(applied)) if len(applied) == 1 else None
+        retry_control = getattr(adapter, "retry_control", None)
+
+        def owner_available() -> bool:
+            return retry_role != "heater" or self._pid is None or self._pid.state().get("state") == "off"
+
         if retry_epoch is not None:
             if (
-                retry_epoch != epoch or set(applied) != {"heater"}
-                or self._heater_request != (epoch, applied["heater"])
-                or self._heater_retry_count >= 2
-                or (self._pid is not None and self._pid.state().get("state") != "off")
+                retry_epoch != epoch or retry_role not in {"heater", "fan"}
+                or self._control_requests.get(retry_role) != (epoch, applied[retry_role])
+                or self._control_retry_counts.get(retry_role, 0) >= 2
+                or not owner_available()
             ):
-                raise ControlUnavailable("재시도할 화력 명령의 연결 또는 제어권이 변경되었습니다.")
-            self._heater_retry_count += 1
-        elif "heater" in applied:
-            self._heater_command_version += 1
-            self._heater_request = (epoch, applied["heater"])
-            self._heater_retry_count = 0
+                raise ControlUnavailable("재시도할 제어 명령의 연결 또는 제어권이 변경되었습니다.")
+            spec = write_map[retry_role]
+            if retry_role != "heater" and (
+                not callable(retry_control)
+                or spec.get("verify_readback") is not True
+            ):
+                raise ControlUnavailable("이 채널은 확인 후 재시도를 지원하지 않습니다.")
+            self._control_retry_counts[retry_role] = self._control_retry_counts.get(retry_role, 0) + 1
+        else:
+            for role, value in applied.items():
+                self._control_versions[role] += 1
+                self._control_requests[role] = (epoch, value)
+                self._control_retry_counts[role] = 0
         if retry_epoch is None:
             self._hw_alerts_sent.discard("control_write_failed")
-        command_version = self._heater_command_version
+        command_version = self._control_versions.get(retry_role)
 
         def retry_is_current() -> bool:
             return (
                 self._adapter is adapter and self._connected and not self._resetting
                 and self._connection_epoch == epoch
-                and self._heater_command_version == command_version
-                and (self._pid is None or self._pid.state().get("state") == "off")
+                and self._control_versions.get(retry_role) == command_version
+                and owner_available()
             )
 
         try:
-            retry_control = getattr(adapter, "retry_control", None)
             if retry_epoch is not None and callable(retry_control):
-                await retry_control(applied["heater"], retry_is_current)
+                await retry_control(retry_role, applied[retry_role], retry_is_current)
             else:
                 await adapter.control(**applied)
         except Exception:
@@ -1141,8 +1153,8 @@ class RoasterManager:
                 f"목표 온도는 {cap['sv_min']:.0f}~{cap['sv_max']:.0f}°C 범위여야 합니다."
             )
 
-        self._heater_command_version += 1
-        self._heater_request = None
+        self._control_versions["heater"] += 1
+        self._control_requests.pop("heater", None)
         gains_cfg = ROASTER_REGISTRY[self._roaster_key]["pid"]
         if self._pid is None:
             self._pid = PidRunner(

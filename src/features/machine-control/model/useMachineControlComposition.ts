@@ -94,6 +94,7 @@ export const useMachineControlComposition = ({
         onApplied,
         gasOffDiagnostics,
         !pidActive && !roastFinished && !reconnecting,
+        reconnecting,
     );
     useEffect(() => {
         gasOffDiagnostics.updateContext({

@@ -47,6 +47,18 @@ const verifiedHeaterStatus = {
     },
 };
 
+const giesenStatus = {
+    ...verifiedHeaterStatus,
+    control: {
+        ...verifiedHeaterStatus.control,
+        limits: {
+            ...verifiedHeaterStatus.control.limits,
+            fan: { min: 100, max: 170, unit: 'Pa', verify_readback: true },
+            drum: { min: 40, max: 55, unit: 'Hz' },
+        },
+    },
+};
+
 const renderComposition = async (initial: MachineControlCompositionInput) => {
     const root = createRoot(document.createElement('div'));
     let latest!: ReturnType<typeof useMachineControlComposition>;
@@ -229,6 +241,70 @@ describe('useMachineControlComposition', () => {
         expect(onHeaterCommitted).toHaveBeenCalledExactlyOnceWith(50, '%');
         expect(hook.get().machine.desired.heater).toBe(50);
         expect(logger.capture).not.toHaveBeenCalled();
+        await hook.unmount();
+    });
+
+    it('enables airflow retries from status while PID owns only heat', async () => {
+        const role = 'fan';
+        getStatus.mockResolvedValue(giesenStatus);
+        setControl.mockRejectedValueOnce(new Error('write lost'));
+        const hook = await renderComposition({ ...base(), pidRuntime: runtime('running') });
+        const target = 120;
+        await act(async () => {
+            hook.get().changeManual(role, target);
+            hook.get().commitManual();
+        });
+        await act(async () => vi.advanceTimersByTimeAsync(500));
+        expect(setControl.mock.calls).toEqual([[{ [role]: target }], [{ [role]: target }, { connectionEpoch: 7 }]]);
+        expect(hook.get().machine.desired[role]).toBe(target);
+        expect(logger.capture).not.toHaveBeenCalled();
+        await hook.unmount();
+    });
+
+    it('does not resend an acknowledged drum command while feedback takes seconds to rise', async () => {
+        getStatus.mockResolvedValue(giesenStatus);
+        const input = { ...base(), liveData: { heater: 40, fan: 110, drum: 40 } };
+        const hook = await renderComposition(input);
+        await act(async () => {
+            hook.get().changeManual('drum', 50);
+            hook.get().commitManual();
+        });
+        for (const drum of [41, 43, 45, 48, 50]) {
+            await act(async () => vi.advanceTimersByTimeAsync(1000));
+            await hook.rerender({ ...input, liveData: { ...input.liveData, drum } });
+        }
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ drum: 50 });
+        expect(logger.capture).not.toHaveBeenCalled();
+        await hook.unmount();
+    });
+
+    it('reports a failed drum write once without automatically resending it', async () => {
+        getStatus.mockResolvedValue(giesenStatus);
+        setControl.mockRejectedValue(new Error('drum write failed'));
+        const hook = await renderComposition(base());
+        await act(async () => {
+            hook.get().changeManual('drum', 50);
+            hook.get().commitManual();
+        });
+        await act(async () => vi.advanceTimersByTimeAsync(5000));
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ drum: 50 });
+        expect(logger.capture).toHaveBeenCalledTimes(1);
+        await hook.unmount();
+    });
+
+    it('cancels airflow retries immediately when reconnecting starts', async () => {
+        const role = 'fan';
+        getStatus.mockResolvedValue(giesenStatus);
+        setControl.mockRejectedValueOnce(new Error('write lost'));
+        const hook = await renderComposition(base());
+        const target = 120;
+        await act(async () => {
+            hook.get().changeManual(role, target);
+            hook.get().commitManual();
+        });
+        await hook.rerender({ ...base(), reconnecting: true });
+        await act(async () => vi.advanceTimersByTimeAsync(2000));
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ [role]: target });
         await hook.unmount();
     });
 

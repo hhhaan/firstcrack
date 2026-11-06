@@ -62,6 +62,9 @@ async def test_commands_use_artisan_limits_and_only_write_the_command_cell(key, 
     expected = max(minimum, min(maximum, requested))
     adapter = S7Adapter(**params)
     adapter._plc = MagicMock()
+    memory = {}
+    adapter._plc.db_write.side_effect = lambda db, offset, payload: memory.update({(db, offset): bytearray(payload)})
+    adapter._plc.db_read.side_effect = lambda db, offset, size: memory[(db, offset)][:size]
     adapter._min_interval = 0
     manager = RoasterManager()
     manager._adapter = adapter
