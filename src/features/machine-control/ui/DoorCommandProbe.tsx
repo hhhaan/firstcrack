@@ -186,7 +186,7 @@ export const DoorCommandProbe = ({
                 align="start"
                 sideOffset={12}
                 aria-label={t('machines.doorProbe.title')}
-                className="w-[276px] max-w-[calc(100vw-24px)] max-h-(--radix-popover-content-available-height) overflow-y-auto rounded-xl border-border bg-main-bg p-4 shadow-(--shadow-ring) dark:[&_button[data-primary]]:!text-on-action"
+                className="z-[10000] w-[276px] max-w-[calc(100vw-24px)] max-h-(--radix-popover-content-available-height) overflow-y-auto rounded-xl border-border bg-main-bg p-4 shadow-(--shadow-ring) dark:[&_button[data-primary]]:!text-on-action"
             >
                 <div className="pb-2.5 text-[10px] text-muted">{t('machines.doorProbe.doors')}</div>
                 <div className="grid grid-cols-2 gap-2">
