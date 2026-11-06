@@ -1,10 +1,13 @@
 import * as Sentry from '@sentry/react';
 import { logger } from '@shared/lib/logger';
+import { captureActionable } from '@shared/lib/sentry';
 import { invoke } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
 import { check } from '@tauri-apps/plugin-updater';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+import { looksLikeReadOnlyFsError, shouldShowNotInApplicationsHint } from './updaterApplyErrors';
 
 export type UpdateStatus =
     | 'idle'
@@ -245,8 +248,35 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
             if (platform() !== 'windows') await invoke('relaunch_for_update');
         } catch (error) {
             clearLastDownloadedVersion();
-            const msg = error instanceof Error ? error.message : 'updater.relaunchError';
-            Sentry.captureException(error, { extra: { context: 'relaunch_for_update' } });
+            let inApplications: boolean | null = null;
+            if (platform() === 'macos') {
+                try {
+                    inApplications = await invoke<boolean>('macos_app_is_in_applications');
+                } catch {
+                    inApplications = null;
+                }
+            }
+            const isEROFS = looksLikeReadOnlyFsError(error);
+            const notInAppsHint = shouldShowNotInApplicationsHint({
+                looksLikeEROFS: isEROFS,
+                inApplications,
+            });
+            const msg = notInAppsHint
+                ? 'updater.notInApplications'
+                : error instanceof Error
+                  ? error.message
+                  : 'updater.relaunchError';
+            captureActionable(error, {
+                tags: {
+                    feature: 'updater',
+                    ...(notInAppsHint ? { 'updater.hint': 'not_in_applications' } : {}),
+                },
+                extra: {
+                    context: 'relaunch_for_update',
+                    ...(inApplications !== null ? { macos_app_in_applications: inApplications } : {}),
+                    not_in_applications_hint: notInAppsHint,
+                },
+            });
             statusRef.current = 'error';
             setState((prev) => ({ ...prev, status: 'error', error: msg }));
         }
