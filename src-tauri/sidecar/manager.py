@@ -15,6 +15,7 @@ from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
+from giesen_airflow import upgrade_saved_airflow_maps
 
 _log = logging.getLogger(__name__)
 
@@ -281,6 +282,8 @@ def _merge_connect_params(
             continue
         if not _has_real_map(params[key]) and key in defaults:
             merged[key] = defaults[key]
+
+    upgrade_saved_airflow_maps(defaults, merged)
 
     # Form prefix → registry role. BT/ET stay uppercase; control roles match the adapters.
     for prefix, role in (

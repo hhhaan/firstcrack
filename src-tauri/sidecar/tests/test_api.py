@@ -248,7 +248,7 @@ class TestControlEndpoint:
         assert resp.status == 200
         control = (await (await client.get("/status")).json())["control"]
         assert control["writable"] is True
-        assert set(control["limits"]) == {"heater", "drum"}
+        assert set(control["limits"]) == {"heater", "fan", "drum"}
         drum = control["limits"]["drum"]
         assert (drum["min"], drum["max"], drum["unit"]) == (40, 55, "Hz")
 
@@ -257,8 +257,9 @@ class TestControlEndpoint:
         assert (await resp.json())["applied"] == {"drum": 55}
         assert fake.control_calls == [{"heater": None, "fan": None, "drum": 55}]
         resp = await client.post("/control", json={"fan": 50})
-        assert resp.status == 400
-        assert len(fake.control_calls) == 1
+        assert resp.status == 200
+        assert (await resp.json())["applied"] == {"fan": 100}
+        assert fake.control_calls[-1] == {"heater": None, "fan": 100, "drum": None}
 
     async def test_status_reports_not_writable_before_connect(self, client):
         control = (await (await client.get("/status")).json())["control"]

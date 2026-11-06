@@ -3,6 +3,7 @@ import { logger } from '@shared/lib/logger';
 import { sidecar, subscribeSidecarSettings } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { controlFeedback } from '../lib/controlFeedback';
 import { convergeTolerance } from '../lib/controlScale';
 import {
     type ControlCommand,
@@ -158,11 +159,14 @@ export const useMachineControl = (
     // 이걸 안 하면 한 번 만진 슬라이더가 영원히 내 값에 고정돼, 본체 조작반에서
     // 화력을 바꿔도 화면이 그대로다.
     const heaterMax = capability?.limits.heater?.max;
+    const fanControlUnit = capability?.limits.fan?.unit;
+    const fanReadUnit = connectionStatus?.read_units?.fan;
     useEffect(() => {
         if (!feedback) return;
         setTracking((tracking) => {
             const { desired: prev, zeroPolls: prevZeroPolls } = tracking;
-            const settled = settledRoles(prev, feedback, convergeTolerance(heaterMax));
+            const compatible = controlFeedback(feedback, fanControlUnit, fanReadUnit);
+            const settled = settledRoles(prev, compatible ?? feedback, convergeTolerance(heaterMax));
             const zeroPolls =
                 tracking.zeroRequested && prev.heater != null && !settled.includes('heater')
                     ? Math.min(prevZeroPolls + 1, SAFE_OFF_RETRY_POLLS)
@@ -172,7 +176,7 @@ export const useMachineControl = (
             for (const role of settled) delete nextDesired[role];
             return { ...tracking, desired: nextDesired, zeroPolls };
         });
-    }, [feedback, heaterMax]);
+    }, [feedback, heaterMax, fanControlUnit, fanReadUnit]);
 
     const setValue = useCallback(
         (role: ControlRole, value: number) => {

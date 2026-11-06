@@ -547,15 +547,26 @@ Notes:
 - **쓰기는 `write_map`이 있는 로스터에서만 일어난다.** `write_map`은 레지스트리
   `default_params` 안에 있고, 읽기용 `channels`와 별도로 정의한다. Giesen 화력은
   피드백 DB2.48(읽기 전용)과 duty 세트포인트 DB2.14(쓰기 대상)가 다르다.
-  클래식 W45A/W60A 드럼은 예외로 DB2.18을 읽고 쓴다.
+  W1A/W1E 및 클래식 W45A/W60A 드럼은 DB2.18을 읽고 쓴다.
 - `write_map`에 없는 role 요청은 `400`, 쓰기 맵이 없는 로스터는 `409`를 반환한다.
   현재 쓰기 맵이 있는 것은 Giesen S7 계열(db2 계열 `DB2.14`, W6A PRO `DB1001.42`)의
-  `heater`, 클래식 `giesen_w45a_w60a`의 `drum`, 가상 머신이다.
-  W45A/W60A 드럼은 DB2.18 INT, 40~55 Hz, 오프셋 0이며 `/status.control.limits.drum`으로 노출한다.
-  이 범위는 Artisan W45A/W60A 슬라이더 기준이며 Quantifiers 상한 45나 W60A Pro 범위와 구분한다.
-  저장된 화력 전용 맵이 현재 또는 구형 기본 맵과 정확히 같으면 드럼을 추가하고, 커스텀 맵은 보존한다.
-  다른 Giesen 키의 쓰기 맵은 heater만 유지한다. fan/압력 쓰기와 드럼 Replay는 지원하지 않는다.
-  DB2.10은 Artisan에서 온도 SP로 지정돼 있으므로 팬 명령을 보내지 않는다.
+  `heater`, `giesen_w1` 및 클래식 `giesen_w45a_w60a`의 `fan`/`drum`, 가상 머신이다.
+  W1A/W1E는 배기압 80~150 Pa, 드럼 35~60 Hz이고 W45A/W60A는 100~170 Pa, 40~55 Hz다.
+  배기압 명령은 DB2.16 INT, 드럼 명령은 DB2.18 INT이며 두 명령 모두 값 오프셋은 0이다.
+  `/status.control.limits`가 이 범위와 단위를 제공한다. 범위는 Artisan의 Sliders 기준이며
+  Quantifiers 상한이나 PRO 모델의 범위와 구분한다.
+  두 프리셋의 기본 `fan` 읽기는 DB2.52의 실제 압력(Pa)이고 `drum` 단위는 Hz다.
+  팬 모터 출력 DB2.54(%)는 `extra_readings` 배열의 `id=fan_output` 항목으로 별도 제공한다.
+  추가 읽기는 배기압 설정 DB2.16(`airflow_setpoint`, Pa), 온도 설정 DB2.10
+  (`temperature_setpoint`, °C), 기기 화력 설정 DB2.14(`heater_setpoint`, raw−1 %)이다.
+  raw 0의 화력 설정은 −1(AUTO)이며 화력 피드백이나 앱의 마지막 성공 명령 `heater_set`과 다르다.
+  추가 채널은 기존 optional read 예산을 사용하므로 실패·시간 초과 시 해당 값은 null이다.
+  저장된 기본 읽기/쓰기 맵은 정확히 일치하는 경우에만 갱신하며 커스텀 맵은 보존한다.
+  커스텀 팬 읽기의 단위가 %이거나 없으면 Pa 조절기의 피드백으로 사용하지 않는다.
+  다른 Giesen 키의 쓰기 맵은 heater만 유지한다. 팬·드럼 Replay는 지원하지 않는다.
+  DB2.10 온도 SP 쓰기, 장비 ON/OFF 및 AUTO 인계는 이 드럼·배기 제어 변경에 포함하지 않는다.
+  근거: [Artisan 16455e39e1f6의 W1A/W1E/W45A/W60A 설정](https://github.com/artisan-roaster-scope/artisan/tree/16455e39e1f6964f5578391afd8ff0cab830b2f1/src/includes/Machines/Giesen).
+  주소·단위·허용 범위와 PLC 전송은 모의 장비로 검증하며 실제 로스터 동작 검증은 별도다.
 - Probat `probat_gug_control_s7`는 heater(DB200.80, 0–100%), fan(DB200.64, 25–100%),
   drum(DB200.72, 25–60 RPM)을 지원한다. `probat_gug_s7`는 읽기 전용이다.
   `probat_ws`는 `burner`/`exhaustFan`/`drum` 노드를 0–100%로 쓰고, `probat_sample_ws`는

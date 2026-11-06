@@ -3,6 +3,7 @@ import { useBoundShortcut } from '@shared/lib/useDoubleShortcut';
 import { formatShortcut, useShortcutKeys, useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { controlFeedback } from '../lib/controlFeedback';
 import { isMachineControlPanelShown, MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import { numericHeaterStep } from '../lib/heater-events';
 import type { ReplayPoint } from '../lib/replay';
@@ -107,7 +108,7 @@ export const MachineControlPanel = ({
                 <MachineControlChannels
                     limits={limits}
                     desired={desired}
-                    liveData={liveData}
+                    liveData={controlFeedback(liveData, limits.fan?.unit, machine.connectionStatus?.read_units?.fan)}
                     writable={writable && !commandsLocked}
                     sending={sending}
                     pidHoldsHeater={pidHoldsHeater}
