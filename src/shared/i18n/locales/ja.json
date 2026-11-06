@@ -97,6 +97,7 @@
         "agreeToTerms": "<terms>利用規約</terms>と<privacy>プライバシーポリシー</privacy>に同意します。",
         "checkInbox": "受信トレイを確認してください。確認メールを送信しました。",
         "errors": {
+            "password_reset_failed": "パスワード再設定ページを開けませんでした。もう一度お試しください。",
             "invalid_credentials": "メールまたはパスワードが正しくありません。もう一度お試しください。",
             "network": "ネットワークエラーです。接続を確認してからもう一度お試しください。",
             "oauth_failed": "サインインを完了できませんでした。もう一度お試しください。",

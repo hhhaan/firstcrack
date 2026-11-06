@@ -25,6 +25,7 @@ export type AuthErrorCode =
     | 'weak_password'
     | 'password_mismatch'
     | 'email_not_confirmed'
+    | 'password_reset_failed'
     | 'generic';
 
 export type SignUpResult = 'session' | 'confirm_email';

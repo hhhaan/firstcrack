@@ -4,7 +4,7 @@ import { supabase } from '@shared/lib/supabase';
 import type { AuthErrorCode } from '@shared/store/auth';
 import { useAuthStore } from '@shared/store/auth';
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 // fallback은 반드시 Tauri deep-link 스킴(firstcrack://)과 isOAuthCallbackUrl 조건(auth/callback)을
 // 동시에 만족해야 함. tauri://localhost/callback 같은 값은 두 조건을 모두 실패시켜 OAuth가 영원히 안 끝남.
@@ -26,6 +26,7 @@ export const useLogin = (onLogin?: () => void) => {
     const startOAuth = useAuthStore((s) => s.startOAuth);
     const cancelOAuth = useAuthStore((s) => s.cancelOAuth);
     const oauthError = useAuthStore((s) => s.oauthError);
+    const passwordResetPending = useRef(false);
 
     const displayError = error ?? oauthError;
 
@@ -125,6 +126,23 @@ export const useLogin = (onLogin?: () => void) => {
         }
     }, [startOAuth, cancelOAuth]);
 
+    const handlePasswordReset = useCallback(
+        async (url: string) => {
+            if (loading || passwordResetPending.current) return;
+            passwordResetPending.current = true;
+            setError(null);
+            try {
+                await openUrl(url);
+            } catch (err: unknown) {
+                logger.capture(err, { feature: 'auth' });
+                setError('password_reset_failed');
+            } finally {
+                passwordResetPending.current = false;
+            }
+        },
+        [loading],
+    );
+
     return {
         email,
         setEmail,
@@ -138,6 +156,7 @@ export const useLogin = (onLogin?: () => void) => {
         displayError,
         handleSubmit,
         handleGoogleOAuth,
+        handlePasswordReset,
         screen,
         setScreen,
         agreedToTerms,

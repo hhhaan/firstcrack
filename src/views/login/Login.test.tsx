@@ -5,9 +5,11 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Login } from './Login';
 
-const { signUpWithEmail, settingsSet } = vi.hoisted(() => ({
+const { signInWithEmail, signUpWithEmail, settingsSet, openUrl } = vi.hoisted(() => ({
+    signInWithEmail: vi.fn(),
     signUpWithEmail: vi.fn(),
     settingsSet: vi.fn(),
+    openUrl: vi.fn(),
 }));
 
 vi.mock('@shared/lib/settings-store', () => ({
@@ -17,7 +19,7 @@ vi.mock('@shared/lib/settings-store', () => ({
 vi.mock('@shared/store/auth', () => ({
     useAuthStore: (select: (state: Record<string, unknown>) => unknown) =>
         select({
-            signInWithEmail: vi.fn(),
+            signInWithEmail,
             signUpWithEmail,
             startOAuth: vi.fn(),
             cancelOAuth: vi.fn(),
@@ -26,7 +28,7 @@ vi.mock('@shared/store/auth', () => ({
 }));
 vi.mock('@shared/lib/supabase', () => ({ supabase: { auth: { signInWithOAuth: vi.fn() } } }));
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
-vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn() }));
+vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -36,6 +38,7 @@ describe('Login', () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
+        openUrl.mockReset().mockResolvedValue(undefined);
         vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {} });
         await initI18n({ persist: false });
         host = document.createElement('div');
@@ -64,6 +67,46 @@ describe('Login', () => {
             input.dispatchEvent(new Event('input', { bubbles: true }));
         });
     };
+
+    it('opens the password reset page without submitting the sign-in form', async () => {
+        await act(async () => button('비밀번호를 잊으셨나요?').click());
+
+        expect(openUrl).toHaveBeenCalledExactlyOnceWith('https://firstcrackiscoming.com/forgot-password');
+        expect(signInWithEmail).not.toHaveBeenCalled();
+        expect(host.querySelector('[role="alert"]')).toBeNull();
+        expect(host.querySelector('form')).not.toBeNull();
+    });
+
+    it('opens only one reset page while the browser launch is pending', async () => {
+        let finishOpening: (() => void) | undefined;
+        openUrl.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                finishOpening = resolve;
+            }),
+        );
+        await act(async () => {
+            button('비밀번호를 잊으셨나요?').click();
+            button('비밀번호를 잊으셨나요?').click();
+        });
+        expect(openUrl).toHaveBeenCalledTimes(1);
+        await act(async () => finishOpening?.());
+    });
+
+    it('shows a retryable error when the password reset page cannot open', async () => {
+        openUrl.mockRejectedValueOnce(new Error('Cannot open browser'));
+        await fill('auth-email', 'roaster@example.com');
+        await fill('auth-password', 'password1');
+        await act(async () => button('비밀번호를 잊으셨나요?').click());
+
+        expect(host.querySelector('[role="alert"]')?.textContent).toContain('비밀번호 재설정 페이지를 열지 못했어요');
+        expect(host.querySelector<HTMLInputElement>('#auth-email')?.value).toBe('roaster@example.com');
+        expect(host.querySelector<HTMLInputElement>('#auth-password')?.value).toBe('password1');
+
+        await act(async () => button('비밀번호를 잊으셨나요?').click());
+
+        expect(openUrl).toHaveBeenCalledTimes(2);
+        expect(host.querySelector('[role="alert"]')).toBeNull();
+    });
 
     it('switches and persists language before authentication without losing signup input', async () => {
         await act(async () => button('회원가입').click());

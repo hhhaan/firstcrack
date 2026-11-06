@@ -32,6 +32,7 @@ export const Login = ({ onLogin }: LoginProps) => {
         displayError,
         handleSubmit,
         handleGoogleOAuth,
+        handlePasswordReset,
         screen,
         setScreen,
         agreedToTerms,
@@ -127,7 +128,8 @@ export const Login = ({ onLogin }: LoginProps) => {
                                                 !isSignUp && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => void openUrl(FORGOT_PASSWORD_URL)}
+                                                        onClick={() => void handlePasswordReset(FORGOT_PASSWORD_URL)}
+                                                        disabled={loading}
                                                         className={`${authLinkCls} text-[11px] text-muted`}
                                                     >
                                                         {t('auth.forgotPassword')}

@@ -97,6 +97,7 @@
         "agreeToTerms": "I agree to the <terms>Terms</terms> and <privacy>Privacy Policy</privacy>.",
         "checkInbox": "Check your inbox — we sent a confirmation email.",
         "errors": {
+            "password_reset_failed": "Couldn't open the password reset page. Try again.",
             "invalid_credentials": "Incorrect email or password. Please try again.",
             "network": "Network error. Check your connection and try again.",
             "oauth_failed": "Sign-in could not be completed. Please try again.",
