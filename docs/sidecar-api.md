@@ -563,6 +563,9 @@ Notes:
   추가 채널은 기존 optional read 예산을 사용하므로 실패·시간 초과 시 해당 값은 null이다.
   저장된 기본 읽기/쓰기 맵은 정확히 일치하는 경우에만 갱신하며 커스텀 맵은 보존한다.
   커스텀 팬 읽기의 단위가 %이거나 없으면 Pa 조절기의 피드백으로 사용하지 않는다.
+  `fan_db`/`fan_offset`으로 읽기 주소를 변경하면 최종 주소와 디코딩에 맞춰 단위를 확인한다.
+  DB2.54 기본 INT 읽기는 %로 표시하며, 알 수 없는 주소·스케일에는 Pa를 상속하지 않는다.
+  주소 변경이 없는 커스텀 채널의 명시 단위와 보정값은 보존한다.
   다른 Giesen 키의 쓰기 맵은 heater만 유지한다. 팬·드럼 Replay는 지원하지 않는다.
   DB2.10 온도 SP 쓰기, 장비 ON/OFF 및 AUTO 인계는 이 드럼·배기 제어 변경에 포함하지 않는다.
   근거: [Artisan 16455e39e1f6의 W1A/W1E/W45A/W60A 설정](https://github.com/artisan-roaster-scope/artisan/tree/16455e39e1f6964f5578391afd8ff0cab830b2f1/src/includes/Machines/Giesen).

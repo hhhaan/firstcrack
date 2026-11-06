@@ -11,7 +11,7 @@ import pytest
 from adapters.s7 import S7Adapter
 from manager import RoasterManager, _merge_connect_params
 from roaster_registry import ROASTER_REGISTRY
-from tests.conftest import FakeAdapter
+from tests.conftest import FakeAdapter, make_reading
 from tests.test_api import client  # noqa: F401 — shared HTTP fixture
 
 
@@ -114,6 +114,74 @@ async def test_http_exposes_pressure_units_and_accepts_both_controls(client, key
     result = await client.post("/control", json={"fan": 120, "drum": 50})
     assert result.status == 200
     assert (await result.json())["applied"] == {"fan": 120, "drum": 50}
+
+
+@pytest.mark.parametrize("key", ["giesen_w1", "giesen_w45a_w60a"])
+@pytest.mark.parametrize("saved_factory_map", [False, True])
+@pytest.mark.parametrize("overrides,expected_address,unit", [
+    ({"fan_db": 2, "fan_offset": 54}, (2, 54), "%"),
+    ({"fan_offset": 54}, (2, 54), "%"),
+    ({"fan_offset": 52}, (2, 52), "Pa"),
+    ({"fan_db": 9}, (9, 52), None),
+    ({"fan_offset": 98}, (2, 98), None),
+])
+def test_flat_fan_overrides_do_not_inherit_pressure_units(key, saved_factory_map, overrides, expected_address, unit):
+    defaults = ROASTER_REGISTRY[key]["default_params"]
+    params = dict(overrides)
+    if saved_factory_map:
+        params["channels"] = [
+            {**{k: v for k, v in c.items() if k != "unit"},
+             **({"offset": 54} if c["role"] == "fan" else {})}
+            for c in defaults["channels"] if c["role"] in {"BT", "ET", "heater", "fan", "drum"}
+        ]
+    original_defaults, original_params = deepcopy(defaults), deepcopy(params)
+    merged = _merge_connect_params(defaults, params)
+    fan = next(c for c in merged["channels"] if c["role"] == "fan")
+    assert (fan["db"], fan["offset"]) == expected_address
+    assert fan.get("unit") == unit
+    assert merged["write_map"] == defaults["write_map"]
+    assert defaults == original_defaults
+    assert params == original_params
+
+
+@pytest.mark.parametrize("overrides", [{}, {"fan_db": 9, "fan_offset": 98}])
+def test_unchanged_custom_fan_map_preserves_explicit_units_and_scaling(overrides):
+    defaults = ROASTER_REGISTRY["giesen_w1"]["default_params"]
+    channels = deepcopy(defaults["channels"])
+    fan = next(c for c in channels if c["role"] == "fan")
+    fan.update(db=9, offset=98, unit="Pa", div=1, compensation=2)
+    merged = _merge_connect_params(defaults, {"channels": channels, **overrides})
+    assert merged["channels"] == channels
+
+
+@pytest.mark.parametrize("decoding", [{"div": 1}, {"compensation": 2}, {"area": 3}, {"type": 1}])
+def test_changed_flat_fan_address_does_not_infer_units_for_custom_decoding(decoding):
+    defaults = ROASTER_REGISTRY["giesen_w1"]["default_params"]
+    channels = deepcopy(defaults["channels"])
+    original_fan = next(c for c in channels if c["role"] == "fan")
+    original_fan.update(decoding)
+    merged = _merge_connect_params(defaults, {"channels": channels, "fan_offset": 54})
+    fan = next(c for c in merged["channels"] if c["role"] == "fan")
+    assert fan == {**{k: v for k, v in original_fan.items() if k != "unit"}, "offset": 54}
+    assert original_fan["unit"] == "Pa"
+    assert original_fan["offset"] == 52
+
+
+@pytest.mark.parametrize("key", ["giesen_w1", "giesen_w45a_w60a"])
+@pytest.mark.parametrize("offset,unit", [(52, "Pa"), (54, "%"), (98, None)])
+async def test_http_flat_fan_overrides_publish_matching_feedback_units(client, key, offset, unit):
+    with patch("manager.make_adapter", return_value=FakeAdapter(readings=[make_reading()] * 2)):
+        result = await client.post("/connect", json={"roaster": key, "fan_db": 2, "fan_offset": offset})
+    assert result.status == 200
+    status = await (await client.get("/status")).json()
+    assert status["read_units"].get("fan") == unit
+    assert status["control"]["limits"]["fan"]["unit"] == "Pa"
+    reading = await (await client.get("/temperatures")).json()
+    assert reading["processing"]["read_units"] == status["read_units"]
+    assert reading["fan"] == 60
+    result = await client.post("/control", json={"fan": 120})
+    assert result.status == 200
+    assert (await result.json())["applied"] == {"fan": 120}
 
 
 def test_other_models_do_not_inherit_w1_ranges():

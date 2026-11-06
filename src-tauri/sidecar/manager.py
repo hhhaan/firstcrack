@@ -15,7 +15,7 @@ from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
-from giesen_airflow import upgrade_saved_airflow_maps
+from giesen_airflow import reconcile_airflow_override_units, upgrade_saved_airflow_maps
 
 _log = logging.getLogger(__name__)
 
@@ -284,6 +284,7 @@ def _merge_connect_params(
             merged[key] = defaults[key]
 
     upgrade_saved_airflow_maps(defaults, merged)
+    channels_before_overrides = merged.get("channels")
 
     # Form prefix → registry role. BT/ET stay uppercase; control roles match the adapters.
     for prefix, role in (
@@ -341,6 +342,7 @@ def _merge_connect_params(
                 else channel
                 for channel in channels
             ]
+    reconcile_airflow_override_units(defaults, channels_before_overrides, merged)
     return merged
 
 

@@ -43,15 +43,20 @@ def with_airflow_controls(
     }
 
 
-def upgrade_saved_airflow_maps(defaults: dict[str, Any], merged: dict[str, Any]) -> None:
-    """Preserve edited addresses, scales, units, and limits, including partial maps."""
+def _is_airflow_preset(defaults: dict[str, Any]) -> bool:
     write_map = defaults.get("write_map", {})
     fan = write_map.get("fan", {})
-    if (fan.get("db"), fan.get("offset"), fan.get("unit")) != (2, 16, "Pa"):
+    return (fan.get("db"), fan.get("offset"), fan.get("unit")) == (2, 16, "Pa") and any(
+        c.get("role") == "fan_output" for c in defaults.get("channels", [])
+    )
+
+
+def upgrade_saved_airflow_maps(defaults: dict[str, Any], merged: dict[str, Any]) -> None:
+    """Preserve edited addresses, scales, units, and limits, including partial maps."""
+    if not _is_airflow_preset(defaults):
         return
+    write_map = defaults["write_map"]
     channels = defaults.get("channels", [])
-    if not any(c.get("role") == "fan_output" for c in channels):
-        return
     legacy_channels = [
         {**{k: v for k, v in c.items() if k != "unit"},
          **({"offset": 54} if c["role"] == "fan" else {})}
@@ -64,3 +69,27 @@ def upgrade_saved_airflow_maps(defaults: dict[str, Any], merged: dict[str, Any])
     previous_write_map = {r: write_map[r] for r in ("heater", "drum")}
     if merged.get("write_map") == previous_write_map:
         merged["write_map"] = dict(write_map)
+
+
+def reconcile_airflow_override_units(
+    defaults: dict[str, Any], previous_channels: Any, merged: dict[str, Any],
+) -> None:
+    """A changed flat address must not retain the old cell's feedback unit."""
+    if not _is_airflow_preset(defaults) or not isinstance(previous_channels, list):
+        return
+    previous = next((c for c in previous_channels if isinstance(c, dict) and c.get("role") == "fan"), {})
+    channels = merged.get("channels", [])
+    fan = next((c for c in channels if isinstance(c, dict) and c.get("role") == "fan"), None)
+    if fan is None or (fan.get("db"), fan.get("offset")) == (previous.get("db"), previous.get("offset")):
+        return  # Unchanged custom maps keep their explicit units and calibration.
+
+    # Infer only from a known airflow cell with the same decoding. An arbitrary
+    # DB/offset or custom scale has no proven unit, so the UI must ignore it for Pa.
+    fields = (("db", None), ("offset", None), ("area", 6), ("type", 0), ("div", 0), ("compensation", 0))
+    source = next((c for c in defaults["channels"]
+                   if c["role"] in {"fan", "fan_output", "airflow_setpoint"}
+                   and all(c.get(field, fallback) == fan.get(field, fallback) for field, fallback in fields)), None)
+    corrected = {k: v for k, v in fan.items() if k != "unit"}
+    if source is not None:
+        corrected["unit"] = source["unit"]
+    merged["channels"] = [corrected if c is fan else c for c in channels]
