@@ -93,7 +93,7 @@ Schedule "complete batch" deducts green with `reference_id = plan_batch.id`. A l
 
 - A batch-level `roast` event on `plan_batch.id` blocks another batch deduct and blocks a later session save (`roast_already_deducted`). Completing the batch still proceeds.
 - Session-level `roast` events do not block a later batch deduct. That is the C2 behavior. Do not put the block back.
-- Client: `useRoastSaveFlow` checks `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` and skips UX deduct when a batch event is present (fail-open if the check itself fails). Do not turn that check into fail-closed.
+- Client: the durable save coordinator sends the submitted deduction intent to `save_roast_op` without a batch-deduction pre-read. The server checks `roast_deduction_blocked(session.id)` after inserting the linked session and skips green deduction if a batch event already exists. The session and roasted inbound still save atomically.
 
 Blend grams: `save_roast_op` and schedule deduct both order components by `bean_id` and give the rounding remainder to the last id. Reserved stock for a blend uses the same split (`allocate_blend_grams`). Single-origin reservation stays a truncated gram total.
 
@@ -132,7 +132,7 @@ Helpers: `ensureRoastedStock` / `ensureProductStock` (cache-first). Invalidation
 | features | `src/features/active-roast/model/useDeductRoastStock.ts`, `useSaveRoast.ts`, `lib/roastedInbound.ts` | green deduct / bulk inbound |
 | features | `src/features/package-product/`, `src/features/blend-roasted/` | packaging / blend builders |
 | features | `src/features/fulfill-order/`, `src/features/cancel-order/` | product stock via order RPCs |
-| views | `src/views/active-roast/model/useRoastSaveFlow.ts` | save orchestration + F3 guard |
+| views | `src/views/active-roast/model/useRoastSaveFlow.ts` | save orchestration; F3 guard runs in `save_roast_op` |
 | views | `src/views/schedule/hooks/useScheduleDayView.ts` | batch complete deduct |
 | views | `src/views/history/ui/OutputWeightEditor.tsx` | output weight → inbound upsert |
 | DB | migrations under `supabase/migrations/*stock*`, `*inventory*` | schema + RPCs |

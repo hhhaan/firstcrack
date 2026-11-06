@@ -103,8 +103,61 @@ function deps(over: Partial<ResolveForRoastDeps> = {}): ResolveForRoastDeps {
         ...over,
     };
 }
+function deferred<T>() {
+    let resolve = (_value: T) => {};
+    const promise = new Promise<T>((res) => {
+        resolve = res;
+    });
+    return { promise, resolve };
+}
 
 describe('resolveForRoast', () => {
+    it('reads owner, count and recurrence together after fetching the concrete batch', async () => {
+        const owner = deferred<string | null>();
+        const count = deferred<number>();
+        const master = deferred<RecurrenceRule | null>();
+        const d = deps({
+            getDayPlanOwner: vi.fn(() => owner.promise),
+            countSessions: vi.fn(() => count.promise),
+            getRule: vi.fn(() => master.promise),
+        });
+        const work = resolveForRoast(OWNER, handoff({ planBatchId: REAL }), d);
+        await vi.waitFor(() => {
+            expect(d.getDayPlanOwner).toHaveBeenCalledWith(PLAN);
+            expect(d.countSessions).toHaveBeenCalledWith(REAL);
+            expect(d.getRule).toHaveBeenCalledWith(RULE);
+        });
+        owner.resolve(OWNER);
+        count.resolve(1);
+        master.resolve(rule());
+        expect((await work).completed_sessions).toBe(1);
+    });
+
+    it('reads virtual rule and exception together, then revalidates the master alongside owner and count', async () => {
+        const master = deferred<RecurrenceRule | null>();
+        const recheck = deferred<RecurrenceRule | null>();
+        const owner = deferred<string | null>();
+        const count = deferred<number>();
+        const d = deps({
+            getRule: vi.fn().mockReturnValueOnce(master.promise).mockReturnValueOnce(recheck.promise),
+            getDayPlanOwner: vi.fn(() => owner.promise),
+            countSessions: vi.fn(() => count.promise),
+        });
+        const work = resolveForRoast(OWNER, handoff(), d);
+        expect(d.getException).toHaveBeenCalledWith(RULE, '2026-09-01');
+        expect(d.materialize).not.toHaveBeenCalled();
+        master.resolve(rule());
+        await vi.waitFor(() => {
+            expect(d.getRule).toHaveBeenCalledTimes(2);
+            expect(d.getDayPlanOwner).toHaveBeenCalledWith(PLAN);
+            expect(d.countSessions).toHaveBeenCalledWith(REAL);
+        });
+        owner.resolve(OWNER);
+        count.resolve(1);
+        recheck.resolve(rule());
+        expect((await work).completed_sessions).toBe(1);
+    });
+
     it('materializes a selected virtual row with conflict read and returns a real uuid', async () => {
         const d = deps();
         const latest = await resolveForRoast(OWNER, virtualRow(), d);
@@ -177,6 +230,14 @@ describe('resolveForRoast', () => {
         await expect(resolveForRoast(OWNER, virtualRow(), stolen)).rejects.toThrow(/owner/i);
         expect(stolen.materialize).not.toHaveBeenCalled();
     });
+    it.each([{ status: 'cancelled' }, { user_id: 'other' }] as const)(
+        'still rejects an invalid concrete recurrence rule: %j',
+        async (patch) => {
+            const d = deps({ getRule: vi.fn(async () => rule(patch)) });
+            await expect(resolveForRoast(OWNER, handoff({ planBatchId: REAL }), d)).rejects.toThrow(/cancel|owner/i);
+            expect(d.materialize).not.toHaveBeenCalled();
+        },
+    );
     it('uses current master fields and ignores stale virtual fields', async () => {
         const d = deps({ getRule: vi.fn(async () => rule({ bean_name: 'New bean', bean_id: 'new' })) });
         await resolveForRoast(OWNER, virtualRow(), d);

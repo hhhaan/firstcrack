@@ -106,6 +106,7 @@ beforeEach(() => {
             resolveForRoast: vi.fn(),
             saveRoast: mocks.save,
             syncBatch: vi.fn(),
+            refreshCaches: vi.fn(),
             syncRoastCurve: mocks.upload,
         }),
     );

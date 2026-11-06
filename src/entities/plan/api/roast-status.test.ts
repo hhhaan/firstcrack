@@ -28,9 +28,15 @@ const source = {
     batchCount: 1,
     completedSessions: 0,
 };
-function query(data: unknown, error: unknown = null, count: number | null = null) {
+function query(
+    data: unknown,
+    error: unknown = null,
+    count: number | null = null,
+    pending?: Promise<{ data: unknown; error: unknown; count: number | null }>,
+) {
     const result = { data, error, count };
-    const q = Object.assign(Promise.resolve(result), {
+    const settled = pending ?? Promise.resolve(result);
+    const q = Object.assign(settled, {
         select: vi.fn(),
         eq: vi.fn(),
         or: vi.fn(),
@@ -39,11 +45,29 @@ function query(data: unknown, error: unknown = null, count: number | null = null
         single: vi.fn(),
     });
     for (const key of ['select', 'eq', 'or', 'update'] as const) q[key].mockReturnValue(q);
-    q.maybeSingle.mockResolvedValue(result);
-    q.single.mockResolvedValue(result);
+    q.maybeSingle.mockReturnValue(settled);
+    q.single.mockReturnValue(settled);
     return q;
 }
 beforeEach(() => from.mockReset());
+it('recovery counts sessions while the day-plan owner read is pending', async () => {
+    let releaseOwner = (_value: { data: unknown; error: unknown; count: number | null }) => {};
+    const owner = new Promise<{ data: unknown; error: unknown; count: number | null }>((resolve) => {
+        releaseOwner = resolve;
+    });
+    const countQuery = query(null, null, 2);
+    const update = query({ ...batch, status: 'done' });
+    from.mockReturnValueOnce(query(batch))
+        .mockReturnValueOnce(query(null, null, null, owner))
+        .mockReturnValueOnce(countQuery)
+        .mockReturnValueOnce(update);
+    const work = syncRoastProgress('owner', id);
+    await vi.waitFor(() => expect(countQuery.select).toHaveBeenCalledWith('id', { count: 'exact', head: true }));
+    expect(update.update).not.toHaveBeenCalled();
+    releaseOwner({ data: { user_id: 'other' }, error: null, count: null });
+    await expect(work).rejects.toThrow(/owner/);
+    expect(update.update).not.toHaveBeenCalled();
+});
 it('start uses fresh counts and writes only status with a revision guard', async () => {
     const update = query({ ...batch, status: 'in-progress' });
     from.mockReturnValueOnce(query(batch))
@@ -130,6 +154,17 @@ it('recovery does not revive cancelled exceptions', async () => {
         .mockReturnValueOnce(query({ user_id: 'owner' }))
         .mockReturnValueOnce(query(null, null, 2));
     expect((await syncRoastProgress('owner', id)).exception_type).toBe('cancelled');
+    expect(from).toHaveBeenCalledTimes(3);
+});
+it.each([
+    { status: 'cancelled', count: 2 },
+    { status: 'done', count: 2 },
+    { status: 'pending', count: 1 },
+])('does not fetch an irrelevant recurrence for recovery: %j', async ({ status, count }) => {
+    from.mockReturnValueOnce(query({ ...batch, status, recurrence_rule_id: 'rule' }))
+        .mockReturnValueOnce(query({ user_id: 'owner' }))
+        .mockReturnValueOnce(query(null, null, count));
+    expect((await syncRoastProgress('owner', id)).completed_sessions).toBe(count);
     expect(from).toHaveBeenCalledTimes(3);
 });
 

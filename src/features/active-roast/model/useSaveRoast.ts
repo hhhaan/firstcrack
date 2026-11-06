@@ -193,7 +193,7 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
     });
 
     // History/dashboard refetch is awaited once in refreshCachesAfterRoastSave
-    // (after optional schedule progress). Inventory marks are fire-and-forget.
+    // (after schedule progress and curve sync settle). Inventory marks are fire-and-forget.
     if (wantDeduct && provisionalPlan) {
         void qc.invalidateQueries({ queryKey: inventoryQueryRoots.beanStockSummaries, refetchType: 'all' });
         if (provisionalPlan.singleBeanId) {
@@ -218,7 +218,6 @@ export async function saveRoastCore(deps: SaveRoastDeps, params: SaveRoastParams
 export async function refreshCachesAfterRoastSave(qc: QueryClient, saved: RoastSession): Promise<void> {
     void qc.invalidateQueries({ queryKey: roastChargeKeys.all(saved.user_id) });
     try {
-        if (saved.plan_batch_id) await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
         invalidateScheduledBatchQueries(qc);
         await invalidateRoastSessionQueries(qc, saved.user_id);
     } catch (err) {
@@ -283,7 +282,16 @@ export const useSaveRoast = (_handoff: PlanBatchHandoff | null, syncRoastCurve: 
                         }
                     },
                     resolveForRoast: planBatchApi.resolveForRoast,
-                    syncBatch: (saved) => refreshCachesAfterRoastSave(qc, saved),
+                    syncBatch: async (saved) => {
+                        try {
+                            if (saved.plan_batch_id)
+                                await planBatchApi.syncRoastProgress(saved.user_id, saved.plan_batch_id);
+                        } catch (err) {
+                            logger.capture(err, { context: 'syncRoastProgress', planBatchId: saved.plan_batch_id });
+                            throw err;
+                        }
+                    },
+                    refreshCaches: (saved) => refreshCachesAfterRoastSave(qc, saved),
                     syncRoastCurve,
                 });
             } finally {

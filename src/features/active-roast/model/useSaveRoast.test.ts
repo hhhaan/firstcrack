@@ -548,7 +548,7 @@ describe('saveRoastCore', () => {
 describe('refreshCachesAfterRoastSave', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('syncs schedule progress then awaits history/dashboard refetch once', async () => {
+    it('awaits history/dashboard refetch once without repeating schedule progress', async () => {
         const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockResolvedValue({} as never);
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         await refreshCachesAfterRoastSave(qc, {
@@ -556,13 +556,13 @@ describe('refreshCachesAfterRoastSave', () => {
             user_id: 'owner',
             plan_batch_id: 'batch-1',
         } as RoastSession);
-        expect(sync).toHaveBeenCalledExactlyOnceWith('owner', 'batch-1');
+        expect(sync).not.toHaveBeenCalled();
         expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
         sync.mockRestore();
     });
 
-    it('reports schedule sync failure and still rejects', async () => {
-        const sync = vi.spyOn(planBatchApi, 'syncRoastProgress').mockRejectedValue(new Error('rpc down'));
+    it('reports final refresh failure and still rejects', async () => {
+        vi.mocked(invalidateRoastSessionQueries).mockRejectedValueOnce(new Error('refetch down'));
         const capture = vi.spyOn(logger, 'capture').mockImplementation(() => {});
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         await expect(
@@ -571,13 +571,12 @@ describe('refreshCachesAfterRoastSave', () => {
                 user_id: 'owner',
                 plan_batch_id: 'batch-1',
             } as RoastSession),
-        ).rejects.toThrow('rpc down');
+        ).rejects.toThrow('refetch down');
         expect(capture).toHaveBeenCalledWith(expect.any(Error), {
             context: 'refreshCachesAfterRoastSave',
             planBatchId: 'batch-1',
         });
-        expect(invalidateRoastSessionQueries).not.toHaveBeenCalled();
-        sync.mockRestore();
+        expect(invalidateRoastSessionQueries).toHaveBeenCalledExactlyOnceWith(qc, 'owner');
         capture.mockRestore();
     });
 

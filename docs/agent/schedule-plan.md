@@ -67,7 +67,7 @@ Use recurrence-rule merge APIs (`recurrenceRuleApi` / `mergeRecurrenceRuleMaster
 
 ### Handoff to Active Roast
 
-Set `planBatchHandoff` on `useRoastSessionStore`. Save path in Active Roast may deduct with **session** ref — coordinate with F3 (see inventory + active-roast-save docs).
+Set `planBatchHandoff` on `useRoastSessionStore`. Save path in Active Roast may deduct with **session** ref — `save_roast_op` checks the linked batch's existing deduction atomically (F3; see inventory + active-roast-save docs).
 
 ---
 
@@ -91,6 +91,6 @@ Set `planBatchHandoff` on `useRoastSessionStore`. Save path in Active Roast may 
 **Don't**
 
 - UPDATE a recurring virtual occurrence in place
-- Double-deduct green by completing a batch and then saving linked roasts without F3/C2 guards
+- Bypass server F3/C2 guards when completing a batch or saving linked roasts
 - Put schedule business logic into widgets without entity APIs
 - Bypass RLS with service-role from the desktop app

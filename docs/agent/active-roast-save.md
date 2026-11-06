@@ -109,13 +109,13 @@ Typical sequence:
 
 1. Resolve workspace (`useActiveWorkspace`) — abort if not ready
 2. Optional schedule link: pick `plan_batch` → `toPlanBatchHandoff`
-3. **F3 client guard:** if deduct requested and batch id known, `beanStockEventApi.hasRoastDeductionForReference(planBatchId)` → skip deduct + warn
+3. Resolve the latest linked batch: concrete batch reads owner/count/rule in parallel; virtual occurrences validate the rule before materialization and revalidate it afterward.
 4. Plan gates: monthly/trial batch caps (`src/shared/lib/features/` — `plan-matrix.ts`, `useWriteAccess.ts`)
-5. Build session payload + serialized events
-6. **Server atomic path:** `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set (see latest `supabase/migrations/*inventory_flow_hardening*`)
-7. Upload curve: local TSV → presigned PUT (`uploadRoastProfile` / BBP) with **owner** user id
-8. Coordinator `refreshCachesAfterRoastSave` once (optional schedule progress, then History/dashboard refetch). `saveRoastCore` does not await that refetch.
-9. Parallel profile + BBP uploads (`Promise.allSettled`); local TSV deleted only after that file's DB path confirm. Partial success is kept.
+5. Build session payload + serialized events; flush local TSV before the save RPC.
+6. **Server atomic path:** `roastSessionApi.saveOp` / RPC `save_roast_op` — session + green events + roasted inbound when deduct/inbound flags set. `roast_deduction_blocked` skips green deduction when the linked batch already claimed it; the client sends the submitted deduction intent without a pre-read.
+7. After the committed-session lookup/save, run optional schedule progress and curve sync concurrently (`Promise.allSettled`). Checkpoint each successful stage; retry only pending stages without replaying save/stock.
+8. Curve sync reads the saved session before upload, then uploads profile + BBP in parallel (`Promise.allSettled`) via presigned PUT with **owner** user id. Local TSV is deleted only after that file's DB path confirm. Partial success is kept.
+9. After both progress and curve sync settle, await `refreshCachesAfterRoastSave` once (History/dashboard refetch), including on partial failure. This prevents an earlier refetch from overwriting uploaded path patches. Retain pending on failure; keep recovery deduplicated until both stages and the final refresh finish. `saveRoastCore` does not await that refetch.
 10. Close save modal, then `fetchQuery` today's day batches → `getRemainingDayBatches` (`completed_sessions < batch_count`) → if any, open `PlanBatchContinueModal` with candidates; **Start next** calls `startBatch(handoff)` so bean/profile prefill via existing handoff path. Do not start the next batch before this progress fetch. `listForDateRange` parallelizes independent rule/plan/exception lookups.
 
 Form field semantics (`SaveRoastFormData` in `useSaveRoast.ts`):

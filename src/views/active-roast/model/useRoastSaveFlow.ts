@@ -146,8 +146,7 @@ export const useRoastSaveFlow = (params: UseRoastSaveFlowParams) => {
 
     const handleSave = useCallback(
         async (formData: RoastSummaryForm) => {
-            // isSaving turns true only inside saveRoast — the async F3 guard below
-            // leaves the button enabled, so block re-entry here too.
+            // Preparation precedes isSaving, so block re-entry here too.
             if (submitting.current || isSaving) return;
             submitting.current = true;
             setPreparing(true);

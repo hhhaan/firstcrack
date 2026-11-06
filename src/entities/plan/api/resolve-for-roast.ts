@@ -68,14 +68,6 @@ const assertBatchUsable = (ownerId: string, batch: PlanBatch, planOwner: string 
     }
 };
 
-const withProgress = async (
-    batch: PlanBatch,
-    countSessions: ResolveForRoastDeps['countSessions'],
-): Promise<PlanBatchWithProgress> => ({
-    ...batch,
-    completed_sessions: await countSessions(batch.id),
-});
-
 export const defaultResolveForRoastDeps = (): ResolveForRoastDeps => ({
     materialize: materializePlanBatch,
     getRule: (id) => recurrenceRuleApi.get(id),
@@ -130,10 +122,14 @@ export async function resolveForRoast(
         ) {
             throw new UnresolvablePlanBatchIdError('unresolvable plan batch id');
         }
-        const rule = await deps.getRule(virtual.ruleId);
+        const [rule, exception] = await Promise.all([
+            deps.getRule(virtual.ruleId),
+            deps.getException(virtual.ruleId, virtual.originalDate),
+        ]);
         if (!rule) throw new UnresolvablePlanBatchIdError('plan batch not found');
         assertRuleDate(ownerId, rule, virtual.originalDate);
-        let batch = await deps.getException(virtual.ruleId, virtual.originalDate);
+        let batch = exception;
+        let materialized = false;
         if (!batch) {
             const date = new Date(`${virtual.originalDate}T00:00:00`);
             if (
@@ -151,13 +147,18 @@ export async function resolveForRoast(
                 patchFromRule(rule),
                 { conflict: 'read' },
             );
-            const latestRule = await deps.getRule(virtual.ruleId);
-            if (!latestRule || JSON.stringify(latestRule) !== JSON.stringify(rule)) {
-                throw new UnresolvablePlanBatchIdError('plan recurrence changed; retry required');
-            }
+            materialized = true;
         }
-        assertBatchUsable(ownerId, batch, await deps.getDayPlanOwner(batch.plan_id));
-        return withProgress(batch, deps.countSessions);
+        const [latestRule, owner, completedSessions] = await Promise.all([
+            materialized ? deps.getRule(virtual.ruleId) : rule,
+            deps.getDayPlanOwner(batch.plan_id),
+            deps.countSessions(batch.id),
+        ]);
+        if (!latestRule || JSON.stringify(latestRule) !== JSON.stringify(rule)) {
+            throw new UnresolvablePlanBatchIdError('plan recurrence changed; retry required');
+        }
+        assertBatchUsable(ownerId, batch, owner);
+        return { ...batch, completed_sessions: completedSessions };
     }
 
     if (!isUuid(sourceId)) {
@@ -166,14 +167,17 @@ export async function resolveForRoast(
 
     const batch = await deps.getBatch(sourceId);
     if (!batch) throw new UnresolvablePlanBatchIdError('plan batch not found');
-    const owner = await deps.getDayPlanOwner(batch.plan_id);
+    const [owner, completedSessions, rule] = await Promise.all([
+        deps.getDayPlanOwner(batch.plan_id),
+        deps.countSessions(batch.id),
+        batch.recurrence_rule_id ? deps.getRule(batch.recurrence_rule_id) : null,
+    ]);
     assertBatchUsable(ownerId, batch, owner);
     if (batch.recurrence_rule_id) {
-        const rule = await deps.getRule(batch.recurrence_rule_id);
         if (!rule || !batch.original_date) throw new UnresolvablePlanBatchIdError('plan recurrence not found');
         assertRuleDate(ownerId, rule, batch.original_date);
     }
-    return withProgress(batch, deps.countSessions);
+    return { ...batch, completed_sessions: completedSessions };
 }
 
 /** Only change status if the row still has the revision we validated. */
@@ -249,10 +253,15 @@ export async function syncRoastProgress(ownerId: string, batchId: string): Promi
     if (!isUuid(batchId)) throw new UnresolvablePlanBatchIdError('unresolvable plan batch id');
     const deps = defaultResolveForRoastDeps();
     const batch = await deps.getBatch(batchId);
-    if (!batch || (await deps.getDayPlanOwner(batch.plan_id)) !== ownerId) {
+    if (!batch) throw new UnresolvablePlanBatchIdError('plan batch owner mismatch');
+    const [owner, completedSessions] = await Promise.all([
+        deps.getDayPlanOwner(batch.plan_id),
+        deps.countSessions(batch.id),
+    ]);
+    if (owner !== ownerId) {
         throw new UnresolvablePlanBatchIdError('plan batch owner mismatch');
     }
-    const latest = await withProgress(batch, deps.countSessions);
+    const latest = { ...batch, completed_sessions: completedSessions };
     if (
         batch.status !== 'cancelled' &&
         batch.exception_type !== 'cancelled' &&

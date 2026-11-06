@@ -3,7 +3,11 @@ import type { PlanBatchHandoff, PlanBatchWithProgress, RoastSession } from '@sha
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPendingRoastSave, type PendingRoastParams, readPendingRoastSave } from '../model/pendingRoastSave';
 import { splitBatchBbp } from './batch-timeline';
-import { type ResumePendingRoastSaveDeps, resumePendingRoastSave } from './resumePendingRoastSave';
+import {
+    isPendingRoastSaveActive,
+    type ResumePendingRoastSaveDeps,
+    resumePendingRoastSave,
+} from './resumePendingRoastSave';
 
 const ID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const BATCH = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
@@ -52,10 +56,19 @@ const deps = (patch: Partial<ResumePendingRoastSaveDeps> = {}): ResumePendingRoa
     resolveForRoast: vi.fn(async () => row),
     saveRoast: vi.fn(async () => ({ savedSession: saved, shouldOpenContinue: true })),
     syncBatch: vi.fn(async () => {}),
+    refreshCaches: vi.fn(async () => {}),
     syncRoastCurve: vi.fn(async () => {}),
-    hasBatchDeduction: vi.fn(async () => false),
     ...patch,
 });
+function deferred() {
+    let resolve = () => {};
+    let reject = (_error: Error) => {};
+    const promise = new Promise<void>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+}
 beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
@@ -114,16 +127,12 @@ describe('shared durable save coordinator', () => {
         );
     });
 
-    it('persists before auth and resolves before F3/RPC with the same UUID', async () => {
+    it('persists before auth and passes stock intent to the server with the resolved batch and same UUID', async () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-09-28T08:00:00.000Z'));
         const d = deps();
         d.ensureAccess = vi.fn(async () => {
             expect(readPendingRoastSave('owner', ID)?.submitted).toBe(true);
-        });
-        d.hasBatchDeduction = vi.fn(async (id) => {
-            expect(id).toBe(BATCH);
-            return true;
         });
         try {
             await resumePendingRoastSave(d);
@@ -133,7 +142,7 @@ describe('shared durable save coordinator', () => {
                     userId: 'owner',
                     roastStartTime: 1234,
                     planBatchHandoff: expect.objectContaining({ planBatchId: BATCH }),
-                    formData: expect.objectContaining({ deductStock: false }),
+                    formData: expect.objectContaining({ deductStock: true }),
                 }),
             );
             expect(readPendingRoastSave('owner', ID)).toBeNull();
@@ -142,30 +151,125 @@ describe('shared durable save coordinator', () => {
             vi.useRealTimers();
         }
     });
-    it('refreshes caches once after save and before curve sync', async () => {
-        const order: string[] = [];
+    it.each(['batch', 'curve'] as const)(
+        'runs progress and upload together; refresh waits when %s finishes first',
+        async (first) => {
+            const batch = deferred();
+            const curve = deferred();
+            const refresh = deferred();
+            const d = deps({
+                syncBatch: vi.fn(() => batch.promise),
+                syncRoastCurve: vi.fn(() => curve.promise),
+                refreshCaches: vi.fn(() => refresh.promise),
+            });
+            const work = resumePendingRoastSave(d);
+            await vi.waitFor(() => {
+                expect(d.syncBatch).toHaveBeenCalledWith(saved);
+                expect(d.syncRoastCurve).toHaveBeenCalledTimes(1);
+            });
+            expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
+            (first === 'batch' ? batch : curve).resolve();
+            await vi.waitFor(() =>
+                expect(readPendingRoastSave('owner', ID)?.[first === 'batch' ? 'batch' : 'profile']).toBe('synced'),
+            );
+            expect(d.refreshCaches).not.toHaveBeenCalled();
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+            (first === 'batch' ? curve : batch).resolve();
+            await vi.waitFor(() => expect(d.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved));
+            expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+            refresh.resolve();
+            await work;
+            expect(readPendingRoastSave('owner', ID)).toBeNull();
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
+        },
+    );
+    it.each(['batch', 'curve'] as const)(
+        'keeps recovery locked after %s fails until the other stage and refresh settle',
+        async (failed) => {
+            const batch = deferred();
+            const curve = deferred();
+            const refresh = deferred();
+            const d = deps({
+                syncBatch: vi.fn(() => batch.promise),
+                syncRoastCurve: vi.fn(() => curve.promise),
+                refreshCaches: vi.fn(() => refresh.promise),
+            });
+            const work = resumePendingRoastSave(d);
+            await vi.waitFor(() => expect(d.syncRoastCurve).toHaveBeenCalledTimes(1));
+            (failed === 'batch' ? batch : curve).reject(new Error(`${failed} failed`));
+            await Promise.resolve();
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+            expect(resumePendingRoastSave(d)).toBe(work);
+            expect(d.refreshCaches).not.toHaveBeenCalled();
+            (failed === 'batch' ? curve : batch).resolve();
+            await vi.waitFor(() => expect(d.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved));
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+            refresh.resolve();
+            expect((await work).syncPending).toBe(true);
+            expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
+            const kept = readPendingRoastSave('owner', ID);
+            if (!kept) throw new Error('Missing pending snapshot');
+            expect(kept.batch).toBe(failed === 'batch' ? 'pending' : 'synced');
+            expect(kept.profile).toBe(failed === 'curve' ? 'pending' : 'synced');
+            expect(kept.error).toBe(`${failed} failed`);
+            const retry = deps({ pending: kept, findSession: vi.fn(async () => saved) });
+            await resumePendingRoastSave(retry);
+            expect(retry.saveRoast).not.toHaveBeenCalled();
+            expect(retry.resolveForRoast).not.toHaveBeenCalled();
+            expect(retry.syncBatch).toHaveBeenCalledTimes(failed === 'batch' ? 1 : 0);
+            expect(retry.syncRoastCurve).toHaveBeenCalledTimes(failed === 'curve' ? 1 : 0);
+            expect(retry.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved);
+        },
+    );
+    it('retains completed stages when final cache refresh fails and retries only that refresh', async () => {
         const d = deps({
-            saveRoast: vi.fn(async () => {
-                order.push('save');
-                return { savedSession: saved, shouldOpenContinue: true };
-            }),
-            syncBatch: vi.fn(async () => {
-                order.push('syncBatch');
-            }),
-            syncRoastCurve: vi.fn(async () => {
-                order.push('curve');
+            refreshCaches: vi.fn(async () => {
+                throw new Error('refresh failed');
             }),
         });
-        await resumePendingRoastSave(d);
-        expect(order).toEqual(['save', 'syncBatch', 'curve']);
-        expect(d.syncBatch).toHaveBeenCalledTimes(1);
-        expect(d.syncRoastCurve).toHaveBeenCalledTimes(1);
+        expect((await resumePendingRoastSave(d)).syncPending).toBe(true);
+        const kept = readPendingRoastSave('owner', ID);
+        if (!kept) throw new Error('Missing pending snapshot');
+        expect(kept).toMatchObject({ db: 'saved', batch: 'synced', profile: 'synced', error: 'refresh failed' });
+        const retry = deps({ pending: kept, findSession: vi.fn(async () => saved) });
+        await resumePendingRoastSave(retry);
+        expect(retry.saveRoast).not.toHaveBeenCalled();
+        expect(retry.syncBatch).not.toHaveBeenCalled();
+        expect(retry.syncRoastCurve).not.toHaveBeenCalled();
+        expect(retry.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved);
     });
-    it('already committed sessions bypass resolver/F3/quota/save and only synchronize', async () => {
+    it('waits for the other stage when persisting a successful stage fails', async () => {
+        const batch = deferred();
+        const curve = deferred();
+        const d = deps({
+            syncBatch: vi.fn(() => batch.promise),
+            syncRoastCurve: vi.fn(() => curve.promise),
+        });
+        const work = resumePendingRoastSave(d);
+        await vi.waitFor(() => expect(d.syncRoastCurve).toHaveBeenCalledTimes(1));
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => {
+            throw new Error('checkpoint failed');
+        });
+        batch.resolve();
+        await Promise.resolve();
+        expect(isPendingRoastSaveActive('owner', ID)).toBe(true);
+        expect(resumePendingRoastSave(d)).toBe(work);
+        expect(d.refreshCaches).not.toHaveBeenCalled();
+        curve.resolve();
+        expect((await work).syncPending).toBe(true);
+        expect(d.refreshCaches).toHaveBeenCalledExactlyOnceWith(saved);
+        expect(readPendingRoastSave('owner', ID)).toMatchObject({
+            db: 'saved',
+            profile: 'synced',
+            error: 'checkpoint failed',
+        });
+        expect(isPendingRoastSaveActive('owner', ID)).toBe(false);
+    });
+    it('already committed sessions bypass resolver/quota/save and only synchronize', async () => {
         const d = deps({ findSession: vi.fn(async () => saved) });
         await resumePendingRoastSave(d);
         expect(d.resolveForRoast).not.toHaveBeenCalled();
-        expect(d.hasBatchDeduction).not.toHaveBeenCalled();
         expect(d.saveRoast).not.toHaveBeenCalled();
         expect(d.syncBatch).toHaveBeenCalledWith(saved);
     });
@@ -174,7 +278,8 @@ describe('shared durable save coordinator', () => {
         const d = deps({ findSession: vi.fn(async () => unlinked) });
         await resumePendingRoastSave(d);
         expect(d.saveRoast).not.toHaveBeenCalled();
-        expect(d.syncBatch).toHaveBeenCalledWith(unlinked);
+        expect(d.syncBatch).not.toHaveBeenCalled();
+        expect(d.refreshCaches).toHaveBeenCalledWith(unlinked);
         expect(readPendingRoastSave('owner', ID)).toBeNull();
     });
     it('lost RPC response is recovered with the identical session ID', async () => {
@@ -196,6 +301,7 @@ describe('shared durable save coordinator', () => {
         });
         await expect(resumePendingRoastSave(d)).rejects.toThrow('network');
         expect(d.saveRoast).not.toHaveBeenCalled();
+        expect(d.syncRoastCurve).not.toHaveBeenCalled();
         expect(readPendingRoastSave('owner', ID)).not.toBeNull();
     });
     it.each(['22P02', '23503', '23514'])('preserves %s snapshot as needs-attention', async (code) => {

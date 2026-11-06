@@ -1,4 +1,3 @@
-import { beanStockEventApi } from '@entities/bean-stock-event';
 import { errorMessage } from '@shared/lib/errorMessage';
 import { BatchLimitError } from '@shared/lib/features';
 import { logger } from '@shared/lib/logger';
@@ -19,9 +18,9 @@ export type ResumePendingRoastSaveDeps = {
     resolveForRoast: ResolveForRoastFn;
     saveRoast: (params: SaveRoastParams) => Promise<SaveRoastResult>;
     syncBatch: (saved: RoastSession) => Promise<void>;
+    refreshCaches: (saved: RoastSession) => Promise<void>;
     syncRoastCurve: SyncRoastCurve;
     hasBbpFile?: (id: string) => Promise<boolean>;
-    hasBatchDeduction?: (id: string) => Promise<boolean>;
 };
 const active = new Map<string, Promise<SaveRoastResult>>();
 export const isPendingRoastSaveActive = (ownerId: string, sessionId: string | null) =>
@@ -58,7 +57,7 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
         }
         return row;
     };
-    // Persist submitted intent before auth, materialization, F3 or any network request.
+    // Persist submitted intent before auth, materialization or any network request.
     checkpoint({ error: undefined });
     try {
         if (!sessionId || !userId || userId !== deps.ownerId) throw attention('Roast owner/session needs confirmation');
@@ -119,22 +118,8 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
                     formData: { ...pending.params.formData, linkedBatch: linked },
                 },
             });
-            let saveParams = pending.params;
-            const batchId = handoff?.planBatchId ?? linked?.planBatchId;
-            if (saveParams.formData.deductStock && batchId) {
-                try {
-                    const claimed = await (deps.hasBatchDeduction ?? beanStockEventApi.hasRoastDeductionForReference)(
-                        batchId,
-                    );
-                    if (claimed) {
-                        saveParams = { ...saveParams, formData: { ...saveParams.formData, deductStock: false } };
-                    }
-                } catch (err) {
-                    logger.capture(err, { context: 'stockDeduct guard' });
-                }
-            }
             try {
-                saved = verify((await deps.saveRoast(saveParams)).savedSession);
+                saved = verify((await deps.saveRoast(pending.params)).savedSession);
             } catch (err) {
                 // INSERT may have committed despite a lost response or competing quota check.
                 saved = verify(await deps.findSession(sessionId));
@@ -142,27 +127,43 @@ async function resume(deps: ResumePendingRoastSaveDeps): Promise<SaveRoastResult
             }
             if (!saved) throw new Error('Roast save returned no session');
         }
-        checkpoint({ db: 'saved', needsAttention: false, batch: saved.plan_batch_id ? 'pending' : 'not_required' });
-        const t0 = Date.now();
-        // A lost RPC response also skips cache invalidation for unlinked roasts.
-        await deps.syncBatch(saved);
-        logger.debug('roast-save-stage', { stage: 'sync-batch', ms: Date.now() - t0 });
-        if (pending.batch === 'pending') checkpoint({ batch: 'synced' });
-        if (pending.profile !== 'not_required' || pending.bbp !== 'not_required') {
-            const uploadStarted = Date.now();
-            await deps.syncRoastCurve({
-                sessionId,
-                roastSessionId: saved.id,
-                ownerId: userId,
-                profileRequired: pending.profile !== 'not_required',
-                bbpRequired: pending.bbp !== 'not_required',
-            });
-            logger.debug('roast-save-stage', { stage: 'sync-curve', ms: Date.now() - uploadStarted });
-            checkpoint({
-                profile: pending.profile === 'not_required' ? 'not_required' : 'synced',
-                bbp: pending.bbp === 'not_required' ? 'not_required' : 'synced',
-            });
-        }
+        checkpoint({
+            db: 'saved',
+            needsAttention: false,
+            batch: saved.plan_batch_id ? (pending.batch === 'synced' ? 'synced' : 'pending') : 'not_required',
+        });
+        const committed = saved;
+        const stages = await Promise.allSettled([
+            (async () => {
+                if (pending.batch !== 'pending') return;
+                const started = Date.now();
+                await deps.syncBatch(committed);
+                logger.debug('roast-save-stage', { stage: 'sync-batch', ms: Date.now() - started });
+                checkpoint({ batch: 'synced' });
+            })(),
+            (async () => {
+                const profileRequired = pending.profile === 'pending';
+                const bbpRequired = pending.bbp === 'pending';
+                if (!profileRequired && !bbpRequired) return;
+                const started = Date.now();
+                await deps.syncRoastCurve({
+                    sessionId,
+                    roastSessionId: committed.id,
+                    ownerId: userId,
+                    profileRequired,
+                    bbpRequired,
+                });
+                logger.debug('roast-save-stage', { stage: 'sync-curve', ms: Date.now() - started });
+                checkpoint({
+                    profile: profileRequired ? 'synced' : pending.profile,
+                    bbp: bbpRequired ? 'synced' : pending.bbp,
+                });
+            })(),
+        ]);
+        // Refetch only after uploads settle, so an old read cannot overwrite their path patches.
+        const refresh = await Promise.allSettled([deps.refreshCaches(committed)]);
+        const failed = [...stages, ...refresh].find((result) => result.status === 'rejected');
+        if (failed?.status === 'rejected') throw failed.reason;
         clearPendingRoastSave(userId, sessionId);
         return { savedSession: saved, shouldOpenContinue: saved.plan_batch_id != null };
     } catch (err) {
