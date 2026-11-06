@@ -15,9 +15,9 @@ export const SelectTrigger = forwardRef<
     <SelectPrimitive.Trigger
         ref={ref}
         className={cn(
-            'flex h-10 items-center justify-between gap-2 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm font-[450] leading-5 text-primary shadow-xs outline-none transition-colors',
+            'flex h-10 items-center justify-between gap-2 rounded-xl border border-muted bg-input-bg px-3 py-2 text-sm font-[450] leading-5 text-primary shadow-xs transition-colors',
             'hover:border-strong-border cursor-pointer select-none whitespace-nowrap',
-            'focus-visible:ring-2 focus-visible:ring-strong-border/40',
+            'focus-visible:border-secondary',
             'disabled:cursor-not-allowed disabled:opacity-50',
             '[&>span]:line-clamp-1',
             className,
@@ -69,10 +69,10 @@ export const SelectContent = forwardRef<
             ref={ref}
             className={cn(
                 'z-1100 max-h-56 min-w-[6rem] overflow-hidden rounded-lg bg-main-bg shadow-ring',
-                'data-[state=open]:animate-in data-[state=closed]:animate-out',
-                'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-                'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
-                'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
+                'motion-safe:data-[state=open]:animate-in motion-safe:data-[state=closed]:animate-out',
+                'motion-safe:data-[state=closed]:fade-out-0 motion-safe:data-[state=open]:fade-in-0',
+                'motion-safe:data-[state=closed]:zoom-out-95 motion-safe:data-[state=open]:zoom-in-95',
+                'motion-safe:data-[side=bottom]:slide-in-from-top-2 motion-safe:data-[side=top]:slide-in-from-bottom-2',
                 position === 'popper' && 'data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
                 className,
             )}
@@ -110,9 +110,10 @@ export const SelectItem = forwardRef<
     <SelectPrimitive.Item
         ref={ref}
         className={cn(
-            'relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-7 pr-2.5 text-[13px] tracking-[0.14px] text-secondary outline-none transition',
+            'relative flex w-full cursor-pointer select-none items-center rounded-md py-1.5 pl-7 pr-2.5 text-sm tracking-[0.14px] text-secondary transition',
             'hover:bg-surface hover:text-primary',
             'focus:bg-surface focus:text-primary',
+            'focus-visible:outline-1 focus-visible:outline-offset-[-1px] focus-visible:outline-secondary',
             'data-[state=checked]:font-medium data-[state=checked]:text-primary',
             'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
             className,

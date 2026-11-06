@@ -11,9 +11,9 @@ export const GoogleSignInButton = ({ onClick, disabled }: GoogleSignInButtonProp
     return (
         <button
             type="button"
-            onClick={onClick}
-            disabled={disabled}
-            className="flex h-[42px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-full border border-border bg-main-bg px-5 text-[13px] font-[550] text-primary shadow-xs transition-colors hover:bg-surface-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border disabled:cursor-not-allowed disabled:opacity-50"
+            aria-disabled={disabled || undefined}
+            onClick={disabled ? undefined : onClick}
+            className="flex h-[42px] w-full cursor-pointer items-center justify-center gap-2.5 rounded-full border border-border bg-main-bg px-5 text-sm font-[550] text-primary shadow-xs transition-colors hover:bg-surface-elevated focus-visible:border-secondary aria-disabled:cursor-not-allowed"
         >
             <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
                 <path

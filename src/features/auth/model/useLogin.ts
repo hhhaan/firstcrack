@@ -16,8 +16,8 @@ export const useLogin = (onLogin?: () => void) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const loadingRef = useRef(false);
     const [error, setError] = useState<AuthErrorCode | null>(null);
     const [screen, setScreenState] = useState<AuthScreen>('sign-in');
     const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -45,7 +45,8 @@ export const useLogin = (onLogin?: () => void) => {
     const handleSubmit = useCallback(
         async (e: React.FormEvent) => {
             e.preventDefault();
-            if (screen === 'check-inbox') return;
+            if (screen === 'check-inbox' || loadingRef.current) return;
+            loadingRef.current = true;
             setLoading(true);
             setError(null);
             cancelOAuth();
@@ -74,6 +75,7 @@ export const useLogin = (onLogin?: () => void) => {
                 });
                 setError(mapAuthError(err));
             } finally {
+                loadingRef.current = false;
                 setLoading(false);
             }
         },
@@ -92,6 +94,7 @@ export const useLogin = (onLogin?: () => void) => {
     );
 
     const handleGoogleOAuth = useCallback(async () => {
+        if (loadingRef.current) return;
         setError(null);
         startOAuth();
         try {
@@ -150,8 +153,6 @@ export const useLogin = (onLogin?: () => void) => {
         setPassword,
         confirmPassword,
         setConfirmPassword,
-        showPassword,
-        setShowPassword,
         loading,
         displayError,
         handleSubmit,

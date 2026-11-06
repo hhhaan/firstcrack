@@ -143,11 +143,13 @@ describe('Login', () => {
         };
         await submit();
         expect(signUpWithEmail).not.toHaveBeenCalled();
-        expect(host.querySelector('[role="alert"]')?.textContent).toContain('비밀번호가 일치하지 않습니다');
+        expect(host.querySelector('#auth-confirm-password')?.getAttribute('aria-invalid')).toBe('true');
+        expect(host.textContent).toContain('두 칸에 같은 비밀번호를 입력하세요');
         await fill('auth-confirm-password', 'password1');
         await submit();
         expect(signUpWithEmail).toHaveBeenCalledWith('roaster@example.com', 'password1');
-        expect(host.querySelector('[role="status"]')?.textContent).toContain('확인 메일');
+        expect(host.textContent).toContain('확인 메일');
+        expect(document.title).toContain('이메일을 확인하세요');
         expect(host.querySelector('form')).toBeNull();
         await act(async () => button('로그인').click());
         expect(host.querySelector<HTMLInputElement>('#auth-password')?.value).toBe('');

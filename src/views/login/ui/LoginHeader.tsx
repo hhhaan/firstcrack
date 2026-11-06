@@ -25,8 +25,8 @@ export const LoginHeader = () => {
                     const language = supportedLanguages.find((value) => value === event.target.value);
                     if (language) void setLanguage(language);
                 }}
-                wrapperClassName="w-24"
-                className="h-8 min-h-8 justify-between border-0 bg-transparent px-2 py-1 text-xs shadow-none"
+                wrapperClassName="w-auto min-w-24"
+                className="h-8 min-h-8 w-auto justify-between border-0 bg-transparent px-2 py-1 text-sm shadow-none focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-secondary"
             >
                 {supportedLanguages.map((language) => (
                     <option key={language} value={language}>

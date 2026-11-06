@@ -13,7 +13,7 @@ export const PillButton = ({ children, icon, className, type = 'button', ...prop
         type={type}
         {...props}
         className={cn(
-            'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-0 bg-action px-5 py-3 font-(--font-display) text-sm font-[550] leading-5 tracking-[0.14px] text-on-action transition-opacity duration-100 hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-strong-border disabled:pointer-events-none disabled:opacity-50',
+            'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-0 bg-action px-5 py-3 font-(--font-display) text-sm font-[550] leading-5 tracking-[0.14px] text-on-action transition-opacity duration-100 hover:opacity-85 focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-secondary disabled:pointer-events-none disabled:opacity-50',
             className,
         )}
     >

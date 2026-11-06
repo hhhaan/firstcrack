@@ -5,7 +5,7 @@ interface SpinnerProps {
 
 export const Spinner = ({ size = 14 }: SpinnerProps) => (
     <svg
-        className="animate-spin"
+        className="animate-spin motion-reduce:animate-none"
         width={size}
         height={size}
         viewBox="0 0 24 24"
