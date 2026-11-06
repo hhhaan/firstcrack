@@ -208,13 +208,13 @@ describe('waiting BBP display', () => {
     });
 });
 
-it('keeps pre-Charge observations and aligns references by Charge without stretching either curve', () => {
+it.each([true, false])('aligns joined Charge curves with live samples available: %s', (hasLivePoints) => {
     const original = [bbpPt(0), bbpPt(60), bbpPt(119), bbpPt(120), bbpPt(123)];
     const view = resolveLiveChartView({
         ...base,
         bbpActive: false,
         charged: true,
-        livePoints: [livePt(0), livePt(3)],
+        livePoints: hasLivePoints ? [livePt(0), livePt(3)] : [],
         bbpCapture: {
             sessionId: 'a',
             generation: 'wait-a',

@@ -53,23 +53,20 @@ export const resolveLiveChartView = (input: {
                 : [],
         );
         const start = before[0]?.time ?? 0;
+        const origin = capture && showJoinedBbp ? (capture.chargeMs - capture.startMs) / 1000 : 0;
+        let livePoints = input.livePoints;
+        if (before.length) {
+            if (!livePoints.length && capture) livePoints = splitBatchBbp(capture).roastPoints;
+            livePoints = [...before, ...livePoints];
+        }
         return {
-            livePoints: before.length
-                ? [
-                      ...before,
-                      ...(input.livePoints.length
-                          ? input.livePoints
-                          : capture
-                            ? splitBatchBbp(capture).roastPoints
-                            : []),
-                  ]
-                : input.livePoints,
+            livePoints,
             targetPoints: before.length ? [...beforeTarget, ...input.roastTarget] : input.roastTarget,
             xMin: Math.min(0, start),
             xMaxFloor: undefined,
             bbpRange: start < 0 ? { start, end: 0 } : undefined,
-            eventTimeOrigin: capture && showJoinedBbp ? (capture.chargeMs - capture.startMs) / 1000 : 0,
-            axisOrigin: capture && showJoinedBbp ? (capture.chargeMs - capture.startMs) / 1000 : 0,
+            eventTimeOrigin: origin,
+            axisOrigin: origin,
         };
     }
 
@@ -90,8 +87,9 @@ export const resolveLiveChartView = (input: {
     );
     const referenceDuration = targetEnd - targetOrigin;
     const hasReferenceBbp = referenceBbp.length > 0 && referenceDuration > 0;
+    const windowSeconds = hasReferenceBbp ? referenceDuration : BBP_MAX_SECONDS;
     // Roll only the measured display; the saved BBP and its Charge-to-Drop reference stay fixed.
-    const origin = Math.max(0, lastT - (hasReferenceBbp ? referenceDuration : BBP_MAX_SECONDS));
+    const origin = Math.max(0, lastT - windowSeconds);
     const seam = lastT - origin;
     const livePoints = livePointsFromBbp(
         input.bbpPoints.flatMap((point) =>
@@ -105,18 +103,17 @@ export const resolveLiveChartView = (input: {
         point.t >= 0 ? [{ ...point, t: referenceCharge + point.t }] : [],
     );
     const targetPoints = [...referenceBbp, ...referenceRoast].sort((a, b) => a.t - b.t);
-    const right = Math.max(hasReferenceBbp ? referenceDuration : BBP_MAX_SECONDS, sampleExtent(targetPoints).max);
+    const right = Math.max(windowSeconds, sampleExtent(targetPoints).max);
+    let bbpRange: LiveChartView['bbpRange'];
+    if (hasReferenceBbp) bbpRange = { start: 0, end: referenceCharge };
+    else if (liveEnd > liveStart) bbpRange = { start: liveStart, end: liveEnd };
     return {
         livePoints,
         targetPoints,
         xMin: 0,
         xMaxFloor: right,
         xMaxFixed: right,
-        bbpRange: hasReferenceBbp
-            ? { start: 0, end: referenceCharge }
-            : liveEnd > liveStart
-              ? { start: liveStart, end: liveEnd }
-              : undefined,
+        bbpRange,
         eventTimeOrigin: origin,
         axisOrigin: origin,
     };

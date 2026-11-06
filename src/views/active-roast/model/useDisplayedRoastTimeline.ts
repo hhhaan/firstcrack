@@ -146,16 +146,13 @@ export const useDisplayedRoastTimeline = (params: Params) => {
     );
     const currentEditing = useMemo(() => editingFor(roast, bbp, view, settings), [roast, bbp, view, settings]);
     const entries = useMemo(() => {
-        if (
-            !snapshot &&
-            (currentEditing.kind === 'bbp' || (currentEditing.kind === 'live' && currentEditing.waiting))
-        ) {
-            const displayed = currentEditing.displayEntries(currentEditing.kind === 'bbp' ? bbp.events : curveEntries);
+        if (!snapshot && currentEditing.kind === 'bbp') {
+            const displayed = currentEditing.displayEntries(bbp.events);
             const bbpEnd = view.bbpRange?.end ?? currentEditing.maxTimeSec;
-            return currentEditing.kind === 'bbp'
-                ? displayed.filter((entry) => (entry.timeSec ?? 0) <= bbpEnd)
-                : displayed;
+            return displayed.filter((entry) => (entry.timeSec ?? 0) <= bbpEnd);
         }
+        if (!snapshot && currentEditing.kind === 'live' && currentEditing.waiting)
+            return currentEditing.displayEntries(curveEntries);
         const capture = snapshot?.bbpCapture ?? roast.bbpCapture;
         const before =
             capture && bbpEnabled && settings.bbpJoinCharge ? (splitBatchBbp(capture).bbp?.events ?? []) : [];
@@ -172,13 +169,10 @@ export const useDisplayedRoastTimeline = (params: Params) => {
         view.bbpRange,
     ]);
     const capture = bbpEnabled && settings.bbpJoinCharge ? (snapshot?.bbpCapture ?? roast.bbpCapture) : null;
-    const identity = snapshot
-        ? `review:${snapshot.sessionId}`
-        : capture
-          ? `wait:${capture.startMs}`
-          : bbp.active
-            ? `wait:${bbp.startMs}`
-            : `roast:${roast.sessionId ?? 'pre'}`;
+    let identity = `roast:${roast.sessionId ?? 'pre'}`;
+    if (snapshot) identity = `review:${snapshot.sessionId}`;
+    else if (capture) identity = `wait:${capture.startMs}`;
+    else if (bbp.active) identity = `wait:${bbp.startMs}`;
     const timelineKey = `${identity}${charged && !settings.bbpJoinCharge ? ':charge' : ''}`;
     const chart = useChartPipeline({
         livePoints: view.livePoints,
