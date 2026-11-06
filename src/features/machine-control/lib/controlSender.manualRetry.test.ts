@@ -226,3 +226,155 @@ describe('manual heater delivery', () => {
         expect(send).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('manual airflow delivery', () => {
+    const role = 'fan';
+    const prepare = () => {
+        const context = setup();
+        context.sender.setManualRetryEpoch(role, 7);
+        return context;
+    };
+
+    it('retries a failed delivery, records once, and does not report it as heater delivery', async () => {
+        const { sender, send, onCommitted, onApplied, onError } = prepare();
+        send.mockRejectedValueOnce(new Error('write acknowledgement lost'));
+        sender.queue(role, 50);
+        const pending = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(499);
+        expect(send).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(pending).resolves.toEqual({ [role]: 50 });
+        expect(send.mock.calls).toEqual([[{ [role]: 50 }], [{ [role]: 50 }, { connectionEpoch: 7 }]]);
+        expect(onCommitted).toHaveBeenCalledExactlyOnceWith({ [role]: 50 });
+        expect(onApplied).toHaveBeenCalledExactlyOnceWith({ [role]: 50 });
+        expect(onError).not.toHaveBeenCalled();
+        expect(captureHeaterDeliveryResult).not.toHaveBeenCalled();
+    });
+
+    it('stops after two retries and reports the affected role once', async () => {
+        const { sender, send, onError } = prepare();
+        const error = new Error('write unavailable');
+        send.mockRejectedValue(error);
+        sender.queue(role, 50);
+        const pending = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(60_000);
+        await expect(pending).resolves.toBeNull();
+        expect(send).toHaveBeenCalledTimes(3);
+        expect(onError).toHaveBeenCalledExactlyOnceWith(error, { [role]: 'manual' });
+    });
+
+    it('accepts a clamped acknowledgement without scheduling another write', async () => {
+        const { sender, send } = prepare();
+        send.mockResolvedValue({ [role]: 55 });
+        sender.queue(role, 999);
+        await expect(sender.commitNow()).resolves.toEqual({ [role]: 55 });
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['input', 'epoch', 'unsupported', 'dispose'] as const)('cancels an old retry on %s', async (boundary) => {
+        const { sender, send, onError } = prepare();
+        send.mockRejectedValueOnce(new Error('write lost'));
+        sender.queue(role, 50);
+        const pending = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(100);
+        if (boundary === 'input') sender.queue(role, 51);
+        if (boundary === 'epoch') sender.setManualRetryEpoch(role, 8);
+        if (boundary === 'unsupported') sender.setManualRetryEpoch(role, undefined);
+        if (boundary === 'dispose') sender.dispose();
+        await expect(pending).resolves.toBeNull();
+        await vi.advanceTimersByTimeAsync(60_000);
+        expect(send).toHaveBeenCalledTimes(1);
+        expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('ignores a late retry ACK before sending the newer value', async () => {
+        const { sender, send, onApplied } = prepare();
+        let finish!: (result: ControlCommand) => void;
+        send.mockRejectedValueOnce(new Error('write lost')).mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        sender.queue(role, 50);
+        const old = sender.commitNow();
+        await vi.advanceTimersByTimeAsync(500);
+        sender.queue(role, 51);
+        const latest = sender.commitNow();
+        expect(send).toHaveBeenCalledTimes(2);
+        finish({ [role]: 50 });
+        await expect(old).resolves.toBeNull();
+        await expect(latest).resolves.toEqual({ [role]: 51 });
+        expect(onApplied).toHaveBeenCalledExactlyOnceWith({ [role]: 51 });
+    });
+});
+
+it('recovers a mixed batch per role, without resending successful heater or drum values', async () => {
+    const { sender, send, onError } = setup();
+    sender.setManualRetryEpoch('fan', 7);
+    send.mockImplementation(async (cmd, retry) => {
+        if (!retry) return { heater: 40, drum: 50 };
+        return cmd;
+    });
+    sender.queue('heater', 40);
+    sender.queue('fan', 120);
+    sender.queue('drum', 50);
+    const pending = sender.commitNow();
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(pending).resolves.toEqual({ heater: 40, fan: 120, drum: 50 });
+    expect(send.mock.calls).toEqual([[{ heater: 40, fan: 120, drum: 50 }], [{ fan: 120 }, { connectionEpoch: 7 }]]);
+    expect(onError).not.toHaveBeenCalled();
+});
+
+it('preserves fan recovery when heater retries exhaust and reports only the failed heater', async () => {
+    const { sender, send, onError } = setup();
+    sender.setManualRetryEpoch('fan', 7);
+    const error = new Error('heater unavailable');
+    send.mockImplementation(async (cmd) => {
+        if (cmd.heater != null) throw error;
+        return cmd;
+    });
+    sender.queue('heater', 40);
+    sender.queue('fan', 120);
+    const pending = sender.commitNow();
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(pending).resolves.toEqual({ fan: 120 });
+    expect(onError).toHaveBeenCalledExactlyOnceWith(error, { heater: 'manual' });
+    expect(send.mock.calls).toEqual([
+        [{ heater: 40, fan: 120 }],
+        [{ heater: 40 }, { connectionEpoch: 7 }],
+        [{ heater: 40 }, { connectionEpoch: 7 }],
+        [{ fan: 120 }, { connectionEpoch: 7 }],
+    ]);
+});
+
+it('heater ownership changes do not cancel an airflow retry', async () => {
+    const { sender, send, onError } = setup();
+    sender.setManualRetryEpoch('fan', 7);
+    send.mockRejectedValueOnce(new Error('write lost'));
+    sender.queue('fan', 120);
+    const pending = sender.commitNow();
+    await vi.advanceTimersByTimeAsync(100);
+    sender.queue('heater', 40);
+    sender.cancelManualHeaterRetry();
+    await vi.advanceTimersByTimeAsync(500);
+    await expect(pending).resolves.toEqual({ fan: 120 });
+    expect(send.mock.calls).toEqual([[{ fan: 120 }], [{ fan: 120 }, { connectionEpoch: 7 }]]);
+    expect(onError).not.toHaveBeenCalled();
+    await expect(sender.commitNow()).resolves.toEqual({ heater: 40 });
+});
+
+it('reports a failed drum command without retrying it after a mixed batch fails', async () => {
+    const { sender, send, onError } = setup();
+    sender.setManualRetryEpoch('fan', 7);
+    const error = new Error('mixed write failed');
+    send.mockRejectedValueOnce(error);
+    sender.queue('fan', 120);
+    sender.queue('drum', 50);
+    const pending = sender.commitNow();
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(pending).resolves.toEqual({ fan: 120 });
+    expect(send.mock.calls).toEqual([[{ fan: 120, drum: 50 }], [{ fan: 120 }, { connectionEpoch: 7 }]]);
+    expect(onError).toHaveBeenCalledExactlyOnceWith(error, { drum: 'manual' });
+});

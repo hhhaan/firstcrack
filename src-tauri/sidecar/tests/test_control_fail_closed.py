@@ -257,6 +257,24 @@ class TestS7ControlAcknowledgement:
         assert (await retried.json())["applied"] == {"heater": 0}
         plc.db_write.assert_called_once()
 
+    async def test_http_airflow_retry_reads_its_setting_and_does_not_resend_an_applied_write(self, client):
+        manager = client.app["manager"]
+        defaults = ROASTER_REGISTRY["giesen_w1"]["default_params"]
+        adapter = S7Adapter(**defaults)
+        adapter._min_interval = 0
+        plc = MagicMock()
+        plc.db_read.side_effect = TimeoutError("readback lost")
+        adapter._plc = plc
+        manager._adapter, manager._merged_params = adapter, defaults
+        manager._connected, manager._protocol = True, "s7"
+        assert (await client.post("/control", json={"fan": 120})).status == 502
+        plc.db_read.side_effect = None
+        plc.db_read.return_value = _int_bytes(120)
+        result = await client.post("/control", json={"fan": 120, "retry_epoch": 0})
+        assert result.status == 200
+        assert (await result.json())["applied"] == {"fan": 120}
+        plc.db_write.assert_called_once_with(2, 16, _int_bytes(120))
+
     @pytest.mark.parametrize("raw, status", [(0, 502), (21, 502), (1, 200)])
     async def test_giesen_zero_http_ack_requires_command_readback(self, client, raw, status):
         manager = client.app["manager"]

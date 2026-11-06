@@ -36,7 +36,8 @@ def with_airflow_controls(
         "write_map": {
             **params["write_map"],
             "fan": {"db": 2, "offset": 16, "area": 6, "type": 0, "div": 0,
-                    "min": pressure[0], "max": pressure[1], "unit": "Pa"},
+                    "min": pressure[0], "max": pressure[1], "unit": "Pa",
+                    "verify_readback": True},
             "drum": {"db": 2, "offset": 18, "area": 6, "type": 0, "div": 0,
                      "min": drum[0], "max": drum[1], "unit": "Hz"},
         },
@@ -66,8 +67,13 @@ def upgrade_saved_airflow_maps(defaults: dict[str, Any], merged: dict[str, Any])
         merged["channels"] = channels
     # Heater-only presets are upgraded by the common heater migration first.
     # W45A/W60A also had a factory heater+drum preset before airflow was added.
-    previous_write_map = {r: write_map[r] for r in ("heater", "drum")}
-    if merged.get("write_map") == previous_write_map:
+    before_retry = {
+        role: {k: v for k, v in spec.items()
+               if role != "fan" or k != "verify_readback"}
+        for role, spec in write_map.items()
+    }
+    previous_write_map = {r: before_retry[r] for r in ("heater", "drum")}
+    if merged.get("write_map") in (previous_write_map, before_retry):
         merged["write_map"] = dict(write_map)
 
 
