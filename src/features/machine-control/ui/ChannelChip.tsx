@@ -34,6 +34,7 @@ export const ChannelChip = ({
     onCommit,
 }: Props) => {
     const min = limit.min ?? 0;
+    const label = role === 'fan' && limit.unit === 'Pa' ? 'Airflow' : ROLE_LABEL[role];
     const max = limit.max ?? 100;
     const current = unsupported ? min : (value ?? feedback ?? min);
     const step = isPercentUnit(limit.unit) ? 5 : 1;
@@ -86,13 +87,13 @@ export const ChannelChip = ({
                 locked && 'opacity-40',
             )}
         >
-            <span className="text-[11px] font-medium text-secondary">{ROLE_LABEL[role]}</span>
+            <span className="text-[11px] font-medium text-secondary">{label}</span>
             <div className="flex items-center gap-0.5">
                 <button
                     type="button"
                     data-step="-5"
                     disabled={locked}
-                    aria-label={`${ROLE_LABEL[role]} minus`}
+                    aria-label={`${label} minus`}
                     className={stepBtnCls}
                     {...minusHold}
                 >
@@ -108,7 +109,7 @@ export const ChannelChip = ({
                         type="text"
                         inputMode="numeric"
                         disabled={locked}
-                        aria-label={`${ROLE_LABEL[role]} setpoint value`}
+                        aria-label={`${label} setpoint value`}
                         value={draft ?? String(Math.round(current))}
                         onChange={(e) => {
                             if (locked) return;
@@ -140,7 +141,7 @@ export const ChannelChip = ({
                     type="button"
                     data-step="5"
                     disabled={locked}
-                    aria-label={`${ROLE_LABEL[role]} plus`}
+                    aria-label={`${label} plus`}
                     className={stepBtnCls}
                     {...plusHold}
                 >

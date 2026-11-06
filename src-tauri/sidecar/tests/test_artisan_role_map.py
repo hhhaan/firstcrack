@@ -21,11 +21,13 @@ def _roles(key: str) -> dict[str, dict]:
     return {c["role"]: c for c in ROASTER_REGISTRY[key]["default_params"]["channels"]}
 
 
-def test_no_giesen_read_channel_touches_pid_sv_register() -> None:
-    """DB2.10은 PID SV 쓰기 셀(aset PID_SV_register=10) — 읽기 role로 노출 금지."""
+def test_giesen_temperature_setpoint_is_never_mislabeled_as_feedback() -> None:
+    """DB2.10 may be read as temperature SP, never as fan/drum/heat feedback."""
     for key in GIESEN_DB2_KEYS:
         for ch in ROASTER_REGISTRY[key]["default_params"]["channels"]:
-            assert (ch["db"], ch["offset"]) != (2, 10), f"{key}:{ch['role']}"
+            if (ch["db"], ch["offset"]) == (2, 10):
+                assert ch["role"] == "temperature_setpoint", f"{key}:{ch['role']}"
+                assert ch["unit"] == "°C"
 
 
 def test_probat_gug_gauges_are_int_cells_not_temperatures() -> None:

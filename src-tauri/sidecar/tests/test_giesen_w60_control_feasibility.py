@@ -63,15 +63,14 @@ def test_giesen_w45a_w60a_matches_artisan_host_and_control_capabilities() -> Non
     assert "W60A" in entry["models"]
     # W60A.aset host= — giesen_standard(.50)에 묶여 있던 잘못된 기본 IP 회귀 방지
     assert entry["default_params"]["host"] == "172.30.30.90"
-    assert entry["default_params"]["channels"] == ROASTER_REGISTRY["giesen_standard"]["default_params"]["channels"]
     assert set(entry["capabilities"]) >= {"heater", "fan", "drum"}
     roles = _role_map(entry["default_params"]["channels"])
     # 읽기 맵 — Artisan W60A-class 텔레메트리
     assert (roles["BT"]["db"], roles["BT"]["offset"]) == (3, 116)
     assert (roles["ET"]["db"], roles["ET"]["offset"]) == (3, 112)
     assert (roles["heater"]["db"], roles["heater"]["offset"]) == (2, 48)
-    # fan% = DB2.54 (aset "{0} %"). DB2.10은 PID SV 레지스터 — fan으로 읽으면 안 된다.
-    assert (roles["fan"]["db"], roles["fan"]["offset"]) == (2, 54)
+    assert (roles["fan"]["db"], roles["fan"]["offset"], roles["fan"]["unit"]) == (2, 52, "Pa")
+    assert (roles["fan_output"]["db"], roles["fan_output"]["offset"], roles["fan_output"]["unit"]) == (2, 54, "%")
     assert (roles["drum"]["db"], roles["drum"]["offset"]) == (2, 18)
 
 
@@ -98,9 +97,9 @@ def test_db2_giesen_write_map_targets_heater_setpoint(key: str) -> None:
         assert (roles[role]["db"], roles[role]["offset"]) != (heater["db"], heater["offset"])
 
 
-def test_only_w45a_w60a_exposes_the_artisan_drum_slider() -> None:
+def test_w1_and_w45a_w60a_expose_model_specific_artisan_controls() -> None:
     params = ROASTER_REGISTRY["giesen_w45a_w60a"]["default_params"]
-    assert set(params["write_map"]) == {"heater", "drum"}
+    assert set(params["write_map"]) == {"heater", "fan", "drum"}
     drum = params["write_map"]["drum"]
     assert (drum["db"], drum["offset"], drum["area"], drum["type"], drum["div"]) == (2, 18, 6, 0, 0)
     assert (drum["min"], drum["max"], drum["unit"]) == (40, 55, "Hz")
@@ -109,7 +108,7 @@ def test_only_w45a_w60a_exposes_the_artisan_drum_slider() -> None:
     read_drum = _role_map(params["channels"])["drum"]
     assert (read_drum["db"], read_drum["offset"]) == (drum["db"], drum["offset"])
     for key in GIESEN_DB2_KEYS + ["giesen_w6a_pro"]:
-        if key != "giesen_w45a_w60a":
+        if key not in {"giesen_w1", "giesen_w45a_w60a"}:
             assert set(ROASTER_REGISTRY[key]["default_params"]["write_map"]) == {"heater"}, key
 
 

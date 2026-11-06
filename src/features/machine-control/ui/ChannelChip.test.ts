@@ -51,6 +51,24 @@ describe('ChannelChip (#436)', () => {
     });
 
     it.each([
+        [80, 150],
+        [100, 170],
+    ])('labels %i–%i Pa airflow and sends pressure in one-Pa steps', (min, max) => {
+        const { container, onChange, onCommit, unmount } = renderChip({
+            limit: { min, max, unit: 'Pa' },
+            value: undefined,
+            feedback: 120,
+        });
+        const input = container.querySelector('[aria-label="Airflow setpoint value"]') as HTMLInputElement;
+        expect(input.value).toBe('120');
+        expect(container.textContent).toContain('Pa');
+        act(() => (container.querySelector('[aria-label="Airflow plus"]') as HTMLButtonElement).click());
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('fan', 121);
+        expect(onCommit).toHaveBeenCalledTimes(1);
+        unmount();
+    });
+
+    it.each([
         [40, 'plus', 41],
         [49, 'plus', 50],
         [55, 'plus', 55],

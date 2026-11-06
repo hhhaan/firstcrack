@@ -31,6 +31,8 @@ S7 div  필드: 0=스케일링 없음
 import platform
 from typing import Any
 
+from giesen_airflow import with_airflow_controls
+
 # OS별 시리얼 포트 placeholder
 _comport_placeholder = {"Darwin": "/dev/cu.usbserial-XXXX", "Windows": "COM3"}.get(
     platform.system(), "/dev/ttyUSB0"
@@ -2190,3 +2192,14 @@ ROASTER_REGISTRY.update({
         host="192.168.3.230", write_map=_GIESEN_DB2_COARSE_WRITE_MAP,
     ),
 })
+
+# Apply after constructing variants: WPE/WPG must not inherit W1 control ranges.
+# Source: Artisan 16455e39e1f6964f5578391afd8ff0cab830b2f1,
+# src/includes/Machines/Giesen/{W1A,W1E,W45A,W60A}.aset [S7]/[Sliders].
+for _key, _pressure, _drum in (
+    ("giesen_w1", (80, 150), (35, 60)),
+    ("giesen_w45a_w60a", (100, 170), (40, 55)),
+):
+    ROASTER_REGISTRY[_key]["default_params"] = with_airflow_controls(
+        ROASTER_REGISTRY[_key]["default_params"], pressure=_pressure, drum=_drum,
+    )

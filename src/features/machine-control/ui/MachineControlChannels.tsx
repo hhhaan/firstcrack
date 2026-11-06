@@ -24,7 +24,7 @@ export const MachineControlChannels = ({
 }: {
     limits: ControlCapability['limits'];
     desired: ControlCommand;
-    liveData: { heater: number | null; fan: number; drum: number } | null;
+    liveData: { heater: number | null; fan: number | null; drum: number | null } | null;
     writable: boolean;
     sending: boolean;
     pidHoldsHeater: boolean;
