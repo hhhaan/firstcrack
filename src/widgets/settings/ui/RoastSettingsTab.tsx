@@ -854,7 +854,8 @@ export const RoastSettingsTab = () => {
                         </div>
                     </SettingsOptionRow>
                     <SettingsCheckRow
-                        checked={roastSettings.alertTpEnabled}
+                        checked={roastSettings.alertSoundEnabled && roastSettings.alertTpEnabled}
+                        disabled={!roastSettings.alertSoundEnabled}
                         label={tk('alertTp')}
                         description={tk('alertTpDescription')}
                         onChange={() => updateRoastSettings({ alertTpEnabled: !roastSettings.alertTpEnabled })}
