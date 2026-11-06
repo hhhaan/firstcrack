@@ -15,7 +15,12 @@ absent during BBP. Live waiting BBP is its own timeline starting at 0:00:
 the reference (dashed) and the measured curve share that axis. While waiting, the X axis is
 0:00–15:00 from the start (`xMaxFloor = BBP_MAX_SECONDS`). A saved BBP reference
 fills `0` to that Charge with `--color-bbp-fill` from the start, so the profile
-seam stays visible while measurements accumulate. Missing or failed BBP
+seam stays visible while measurements accumulate. Once the measured wait exceeds
+the saved reference Charge, the gray region extends through the latest measured
+time and the saved BBP and roast reference shift together to that boundary. The
+saved BBP duration, sample gaps, and measured timestamps stay unchanged; live
+BBP temperatures and controls remain inside the gray region, including READY.
+Missing or failed BBP
 references keep the measured span (#547). The 15-minute FIFO cap is not a
 reserved background. No saved and no measured BBP means no BBP region, and a
 shorter recording — including samples that fill only part of the cap window —
