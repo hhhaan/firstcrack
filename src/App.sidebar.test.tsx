@@ -84,7 +84,7 @@ vi.mock('./shared/ui/ErrorBoundary', () => ({
 }));
 vi.mock('./widgets/pending-roast-recovery', () => ({ PendingRoastRecovery: () => null }));
 vi.mock('./widgets/inventory-alert-banner', () => ({ InventoryAlertBanner: () => null }));
-vi.mock('./widgets/settings/ui/KeyboardShortcutsModal', () => ({ KeyboardShortcutsModal: () => null }));
+vi.mock('./widgets/keyboard-shortcuts', () => ({ KeyboardShortcutsModal: () => null }));
 vi.mock('./views/active-roast/ActiveRoast', () => ({ ActiveRoast: () => null }));
 vi.mock('./views/active-roast/ActiveRoastRuntime', () => ({ ActiveRoastRuntime: () => null }));
 vi.mock('./views/bean/Beans', () => ({ Beans: () => null }));

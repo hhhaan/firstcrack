@@ -1,5 +1,6 @@
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import { useRoastSettings } from '@features/active-roast/model/settings';
+import { useShortcutCapture } from '@shared/lib/useShortcutCapture';
 import {
     formatShortcut,
     SHORTCUTS,
@@ -13,8 +14,6 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { RotateCcw, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useShortcutCapture } from '../model/useShortcutCapture';
-import { settingsOptionSwitchCls } from './SettingsOptionRow';
 
 export function KeyboardShortcutsModal() {
     const { t } = useTranslation();
@@ -179,7 +178,7 @@ export function KeyboardShortcutsModal() {
                                             onChange={(event) => setEnabled(id, event.currentTarget.checked)}
                                             disabled={editingId !== null}
                                             aria-label={t(`shortcuts.actions.${id}`)}
-                                            className={settingsOptionSwitchCls}
+                                            className="relative h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-primary/15 transition-colors checked:bg-primary before:absolute before:left-0.5 before:top-0.5 before:h-4 before:w-4 before:rounded-full before:bg-main-bg before:transition-transform checked:before:translate-x-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 forced-colors:appearance-auto"
                                         />
                                         <div
                                             className={`min-w-0 flex-1 text-sm ${disabled.includes(id) ? 'text-muted' : 'text-primary'}`}

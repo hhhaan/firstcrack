@@ -36,8 +36,8 @@ import { Profiles } from './views/profiles/Profiles';
 import { Schedule } from './views/schedule/Schedule';
 import { Settings } from './views/settings/Settings';
 import { InventoryAlertBanner } from './widgets/inventory-alert-banner';
+import { KeyboardShortcutsModal } from './widgets/keyboard-shortcuts';
 import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
-import { KeyboardShortcutsModal } from './widgets/settings/ui/KeyboardShortcutsModal';
 import { type RoastSettingsGroup, roastSettingsGroups, type SettingsTabId } from './widgets/settings/ui/tabConfig';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 

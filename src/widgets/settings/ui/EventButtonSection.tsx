@@ -7,6 +7,7 @@ import {
 } from '@features/active-roast/lib/event-buttons';
 import { getRoastSettings, updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { markDropLabel, roastEventLabel } from '@shared/i18n/roast-event-label';
+import { useShortcutCapture } from '@shared/lib/useShortcutCapture';
 import {
     formatShortcut,
     type ShortcutBindingResult,
@@ -16,7 +17,6 @@ import {
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useShortcutCapture } from '../model/useShortcutCapture';
 import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 

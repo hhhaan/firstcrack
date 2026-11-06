@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
+import { getRoastSettings, sliderToFontScale, updateRoastSettings } from '@features/active-roast/model/settings';
 import { settingsSet } from '@shared/lib/settings-store';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -90,5 +90,62 @@ it('turns the TP switch off with alarm sound and keeps the saved preference', as
     } finally {
         act(() => root.unmount());
         updateRoastSettings(previous);
+    }
+});
+
+it('keeps section groups in order and commits the font slider only after the gesture', async () => {
+    const previous = getRoastSettings();
+    updateRoastSettings({ fontScalePct: 100 });
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+        await act(async () => root.render(createElement(RoastSettingsTab)));
+        expect(
+            [...host.querySelectorAll('[data-settings-section]')].map((section) =>
+                section.getAttribute('data-settings-group'),
+            ),
+        ).toEqual([
+            'general',
+            'alerts',
+            'automation',
+            'automation',
+            'automation',
+            'bbp',
+            'automation',
+            'automation',
+            'events',
+            'events',
+            'display',
+            'display',
+            'display',
+            'display',
+            'display',
+            'axes',
+            'axes',
+            'axes',
+            'sensors',
+            'general',
+            'general',
+            'sensors',
+            'general',
+        ]);
+        const slider = host.querySelector<HTMLInputElement>('input[name="fontScalePct"]');
+        if (!slider) throw new Error('Missing font scale slider');
+        act(() => {
+            Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(slider, '75');
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        expect(slider.getAttribute('aria-valuetext')).toBe('75%');
+        expect(getRoastSettings().fontScalePct).toBe(100);
+        act(() => slider.dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowRight', bubbles: true })));
+        expect(getRoastSettings().fontScalePct).toBe(sliderToFontScale(75));
+        expect(settingsSet).toHaveBeenLastCalledWith(
+            'roast.settings',
+            expect.objectContaining({ fontScalePct: sliderToFontScale(75) }),
+            { debounce: true },
+        );
+    } finally {
+        act(() => root.unmount());
+        updateRoastSettings({ fontScalePct: previous.fontScalePct });
     }
 });
