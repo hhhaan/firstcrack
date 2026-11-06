@@ -1250,6 +1250,7 @@
             "workspaceLoading": "ワークスペースを読み込み中です。しばらくしてからもう一度お試しください。",
             "batchUnavailable": "選択したスケジュールバッチは使用できなくなりました。",
             "bbpLive": "BBP · 現在の焙煎機の状態",
+            "scrollHint": "スクロールして残りの項目を確認",
             "liveUnavailable": "新しい測定値を待っています"
         },
         "planBatch": {

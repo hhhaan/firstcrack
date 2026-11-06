@@ -20,8 +20,8 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { Check, Coffee, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { Check, ChevronDown, Coffee, X } from 'lucide-react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
@@ -85,6 +85,9 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
+    const panelRef = useRef<HTMLDivElement>(null);
+    const scrollBodyRef = useRef<HTMLDivElement>(null);
+    const [hasMoreFields, setHasMoreFields] = useState(false);
     const snapshot = useRoastingStore((state) => state.completed?.snapshot);
     const { batchTitleNumbering, totalBatchPrefix } = useRoastSettings();
     const { batchCounters } = useRoastProfiles(open ? (snapshot?.sessionOwnerId ?? '') : '');
@@ -182,6 +185,30 @@ export const RoastSummaryModal = ({
         [beans, blends, formBeanId, selectedBeanId, hiddenBeans, t],
     );
 
+    useLayoutEffect(() => {
+        const panel = panelRef.current;
+        const body = scrollBodyRef.current;
+        if (!open || !summaryData || !panel || !body) return;
+
+        const viewports = [panel, body];
+        const update = () =>
+            setHasMoreFields(
+                viewports.some((viewport) => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop > 1),
+            );
+        const observer = new ResizeObserver(update);
+        observer.observe(panel);
+        observer.observe(body);
+        if (body.firstElementChild) observer.observe(body.firstElementChild);
+        panel.addEventListener('scroll', update);
+        body.addEventListener('scroll', update);
+        update();
+        return () => {
+            observer.disconnect();
+            panel.removeEventListener('scroll', update);
+            body.removeEventListener('scroll', update);
+        };
+    }, [open, summaryData]);
+
     if (!open || !summaryData) {
         return null;
     }
@@ -197,11 +224,12 @@ export const RoastSummaryModal = ({
     return (
         <>
             <ModalShell
+                ref={panelRef}
                 onClose={onClose}
                 dismissable={false}
                 labelledBy="roast-summary-modal-title"
                 overlayClassName="z-[10000] bg-[rgba(23,23,23,0.12)]"
-                contentClassName={`${modalPanel.formXl} relative`}
+                contentClassName={`${modalPanel.formXl} visible-scrollbar @container/roast-summary relative [overflow-wrap:anywhere] [@media(max-height:480px)]:overflow-y-auto`}
             >
                 <button
                     type="button"
@@ -209,25 +237,37 @@ export const RoastSummaryModal = ({
                     onClick={canCancelDrop ? onCancelDrop : onClose}
                     disabled={isSaving}
                     aria-label={t(canCancelDrop ? 'activeRoast.unsaved.cancelDrop' : 'common.close')}
-                    className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="absolute top-3 end-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     <X size={18} strokeWidth={2.3} />
                 </button>
-                <div className="flex shrink-0 items-center gap-3 px-7 pt-6 pb-5 pr-14">
+                <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-7 pt-6 pb-5 pe-14">
                     <div className="w-9 h-9 shrink-0 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center">
                         <Check size={16} strokeWidth={2.5} />
                     </div>
 
                     <h2
                         id="roast-summary-modal-title"
-                        className="text-[22px] font-normal leading-[1.1] text-primary tracking-[-0.4px]"
+                        className="min-w-0 flex-1 text-[22px] font-normal leading-[1.1] text-primary tracking-[-0.4px]"
                     >
                         {t('activeRoast.summary.title')}
                     </h2>
+                    <p
+                        aria-hidden={!hasMoreFields}
+                        data-testid="roast-summary-scroll-hint"
+                        className={`w-full flex items-center gap-1 text-[11px] text-muted ${hasMoreFields ? '' : 'invisible'}`}
+                    >
+                        <ChevronDown size={14} className="shrink-0" aria-hidden="true" />
+                        {t('activeRoast.summary.scrollHint')}
+                    </p>
                 </div>
 
-                <ModalScrollBody contentClassName="grid gap-y-6 px-7 pb-6 md:grid-cols-2">
-                    <div className="min-w-0 md:pr-7">
+                <ModalScrollBody
+                    ref={scrollBodyRef}
+                    className="visible-scrollbar [@media(max-height:480px)]:flex-none [@media(max-height:480px)]:overflow-visible"
+                    contentClassName="grid gap-6 px-7 pb-6 @min-[44rem]/roast-summary:grid-cols-2 @min-[44rem]/roast-summary:gap-x-14"
+                >
+                    <div className="min-w-0">
                         <div className={`grid grid-cols-3 gap-1.5 ${ambientLine ? 'mb-1' : 'mb-3.5'}`}>
                             {[
                                 { label: t('activeRoast.summary.totalTime'), value: summaryData.totalTime },
@@ -260,7 +300,7 @@ export const RoastSummaryModal = ({
                                     autoComplete="off"
                                     {...register('batchName')}
                                     placeholder={displayName ?? t('activeRoast.summary.batchNamePlaceholder')}
-                                    className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
+                                    className="min-w-0 w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
                                 />
                                 {batchNumbers && (
                                     <span
@@ -334,14 +374,14 @@ export const RoastSummaryModal = ({
                         </div>
                     </div>
 
-                    <div className="min-w-0 border-t border-border pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-7">
+                    <div className="min-w-0">
                         {/* ── Link: schedule batch or ad-hoc ── */}
                         <div className="mb-3.5">
                             <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>
 
                             {hasHandoff && planBatchHandoff ? (
                                 <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5">
-                                    <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                    <p className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                         {planBatchHandoff.beanName}
                                     </p>
                                     <p className="text-[11px] text-muted mt-0.5">
@@ -374,7 +414,7 @@ export const RoastSummaryModal = ({
                                                         setValue('planBatchId', null, { shouldValidate: true });
                                                     }
                                                 }}
-                                                className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
+                                                className={`min-w-0 flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
                                                     linkMode === value
                                                         ? 'bg-action text-on-action'
                                                         : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
@@ -507,11 +547,11 @@ export const RoastSummaryModal = ({
                                             <Coffee size={14} strokeWidth={2.2} />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                            <p className="text-[13px] font-medium text-primary tracking-[0.14px]">
                                                 {displayName ?? t('activeRoast.header.noBeanSelected')}
                                             </p>
                                             {displayMeta ? (
-                                                <p className="text-[11px] text-muted mt-0.5 truncate">{displayMeta}</p>
+                                                <p className="text-[11px] text-muted mt-0.5">{displayMeta}</p>
                                             ) : (
                                                 <p className="text-[11px] text-muted mt-0.5">
                                                     {t('activeRoast.summary.beanSelected')}
@@ -534,9 +574,11 @@ export const RoastSummaryModal = ({
                                     data-testid="roast-summary-weight"
                                     {...register('weightGrams', { valueAsNumber: true })}
                                     placeholder="0.0"
-                                    className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                    className="min-w-0 w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
                                 />
-                                <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
+                                <span className="shrink-0 whitespace-nowrap text-[11px] text-muted font-semibold tracking-[0.3px]">
+                                    kg
+                                </span>
                             </div>
                             {errors.weightGrams && <p className={formErrorCls}>{errors.weightGrams.message}</p>}
                         </div>
@@ -551,9 +593,11 @@ export const RoastSummaryModal = ({
                                     step={0.01}
                                     {...register('outputWeightKg', { valueAsNumber: true })}
                                     placeholder={t('activeRoast.summary.outputWeightPlaceholder')}
-                                    className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                    className="min-w-0 w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
                                 />
-                                <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
+                                <span className="shrink-0 whitespace-nowrap text-[11px] text-muted font-semibold tracking-[0.3px]">
+                                    kg
+                                </span>
                             </div>
                             {errors.outputWeightKg ? (
                                 <p className={formErrorCls}>{errors.outputWeightKg.message}</p>
@@ -588,45 +632,47 @@ export const RoastSummaryModal = ({
                     </div>
                 </ModalScrollBody>
 
-                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-center bg-main-bg dark:bg-main-bg">
+                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex flex-wrap items-center gap-x-6 gap-y-3 bg-main-bg dark:bg-main-bg">
                     {showBbpLive && <RoastSummaryLiveStatus />}
-                    <button
-                        type="button"
-                        onClick={async () => {
-                            // 확인 없는 즉시 폐기 방지 (#317) — 창 닫기 가드(#177)와 동급의 한 겹
-                            const ok = await ask(t('activeRoast.summary.discardConfirmMsg'), {
-                                title: t('activeRoast.summary.discardConfirmTitle'),
-                                kind: 'warning',
-                                okLabel: t('activeRoast.summary.discardConfirmOk'),
-                                cancelLabel: t('activeRoast.summary.discardConfirmCancel'),
-                            });
-                            if (ok) onDiscard();
-                        }}
-                        className="w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border md:w-auto md:justify-self-start"
-                    >
-                        {t('activeRoast.summary.discard')}
-                    </button>
-                    {canCancelDrop && (
+                    <div className="min-w-0 max-w-full ms-auto flex flex-wrap justify-end gap-2">
+                        {canCancelDrop && (
+                            <button
+                                type="button"
+                                data-testid="roast-summary-cancel-drop"
+                                onClick={onCancelDrop}
+                                disabled={isSaving}
+                                className="min-w-0 max-w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {t('activeRoast.unsaved.cancelDrop')}
+                            </button>
+                        )}
                         <button
                             type="button"
-                            data-testid="roast-summary-cancel-drop"
-                            onClick={onCancelDrop}
-                            disabled={isSaving}
-                            className="w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed md:col-start-2 md:w-auto"
+                            onClick={async () => {
+                                // 확인 없는 즉시 폐기 방지 (#317) — 창 닫기 가드(#177)와 동급의 한 겹
+                                const ok = await ask(t('activeRoast.summary.discardConfirmMsg'), {
+                                    title: t('activeRoast.summary.discardConfirmTitle'),
+                                    kind: 'warning',
+                                    okLabel: t('activeRoast.summary.discardConfirmOk'),
+                                    cancelLabel: t('activeRoast.summary.discardConfirmCancel'),
+                                });
+                                if (ok) onDiscard();
+                            }}
+                            className="min-w-0 max-w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                         >
-                            {t('activeRoast.unsaved.cancelDrop')}
+                            {t('activeRoast.summary.discard')}
                         </button>
-                    )}
-                    <button
-                        type="button"
-                        data-testid="roast-summary-save"
-                        onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
-                        disabled={isSaving}
-                        className="w-full px-6 py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed md:col-start-3 md:w-auto md:min-w-32"
-                    >
-                        {isSaving && <Spinner />}
-                        {t('activeRoast.summary.save')}
-                    </button>
+                        <button
+                            type="button"
+                            data-testid="roast-summary-save"
+                            onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
+                            disabled={isSaving}
+                            className="min-w-32 max-w-full px-6 py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {isSaving && <Spinner />}
+                            {t('activeRoast.summary.save')}
+                        </button>
+                    </div>
                 </div>
             </ModalShell>
         </>

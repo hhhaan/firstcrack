@@ -1,8 +1,9 @@
 import { useModalStackStore } from '@shared/store/modalStack';
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode, type Ref, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ModalShellProps {
+    ref?: Ref<HTMLDivElement>;
     children: ReactNode;
     onClose: () => void;
     labelledBy: string;
@@ -18,6 +19,7 @@ interface ModalShellProps {
 }
 
 export const ModalShell = ({
+    ref,
     children,
     onClose,
     labelledBy,
@@ -38,6 +40,7 @@ export const ModalShell = ({
             className={`fixed inset-0 bg-[rgba(23,23,23,0.32)] backdrop-blur-sm flex items-center justify-center p-6 z-1000 ${overlayClassName ?? ''}`}
         >
             <div
+                ref={ref}
                 onClick={(event) => event.stopPropagation()}
                 role="dialog"
                 aria-modal="true"

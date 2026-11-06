@@ -1250,6 +1250,7 @@
             "workspaceLoading": "Workspace is still loading. Please try again in a moment.",
             "batchUnavailable": "The selected schedule batch is no longer available.",
             "bbpLive": "BBP · Current roaster readings",
+            "scrollHint": "Scroll to see the remaining fields",
             "liveUnavailable": "Waiting for fresh readings"
         },
         "planBatch": {
