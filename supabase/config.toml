@@ -300,6 +300,10 @@ verify_jwt = false
 [functions.notify-signup]
 verify_jwt = false
 
+# Database trigger authenticates with NOTIFY_ROAST_SECRET inside the function.
+[functions.notify-roast]
+verify_jwt = false
+
 [functions.coffee-futures]
 verify_jwt = false
 

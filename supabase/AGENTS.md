@@ -31,9 +31,10 @@ Schema lives in `supabase/migrations/`. Privileged network and secret handling l
 | `create-polar-checkout` | user JWT | Polar checkout URL | `functions/create-polar-checkout/` |
 | `polar-webhook` | Polar HMAC | **Only** path that mutates `subscriptions` / plan fields | `functions/polar-webhook/` |
 | `notify-signup` | DB webhook secret | Slack new-user | `functions/notify-signup/`, `_shared/slack.ts` |
+| `notify-roast` | DB webhook secret | Slack on every completed roast save; asynchronous and nonblocking | `functions/notify-roast/`, `../docs/agent/roast-slack-notifications.md` |
 | `polar-webhook` | Polar HMAC | Subscription + **Slack payment notify** + Sentry on error | `functions/polar-webhook/`, `_shared/slack.ts`, `_shared/sentry.ts` |
 
-Secrets: `SLACK_WEBHOOK_URL` (signup + payment + errors), optional `SENTRY_DSN` for Edge.
+Secrets: `SLACK_WEBHOOK_URL` (signup + payment + roast saves), optional `SENTRY_DSN` for Edge.
 | `coffee-futures` | public | Yahoo `KC=F` proxy (short cache) | `functions/coffee-futures/` |
 | `get-cupping-session` | invite token | Public cupping payload | `functions/get-cupping-session/` |
 | `submit-cupping` | invite/owner | Claim seat / batch publish / legacy sample upsert | `functions/submit-cupping/` |
@@ -63,7 +64,7 @@ Hosted SMTP (2026-11-04): Resend `smtp.resend.com:465`, user `resend`, From `Fir
 | R2 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` |
 | Channels | `ORDER_SYNC_CRON_SECRET`, `CAFE24_CLIENT_ID`, `CAFE24_CLIENT_SECRET`, `CAFE24_REDIRECT_URI`, `CAFE24_OAUTH_STATE_SECRET`, Shopify/Cafe24 webhook secrets |
 | Billing | `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET` |
-| Ops | `NOTIFY_SIGNUP_SECRET` |
+| Ops | `NOTIFY_SIGNUP_SECRET`, `NOTIFY_ROAST_SECRET` (same value as Vault `notify_roast_secret`; URL in Vault `notify_roast_url`) |
 | Platform | `SUPABASE_SERVICE_ROLE_KEY` (server only) |
 
 Presign expiry: **300s** (`_shared/r2.ts`). Profile keys: `profiles/{uuid}/{uuid}(.bbp)?.tsv`.

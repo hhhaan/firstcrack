@@ -51,7 +51,7 @@ Prefer `SKIP_VERIFY=1` over `--no-verify` (keeps other hooks; explicit intent in
 - Supabase: BaaS — auth, DB (roast records, inventory), Edge Functions (R2, channels, Polar, cupping). Catalog: `supabase/AGENTS.md`
 - R2: storage — roast profiles via presigned URL (upload/download issued by Edge Function; credentials never in client)
 - Sales channels: Naver / Shopify / Cafe24 — desktop never holds platform secrets; see `docs/agent/sales-channels-orders.md`
-- Slack webhook: CI/CD notifications + signup notify EF only
+- Slack webhook: CI/CD + signup/payment + completed roast saves (server-only; `docs/agent/roast-slack-notifications.md`)
 
 ## Security — Secrets
 - NO `VITE_*` prefix for any secret → bundled into client JS, extractable. If found: rotate immediately, don't just remove
