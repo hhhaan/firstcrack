@@ -12,19 +12,21 @@ samples to the latest 15 minutes (900s) and anchors their actual kept span at Ch
 Stored reference curves are not rewritten; only the live chart drops samples older
 than that window. The roast's 00:00 sample owns the Charge boundary, and RoR stays
 absent during BBP. Live waiting BBP is its own timeline starting at 0:00:
-the reference (dashed) and the measured curve share that axis. While waiting, the X axis is
-0:00–15:00 from the start (`xMaxFloor = BBP_MAX_SECONDS`). A saved BBP reference
-fills `0` to that Charge with `--color-bbp-fill` from the start, so the profile
-seam stays visible while measurements accumulate. Once the measured wait exceeds
-the saved reference Charge, the gray region extends through the latest measured
-time and the saved BBP and roast reference shift together to that boundary. The
-saved BBP duration, sample gaps, and measured timestamps stay unchanged; live
-BBP temperatures and controls remain inside the gray region, including READY.
-Missing or failed BBP
-references keep the measured span (#547). The 15-minute FIFO cap is not a
-reserved background. No saved and no measured BBP means no BBP region, and a
-shorter recording — including samples that fill only part of the cap window —
-is drawn at that length on both the temperature and control grids. After Charge the live chart
+the reference (dashed) and the measured curve share that axis. A positive saved
+BBP reference fixes the gray interval from `0` to its saved Charge. Its BBP and
+complete Charge-to-Drop roast remain joined and fixed in view, independent of
+the configured X-axis range. When measurements exceed that BBP duration, the
+display discards the oldest measured samples and shifts the remaining window
+left, keeping the latest observation at the saved Charge. Temperatures, controls,
+events and the current-time marker use the same display origin, including READY.
+Stored timestamps, saved-reference sample gaps and the 15-minute recording cap
+are unchanged; this shorter FIFO affects presentation only.
+
+Missing, failed or zero-duration BBP references use the existing 15-minute
+measured window. Their viewport fits at least that window and the entire
+available roast reference, joined at the measured wait's end. The cap is not a
+reserved background: no saved and no measured BBP means no gray region, and
+shorter measured waits shade only their actual span on both grids. After Charge the live chart
 keeps that batch's measured BBP at negative times and continues the roast at 00:00
 when `bbpJoinCharge` is on. It defaults to off. When it is off, the charged live chart,
 its event log, and History start at Charge. The pre-Charge wait chart is unchanged.
@@ -47,12 +49,13 @@ joins so a newly confirmed BBP path can be read without reloading the app.
 
 Charge changes display coordinates without clearing the selected real time interval
 or zoom. Manual zoom/pan stays fixed while collection continues; reset returns to the
-automatic view. Automatic view reserves at least 60 seconds or 10% of the initial
+automatic view. The waiting view fits its joined reference; after Charge, automatic view follows
+the configured roast range and reserves at least 60 seconds or 10% of the initial
 span (whichever is larger) after the latest observation and grows in 60-second steps,
 without shrinking within the same timeline. New waits and review sessions have their
 own viewport identity. A late reference does not reset the viewport. Reference BBP
-and roast are aligned at Charge without stretching their samples; the reference may
-shift when the actual wait length differs.
+and roast are aligned at Charge without stretching their samples. Waiting display
+FIFO rebases again at actual Charge, preserving the selected real measurement interval.
 
 A batch-owned capture keeps the wait origin, actual Charge boundary, original BBP
 samples/events and the higher-frequency auto-Charge lookback. Partition before
@@ -64,6 +67,8 @@ the ordinary roast reference and Charge clock only; display transformations neve
 enter machine control.
 
 Live BBP events survive sample FIFO eviction and reload, including future notes.
+Events outside the visible BBP interval stay stored but are hidden from the
+waiting chart/log, so future notes cannot spill into the reference roast area.
 At Charge, finalization keeps events in the archived 15-minute BBP interval and
 assigns Charge and later times to the roast. Sample polling never decides which accepted notes survive.
 

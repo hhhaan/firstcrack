@@ -11,7 +11,7 @@ import { useChartZoom } from '@features/active-roast/model/useChartZoom';
 import { feedbackValue } from '@shared/lib/feedback';
 import type { TsvPoint } from '@shared/lib/tsv';
 import type { ReadUnits } from '@shared/types/sidecar';
-import { useEffect, useMemo, useReducer } from 'react';
+import { useEffect, useMemo, useReducer, useRef } from 'react';
 import { buildLiveChartData, CHART_TOTAL_SECS, type LiveChartRow } from '../lib/chart-pipeline-data';
 import { growLiveChartExtent } from '../lib/live-chart-range';
 import type { LiveRoastPoint } from './useSidecarPolling';
@@ -27,6 +27,7 @@ export interface UseChartPipelineParams {
     showControlChart: boolean;
     unit: TemperatureUnit;
     timelineKey?: string;
+    extentKey?: string;
     coordinateOrigin?: number;
 }
 
@@ -80,20 +81,21 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         showControlChart,
         unit,
         timelineKey = '',
+        extentKey = timelineKey,
         coordinateOrigin = 0,
     } = params;
 
     const latest = livePoints.reduce((end, point) => Math.max(end, point.time), xMin);
     const rangeInput = useMemo(
         () => ({
-            key: timelineKey,
+            key: extentKey,
             origin: coordinateOrigin,
             minimumRight: xMaxFloor,
             fixedRight: xMaxFixed,
             latest,
             span: Math.max(60, xMaxFloor - xMin),
         }),
-        [timelineKey, coordinateOrigin, xMaxFloor, xMaxFixed, latest, xMin],
+        [extentKey, coordinateOrigin, xMaxFloor, xMaxFixed, latest, xMin],
     );
     const [previousExtent, rememberExtent] = useReducer(growLiveChartExtent, null);
     const extent = growLiveChartExtent(previousExtent, rangeInput);
@@ -124,6 +126,12 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         handleChartPointerMove,
         endChartDrag,
     } = useChartZoom(maxTime, minTime, chartRightGridPad, true, coordinateOrigin, timelineKey);
+    const previousViewport = useRef({ key: extentKey, fixed: xMaxFixed != null });
+    useEffect(() => {
+        if (previousViewport.current.key !== extentKey && !previousViewport.current.fixed && xMaxFixed == null)
+            setZoomRange(null);
+        previousViewport.current = { key: extentKey, fixed: xMaxFixed != null };
+    }, [extentKey, xMaxFixed, setZoomRange]);
 
     const visibleChartData = useMemo(
         () =>

@@ -127,7 +127,7 @@ describe('displayed roast timeline interface', () => {
         reference.roast = [0, 301, 720].map((t) => ({ ...waitPoint(t), ror: 1 }));
         await render();
         expect(timeline().chart.effectiveZoomRange).toEqual({ start: 240, end: 540 });
-        expect(timeline().chart.maxTime).toBe(900);
+        expect(timeline().chart.maxTime).toBe(1620);
         expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([900, 1201, 1620]);
         await act(() => useBbpStore.setState({ points }));
         expect(timeline().chart.effectiveZoomRange).toEqual({ start: 0, end: 300 });
@@ -147,60 +147,116 @@ describe('displayed roast timeline interface', () => {
         ).toEqual([0, 301, 720]);
     });
 
-    it('keeps READY temperatures, controls and events inside BBP as the joined reference moves past its saved Charge', async () => {
-        const chargeMs = Date.now();
-        const savedBbp = [20, 80, 180].map((t) => ({ ...waitPoint(t), ror: null, bbpChargeOffsetSec: 200 }));
-        reference = { bbp: savedBbp, roast: [0, 301, 720].map((t) => ({ ...waitPoint(t), ror: 1 })), bbpError: false };
-        const original = structuredClone(reference);
-        useBbpStore.setState({ active: true, startMs: chargeMs - 1_200_000, points: [] });
-        await render();
-        expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([20, 80, 180, 200, 501, 920]);
-        expect(timeline().chart.visibleControlXs).toEqual([]);
-        expect(timeline().chart.chartData.every((p) => p.btActual === null)).toBe(true);
-        expect(timeline().frame.bbpRange).toEqual({ start: 0, end: 200 });
-        for (const latest of [1, 180, 600, 900, 1200]) {
-            await act(() => useBbpStore.setState({ points: [waitPoint(latest)], events: [entry('mark', latest)] }));
-            const current = Math.min(latest, 900);
-            const shift = Math.max(0, current - 200);
-            expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual(
-                [20, 80, 180, 200, 501, 920].map((t) => t + shift),
-            );
-            expect(timeline().frame.bbpRange).toEqual({ start: 0, end: Math.max(200, current) });
-            expect(timeline().chart.maxTime).toBe(900);
-            expect(timeline().chart.visibleControlXs).toEqual([current]);
+    it.each(['PREHEAT', 'READY'])(
+        'keeps %s references fixed while measured BBP, controls and events roll together',
+        async (phase) => {
+            const chargeMs = Date.now();
+            useRoastingStore.getState().enterPreheating();
+            if (phase === 'READY') useRoastingStore.getState().enterStandby();
+            const savedBbp = [20, 80, 180].map((t) => ({ ...waitPoint(t), ror: null, bbpChargeOffsetSec: 200 }));
+            reference = {
+                bbp: savedBbp,
+                roast: [0, 301, 1200].map((t) => ({ ...waitPoint(t), ror: 1 })),
+                bbpError: false,
+            };
+            const original = structuredClone(reference);
+            useBbpStore.setState({ active: true, startMs: chargeMs - 1_200_000, points: [] });
+            await render();
+            expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([20, 80, 180, 200, 501, 1400]);
+            expect(timeline().chart.maxTime).toBe(1400);
+            expect(timeline().chart.visibleControlXs).toEqual([]);
+            expect(timeline().frame.bbpRange).toEqual({ start: 0, end: 200 });
+            for (const latest of [1, 180, 200, 201, 600, 900, 1200]) {
+                await act(() =>
+                    useBbpStore.setState({
+                        points: [waitPoint(latest)],
+                        events: [entry('expired', 0), entry('mark', latest), entry('future', 2000)],
+                    }),
+                );
+                const current = Math.min(latest, 200);
+                expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([20, 80, 180, 200, 501, 1400]);
+                expect(timeline().frame.bbpRange).toEqual({ start: 0, end: 200 });
+                expect(timeline().chart.maxTime).toBe(1400);
+                expect(timeline().chart.visibleControlXs).toEqual([current]);
+                expect(
+                    timeline()
+                        .chart.visibleChartData.filter((p) => p.btActual != null || p.etActual != null)
+                        .map((p) => p.time),
+                ).toEqual([current]);
+                expect(timeline().frame.displayedElapsed).toBe(current);
+                expect(timeline().entries.find((e) => e.id === 'mark')?.timeSec).toBe(current);
+                expect(timeline().entries.some((e) => e.id === 'future')).toBe(false);
+                expect(timeline().bbpObservationNow().timeSec).toBe(latest);
+                expect(useBbpStore.getState().points[0].t).toBe(latest);
+            }
+            expect(timeline().entries.some((e) => e.id === 'expired')).toBe(false);
+            const stored = useBbpStore.getState().events;
+            const edited = timeline().editing.read().editEntries(stored, 'mark', { timeSec: 190 });
+            expect(edited.find((e) => e.id === 'mark')?.timeSec).toBe(1190);
+            expect(edited.find((e) => e.id === 'expired')).toEqual(stored[0]);
+            expect(edited.find((e) => e.id === 'future')?.timeSec).toBe(2000);
+            await act(() => timeline().chart.setZoomRange({ start: 100, end: 200 }));
+            for (const range of [3, 60]) {
+                settings = { ...settings, timeRangePresetMin: range };
+                await render();
+                expect(timeline().chart.maxTime).toBe(1400);
+                expect(timeline().chart.effectiveZoomRange).toEqual({ start: 100, end: 200 });
+            }
+            expect(reference).toEqual(original);
+            await act(() => useBbpStore.setState({ points: [waitPoint(300), waitPoint(1200)] }));
+            await act(() => {
+                useRoastingStore.getState().startCharge(chargeMs, 'owner');
+                useRoastingStore.setState({ livePoints: [point(0)] });
+                useBbpStore.setState({ active: false });
+            });
+            expect(timeline().chart.effectiveZoomRange).toEqual({ start: -100, end: 0 });
+            expect(timeline().chart.maxTime).toBe(3600);
             expect(
                 timeline()
-                    .chart.visibleChartData.filter((p) => p.btActual != null || p.etActual != null)
+                    .chart.targetSeries.filter((p) => p.time >= 0)
                     .map((p) => p.time),
-            ).toEqual([current]);
-            expect(timeline().frame.displayedElapsed).toBe(current);
-            expect(timeline().entries[0].timeSec).toBe(current);
-            expect(timeline().bbpObservationNow().timeSec).toBe(latest);
-            expect(useBbpStore.getState().points[0].t).toBe(latest);
-        }
-        await act(() => timeline().chart.setZoomRange({ start: 800, end: 900 }));
+            ).toEqual([0, 301, 1200]);
+            await act(() => timeline().chart.setZoomRange({ start: 0, end: 200 }));
+            settings = { ...settings, timeRangePresetMin: 3 };
+            await render();
+            expect(timeline().chart.effectiveZoomRange).toBeNull();
+            expect(timeline().chart.maxTime).toBe(180);
+        },
+    );
+
+    it('applies the configured roast extent after Charge with BBP joining off', async () => {
+        settings = { ...settings, bbpJoinCharge: false, timeRangePresetMin: 3 };
+        reference = {
+            bbp: [0, 200].map((t) => ({ ...waitPoint(t), ror: null })),
+            roast: [0, 1200].map((t) => ({ ...waitPoint(t), ror: 1 })),
+            bbpError: false,
+        };
+        useBbpStore.setState({ active: true, startMs: Date.now() - 600_000, points: [waitPoint(0), waitPoint(600)] });
+        await render();
+        expect(timeline().chart.maxTime).toBe(1400);
+        expect(timeline().chart.visibleControlXs).toEqual([200]);
+        await act(() => timeline().chart.setZoomRange({ start: 0, end: 200 }));
         await act(() => {
-            reference = {
-                ...reference,
-                bbp: [40, 100].map((t) => ({ ...waitPoint(t), ror: null, bbpChargeOffsetSec: 200 })),
-            };
-            root.render(createElement(Probe));
-        });
-        expect(timeline().chart.effectiveZoomRange).toEqual({ start: 800, end: 900 });
-        expect(timeline().chart.targetSeries.map((p) => p.time)).toEqual([740, 800, 900, 1201, 1620]);
-        expect(original.bbp).toEqual(savedBbp);
-        await act(() => useBbpStore.setState({ points: [waitPoint(300), waitPoint(1200)] }));
-        await act(() => {
-            useRoastingStore.getState().startCharge(chargeMs, 'owner');
+            useRoastingStore.getState().startCharge(Date.now(), 'owner');
             useRoastingStore.setState({ livePoints: [point(0)] });
             useBbpStore.setState({ active: false });
         });
-        expect(timeline().chart.effectiveZoomRange).toEqual({ start: -100, end: 0 });
-        expect(
-            timeline()
-                .chart.targetSeries.filter((p) => p.time >= 0)
-                .map((p) => p.time),
-        ).toEqual([0, 301, 720]);
+        expect(timeline().chart.maxTime).toBe(180);
+        expect(timeline().frame.bbpRange).toBeUndefined();
+        expect(timeline().chart.effectiveZoomRange).toBeNull();
+        expect(timeline().chart.visibleControlXs).toEqual([0]);
+    });
+
+    it('hides future BBP notes from the roast reference with no saved BBP or measured span', async () => {
+        reference.roast = [0, 1200].map((t) => ({ ...waitPoint(t), ror: 1 }));
+        const future = entry('future', 1800);
+        useBbpStore.setState({ active: true, points: [], events: [future] });
+        await render();
+        expect(timeline().entries).toEqual([]);
+        await act(() => useBbpStore.setState({ points: [waitPoint(600)], events: [entry('now', 600), future] }));
+        expect(timeline().frame.bbpRange).toBeUndefined();
+        expect(timeline().entries.map((e) => e.id)).toEqual(['now']);
+        expect(useBbpStore.getState().events[1]).toEqual(future);
     });
 
     it('reads the new Charge source when an old BBP editing callback runs', async () => {

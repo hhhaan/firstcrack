@@ -150,7 +150,11 @@ export const useDisplayedRoastTimeline = (params: Params) => {
             !snapshot &&
             (currentEditing.kind === 'bbp' || (currentEditing.kind === 'live' && currentEditing.waiting))
         ) {
-            return currentEditing.displayEntries(currentEditing.kind === 'bbp' ? bbp.events : curveEntries);
+            const displayed = currentEditing.displayEntries(currentEditing.kind === 'bbp' ? bbp.events : curveEntries);
+            const bbpEnd = view.bbpRange?.end ?? currentEditing.maxTimeSec;
+            return currentEditing.kind === 'bbp'
+                ? displayed.filter((entry) => (entry.timeSec ?? 0) <= bbpEnd)
+                : displayed;
         }
         const capture = snapshot?.bbpCapture ?? roast.bbpCapture;
         const before =
@@ -165,6 +169,7 @@ export const useDisplayedRoastTimeline = (params: Params) => {
         bbpEnabled,
         settings.bbpJoinCharge,
         unit,
+        view.bbpRange,
     ]);
     const capture = bbpEnabled && settings.bbpJoinCharge ? (snapshot?.bbpCapture ?? roast.bbpCapture) : null;
     const identity = snapshot
@@ -174,11 +179,12 @@ export const useDisplayedRoastTimeline = (params: Params) => {
           : bbp.active
             ? `wait:${bbp.startMs}`
             : `roast:${roast.sessionId ?? 'pre'}`;
-    const timelineKey = `${identity}:${chartSpanSec(settings)}${charged && !settings.bbpJoinCharge ? ':charge' : ''}`;
+    const timelineKey = `${identity}${charged && !settings.bbpJoinCharge ? ':charge' : ''}`;
     const chart = useChartPipeline({
         livePoints: view.livePoints,
         targetCurvePoints: view.targetPoints,
         timelineKey,
+        extentKey: `${timelineKey}:${view.xMaxFixed != null ? 'bbp' : chartSpanSec(settings)}`,
         coordinateOrigin: view.axisOrigin,
         xMin: view.xMin,
         xMaxFixed: view.xMaxFixed,

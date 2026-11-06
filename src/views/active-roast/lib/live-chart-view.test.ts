@@ -22,115 +22,26 @@ const base = {
     bbpTargetError: false,
 };
 
-describe('resolveLiveChartView', () => {
-    it('starts the reference BBP at zero and joins its roast at the saved Charge', () => {
-        const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false });
-        expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
-        expect(view.axisOrigin).toBe(0);
-        expect(view.bbpRange).toEqual({ start: 0, end: 90 });
-        expect(view.livePoints.map((p) => p.time)).toEqual([1, 60]);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 90, 90, 150]);
-        expect(view.eventTimeOrigin).toBe(0);
-    });
-
-    it('shows only the roast timeline after Charge', () => {
-        const view = resolveLiveChartView({ ...base, bbpActive: false, charged: true });
-        expect(view.livePoints).toBe(base.livePoints);
-        expect(view.targetPoints).toBe(base.roastTarget);
-        expect(view.bbpRange).toBeUndefined();
-        expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBeUndefined();
-    });
-
-    it('uses the roast timeline before first Charge when no BBP is active', () => {
-        const view = resolveLiveChartView({ ...base, bbpActive: false, charged: false });
-        expect(view.livePoints).toBe(base.livePoints);
-        expect(view.targetPoints).toBe(base.roastTarget);
-    });
-
-    it('grows the BBP axis from zero without a saved target', () => {
+describe('waiting BBP display', () => {
+    it('fits the complete fixed BBP and Charge-to-Drop reference before measurements arrive', () => {
         const view = resolveLiveChartView({
             ...base,
             bbpActive: true,
             charged: false,
-            bbpTargetError: true,
-            bbpPoints: [bbpPt(0), bbpPt(181)],
+            bbpPoints: [],
+            roastTarget: [roastPt(-30), ...base.roastTarget],
         });
-        expect(view.targetPoints.map((p) => p.t)).toEqual([181, 241]);
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 181]);
-        expect(view.xMaxFloor).toBe(900);
-        expect(view.bbpRange).toEqual({ start: 0, end: 181 });
-    });
-
-    it('keeps the latest 15 minutes of live BBP, including the window boundary', () => {
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpPoints: [bbpPt(0), bbpPt(59), bbpPt(60), bbpPt(660), bbpPt(960)],
-        });
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 600, 900]);
-        expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
-        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
-        expect(view.eventTimeOrigin).toBe(60);
-    });
-
-    it('keeps the saved reference length independent of a 15-minute live window', () => {
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpPoints: [bbpPt(2040), bbpPt(2940)],
-            bbpTarget: [roastPt(540), roastPt(900)],
-        });
-        expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 900]);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([540, 900, 900, 960]);
-        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
-    });
-
-    it('shows the last 15 minutes of a legacy 20-minute reference without rewriting it', () => {
-        const stored = [roastPt(0), roastPt(300), roastPt(700), roastPt(1200)];
-        const before = stored.map((p) => ({ ...p }));
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpPoints: [bbpPt(0), bbpPt(900)],
-            bbpTarget: stored,
-        });
-        expect(stored).toEqual(before);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 400, 900, 900, 960]);
-        expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
-    });
-
-    it('keeps a 14-minute live BBP at its measured times', () => {
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpPoints: [bbpPt(2100), bbpPt(2940)],
-        });
-        expect(view.livePoints.map((p) => p.time)).toEqual([60, 900]);
-        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
-        expect(view.xMaxFloor).toBe(900);
-    });
-
-    it('shades the saved BBP from the start so Charge is visible before measurements fill in', () => {
-        const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false, bbpPoints: [] });
         expect(view.livePoints).toEqual([]);
-        expect(view.bbpRange).toEqual({ start: 0, end: 90 });
         expect(view.targetPoints.map((p) => p.t)).toEqual([0, 90, 90, 150]);
+        expect(view.bbpRange).toEqual({ start: 0, end: 90 });
         expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
+        expect(view.xMaxFloor).toBe(150);
+        expect(view.xMaxFixed).toBe(150);
+        expect(view.axisOrigin).toBe(0);
     });
 
-    it('extends the BBP band and moves the joined reference when the wait exceeds its saved Charge', () => {
-        const points = [bbpPt(0), bbpPt(388), bbpPt(405)];
+    it('drops only oldest display samples at the saved Charge boundary instead of moving the reference', () => {
+        const points = [bbpPt(0), bbpPt(16), bbpPt(17), bbpPt(388), bbpPt(405)];
         const target = [roastPt(0), roastPt(388)];
         const original = structuredClone({ points, target });
         const view = resolveLiveChartView({
@@ -140,62 +51,77 @@ describe('resolveLiveChartView', () => {
             bbpPoints: points,
             bbpTarget: target,
         });
-        expect(view.bbpRange).toEqual({ start: 0, end: 405 });
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 388, 405]);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([17, 405, 405, 465]);
-        expect(view.livePoints.every((p) => p.time <= (view.bbpRange?.end ?? 0))).toBe(true);
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 371, 388]);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 388, 388, 448]);
+        expect(view.bbpRange).toEqual({ start: 0, end: 388 });
+        expect(view.axisOrigin).toBe(17);
+        expect(view.eventTimeOrigin).toBe(17);
+        expect(view.xMaxFixed).toBe(448);
         expect({ points, target }).toEqual(original);
     });
 
-    it('shades only the measured wait when the saved BBP is missing', () => {
+    it.each([
+        { latest: 0, origin: 0, times: [0] },
+        { latest: 60, origin: 0, times: [0, 60] },
+        { latest: 90, origin: 0, times: [0, 60, 90] },
+        { latest: 91, origin: 1, times: [59, 89, 90] },
+        { latest: 405, origin: 315, times: [90] },
+        { latest: 900, origin: 810, times: [90] },
+        { latest: 1200, origin: 1110, times: [90] },
+    ])('keeps the reference fixed while measured BBP rolls at $latest seconds', ({ latest, origin, times }) => {
         const view = resolveLiveChartView({
             ...base,
             bbpActive: true,
             charged: false,
-            bbpTarget: [],
-            roastTarget: [],
-            bbpPoints: [bbpPt(1), bbpPt(60)],
+            bbpPoints: [0, 60, 90, 91, 405, 900, 1200].filter((t) => t <= latest).map(bbpPt),
+            roastTarget: [roastPt(0), roastPt(300), roastPt(1200)],
         });
-        expect(view.bbpRange).toEqual({ start: 1, end: 60 });
+        expect(view.livePoints.map((p) => p.time)).toEqual(times);
+        expect(view.eventTimeOrigin).toBe(origin);
+        expect(view.axisOrigin).toBe(origin);
+        expect(view.bbpRange).toEqual({ start: 0, end: 90 });
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 90, 90, 390, 1290]);
+        expect(view.xMaxFixed).toBe(1290);
+        expect(view.livePoints.every((p) => p.ror === null && p.ror_et === null)).toBe(true);
     });
 
-    it('retains the complete post-Charge reference beyond the fixed viewport', () => {
+    it('preserves sparse saved timestamps and explicit Charge gaps while the measured window rolls', () => {
+        const saved = [{ ...roastPt(40), bbpChargeOffsetSec: 200 }, roastPt(100)];
+        const original = structuredClone(saved);
+        for (const latest of [0, 180, 600, 1200]) {
+            const view = resolveLiveChartView({
+                ...base,
+                bbpActive: true,
+                charged: false,
+                bbpTarget: saved,
+                bbpPoints: latest ? [bbpPt(latest)] : [],
+            });
+            expect(view.targetPoints.map((p) => p.t)).toEqual([40, 100, 200, 260]);
+            expect(view.bbpRange).toEqual({ start: 0, end: 200 });
+            expect(view.eventTimeOrigin).toBe(Math.max(0, latest - 200));
+        }
+        expect(saved).toEqual(original);
+    });
+
+    it('clips a legacy reference to 15 minutes, retaining its observation gaps and the entire roast', () => {
+        const saved = [40, 450, 700, 1190].map((t) => ({ ...roastPt(t), bbpChargeOffsetSec: 1250 }));
+        const original = structuredClone(saved);
         const view = resolveLiveChartView({
             ...base,
             bbpActive: true,
             charged: false,
-            bbpPoints: [bbpPt(0), bbpPt(240)],
-            bbpTarget: [roastPt(0), roastPt(240)],
-            roastTarget: [roastPt(-30), roastPt(0), roastPt(90), roastPt(300), roastPt(780)],
+            bbpTarget: saved,
+            bbpPoints: [bbpPt(0), bbpPt(60), bbpPt(960)],
         });
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, 240]);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 240, 240, 330, 540, 1020]);
-        expect(view.xMaxFloor).toBe(900);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([100, 350, 840, 900, 960]);
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 900]);
+        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
+        expect(view.eventTimeOrigin).toBe(60);
+        expect(view.xMaxFixed).toBe(960);
+        expect(saved).toEqual(original);
     });
 
-    it.each([600, 720, 900])('shows the complete BBP at %i seconds without early clipping', (waitSec) => {
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpPoints: [bbpPt(0), bbpPt(waitSec)],
-            roastTarget: [roastPt(0), roastPt(300), roastPt(780), roastPt(1200)],
-        });
-        expect(view.livePoints.map((p) => p.time)).toEqual([0, waitSec]);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([
-            waitSec - 90,
-            waitSec,
-            waitSec,
-            waitSec + 300,
-            waitSec + 780,
-            waitSec + 1200,
-        ]);
-        expect(view.bbpRange).toEqual({ start: 0, end: waitSec });
-        expect(view.eventTimeOrigin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
-    });
-
-    it('keeps a 15 minute left-aligned wait when no reference roast is selected', () => {
+    it('keeps a positive saved BBP window even when there is no roast reference', () => {
         const view = resolveLiveChartView({
             ...base,
             bbpActive: true,
@@ -203,11 +129,82 @@ describe('resolveLiveChartView', () => {
             roastTarget: [],
             bbpPoints: [bbpPt(60), bbpPt(960)],
         });
+        expect(view.xMaxFixed).toBe(90);
+        expect(view.livePoints.map((p) => p.time)).toEqual([90]);
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 90]);
+    });
+
+    it('infers the Charge boundary from legacy saved samples without metadata', () => {
+        const saved = [0, 300, 700, 1200].map(roastPt);
+        const view = resolveLiveChartView({
+            ...base,
+            bbpActive: true,
+            charged: false,
+            bbpTarget: saved,
+            bbpPoints: [bbpPt(0), bbpPt(60), bbpPt(960)],
+        });
+        expect(view.targetPoints.map((p) => p.t)).toEqual([0, 400, 900, 900, 960]);
         expect(view.livePoints.map((p) => p.time)).toEqual([0, 900]);
-        expect(view.xMin).toBe(0);
-        expect(view.xMaxFloor).toBe(900);
         expect(view.bbpRange).toEqual({ start: 0, end: 900 });
-        expect(view.targetPoints.map((p) => p.t)).toEqual([810, 900]);
+        expect(view.xMaxFixed).toBe(960);
+        expect(saved.map((p) => p.t)).toEqual([0, 300, 700, 1200]);
+    });
+
+    it.each([
+        { bbpTarget: [], bbpTargetError: false },
+        { bbpTarget: [roastPt(0)], bbpTargetError: false },
+        { bbpTarget: base.bbpTarget, bbpTargetError: true },
+    ])('falls back to the 15-minute measured window without hiding the available roast: %j', (target) => {
+        const view = resolveLiveChartView({
+            ...base,
+            ...target,
+            bbpActive: true,
+            charged: false,
+            bbpPoints: [bbpPt(0), bbpPt(59), bbpPt(60), bbpPt(660), bbpPt(960)],
+            roastTarget: [roastPt(0), roastPt(1200)],
+        });
+        expect(view.livePoints.map((p) => p.time)).toEqual([0, 600, 900]);
+        expect(view.eventTimeOrigin).toBe(60);
+        expect(view.bbpRange).toEqual({ start: 0, end: 900 });
+        expect(view.targetPoints.slice(-2).map((p) => p.t)).toEqual([900, 2100]);
+        expect(view.xMaxFixed).toBe(2100);
+    });
+
+    it('shades only measured BBP with no saved reference and leaves an empty wait unshaded', () => {
+        const input = { ...base, bbpActive: true, charged: false, bbpTarget: [], roastTarget: [] };
+        expect(resolveLiveChartView({ ...input, bbpPoints: [] }).bbpRange).toBeUndefined();
+        const view = resolveLiveChartView({ ...input, bbpPoints: [bbpPt(1), bbpPt(60)] });
+        expect(view.bbpRange).toEqual({ start: 1, end: 60 });
+        expect(view.xMaxFixed).toBe(900);
+    });
+
+    it('rebases the measured display consistently when a late reference arrives, changes or fails', () => {
+        const input = { ...base, bbpActive: true, charged: false, bbpPoints: [bbpPt(500), bbpPt(1140), bbpPt(1200)] };
+        for (const { target, error, origin, times } of [
+            { target: [], error: false, origin: 300, times: [200, 840, 900] },
+            { target: base.bbpTarget, error: false, origin: 1110, times: [30, 90] },
+            { target: [roastPt(20), roastPt(200)], error: false, origin: 1000, times: [140, 200] },
+            { target: base.bbpTarget, error: true, origin: 300, times: [200, 840, 900] },
+        ]) {
+            const view = resolveLiveChartView({ ...input, bbpTarget: target, bbpTargetError: error });
+            expect(view.livePoints.map((p) => p.time)).toEqual(times);
+            expect(view.axisOrigin).toBe(origin);
+            expect(view.eventTimeOrigin).toBe(origin);
+        }
+    });
+
+    it('uses the ordinary roast view when Charge has no saved BBP or waiting is inactive', () => {
+        for (const state of [
+            { bbpActive: false, charged: true },
+            { bbpActive: false, charged: false },
+        ]) {
+            const view = resolveLiveChartView({ ...base, ...state });
+            expect(view.livePoints).toBe(base.livePoints);
+            expect(view.targetPoints).toBe(base.roastTarget);
+            expect(view.bbpRange).toBeUndefined();
+            expect(view.xMaxFixed).toBeUndefined();
+            expect(view.xMaxFloor).toBeUndefined();
+        }
     });
 });
 
@@ -265,117 +262,7 @@ it('starts the charged chart at Charge when BBP is not joined', () => {
 it('keeps the reference roast on the wait chart when BBP is not joined into Charge', () => {
     const view = resolveLiveChartView({ ...base, bbpActive: true, charged: false, joinBbp: false });
     expect(view.xMin).toBe(0);
-    expect(view.xMaxFloor).toBe(900);
+    expect(view.xMaxFloor).toBe(150);
     expect(view.livePoints.map((point) => point.time)).toEqual([1, 60]);
     expect(view.targetPoints.map((point) => point.t)).toEqual([0, 90, 90, 150]);
 });
-
-it.each([0, 1, 180, 600, 840, 900, 1200])(
-    'keeps the joined reference after the measured BBP at %i live seconds',
-    (latest) => {
-        const origin = Math.max(0, latest - 900);
-        const reference = [0, 299, 300, 301, 600, 720].map(roastPt);
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpPoints: [0, 180, 300, 600, 840, 900, 1200].filter((t) => t <= latest).map(bbpPt),
-            roastTarget: reference,
-            bbpTarget: [{ ...roastPt(20), bbpChargeOffsetSec: 200 }, roastPt(160)],
-        });
-        expect(view.xMaxFixed).toBe(900);
-        expect(view.axisOrigin).toBe(origin);
-        expect(view.eventTimeOrigin).toBe(origin);
-        const charge = Math.max(200, latest - origin);
-        expect(view.bbpRange).toEqual({ start: 0, end: charge });
-        expect(view.targetPoints.map((p) => p.t)).toEqual([
-            charge - 180,
-            charge - 40,
-            ...reference.map((p) => charge + p.t),
-        ]);
-        expect(view.livePoints.map((p) => p.time)).toEqual(
-            [0, 180, 300, 600, 840, 900, 1200].filter((t) => t >= origin && t <= latest).map((t) => t - origin),
-        );
-        if (latest === 180)
-            expect(view.targetPoints.filter((p) => p.t >= 0 && p.t <= 900).map((p) => p.t)).toEqual([
-                20, 160, 200, 499, 500, 501, 800,
-            ]);
-    },
-);
-
-it('keeps sparse observations and their origin independent of reference arrival or failure', () => {
-    const input = { ...base, bbpActive: true, charged: false, bbpPoints: [bbpPt(500), bbpPt(1200)] };
-    const without = resolveLiveChartView({ ...input, roastTarget: [], bbpTarget: [] });
-    const arrived = resolveLiveChartView(input);
-    const failed = resolveLiveChartView({ ...input, bbpTargetError: true });
-    for (const view of [without, arrived, failed]) {
-        expect(view.livePoints.map((p) => p.time)).toEqual([200, 900]);
-        expect(view.axisOrigin).toBe(300);
-        expect(view.eventTimeOrigin).toBe(300);
-    }
-    expect(without.bbpRange).toEqual({ start: 200, end: 900 });
-    expect(arrived.bbpRange).toEqual({ start: 0, end: 900 });
-    expect(failed.bbpRange).toEqual({ start: 200, end: 900 });
-    expect(failed.targetPoints.map((p) => p.t)).toEqual([900, 960]);
-});
-
-it('retains explicit Charge gaps and clips long legacy references without moving their coordinates', () => {
-    const stored = [40, 450, 700, 1190].map((t) => ({ ...roastPt(t), bbpChargeOffsetSec: 1250 }));
-    const original = structuredClone(stored);
-    for (const latest of [0, 180, 900, 1200]) {
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpTarget: stored,
-            bbpPoints: latest ? [bbpPt(latest)] : [],
-        });
-        expect(view.targetPoints.map((p) => p.t)).toEqual([100, 350, 840, 900, 960]);
-        expect(view.targetPoints.slice(0, 3).every((p) => p.ror === null)).toBe(true);
-    }
-    expect(stored).toEqual(original);
-});
-
-it('preserves sparse saved BBP timestamps and their gaps before explicit Charge', () => {
-    const stored = [{ ...roastPt(40), bbpChargeOffsetSec: 200 }, roastPt(100)];
-    for (const points of [[], [bbpPt(180)], [bbpPt(1200)]]) {
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpTarget: stored,
-            bbpPoints: points,
-        });
-        const shift = Math.max(0, Math.min(points[points.length - 1]?.t ?? 0, 900) - 200);
-        expect(view.targetPoints.map((p) => p.t)).toEqual([40 + shift, 100 + shift, 200 + shift, 260 + shift]);
-    }
-});
-
-it.each([{ initial: [] }, { initial: [roastPt(0)] }])(
-    'keeps reference-independent coordinates when a reference arrives or changes',
-    ({ initial }) => {
-        const input = { ...base, bbpActive: true, charged: false, bbpPoints: [bbpPt(500), bbpPt(1200)] };
-        for (const bbpTarget of [initial, base.bbpTarget, [roastPt(20), roastPt(200)]]) {
-            const view = resolveLiveChartView({ ...input, bbpTarget });
-            expect(view.axisOrigin).toBe(300);
-            expect(view.eventTimeOrigin).toBe(300);
-            expect(view.livePoints.map((p) => p.time)).toEqual([200, 900]);
-        }
-    },
-);
-
-it.each([0, 60, 180, 900, 1200])(
-    'preserves the initial observation gap and explicit Charge at %i live seconds',
-    (latest) => {
-        const stored = [{ ...roastPt(1), bbpChargeOffsetSec: 60 }, roastPt(59)];
-        const view = resolveLiveChartView({
-            ...base,
-            bbpActive: true,
-            charged: false,
-            bbpTarget: stored,
-            bbpPoints: latest ? [bbpPt(latest)] : [],
-        });
-        const shift = Math.max(60, Math.min(latest, 900)) - 60;
-        expect(view.targetPoints.map((p) => p.t)).toEqual([1 + shift, 59 + shift, 60 + shift, 120 + shift]);
-    },
-);

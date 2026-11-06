@@ -151,7 +151,7 @@ it('keeps samples, control values, and event times aligned across rolling BBP, r
         check(240, 540, [240, 340, 440, 540]);
         target = reference;
         render();
-        expect(chart?.maxTime).toBe(900);
+        expect(chart?.maxTime).toBe(1620);
         check(240, 540, [240, 340, 440, 540]);
         latest = 1200;
         render();

@@ -78,15 +78,6 @@ export const resolveLiveChartView = (input: {
         (latest, point) => (Number.isFinite(point.t) ? Math.max(latest, point.t) : latest),
         0,
     );
-    const origin = Math.max(0, lastT - BBP_MAX_SECONDS);
-    const seam = lastT - origin;
-    const livePoints = livePointsFromBbp(
-        input.bbpPoints.flatMap((point) =>
-            point.t >= origin && point.t <= lastT ? [{ ...point, t: point.t - origin }] : [],
-        ),
-    );
-    const liveStart = livePoints[0]?.time ?? 0;
-    const liveEnd = livePoints[livePoints.length - 1]?.time ?? liveStart;
     const sourceExtent = sampleExtent(source);
     const explicitCharge = source[0]?.bbpChargeOffsetSec;
     const targetEnd =
@@ -97,24 +88,31 @@ export const resolveLiveChartView = (input: {
     const referenceBbp = source.flatMap((point) =>
         point.t >= targetOrigin && point.t <= targetEnd ? [{ ...point, t: point.t - targetOrigin, ror: null }] : [],
     );
-    // Keep the saved BBP and roast joined after the entire measured wait, without stretching either curve.
     const referenceDuration = targetEnd - targetOrigin;
-    const referenceCharge = referenceBbp.length ? Math.max(referenceDuration, liveEnd) : seam;
-    const referenceShift = referenceCharge - referenceDuration;
-    // Preserve every post-Charge reference sample. The chart clips at its viewport.
+    const hasReferenceBbp = referenceBbp.length > 0 && referenceDuration > 0;
+    // Roll only the measured display; the saved BBP and its Charge-to-Drop reference stay fixed.
+    const origin = Math.max(0, lastT - (hasReferenceBbp ? referenceDuration : BBP_MAX_SECONDS));
+    const seam = lastT - origin;
+    const livePoints = livePointsFromBbp(
+        input.bbpPoints.flatMap((point) =>
+            point.t >= origin && point.t <= lastT ? [{ ...point, t: point.t - origin }] : [],
+        ),
+    );
+    const liveStart = livePoints[0]?.time ?? 0;
+    const liveEnd = livePoints[livePoints.length - 1]?.time ?? liveStart;
+    const referenceCharge = hasReferenceBbp ? referenceDuration : seam;
     const referenceRoast = input.roastTarget.flatMap((point) =>
         point.t >= 0 ? [{ ...point, t: referenceCharge + point.t }] : [],
     );
+    const targetPoints = [...referenceBbp, ...referenceRoast].sort((a, b) => a.t - b.t);
+    const right = Math.max(hasReferenceBbp ? referenceDuration : BBP_MAX_SECONDS, sampleExtent(targetPoints).max);
     return {
         livePoints,
-        targetPoints: [
-            ...referenceBbp.map((point) => ({ ...point, t: point.t + referenceShift })),
-            ...referenceRoast,
-        ].sort((a, b) => a.t - b.t),
+        targetPoints,
         xMin: 0,
-        xMaxFloor: BBP_MAX_SECONDS,
-        xMaxFixed: BBP_MAX_SECONDS,
-        bbpRange: referenceBbp.length
+        xMaxFloor: right,
+        xMaxFixed: right,
+        bbpRange: hasReferenceBbp
             ? { start: 0, end: referenceCharge }
             : liveEnd > liveStart
               ? { start: liveStart, end: liveEnd }
