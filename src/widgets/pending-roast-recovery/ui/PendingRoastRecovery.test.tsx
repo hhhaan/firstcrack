@@ -68,8 +68,9 @@ const pending = (overrides: Partial<PendingRoastSave> = {}): PendingRoastSave =>
 });
 const OTHER_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 const button = (name: string) => {
-    const result = [...document.querySelectorAll('button')].find(
-        (el) => el.textContent === `activeRoast.recovery.${name}`,
+    const names = name === 'retry' ? ['retry', 'saveAction', 'syncAction'] : [name];
+    const result = [...document.querySelectorAll('button')].find((el) =>
+        names.some((key) => el.textContent === `activeRoast.recovery.${key}`),
     );
     if (!result) throw new Error(`Missing button: ${name}`);
     return result;
@@ -83,7 +84,10 @@ const confirmDiscard = () => {
 const mount = async (item: PendingRoastSave) => {
     writePendingRoastSave(item);
     await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
-    await act(async () => button('pending').click());
+    await act(async () => {
+        button('pending').focus();
+        button('pending').click();
+    });
 };
 
 beforeEach(() => {
@@ -429,4 +433,129 @@ describe('Unified roast recovery', () => {
             }
         },
     );
+});
+
+describe('Recovery modal keyboard and intent', () => {
+    const press = (element: Element | Window, key: string, shiftKey = false) =>
+        element.dispatchEvent(new KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true }));
+    const listClose = () => document.querySelector<HTMLButtonElement>('[data-testid="pending-roast-close"]');
+
+    it('focuses the list, wraps Tab in both directions and restores its trigger on close', async () => {
+        await mount(pending({ submitted: false }));
+        expect(document.activeElement).toBe(listClose());
+        expect(host.inert).toBe(true);
+        const footerClose = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+            (el) => el.textContent === 'common.close',
+        );
+        expect(footerClose).toBeDefined();
+        await act(async () => {
+            footerClose?.focus();
+            if (footerClose) press(footerClose, 'Tab');
+        });
+        expect(document.activeElement).toBe(listClose());
+        await act(async () => {
+            const close = listClose();
+            if (close) press(close, 'Tab', true);
+        });
+        expect(document.activeElement).toBe(footerClose);
+        await act(async () => press(window, 'Escape'));
+        expect(host.inert).toBe(false);
+        expect(document.activeElement).toBe(button('pending'));
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+    });
+
+    it('focuses Cancel in a nested discard dialog and restores the original discard action', async () => {
+        await mount(pending({ submitted: false }));
+        const discard = button('discard');
+        await act(async () => {
+            discard.focus();
+            discard.click();
+        });
+        const cancel = [...(discardModal()?.querySelectorAll('button') ?? [])].find(
+            (el) => el.textContent === 'common.cancel',
+        );
+        if (!cancel) throw new Error('Missing discard cancel');
+        expect(document.activeElement).toBe(cancel);
+        await act(async () => {
+            confirmDiscard().focus();
+            press(confirmDiscard(), 'Tab');
+        });
+        expect(document.activeElement).toBe(cancel);
+        await act(async () => press(cancel, 'Escape'));
+        expect(discardModal()).toBeNull();
+        expect(document.activeElement).toBe(discard);
+        expect(host.inert).toBe(true);
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+    });
+
+    it('releases background inertness when confirming the final item', async () => {
+        await mount(pending({ submitted: false }));
+        await act(async () => button('discard').click());
+        await act(async () => confirmDiscard().click());
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        expect(host.inert).toBe(false);
+    });
+
+    it.each(['unmount', 'workspace'])('releases both focus scopes when %s removes nested dialogs', async (reason) => {
+        await mount(pending({ submitted: false }));
+        await act(async () => button('discard').click());
+        expect(host.inert).toBe(true);
+        if (reason === 'workspace') mocks.workspaceReady = false;
+        await act(async () =>
+            root.render(reason === 'unmount' ? null : <PendingRoastRecovery onReview={mocks.review} />),
+        );
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        expect(host.inert).toBe(false);
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+        if (reason === 'workspace') {
+            mocks.workspaceReady = true;
+            await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
+            expect(document.querySelector('[role="dialog"]')).toBeNull();
+            expect(host.inert).toBe(false);
+            await act(async () => button('pending').click());
+            expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+            expect(listClose()?.closest('[inert]')).toBeNull();
+        }
+    });
+
+    it('leaves the recovery dialog open when a Radix selection consumes Escape', async () => {
+        await mount(pending({ submitted: false }));
+        const details = document.querySelector('details');
+        if (details) details.open = true;
+        Element.prototype.scrollIntoView = () => {};
+        await act(async () => document.querySelector<HTMLElement>('[role="combobox"]')?.click());
+        expect(document.querySelector('[role="listbox"]')).not.toBeNull();
+        const listbox = document.querySelector('[role="listbox"]');
+        if (!listbox) throw new Error('Missing open dropdown');
+        await act(async () => press(listbox, 'Escape'));
+        expect(document.querySelector('[role="listbox"]')).toBeNull();
+        expect(document.querySelector('[aria-labelledby="pending-roasts-title"]')).not.toBeNull();
+        expect(host.inert).toBe(true);
+    });
+
+    it('uses different save and sync actions, with recovery guidance beside errors', async () => {
+        await mount(pending({ submitted: false, error: 'network offline' }));
+        expect(button('saveAction')).toBeDefined();
+        expect(document.body.textContent).toContain('activeRoast.recovery.retryHelp');
+        expect(document.body.textContent).toContain('activeRoast.recovery.errorDetails');
+        await act(async () =>
+            writePendingRoastSave(pending({ db: 'saved', submitted: false, error: 'upload offline' })),
+        );
+        expect(button('syncAction')).toBeDefined();
+        expect(document.body.textContent).toContain('activeRoast.recovery.syncHelp');
+        expect(document.querySelector('fieldset')).toBeNull();
+        await act(async () => button('discard').click());
+        expect(discardModal()?.textContent).toContain('activeRoast.recovery.discardSavedConfirm');
+    });
+
+    it('restores background interaction when the final open item finishes automatic recovery', async () => {
+        const item = pending({ submitted: false });
+        await mount(item);
+        expect(host.inert).toBe(true);
+        mocks.find.mockResolvedValue({ id: ID, user_id: 'owner', status: 'completed', plan_batch_id: null });
+        await act(async () => writePendingRoastSave({ ...item, submitted: true }));
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        expect(host.inert).toBe(false);
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
+    });
 });
