@@ -12,11 +12,56 @@ message. Imported completed records and simulator saves are included.
 The trigger queues only the session UUID through `pg_net`, which sends after the
 transaction commits. `notify-roast` verifies its shared secret and reads the
 committed record so the final server-assigned batch title is available. Its Slack
-message includes the owner's roastery/display name, the `created_by` operator's
-display name, batch title, bean label, charge weight, roast time in KST and record
-UUID. Missing names fall back to UUIDs; missing operator identity stays unknown.
-User-provided names are rendered as Slack `plain_text`, so they cannot mention a
-channel or inject Slack links. Billing data, addresses and curve data are excluded.
+message separates the owner's roastery from the `created_by` operator. Operator
+email comes only from the service-role Auth admin lookup for that exact user,
+never from the webhook body or a client-supplied label. Missing names fall back
+to the verified email or UUID; missing operator identity stays unknown.
+
+Block Kit groups the final batch title and sequence numbers, bean/blend,
+reference profile, snapshotted roaster, charge/output kilograms, measured loss,
+roast duration, Charge/Drop BT, roast level and development/DTR. Optional groups
+show whole/ground color, moisture, density, ambient temperature/humidity and
+the saved roast note. KST roast time and latest save/edit time (`updated_at`)
+appear with the record UUID in the footer. There is no raw curve or event dump.
+
+Charge weight zero means the app's unset sentinel and displays as `미입력`;
+quality/ambient zeros stay visible. Missing measured
+output displays as `미측정`, without inventing an estimated weight or loss.
+Duration follows History's valid Drop → End → stored-duration priority.
+Development starts at `FC Start`, not `FC Rolling`, and is omitted when its
+marks are missing or invalid.
+
+Every user-provided value uses Slack `plain_text` with bounded lengths. The
+useful notification fallback includes operator, batch and kilograms with
+`&`, `<` and `>` escaped, preventing mentions and injected Slack links. Postal
+addresses, billing data and machine connection details are excluded. Optional
+profile, reference-profile or Auth lookup failures keep the roast notification
+and fall back to available identity information rather than suppressing it.
+
+## Example message
+
+The Slack card uses a header, two-column field groups, dividers and a footer.
+Example values below are illustrative:
+
+**로스팅 저장**<br>
+에티오피아 #1 · PR12
+
+| | |
+|---|---|
+| **로스터리**<br>테스트 로스터리 | **작업자**<br>김로스터<br>roaster@example.invalid |
+| **생두 / 블렌드**<br>에티오피아 구지 | **참조 프로파일**<br>구지 워시드 |
+| **로스터**<br>Probat · P12 | **배치 번호 · 프로파일 / 전체**<br>1 / 12 |
+| **투입 → 배출**<br>1.5 kg → 1.275 kg | **감량률**<br>15.0 % |
+| **로스팅 시간**<br>10:00 | **투입 BT → 배출 BT**<br>180 °C → 205.5 °C |
+| **로스팅 레벨**<br>Medium | **디벨롭 · DTR**<br>2:00 · 20.0 % |
+| **색도 · 홀빈 / 분쇄**<br>65 / 72 | **수분율**<br>10.8 % |
+| **밀도**<br>730 g/L | **환경 · 온도 / 습도**<br>22 °C / 40 % |
+
+메모: 깔끔한 단맛
+
+로스팅: 2026. 11. 7. 오전 12:30:00 KST<br>
+최근 저장/수정: 2026. 11. 7. 오전 12:40:00 KST<br>
+기록: `<session UUID>`
 
 ## One-time activation
 
@@ -59,7 +104,7 @@ Local checks:
 
 ```sh
 pnpm exec vitest run supabase/functions/notify-roast/index.test.ts
-deno check --node-modules-dir=none supabase/functions/notify-roast/index.ts
+deno check --node-modules-dir=none --no-lock supabase/functions/notify-roast/index.ts
 psql "$LOCAL_DATABASE_URL" -U supabase_admin -v ON_ERROR_STOP=1 -f supabase/tests/notify_roast.sql
 ```
 
