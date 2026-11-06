@@ -48,6 +48,7 @@ export const useMachineControl = (
     onApplied?: (applied: ControlCommand) => void,
     observer?: ControlSendObserver,
     manualHeaterRetryAllowed = true,
+    reconnecting = false,
 ) => {
     const [connectionStatus, setConnectionStatus] = useState<SidecarStatus | null>(null);
     const capability = connectionStatus?.control;
@@ -91,17 +92,23 @@ export const useMachineControl = (
     useEffect(() => () => sender.dispose(), [sender]);
 
     useEffect(() => {
-        sender.setManualHeaterRetryEpoch(
-            manualHeaterRetryAllowed &&
-                sidecarConnected &&
-                connectionStatus?.connected &&
-                capability?.writable &&
-                !connectionStatus.reconnecting &&
-                capability.limits.heater?.verify_readback === true
+        const epoch =
+            sidecarConnected &&
+            !reconnecting &&
+            connectionStatus?.connected &&
+            capability?.writable &&
+            !connectionStatus.reconnecting
                 ? connectionStatus.connection_epoch
-                : undefined,
-        );
-    }, [sender, manualHeaterRetryAllowed, sidecarConnected, connectionStatus, capability]);
+                : undefined;
+        for (const role of ['heater', 'fan', 'drum'] as const) {
+            const limit = capability?.limits[role];
+            const canRetry = role !== 'drum' && limit?.verify_readback === true;
+            sender.setManualRetryEpoch(
+                role,
+                canRetry && (role !== 'heater' || manualHeaterRetryAllowed) ? epoch : undefined,
+            );
+        }
+    }, [sender, manualHeaterRetryAllowed, sidecarConnected, connectionStatus, capability, reconnecting]);
 
     // 연결될 때 제어 능력을 확인한다. 끊기면 즉시 비활성화하고 대기 중인 명령을 버린다.
     useEffect(() => {
