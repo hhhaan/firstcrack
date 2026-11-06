@@ -95,6 +95,10 @@ production deployment or test Slack message is part of local verification.
 
 Notifications are best effort: missing secrets, queue errors, deleted records,
 Edge outages or Slack outages never roll back a roast or its inventory changes.
+The optional Vault/`pg_net` block also catches `query_canceled` (including a
+timeout during that work) and `assert_failure`, which PostgreSQL's `OTHERS`
+handler excludes. This protection surrounds notification work only: core roast
+validation and inventory failures still propagate and roll back the save.
 There is no delivery retry worker or replay deduplication store. The normal
 database save retry enqueues once; manually replaying a valid webhook sends again.
 Inspect failed deliveries in `net._http_response` and the existing Edge Sentry
@@ -112,7 +116,12 @@ The SQL check runs as the local `supabase_admin` role, which owns `auth.users`,
 against the locally migrated Supabase schema and rolls back all fixtures and
 queued HTTP requests. It checks save/retry/edit behavior,
 completion transitions, transaction rollback, secret handling, execution grants
-and save success when enqueueing is unavailable. This trigger-only migration
+and save success when enqueueing is unavailable. Fault injection inside
+`net.http_post` checks ordinary errors, `query_canceled` and `assert_failure`
+against the real authenticated `save_roast_op`: the roast, allocated title, green
+deduction and measured roasted inbound survive each notification fault. A core
+validation error still rolls back the roast and its queued notification.
+This trigger-only migration
 changes no Data API table or RPC types; trigger functions are excluded by the
 Supabase type generator.
 

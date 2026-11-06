@@ -38,8 +38,8 @@ BEGIN
       body := jsonb_build_object('session_id', NEW.id),
       timeout_milliseconds := 10000
     );
-  EXCEPTION WHEN OTHERS THEN
-    -- Notification failures must never roll back the roast or its stock ledgers.
+  EXCEPTION WHEN query_canceled OR assert_failure OR OTHERS THEN
+    -- OTHERS excludes cancellation/assertion; only optional notification work may fail open.
     RAISE WARNING 'notify_roast_slack enqueue failed (%)', SQLSTATE;
   END;
   RETURN NEW;
