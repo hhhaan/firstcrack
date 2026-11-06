@@ -61,10 +61,8 @@ import {
     cycleFcWhenEnabled,
     formatDisplayRoR,
     liveWindowTitle,
-    orEmpty,
     orNull,
     profileSelectionEpoch,
-    showPendingSummary,
 } from './lib/active-roast-screen';
 import {
     chartOnlyPreheatDecision,
@@ -103,6 +101,8 @@ import { RoastSummaryModal } from './ui/RoastSummaryModal';
 
 interface ActiveRoastProps {
     isActive: boolean;
+    summaryRequest?: { ownerId: string; sessionId: string } | null;
+    onSummaryRequestHandled?: () => void;
     onShowMain?: () => void;
     onOpenRoastSettings?: () => void;
     onPlanBatchComplete?: () => void;
@@ -111,7 +111,14 @@ interface ActiveRoastProps {
 /** Chart-only preheat older than this module evaluation is not a saved Charge wait. */
 const chartOnlyPreheatBootMs = Date.now();
 
-export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanBatchComplete }: ActiveRoastProps) => {
+export const ActiveRoast = ({
+    isActive,
+    summaryRequest,
+    onSummaryRequestHandled,
+    onShowMain,
+    onOpenRoastSettings,
+    onPlanBatchComplete,
+}: ActiveRoastProps) => {
     const { t, i18n } = useTranslation();
     const hasRawTemperature = useRoastingStore((state) => state.rawTemperature !== null);
     // ── 설정 ──────────────────────────────────────────────────────
@@ -175,7 +182,7 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
 
     // ── 유저 + DB 프로파일 ────────────────────────────────────────
     const user = useAuthStore((s) => s.user);
-    const { workspaceOwnerId } = useActiveWorkspace();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
     const [historyReference, setHistoryReference] = useState<HistoryReference | null>(null);
     const [referencePickerOpen, setReferencePickerOpen] = useState(false);
     const { data: userProfile } = useProfile(user?.id ?? '');
@@ -354,6 +361,20 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
         onResetActiveRoast: lifecycle.resetActiveRoast,
         savedProfileId: () => (historyTargetRef.current ? null : undefined),
     });
+    useEffect(() => {
+        if (!summaryRequest) return;
+        const completed = useRoastingStore.getState().completed;
+        if (
+            isWorkspaceReady &&
+            workspaceOwnerId === summaryRequest.ownerId &&
+            completed?.snapshot.sessionOwnerId === summaryRequest.ownerId &&
+            completed.snapshot.sessionId === summaryRequest.sessionId &&
+            completed.summary
+        ) {
+            saveFlow.flow.reopenSummary();
+        }
+        onSummaryRequestHandled?.();
+    }, [summaryRequest, isWorkspaceReady, workspaceOwnerId, saveFlow.flow.reopenSummary, onSummaryRequestHandled]);
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
@@ -1039,9 +1060,6 @@ export const ActiveRoast = ({ isActive, onShowMain, onOpenRoastSettings, onPlanB
             )}
 
             <ActiveRoastSensorNotices
-                showUnsavedBanner={showPendingSummary(saveFlow.flow.summaryModal, saveFlow.flow.summaryData)}
-                unsavedTime={orEmpty(saveFlow.flow.summaryData?.totalTime)}
-                onReopenUnsaved={saveFlow.flow.reopenSummary}
                 showAutoChargeUnavailable={autoChargeUnavailable(
                     phase,
                     roastSettings.autoChargeEnabled,

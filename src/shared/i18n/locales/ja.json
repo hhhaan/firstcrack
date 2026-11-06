@@ -1178,8 +1178,6 @@
             "bbp": "BBP"
         },
         "unsaved": {
-            "banner": "未保存のロースト {{time}}",
-            "reopen": "結果を保存",
             "cancelDrop": "排出を取り消す"
         },
         "chart": {
@@ -1309,7 +1307,14 @@
             "afterDrop": "排出 {{minutes}}分後"
         },
         "recovery": {
-            "title": "未保存の焙煎",
+            "working": "保存・同期中…",
+            "needsAttention": "確認が必要",
+            "syncStatus": "同期待ち",
+            "title": "復旧待ちのロースト",
+            "description": "完了したローストを確認し、保存や同期を再試行できます。",
+            "savePending": "保存待ち",
+            "review": "結果を確認・保存",
+            "editDetails": "保存情報を編集",
             "askMsg": "未保存の焙煎記録が見つかりました。今すぐ保存しますか？詳細は履歴で編集できます。",
             "saved": "保存できていなかった焙煎記録を保存しました。",
             "failed": "復元した焙煎記録の保存に失敗しました。次回起動時に再試行します。",

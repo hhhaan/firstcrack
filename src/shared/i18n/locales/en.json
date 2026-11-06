@@ -1178,8 +1178,6 @@
             "bbp": "BBP"
         },
         "unsaved": {
-            "banner": "Unsaved roast {{time}}",
-            "reopen": "Save results",
             "cancelDrop": "Cancel Drop"
         },
         "chart": {
@@ -1309,7 +1307,14 @@
             "afterDrop": "{{minutes}} min after drop"
         },
         "recovery": {
-            "title": "Unsaved roast",
+            "working": "Saving / syncing…",
+            "needsAttention": "Needs attention",
+            "syncStatus": "Sync pending",
+            "title": "Pending roast recovery",
+            "description": "Review completed roasts and retry pending saves or synchronization.",
+            "savePending": "Save pending",
+            "review": "Review results",
+            "editDetails": "Edit details",
             "askMsg": "An unsaved roast was found. Save it now? You can edit the details later in History.",
             "saved": "Recovered and saved your previous unsaved roast.",
             "failed": "Could not save the recovered roast. It will be retried on next launch.",

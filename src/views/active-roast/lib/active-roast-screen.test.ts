@@ -8,7 +8,6 @@ import {
     isReplayMachineMismatch,
     liveWindowTitle,
     replayPointsForProfile,
-    showPendingSummary,
 } from './active-roast-screen';
 
 const chartInput = {
@@ -180,8 +179,6 @@ describe('active roast screen decisions', () => {
         expect(autoChargeUnavailable('roasting', true, false)).toBe(false);
         expect(autoDropUnavailable('roasting', true, false)).toBe(true);
         expect(autoDropUnavailable('roasting', true, true)).toBe(false);
-        expect(showPendingSummary(false, { totalTime: '1:00' })).toBe(true);
-        expect(showPendingSummary(true, { totalTime: '1:00' })).toBe(false);
     });
 });
 

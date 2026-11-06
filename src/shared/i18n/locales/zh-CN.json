@@ -1178,8 +1178,6 @@
             "bbp": "BBP"
         },
         "unsaved": {
-            "banner": "未保存烘焙 {{time}}",
-            "reopen": "保存结果",
             "cancelDrop": "取消出豆"
         },
         "chart": {
@@ -1309,7 +1307,14 @@
             "afterDrop": "下豆 {{minutes}} 分钟后"
         },
         "recovery": {
-            "title": "未保存的烘焙",
+            "working": "正在保存 / 同步…",
+            "needsAttention": "需要处理",
+            "syncStatus": "待同步",
+            "title": "待恢复烘焙",
+            "description": "查看已完成的烘焙，继续保存或重试同步。",
+            "savePending": "待保存",
+            "review": "查看并保存结果",
+            "editDetails": "编辑保存信息",
             "askMsg": "发现未保存的烘焙记录。现在保存吗？详细信息可稍后在历史记录中编辑。",
             "saved": "已恢复并保存之前未保存的烘焙记录。",
             "failed": "恢复的烘焙记录保存失败。下次启动时将重试。",

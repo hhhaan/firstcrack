@@ -85,6 +85,15 @@ and deletion guards stay unchanged.
 
 ## Screen recovery
 
+The global pending-roast recovery list is the single entry for unsaved completed roasts
+and saved records awaiting synchronization. It deduplicates the current completed batch
+against its owner/session checkpoint and opens that batch's full summary, retaining Drop
+cancellation. A completed summary remains reachable even if its checkpoint could not be
+written. Submitted current checkpoints and historical checkpoints use collapsed
+recovery fields for corrections such as unlinking an invalid schedule; saved records expose only
+synchronization actions. Recovery success updates only the matching completed identity,
+without resetting a newer roast or its machine controls.
+
 `ActiveRoastRuntime` owns polling and the roast clock outside the screen's `ViewErrorBoundary`.
 The session store owns the collected curve and event log (including FC unwind state). A screen
 error/retry must preserve these and keep TSV collection running. Only the existing batch lifecycle

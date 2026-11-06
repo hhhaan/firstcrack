@@ -14,7 +14,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { _resetTsvWriterForTests, initSessionTsv } from '@shared/lib/tsv-writer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as historyReferenceWidget from '@widgets/history-reference/ui/HistoryReferencePicker';
-import { act, createElement, Fragment } from 'react';
+import { act, type ComponentProps, createElement, Fragment } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ActiveRoast } from './ActiveRoast';
@@ -191,7 +191,10 @@ describe('ActiveRoast running clock (#627)', () => {
     let queryClient: QueryClient;
     const mounted: Array<() => void> = [];
 
-    const mount = (prepare?: (client: QueryClient) => void) => {
+    const mount = (
+        prepare?: (client: QueryClient) => void,
+        props: Partial<ComponentProps<typeof ActiveRoast>> = {},
+    ) => {
         host = document.createElement('div');
         document.body.appendChild(host);
         root = createRoot(host);
@@ -208,7 +211,7 @@ describe('ActiveRoast running clock (#627)', () => {
                         Fragment,
                         null,
                         createElement(ActiveRoastRuntime, { isActive: true }),
-                        createElement(ActiveRoast, { isActive: true }),
+                        createElement(ActiveRoast, { isActive: true, ...props }),
                     ),
                 ),
             );
@@ -298,6 +301,29 @@ describe('ActiveRoast running clock (#627)', () => {
             unmount();
         }
     });
+
+    it.each([
+        { ownerId: 'owner', sessionId: 'sess-remount', ready: true, opens: true },
+        { ownerId: 'other-owner', sessionId: 'sess-remount', ready: true, opens: false },
+        { ownerId: 'owner', sessionId: 'other-session', ready: true, opens: false },
+        { ownerId: 'owner', sessionId: 'sess-remount', ready: false, opens: false },
+    ])(
+        'opens only the requested completed summary in its ready workspace ($ownerId/$sessionId/$ready)',
+        async ({ ownerId, sessionId, ready, opens }) => {
+            workspace.owner = 'owner';
+            workspace.ready = ready;
+            seed({ prepared: { ...useRoastingStore.getState().prepared, workspaceOwnerId: 'owner' } });
+            useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+            const completed = useRoastingStore.getState().completed;
+            const handled = vi.fn();
+            mount(undefined, { summaryRequest: { ownerId, sessionId }, onSummaryRequestHandled: handled });
+            await flushMicrotasks();
+            expect(Boolean(document.querySelector('[aria-labelledby="roast-summary-modal-title"]'))).toBe(opens);
+            expect(handled).toHaveBeenCalledOnce();
+            expect(useRoastingStore.getState().completed).toBe(completed);
+            expect(host.querySelector('[data-testid="unsaved-roast-banner"]')).toBeNull();
+        },
+    );
 
     it('retains BBP OFF wait commands once on the original Charge clock', async () => {
         const editing = vi.spyOn(curveEditing, 'useRoastCurveEditing');

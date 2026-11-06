@@ -11,8 +11,6 @@ const WINDOWED_CHART_CLASS = 'rounded relative z-1 py-5 flex-1 dark:border dark:
 
 export const orNull = <T>(value: T | null | undefined): T | null => value ?? null;
 
-export const orEmpty = (value: string | null | undefined) => value ?? '';
-
 export const bbpFeatureEnabled = (featureOn: boolean, settingOn: boolean) => featureOn && settingOn;
 
 export const bbpElapsedWhenEnabled = <T>(enabled: boolean, elapsed: T): T | null => (enabled ? elapsed : null);
@@ -114,8 +112,6 @@ export const cycleFcWhenEnabled = <T>(enabled: boolean, cycleFc: T): T | undefin
 
 export const batchRoastFinished = (heatHoldAfterDrop: boolean, roastEnded: boolean, dropped: boolean) =>
     heatHoldAfterDrop || roastEnded || dropped;
-
-export const showPendingSummary = (summaryOpen: boolean, summaryData: unknown) => !summaryOpen && Boolean(summaryData);
 
 export const autoChargeUnavailable = (phase: RoastPhase, enabled: boolean, hasRawTemperature: boolean) =>
     phase === 'standby' && enabled && !hasRawTemperature;

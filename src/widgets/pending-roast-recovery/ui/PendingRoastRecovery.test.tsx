@@ -6,6 +6,7 @@ import {
     readPendingRoastSave,
     writePendingRoastSave,
 } from '@features/active-roast/model/pendingRoastSave';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,13 +18,16 @@ const mocks = vi.hoisted(() => ({
     find: vi.fn(),
     upload: vi.fn(),
     save: vi.fn(),
+    review: vi.fn(),
+    workspaceOwnerId: 'owner',
+    workspaceReady: true,
     ask: vi.fn(async () => {
         throw new TypeError("Cannot read properties of undefined (reading 'invoke')");
     }),
 }));
 vi.mock('@entities/bean', () => ({ useBeans: () => ({ data: [] }) }));
 vi.mock('@entities/organization', () => ({
-    useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
+    useActiveWorkspace: () => ({ workspaceOwnerId: mocks.workspaceOwnerId, isWorkspaceReady: mocks.workspaceReady }),
 }));
 vi.mock('@entities/plan', () => ({ useDayBatches: () => ({ data: [] }) }));
 vi.mock('@features/upload-roast-profile', () => ({ useUploadRoastProfile: () => ({ mutateAsync: mocks.upload }) }));
@@ -78,13 +82,16 @@ const confirmDiscard = () => {
 };
 const mount = async (item: PendingRoastSave) => {
     writePendingRoastSave(item);
-    await act(async () => root.render(<PendingRoastRecovery />));
+    await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
     await act(async () => button('pending').click());
 };
 
 beforeEach(() => {
     localStorage.clear();
     vi.resetAllMocks();
+    useRoastingStore.setState(useRoastingStore.getInitialState(), true);
+    mocks.workspaceOwnerId = 'owner';
+    mocks.workspaceReady = true;
     mocks.find.mockRejectedValue(new Error('network offline'));
     mocks.resume.mockImplementation((item: PendingRoastSave) =>
         resumePendingRoastSave({
@@ -178,7 +185,7 @@ describe('PendingRoastRecovery safety', () => {
                 params: { ...pending().params, sessionId: OTHER_ID, handoffBeanName: 'Ethiopia' },
             }),
         );
-        await act(async () => root.render(<PendingRoastRecovery />));
+        await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
         await act(async () => button('pending').click());
         expect(document.querySelectorAll('section').length).toBe(2);
         await act(async () => button('discard').click());
@@ -250,7 +257,7 @@ describe('PendingRoastRecovery safety', () => {
         mocks.find.mockResolvedValue({ id: ID, user_id: 'owner', status: 'completed', plan_batch_id: null });
         mocks.upload.mockRejectedValue(new Error('upload offline'));
         await mount(item);
-        expect(document.body.textContent).toContain('activeRoast.recovery.syncPending');
+        expect(document.body.textContent).toContain('activeRoast.recovery.syncStatus');
         expect(document.querySelector('fieldset')).toBeNull();
         expect(document.querySelector('[role="combobox"]')).toBeNull();
         expect(document.querySelector('input[type="number"]')).toBeNull();
@@ -268,4 +275,158 @@ describe('PendingRoastRecovery safety', () => {
         expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
         expect(document.body.textContent).toContain('upload offline');
     });
+});
+
+describe('Unified roast recovery', () => {
+    const capture = (ownerId = 'owner', sessionId = ID) => {
+        useRoastingStore.getState().captureSummary(
+            {
+                sessionId,
+                batchName: 'Completed Kenya',
+                totalTime: '10:00',
+                development: '20%',
+                finalBt: '205',
+                logEntries: [],
+            },
+            ownerId,
+            205,
+        );
+    };
+
+    it('deduplicates the current checkpoint and opens its full summary without saving or discarding', async () => {
+        capture();
+        const completed = useRoastingStore.getState().completed;
+        await mount(pending({ submitted: false }));
+        expect(document.querySelectorAll('section')).toHaveLength(1);
+        expect(document.querySelector('[data-testid="pending-roast-current"]')).not.toBeNull();
+        expect(document.body.textContent).toContain('Completed Kenya');
+        expect(document.querySelector('fieldset')).toBeNull();
+        await act(async () => button('review').click());
+        expect(mocks.review).toHaveBeenCalledWith('owner', ID);
+        expect(mocks.resume).not.toHaveBeenCalled();
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        expect(readPendingRoastSave('owner', ID)?.submitted).toBe(false);
+        expect(useRoastingStore.getState().completed).toBe(completed);
+    });
+
+    it('keeps a memory-only summary reachable when no checkpoint could be written', async () => {
+        capture();
+        await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
+        await act(async () => button('pending').click());
+        expect(document.querySelectorAll('section')).toHaveLength(1);
+        await act(async () => button('review').click());
+        expect(mocks.review).toHaveBeenCalledWith('owner', ID);
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
+        expect(useRoastingStore.getState().completed?.summary).not.toBeNull();
+    });
+
+    it('keeps an explicitly unlinked current checkpoint correctable across a transient retry failure', async () => {
+        capture();
+        const item = pending({ submitted: true, needsAttention: true, error: 'This batch is complete' });
+        item.params.planBatchHandoff = {
+            planBatchId: 'completed-batch',
+            planId: 'plan',
+            beanId: 'bean',
+            blendId: null,
+            beanName: 'Kenya',
+            batchSizeKg: 5,
+            profileId: null,
+            batchCount: 1,
+            completedSessions: 1,
+        };
+        item.batch = 'pending';
+        mocks.find.mockResolvedValue(null);
+        mocks.save.mockRejectedValueOnce(new Error('network offline')).mockResolvedValue({
+            savedSession: { id: ID, user_id: 'owner', status: 'completed', plan_batch_id: null },
+        });
+        await mount(item);
+        expect(document.querySelectorAll('section')).toHaveLength(1);
+        expect(button('review')).toBeDefined();
+        expect(document.querySelector('details')?.open).toBe(false);
+        expect(
+            [...document.querySelectorAll('button')].some((el) => el.textContent === 'activeRoast.recovery.discard'),
+        ).toBe(false);
+        Element.prototype.scrollIntoView = () => {};
+        const selects = document.querySelectorAll('[role="combobox"]');
+        await act(async () => selects[selects.length - 1]?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
+        const unlink = document.querySelector('[role="option"][data-value=""]');
+        expect(unlink).not.toBeNull();
+        await act(async () => {
+            unlink?.dispatchEvent(
+                new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+            );
+            unlink?.dispatchEvent(
+                new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, pointerType: 'mouse' }),
+            );
+        });
+        await act(async () => button('retry').click());
+        expect(readPendingRoastSave('owner', ID)).toMatchObject({
+            submitted: true,
+            needsAttention: false,
+            params: { planBatchHandoff: null, formData: { linkedBatch: null, linkedBatchId: null } },
+        });
+        expect(document.querySelector('fieldset')).not.toBeNull();
+        expect(document.body.textContent).toContain('network offline');
+        await act(async () => button('retry').click());
+        expect(mocks.save).toHaveBeenCalledTimes(2);
+        expect(mocks.save).toHaveBeenCalledWith(
+            expect.objectContaining({
+                planBatchHandoff: null,
+                formData: expect.objectContaining({ linkedBatch: null, linkedBatchId: null }),
+            }),
+        );
+        expect(readPendingRoastSave('owner', ID)).toBeNull();
+        expect(useRoastingStore.getState().completed?.summary).toBeNull();
+    });
+
+    it('shows historical saves collapsed and closes the list with Escape without removing data', async () => {
+        await mount(pending({ submitted: false }));
+        expect(document.querySelector('details')?.open).toBe(false);
+        expect(document.body.textContent).toContain('activeRoast.recovery.savePending');
+        expect(document.body.textContent).not.toContain('activeRoast.recovery.failed');
+        await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })));
+        expect(document.querySelector('[role="dialog"]')).toBeNull();
+        expect(readPendingRoastSave('owner', ID)).not.toBeNull();
+    });
+
+    it('scopes memory summaries and stored checkpoints to the ready workspace', async () => {
+        capture('other-owner');
+        writePendingRoastSave(pending({ submitted: false, params: { ...pending().params, userId: 'other-owner' } }));
+        await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
+        expect(host.textContent).toBe('');
+        mocks.workspaceOwnerId = 'other-owner';
+        mocks.workspaceReady = false;
+        await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
+        expect(host.textContent).toBe('');
+        expect(mocks.resume).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])(
+        'clears the matching memory summary after auto recovery (syncPending=%s)',
+        async (syncPending) => {
+            capture();
+            mocks.find.mockResolvedValue({
+                id: ID,
+                user_id: 'owner',
+                status: 'completed',
+                plan_batch_id: null,
+                batch_name: 'Server title',
+            });
+            if (syncPending) mocks.upload.mockRejectedValue(new Error('upload offline'));
+            writePendingRoastSave(pending());
+            await act(async () => root.render(<PendingRoastRecovery onReview={mocks.review} />));
+            expect(useRoastingStore.getState().completed?.summary).toBeNull();
+            expect(useRoastingStore.getState().completed?.snapshot.selection.identity?.title).toBe('Server title');
+            expect(document.querySelector('[data-testid="pending-roast-current"]')).toBeNull();
+            if (syncPending) {
+                expect(readPendingRoastSave('owner', ID)?.db).toBe('saved');
+                await act(async () => button('pending').click());
+                expect(document.body.textContent).toContain('activeRoast.recovery.syncStatus');
+                expect(document.querySelector('fieldset')).toBeNull();
+            } else {
+                expect(readPendingRoastSave('owner', ID)).toBeNull();
+                expect(host.textContent).toBe('');
+            }
+        },
+    );
 });

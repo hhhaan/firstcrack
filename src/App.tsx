@@ -126,6 +126,8 @@ const AppShell = () => {
     }, []);
 
     const [view, setView] = useState<View>('dashboard');
+    const [roastSummaryRequest, setRoastSummaryRequest] = useState<{ ownerId: string; sessionId: string } | null>(null);
+    const clearRoastSummaryRequest = useCallback(() => setRoastSummaryRequest(null), []);
     const [historyFocus, setHistoryFocus] = useState<HistoryFocus | null>(null);
     const [profileReturnId, setProfileReturnId] = useState<string | null>(null);
     const showView = (next: View) => {
@@ -292,7 +294,12 @@ const AppShell = () => {
         <ErrorBoundary fallback={appShellFallback}>
             <div className="flex h-screen flex-col overflow-hidden bg-shell-bg">
                 {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
-                <PendingRoastRecovery />
+                <PendingRoastRecovery
+                    onReview={(ownerId, sessionId) => {
+                        setRoastSummaryRequest({ ownerId, sessionId });
+                        showView('roast');
+                    }}
+                />
                 {shortcutsOpen && <KeyboardShortcutsModal />}
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                     {view !== 'settings' && (
@@ -346,6 +353,8 @@ const AppShell = () => {
                                 <ActiveRoast
                                     key={roastMount}
                                     isActive={view === 'roast'}
+                                    summaryRequest={roastSummaryRequest}
+                                    onSummaryRequestHandled={clearRoastSummaryRequest}
                                     onShowMain={() => showView('roast')}
                                     onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}
