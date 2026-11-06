@@ -201,7 +201,7 @@ export const RoastSummaryModal = ({
                 dismissable={false}
                 labelledBy="roast-summary-modal-title"
                 overlayClassName="z-[10000] bg-[rgba(23,23,23,0.12)]"
-                contentClassName={`${modalPanel.sm} max-h-[calc(100dvh-3rem)] !p-0 flex flex-col overflow-hidden relative`}
+                contentClassName={`${modalPanel.formXl} relative`}
             >
                 <button
                     type="button"
@@ -213,388 +213,383 @@ export const RoastSummaryModal = ({
                 >
                     <X size={18} strokeWidth={2.3} />
                 </button>
-                <ModalScrollBody contentClassName="px-7 pt-7 pb-4">
-                    <div className="w-9 h-9 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center mb-3">
+                <div className="flex shrink-0 items-center gap-3 px-7 pt-6 pb-5 pr-14">
+                    <div className="w-9 h-9 shrink-0 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center">
                         <Check size={16} strokeWidth={2.5} />
                     </div>
 
                     <h2
                         id="roast-summary-modal-title"
-                        className="text-[22px] font-normal leading-[1.1] text-primary tracking-[-0.4px] mb-3.5"
+                        className="text-[22px] font-normal leading-[1.1] text-primary tracking-[-0.4px]"
                     >
                         {t('activeRoast.summary.title')}
                     </h2>
+                </div>
 
-                    <div className={`grid grid-cols-3 gap-1.5 ${ambientLine ? 'mb-1' : 'mb-3.5'}`}>
-                        {[
-                            { label: t('activeRoast.summary.totalTime'), value: summaryData.totalTime },
-                            { label: t('activeRoast.summary.development'), value: summaryData.development },
-                            { label: t('activeRoast.summary.finalBt'), value: summaryData.finalBt },
-                        ].map(({ label, value }) => (
-                            <div key={label} className="bg-surface dark:bg-[#262B31] rounded px-2 py-2">
-                                <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
-                                <div className="font-inconsolata text-[15px] text-primary">{value}</div>
+                <ModalScrollBody contentClassName="grid gap-y-6 px-7 pb-6 md:grid-cols-2">
+                    <div className="min-w-0 md:pr-7">
+                        <div className={`grid grid-cols-3 gap-1.5 ${ambientLine ? 'mb-1' : 'mb-3.5'}`}>
+                            {[
+                                { label: t('activeRoast.summary.totalTime'), value: summaryData.totalTime },
+                                { label: t('activeRoast.summary.development'), value: summaryData.development },
+                                { label: t('activeRoast.summary.finalBt'), value: summaryData.finalBt },
+                            ].map(({ label, value }) => (
+                                <div key={label} className="bg-surface dark:bg-[#262B31] rounded px-2 py-2">
+                                    <div className="text-[10px] text-muted font-semibold uppercase mb-0.5">{label}</div>
+                                    <div className="font-inconsolata text-[15px] text-primary">{value}</div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {ambientLine ? (
+                            <p className="text-[13px] text-muted font-inconsolata tracking-[0.14px] mb-3.5">
+                                {ambientLine}
+                            </p>
+                        ) : null}
+
+                        <div className="mb-3.5">
+                            <label htmlFor="roast-summary-title" className={sectionLabelClass}>
+                                {t('activeRoast.summary.batchName')}
+                            </label>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    id="roast-summary-title"
+                                    aria-describedby={batchNumbers ? 'roast-summary-batch-numbers' : undefined}
+                                    data-testid="roast-summary-title"
+                                    maxLength={120}
+                                    autoComplete="off"
+                                    {...register('batchName')}
+                                    placeholder={displayName ?? t('activeRoast.summary.batchNamePlaceholder')}
+                                    className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
+                                />
+                                {batchNumbers && (
+                                    <span
+                                        id="roast-summary-batch-numbers"
+                                        data-testid="roast-summary-batch-numbers"
+                                        className="shrink-0 text-[15px] text-muted font-inconsolata"
+                                    >
+                                        {batchNumbers}
+                                    </span>
+                                )}
                             </div>
-                        ))}
+                        </div>
+
+                        <div className="mb-3.5">
+                            <div className={sectionLabelClass}>{t('activeRoast.summary.log')}</div>
+                            <div className="flex flex-wrap gap-y-1">
+                                {summaryData.logEntries
+                                    .filter((entry) => isChartEventMarker(entry.event) || entry.event === 'TP')
+                                    .map((entry, index, entries) => (
+                                        <div
+                                            key={`${entry.time}-${entry.event}-${index}`}
+                                            className="flex items-center gap-1"
+                                        >
+                                            <span className="text-[13px] font-inconsolata text-muted">
+                                                {entry.time}
+                                            </span>
+                                            <span
+                                                className="text-[11px] font-medium"
+                                                style={{
+                                                    color: eventMarkerCssColor(entry.event),
+                                                }}
+                                            >
+                                                {roastEventLabel(entry.event)}
+                                            </span>
+                                            {index < entries.length - 1 && (
+                                                <span className="mx-1 text-border text-xs">·</span>
+                                            )}
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+
+                        <div className="mb-3.5">
+                            <div className={sectionLabelClass}>{t('activeRoast.summary.roastLevel')}</div>
+                            <div className="flex flex-wrap gap-1">
+                                {ROAST_LEVEL_VALUES.map(({ value, key }) => (
+                                    <button
+                                        key={value}
+                                        type="button"
+                                        onClick={() => setValue('roastLevel', roastLevel === value ? null : value)}
+                                        className={`px-2.5 py-1 rounded-md text-[11px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
+                                            roastLevel === value
+                                                ? 'bg-action text-on-action'
+                                                : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
+                                        }`}
+                                    >
+                                        {t(`activeRoast.summary.levels.${key}`)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div className={sectionLabelClass}>{t('activeRoast.summary.notes')}</div>
+                            <textarea
+                                {...register('notes')}
+                                placeholder={t('activeRoast.summary.notesPlaceholder')}
+                                rows={3}
+                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
+                            />
+                        </div>
                     </div>
 
-                    {ambientLine ? (
-                        <p className="text-[13px] text-muted font-inconsolata tracking-[0.14px] mb-3.5">
-                            {ambientLine}
-                        </p>
-                    ) : null}
+                    <div className="min-w-0 border-t border-border pt-6 md:border-t-0 md:border-l md:pt-0 md:pl-7">
+                        {/* ── Link: schedule batch or ad-hoc ── */}
+                        <div className="mb-3.5">
+                            <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>
 
-                    <div className="mb-3.5">
-                        <label htmlFor="roast-summary-title" className={sectionLabelClass}>
-                            {t('activeRoast.summary.batchName')}
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                id="roast-summary-title"
-                                aria-describedby={batchNumbers ? 'roast-summary-batch-numbers' : undefined}
-                                data-testid="roast-summary-title"
-                                maxLength={120}
-                                autoComplete="off"
-                                {...register('batchName')}
-                                placeholder={displayName ?? t('activeRoast.summary.batchNamePlaceholder')}
-                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
-                            />
-                            {batchNumbers && (
-                                <span
-                                    id="roast-summary-batch-numbers"
-                                    data-testid="roast-summary-batch-numbers"
-                                    className="shrink-0 text-[15px] text-muted font-inconsolata"
-                                >
-                                    {batchNumbers}
-                                </span>
+                            {hasHandoff && planBatchHandoff ? (
+                                <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5">
+                                    <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                        {planBatchHandoff.beanName}
+                                    </p>
+                                    <p className="text-[11px] text-muted mt-0.5">
+                                        {t('activeRoast.summary.sessionProgress', {
+                                            current: planBatchHandoff.completedSessions + 1,
+                                            total: planBatchHandoff.batchCount,
+                                        })}
+                                        {' · '}
+                                        {planBatchHandoff.batchSizeKg}kg
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex gap-2 mb-2">
+                                        {(
+                                            [
+                                                {
+                                                    value: 'schedule' as const,
+                                                    label: t('activeRoast.summary.linkSchedule'),
+                                                },
+                                                { value: 'none' as const, label: t('activeRoast.summary.linkNone') },
+                                            ] as const
+                                        ).map(({ value, label }) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => {
+                                                    setValue('linkMode', value, { shouldValidate: true });
+                                                    if (value === 'none') {
+                                                        setValue('planBatchId', null, { shouldValidate: true });
+                                                    }
+                                                }}
+                                                className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
+                                                    linkMode === value
+                                                        ? 'bg-action text-on-action'
+                                                        : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
+                                                }`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {linkMode === 'schedule' && (
+                                        <>
+                                            <div
+                                                className={`rounded-lg bg-surface dark:bg-[#262B31] px-3 py-0.5 ${
+                                                    errors.planBatchId ? 'ring-1 ring-red-400/80' : ''
+                                                }`}
+                                            >
+                                                <FormSelect
+                                                    aria-label={t('activeRoast.summary.planBatchPlaceholder')}
+                                                    value={formPlanBatchId ?? ''}
+                                                    onChange={(e) =>
+                                                        setValue('planBatchId', e.target.value || null, {
+                                                            shouldDirty: true,
+                                                            shouldValidate: true,
+                                                        })
+                                                    }
+                                                    disabled={!isWorkspaceReady || incompleteBatches.length === 0}
+                                                    className="h-auto min-h-0 rounded-none border-none bg-transparent py-2 text-[13px] shadow-none"
+                                                >
+                                                    <option value="">
+                                                        {incompleteBatches.length === 0
+                                                            ? t('activeRoast.summary.noOpenBatches')
+                                                            : t('activeRoast.summary.planBatchPlaceholder')}
+                                                    </option>
+                                                    {incompleteBatches.map((b) => (
+                                                        <option key={b.id} value={b.id}>
+                                                            {batchOptionLabel(b)}
+                                                        </option>
+                                                    ))}
+                                                </FormSelect>
+                                            </div>
+                                            {effectiveHandoff && (
+                                                <p className="text-[11px] text-muted mt-1">
+                                                    {t('activeRoast.summary.sessionProgress', {
+                                                        current: effectiveHandoff.completedSessions + 1,
+                                                        total: effectiveHandoff.batchCount,
+                                                    })}
+                                                </p>
+                                            )}
+                                            {errors.planBatchId && (
+                                                <p className={formErrorCls}>{errors.planBatchId.message}</p>
+                                            )}
+                                        </>
+                                    )}
+                                </>
                             )}
                         </div>
-                    </div>
 
-                    <div className="mb-3.5">
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.log')}</div>
-                        <div className="flex flex-wrap gap-y-1">
-                            {summaryData.logEntries
-                                .filter((entry) => isChartEventMarker(entry.event) || entry.event === 'TP')
-                                .map((entry, index, entries) => (
-                                    <div
-                                        key={`${entry.time}-${entry.event}-${index}`}
-                                        className="flex items-center gap-1"
-                                    >
-                                        <span className="text-[13px] font-inconsolata text-muted">{entry.time}</span>
-                                        <span
-                                            className="text-[11px] font-medium"
-                                            style={{
-                                                color: eventMarkerCssColor(entry.event),
-                                            }}
-                                        >
-                                            {roastEventLabel(entry.event)}
-                                        </span>
-                                        {index < entries.length - 1 && (
-                                            <span className="mx-1 text-border text-xs">·</span>
-                                        )}
-                                    </div>
-                                ))}
-                        </div>
-                    </div>
+                        {/* ── Bean ── */}
+                        {(showBeanPicker || showBeanReadonly) && (
+                            <div className="mb-3.5">
+                                <div className={sectionLabelClass}>{t('activeRoast.summary.bean')}</div>
 
-                    {/* ── Link: schedule batch or ad-hoc ── */}
-                    <div className="mb-3.5">
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.link')}</div>
-
-                        {hasHandoff && planBatchHandoff ? (
-                            <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5">
-                                <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
-                                    {planBatchHandoff.beanName}
-                                </p>
-                                <p className="text-[11px] text-muted mt-0.5">
-                                    {t('activeRoast.summary.sessionProgress', {
-                                        current: planBatchHandoff.completedSessions + 1,
-                                        total: planBatchHandoff.batchCount,
-                                    })}
-                                    {' · '}
-                                    {planBatchHandoff.batchSizeKg}kg
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex gap-2 mb-2">
-                                    {(
-                                        [
-                                            {
-                                                value: 'schedule' as const,
-                                                label: t('activeRoast.summary.linkSchedule'),
-                                            },
-                                            { value: 'none' as const, label: t('activeRoast.summary.linkNone') },
-                                        ] as const
-                                    ).map(({ value, label }) => (
-                                        <button
-                                            key={value}
-                                            type="button"
-                                            onClick={() => {
-                                                setValue('linkMode', value, { shouldValidate: true });
-                                                if (value === 'none') {
-                                                    setValue('planBatchId', null, { shouldValidate: true });
-                                                }
-                                            }}
-                                            className={`flex-1 px-3 py-1.5 rounded-md text-[12px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
-                                                linkMode === value
-                                                    ? 'bg-action text-on-action'
-                                                    : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
-                                            }`}
-                                        >
-                                            {label}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {linkMode === 'schedule' && (
+                                {showBeanPicker ? (
                                     <>
+                                        <p className="text-[11px] text-muted leading-snug mb-1.5">
+                                            {t('activeRoast.summary.beanComboboxHint')}
+                                        </p>
                                         <div
-                                            className={`rounded-lg bg-surface dark:bg-[#262B31] px-3 py-0.5 ${
-                                                errors.planBatchId ? 'ring-1 ring-red-400/80' : ''
-                                            }`}
+                                            className={
+                                                errors.beanLabel || errors.beanId
+                                                    ? 'rounded-lg ring-1 ring-red-400/80'
+                                                    : ''
+                                            }
                                         >
-                                            <FormSelect
-                                                aria-label={t('activeRoast.summary.planBatchPlaceholder')}
-                                                value={formPlanBatchId ?? ''}
-                                                onChange={(e) =>
-                                                    setValue('planBatchId', e.target.value || null, {
-                                                        shouldDirty: true,
-                                                        shouldValidate: true,
-                                                    })
-                                                }
-                                                disabled={!isWorkspaceReady || incompleteBatches.length === 0}
-                                                className="h-auto min-h-0 rounded-none border-none bg-transparent py-2 text-[13px] shadow-none"
-                                            >
-                                                <option value="">
-                                                    {incompleteBatches.length === 0
-                                                        ? t('activeRoast.summary.noOpenBatches')
-                                                        : t('activeRoast.summary.planBatchPlaceholder')}
-                                                </option>
-                                                {incompleteBatches.map((b) => (
-                                                    <option key={b.id} value={b.id}>
-                                                        {batchOptionLabel(b)}
-                                                    </option>
-                                                ))}
-                                            </FormSelect>
-                                        </div>
-                                        {effectiveHandoff && (
-                                            <p className="text-[11px] text-muted mt-1">
-                                                {t('activeRoast.summary.sessionProgress', {
-                                                    current: effectiveHandoff.completedSessions + 1,
-                                                    total: effectiveHandoff.batchCount,
-                                                })}
-                                            </p>
-                                        )}
-                                        {errors.planBatchId && (
-                                            <p className={formErrorCls}>{errors.planBatchId.message}</p>
-                                        )}
-                                    </>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    {/* ── Bean ── */}
-                    {(showBeanPicker || showBeanReadonly) && (
-                        <div className="mb-3.5">
-                            <div className={sectionLabelClass}>{t('activeRoast.summary.bean')}</div>
-
-                            {showBeanPicker ? (
-                                <>
-                                    <p className="text-[11px] text-muted leading-snug mb-1.5">
-                                        {t('activeRoast.summary.beanComboboxHint')}
-                                    </p>
-                                    <div
-                                        className={
-                                            errors.beanLabel || errors.beanId ? 'rounded-lg ring-1 ring-red-400/80' : ''
-                                        }
-                                    >
-                                        <BeanCombobox
-                                            key={beanFieldEpoch}
-                                            data-testid="roast-summary-bean"
-                                            items={beanComboboxItems}
-                                            selectedId={formBlendId ? `blend:${formBlendId}` : (formBeanId ?? '')}
-                                            placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
-                                            emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
-                                            listToggleLabel={t('activeRoast.summary.beanComboboxToggle')}
-                                            onSelect={(id) => {
-                                                setValue('blendId', id.startsWith('blend:') ? id.slice(6) : null, {
-                                                    shouldDirty: true,
-                                                    shouldValidate: true,
-                                                });
-                                                setValue('beanId', id.startsWith('blend:') ? null : id || null, {
-                                                    shouldDirty: true,
-                                                    shouldValidate: true,
-                                                });
-                                                if (id) {
-                                                    setValue('beanLabel', '', {
+                                            <BeanCombobox
+                                                key={beanFieldEpoch}
+                                                data-testid="roast-summary-bean"
+                                                items={beanComboboxItems}
+                                                selectedId={formBlendId ? `blend:${formBlendId}` : (formBeanId ?? '')}
+                                                placeholder={t('activeRoast.summary.beanComboboxPlaceholder')}
+                                                emptyLabel={t('activeRoast.summary.beanComboboxEmpty')}
+                                                listToggleLabel={t('activeRoast.summary.beanComboboxToggle')}
+                                                onSelect={(id) => {
+                                                    setValue('blendId', id.startsWith('blend:') ? id.slice(6) : null, {
                                                         shouldDirty: true,
                                                         shouldValidate: true,
                                                     });
-                                                }
-                                            }}
-                                            onFreeText={(name) => {
-                                                setValue('blendId', null, { shouldDirty: true, shouldValidate: true });
-                                                setValue('beanId', null, { shouldDirty: true, shouldValidate: true });
-                                                setValue('beanLabel', name, {
-                                                    shouldDirty: true,
-                                                    shouldValidate: true,
-                                                });
-                                                if (name.trim()) setValue('deductStock', false);
-                                            }}
-                                        />
-                                    </div>
-                                    {errors.beanLabel || errors.beanId ? (
-                                        <p className={formErrorCls}>
-                                            {errors.beanLabel?.message ?? errors.beanId?.message}
-                                        </p>
-                                    ) : isCustomBean ? (
-                                        <p className="text-[11px] text-muted mt-1">
-                                            {t('activeRoast.summary.beanLabelNoStock')}
-                                        </p>
-                                    ) : null}
-                                </>
-                            ) : (
-                                <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5 flex items-start gap-2.5">
-                                    <div className="w-7 h-7 rounded-md bg-palette-green/12 text-palette-green flex items-center justify-center shrink-0 mt-0.5">
-                                        <Coffee size={14} strokeWidth={2.2} />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
-                                            {displayName ?? t('activeRoast.header.noBeanSelected')}
-                                        </p>
-                                        {displayMeta ? (
-                                            <p className="text-[11px] text-muted mt-0.5 truncate">{displayMeta}</p>
-                                        ) : (
-                                            <p className="text-[11px] text-muted mt-0.5">
-                                                {t('activeRoast.summary.beanSelected')}
+                                                    setValue('beanId', id.startsWith('blend:') ? null : id || null, {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    });
+                                                    if (id) {
+                                                        setValue('beanLabel', '', {
+                                                            shouldDirty: true,
+                                                            shouldValidate: true,
+                                                        });
+                                                    }
+                                                }}
+                                                onFreeText={(name) => {
+                                                    setValue('blendId', null, {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    });
+                                                    setValue('beanId', null, {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    });
+                                                    setValue('beanLabel', name, {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    });
+                                                    if (name.trim()) setValue('deductStock', false);
+                                                }}
+                                            />
+                                        </div>
+                                        {errors.beanLabel || errors.beanId ? (
+                                            <p className={formErrorCls}>
+                                                {errors.beanLabel?.message ?? errors.beanId?.message}
                                             </p>
-                                        )}
+                                        ) : isCustomBean ? (
+                                            <p className="text-[11px] text-muted mt-1">
+                                                {t('activeRoast.summary.beanLabelNoStock')}
+                                            </p>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <div className="rounded-lg bg-surface dark:bg-[#262B31] px-3 py-2.5 flex items-start gap-2.5">
+                                        <div className="w-7 h-7 rounded-md bg-palette-green/12 text-palette-green flex items-center justify-center shrink-0 mt-0.5">
+                                            <Coffee size={14} strokeWidth={2.2} />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[13px] font-medium text-primary tracking-[0.14px] truncate">
+                                                {displayName ?? t('activeRoast.header.noBeanSelected')}
+                                            </p>
+                                            {displayMeta ? (
+                                                <p className="text-[11px] text-muted mt-0.5 truncate">{displayMeta}</p>
+                                            ) : (
+                                                <p className="text-[11px] text-muted mt-0.5">
+                                                    {t('activeRoast.summary.beanSelected')}
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="mb-3.5">
+                            <div className={sectionLabelClass}>{t('activeRoast.summary.batchWeight')}</div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={MAX_BATCH_WEIGHT_KG}
+                                    step={0.1}
+                                    data-testid="roast-summary-weight"
+                                    {...register('weightGrams', { valueAsNumber: true })}
+                                    placeholder="0.0"
+                                    className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                />
+                                <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
+                            </div>
+                            {errors.weightGrams && <p className={formErrorCls}>{errors.weightGrams.message}</p>}
+                        </div>
+
+                        <div className="mb-3.5">
+                            <div className={sectionLabelClass}>{t('activeRoast.summary.outputWeight')}</div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    max={MAX_BATCH_WEIGHT_KG}
+                                    step={0.01}
+                                    {...register('outputWeightKg', { valueAsNumber: true })}
+                                    placeholder={t('activeRoast.summary.outputWeightPlaceholder')}
+                                    className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                />
+                                <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
+                            </div>
+                            {errors.outputWeightKg ? (
+                                <p className={formErrorCls}>{errors.outputWeightKg.message}</p>
+                            ) : (
+                                <p className="text-[11px] text-muted mt-1">
+                                    {lossPreview !== null
+                                        ? t('activeRoast.summary.lossRateMeasured', { pct: lossPreview.toFixed(1) })
+                                        : t('activeRoast.summary.lossRateEstimated')}
+                                </p>
                             )}
                         </div>
-                    )}
 
-                    <div className="mb-3.5">
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.batchWeight')}</div>
-                        <div className="flex items-center gap-2">
+                        <label
+                            className={`flex items-start gap-2.5 ${canDeduct ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+                        >
                             <input
-                                type="number"
-                                min={0}
-                                max={MAX_BATCH_WEIGHT_KG}
-                                step={0.1}
-                                data-testid="roast-summary-weight"
-                                {...register('weightGrams', { valueAsNumber: true })}
-                                placeholder="0.0"
-                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                type="checkbox"
+                                data-testid="roast-summary-deduct"
+                                checked={deductStock && canDeduct}
+                                disabled={!canDeduct}
+                                onChange={(e) => setValue('deductStock', e.target.checked)}
+                                className="mt-0.5 shrink-0"
                             />
-                            <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
-                        </div>
-                        {errors.weightGrams && <p className={formErrorCls}>{errors.weightGrams.message}</p>}
+                            <span className="text-[12px] text-primary leading-snug">
+                                {canDeduct
+                                    ? t('activeRoast.summary.deductStock', { kg: deductionKg.toFixed(1) })
+                                    : isCustomBean
+                                      ? t('activeRoast.summary.deductStockCustomBean')
+                                      : t('activeRoast.summary.deductStockDisabled')}
+                            </span>
+                        </label>
                     </div>
-
-                    <div className="mb-3.5">
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.outputWeight')}</div>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                min={0}
-                                max={MAX_BATCH_WEIGHT_KG}
-                                step={0.01}
-                                {...register('outputWeightKg', { valueAsNumber: true })}
-                                placeholder={t('activeRoast.summary.outputWeightPlaceholder')}
-                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
-                            />
-                            <span className="text-[11px] text-muted font-semibold tracking-[0.3px]">kg</span>
-                        </div>
-                        {errors.outputWeightKg ? (
-                            <p className={formErrorCls}>{errors.outputWeightKg.message}</p>
-                        ) : (
-                            <p className="text-[11px] text-muted mt-1">
-                                {lossPreview !== null
-                                    ? t('activeRoast.summary.lossRateMeasured', { pct: lossPreview.toFixed(1) })
-                                    : t('activeRoast.summary.lossRateEstimated')}
-                            </p>
-                        )}
-                    </div>
-
-                    <div className="mb-3.5">
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.roastLevel')}</div>
-                        <div className="flex flex-wrap gap-1">
-                            {ROAST_LEVEL_VALUES.map(({ value, key }) => (
-                                <button
-                                    key={value}
-                                    type="button"
-                                    onClick={() => setValue('roastLevel', roastLevel === value ? null : value)}
-                                    className={`px-2.5 py-1 rounded-md text-[11px] font-medium tracking-[0.2px] border-none cursor-pointer transition-colors ${
-                                        roastLevel === value
-                                            ? 'bg-action text-on-action'
-                                            : 'bg-surface dark:bg-[#262B31] text-secondary hover:text-primary'
-                                    }`}
-                                >
-                                    {t(`activeRoast.summary.levels.${key}`)}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="mb-3.5">
-                        <div className={sectionLabelClass}>{t('activeRoast.summary.notes')}</div>
-                        <textarea
-                            {...register('notes')}
-                            placeholder={t('activeRoast.summary.notesPlaceholder')}
-                            rows={2}
-                            className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
-                        />
-                    </div>
-
-                    <label
-                        className={`flex items-start gap-2.5 ${canDeduct ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
-                    >
-                        <input
-                            type="checkbox"
-                            data-testid="roast-summary-deduct"
-                            checked={deductStock && canDeduct}
-                            disabled={!canDeduct}
-                            onChange={(e) => setValue('deductStock', e.target.checked)}
-                            className="mt-0.5 shrink-0"
-                        />
-                        <span className="text-[12px] text-primary leading-snug">
-                            {canDeduct
-                                ? t('activeRoast.summary.deductStock', { kg: deductionKg.toFixed(1) })
-                                : isCustomBean
-                                  ? t('activeRoast.summary.deductStockCustomBean')
-                                  : t('activeRoast.summary.deductStockDisabled')}
-                        </span>
-                    </label>
                 </ModalScrollBody>
 
-                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex flex-col gap-2 bg-main-bg dark:bg-main-bg">
+                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border grid gap-2 md:grid-cols-[1fr_auto_auto] md:items-center bg-main-bg dark:bg-main-bg">
                     {showBbpLive && <RoastSummaryLiveStatus />}
-                    <button
-                        type="button"
-                        data-testid="roast-summary-save"
-                        onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
-                        disabled={isSaving}
-                        className="w-full py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                        {isSaving && <Spinner />}
-                        {t('activeRoast.summary.save')}
-                    </button>
-                    {canCancelDrop && (
-                        <button
-                            type="button"
-                            data-testid="roast-summary-cancel-drop"
-                            onClick={onCancelDrop}
-                            disabled={isSaving}
-                            className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                            {t('activeRoast.unsaved.cancelDrop')}
-                        </button>
-                    )}
                     <button
                         type="button"
                         onClick={async () => {
@@ -607,9 +602,30 @@ export const RoastSummaryModal = ({
                             });
                             if (ok) onDiscard();
                         }}
-                        className="w-full py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
+                        className="w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border md:w-auto md:justify-self-start"
                     >
                         {t('activeRoast.summary.discard')}
+                    </button>
+                    {canCancelDrop && (
+                        <button
+                            type="button"
+                            data-testid="roast-summary-cancel-drop"
+                            onClick={onCancelDrop}
+                            disabled={isSaving}
+                            className="w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed md:col-start-2 md:w-auto"
+                        >
+                            {t('activeRoast.unsaved.cancelDrop')}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        data-testid="roast-summary-save"
+                        onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
+                        disabled={isSaving}
+                        className="w-full px-6 py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed md:col-start-3 md:w-auto md:min-w-32"
+                    >
+                        {isSaving && <Spinner />}
+                        {t('activeRoast.summary.save')}
                     </button>
                 </div>
             </ModalShell>

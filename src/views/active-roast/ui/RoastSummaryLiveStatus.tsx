@@ -32,7 +32,11 @@ export const RoastSummaryLiveStatus = () => {
     const temps = `BT ${formatTemp(fresh ? bt : null, unit)} · ET ${formatTemp(fresh ? et : null, unit)}`;
 
     return (
-        <section aria-label={t('activeRoast.summary.bbpLive')} data-testid="roast-summary-bbp">
+        <section
+            aria-label={t('activeRoast.summary.bbpLive')}
+            data-testid="roast-summary-bbp"
+            className="md:col-span-3 md:mb-2"
+        >
             <div className="flex items-baseline justify-between gap-2">
                 <span className="flex items-baseline gap-2">
                     <span className="text-xs font-semibold uppercase text-muted">{t('activeRoast.sidebar.bbp')}</span>
