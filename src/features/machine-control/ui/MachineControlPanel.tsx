@@ -46,6 +46,7 @@ export const MachineControlPanel = ({
     commandsLocked = false,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
+    const replayEntitled = useFeature(FEATURE.machineReplay);
     const { machine, pid, replay, pidActive, changeManual, commitManual } = model;
     const { writable, limits, desired, sending } = machine;
     const [collapsed, setCollapsed] = useState(false);
@@ -109,21 +110,23 @@ export const MachineControlPanel = ({
                     limits={limits}
                     desired={desired}
                     liveData={controlFeedback(liveData, limits.fan?.unit, machine.connectionStatus?.read_units?.fan)}
-                    writable={writable && !commandsLocked}
+                    writable={entitled && writable && !commandsLocked}
                     sending={sending}
                     pidHoldsHeater={pidHoldsHeater}
                     replayActive={replay.active}
                     onChange={changeManual}
                     onCommit={commitManual}
                 />
-                <ReplayControlPanel
-                    replay={replay}
-                    unit={temperatureUnit}
-                    heaterUnit={limits.heater?.unit ?? '%'}
-                    commandsLocked={commandsLocked}
-                    onEditHeat={commandsLocked ? undefined : () => setHeatEditorOpen(true)}
-                />
-                {heatEditorOpen && !commandsLocked && (
+                {replayEntitled && (
+                    <ReplayControlPanel
+                        replay={replay}
+                        unit={temperatureUnit}
+                        heaterUnit={limits.heater?.unit ?? '%'}
+                        commandsLocked={commandsLocked}
+                        onEditHeat={commandsLocked ? undefined : () => setHeatEditorOpen(true)}
+                    />
+                )}
+                {replayEntitled && heatEditorOpen && !commandsLocked && (
                     <HeaterEventsEditor
                         mode="batch"
                         events={replay.plan?.events ?? []}

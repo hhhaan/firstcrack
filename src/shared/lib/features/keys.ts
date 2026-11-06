@@ -11,15 +11,17 @@ export const FEATURE = {
     /** 500ms live poll rate — Pro core level (free/read_only run at 1s). */
     fastPolling: 'fastPolling',
     /**
-     * 머신 쓰기 제어 — 수동 setpoint 슬라이더 + 소프트웨어 PID. Pro+ 이상.
+     * 머신 쓰기 제어 — 수동 setpoint 슬라이더 + 소프트웨어 PID. Pro 코어 이상.
      *
      * 게이트는 UI에만 걸린다. 사이드카는 로컬 프로세스라 플랜을 알지 못하므로
      * 서버처럼 강제할 수 없다 (fastPolling과 동일한 한계).
      */
     machineControl: 'machineControl',
+    /** Reference heat Replay, including automatic start on Charge. Pro+ and above. */
+    machineReplay: 'machineReplay',
     /**
      * Custom-machine write_map persist. Enterprise-class only.
-     * Runtime control UI is gated separately by machineControl (Pro+).
+     * Runtime control UI is gated separately by machineControl (Pro core).
      */
     customMachineControl: 'customMachineControl',
     /**

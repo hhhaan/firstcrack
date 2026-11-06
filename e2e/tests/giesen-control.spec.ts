@@ -4,8 +4,8 @@ import { E2E_USER } from '../fixtures/constants';
 for (const model of [
     { key: 'giesen_w1', name: 'Giesen W1A', airflow: [80, 150], drum: [35, 60] },
     { key: 'giesen_w45a_w60a', name: 'Giesen W60A', airflow: [100, 170], drum: [40, 55] },
-]) {
-    test(`${model.name} Active Roast sends pressure and drum commands independently`, async ({
+].flatMap((model) => ['pro', 'pro_plus'].map((plan) => ({ ...model, plan })))) {
+    test(`${model.plan}: ${model.name} Active Roast gates Replay and sends manual controls`, async ({
         authedPage: page,
     }, testInfo) => {
         await page.setViewportSize({ width: 1600, height: 1000 });
@@ -23,7 +23,7 @@ for (const model of [
         const commands: Record<string, number>[] = [];
         const readUnits = { heater: '%', fan: 'Pa', drum: 'Hz' };
         await page.route('**/rest/v1/profiles?*', (route) =>
-            route.fulfill({ json: { id: E2E_USER.id, email: E2E_USER.email, plan: 'pro_plus', business_name: 'E2E' } }),
+            route.fulfill({ json: { id: E2E_USER.id, email: E2E_USER.email, plan: model.plan, business_name: 'E2E' } }),
         );
         await page.route('http://127.0.0.1:9999/status', (route) =>
             route.fulfill({
@@ -80,6 +80,9 @@ for (const model of [
         const airflow = page.getByRole('textbox', { name: 'Airflow setpoint value', exact: true });
         const drum = page.getByRole('textbox', { name: 'Drum setpoint value', exact: true });
         await expect(airflow).toBeEnabled();
+        await expect(page.getByRole('checkbox', { name: 'Replay profile heat', exact: true })).toHaveCount(
+            model.plan === 'pro_plus' ? 1 : 0,
+        );
         await expect(airflow).toHaveValue('120');
         await expect(drum).toHaveValue('50');
         await expect(airflow.locator('..')).toContainText('Pa');
@@ -128,5 +131,7 @@ for (const model of [
         await drum.press('Enter');
         await expect.poll(() => commands.at(-1)).toEqual({ drum: model.drum[0] });
         expect(commands.every((command) => !('heater' in command))).toBe(true);
+        await page.getByRole('button', { name: 'Heater plus 5', exact: true }).click();
+        await expect.poll(() => commands.at(-1)).toEqual({ heater: 75 });
     });
 }

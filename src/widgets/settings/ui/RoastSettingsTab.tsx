@@ -768,6 +768,7 @@ export const RoastSettingsTab = () => {
         if (next !== roastSettings.fontScalePct) updateRoastSettings({ fontScalePct: next });
     };
     const canFastPoll = useFeature(FEATURE.fastPolling);
+    const canReplay = useFeature(FEATURE.machineReplay);
     const effectivePollMs = useEffectivePollIntervalMs();
     const [showPollUpgradeHint, setShowPollUpgradeHint] = useState(false);
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
@@ -1035,17 +1036,19 @@ export const RoastSettingsTab = () => {
             </SettingsSection>
             */}
 
-            <SettingsSection group="automation">
-                <SettingsSection.Header title={tk('replay')} description={tk('replayDescription')} />
-                <SettingsSection.Body>
-                    <SettingsCheckRow
-                        checked={roastSettings.replayOnCharge}
-                        label={tk('replayOnCharge')}
-                        description={tk('replayOnChargeDescription')}
-                        onChange={() => updateRoastSettings({ replayOnCharge: !roastSettings.replayOnCharge })}
-                    />
-                </SettingsSection.Body>
-            </SettingsSection>
+            {canReplay && (
+                <SettingsSection group="automation">
+                    <SettingsSection.Header title={tk('replay')} description={tk('replayDescription')} />
+                    <SettingsSection.Body>
+                        <SettingsCheckRow
+                            checked={roastSettings.replayOnCharge}
+                            label={tk('replayOnCharge')}
+                            description={tk('replayOnChargeDescription')}
+                            onChange={() => updateRoastSettings({ replayOnCharge: !roastSettings.replayOnCharge })}
+                        />
+                    </SettingsSection.Body>
+                </SettingsSection>
+            )}
 
             <SettingsSection group="bbp">
                 <SettingsSection.Header title={tk('bbp')} description={tk('bbpDescription')} />

@@ -33,7 +33,8 @@ const FEATURE_PREDICATE = {
     [FEATURE.team]: (plan: string) => ORDER_INTEGRATION_PLANS.has(plan),
     [FEATURE.roastedInventory]: (plan: string) => PRO_PLUS_PLANS.has(plan),
     [FEATURE.productStock]: (plan: string) => PRO_PLUS_PLANS.has(plan),
-    [FEATURE.machineControl]: (plan: string) => PRO_PLUS_PLANS.has(plan),
+    [FEATURE.machineControl]: isCoreEntitled,
+    [FEATURE.machineReplay]: (plan: string) => PRO_PLUS_PLANS.has(plan),
     /** Never a plan entitlement. Turn on with profiles.simulator_enabled. */
     [FEATURE.simulator]: () => false,
 } satisfies Record<FeatureKey, (plan: string) => boolean>;
