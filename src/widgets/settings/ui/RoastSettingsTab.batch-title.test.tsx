@@ -11,12 +11,36 @@ vi.mock('@shared/lib/settings-store', () => ({
     settingsSet: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
-vi.mock('@shared/lib/features', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('@shared/lib/features')>()),
-    useFeature: () => true,
-}));
+const features = vi.hoisted(() => ({ plan: 'pro_plus' }));
+vi.mock('@shared/lib/features', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/features')>();
+    return {
+        ...actual,
+        useFeature: (key: Parameters<typeof actual.useFeature>[0]) => actual.planHasFeature(features.plan, key),
+    };
+});
 vi.mock('./RoastingSettingsImport', () => ({ RoastingSettingsImport: () => null }));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+it('shows automatic Replay settings only on Pro+ while retaining the saved preference', async () => {
+    const previous = getRoastSettings().replayOnCharge;
+    updateRoastSettings({ replayOnCharge: true });
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+        features.plan = 'pro';
+        await act(async () => root.render(createElement(RoastSettingsTab)));
+        expect(host.textContent).not.toContain('settings.tabs.roast.replayOnCharge');
+        expect(getRoastSettings().replayOnCharge).toBe(true);
+        features.plan = 'pro_plus';
+        await act(async () => root.render(createElement(RoastSettingsTab)));
+        expect(host.textContent).toContain('settings.tabs.roast.replayOnCharge');
+    } finally {
+        act(() => root.unmount());
+        features.plan = 'pro_plus';
+        updateRoastSettings({ replayOnCharge: previous });
+    }
+});
 
 it('selects profile or bean names independently of the title numbering', async () => {
     const previous = getRoastSettings();
