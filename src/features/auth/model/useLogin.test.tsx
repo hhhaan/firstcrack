@@ -72,18 +72,27 @@ describe('useLogin signup', () => {
         };
     };
 
-    it('does not sign up without terms', async () => {
-        const { hook, unmount } = await mount();
+    const submitSignUp = async (
+        hook: () => Hook,
+        fields: { confirmPassword?: string; agreedToTerms?: boolean } = {},
+    ) => {
         await act(async () => {
             hook().setScreen('sign-up');
         });
         await act(async () => {
             hook().setEmail('a@b.com');
             hook().setPassword('password1');
+            if (fields.confirmPassword !== undefined) hook().setConfirmPassword(fields.confirmPassword);
+            if (fields.agreedToTerms !== undefined) hook().setAgreedToTerms(fields.agreedToTerms);
         });
         await act(async () => {
             await hook().handleSubmit({ preventDefault: () => undefined } as unknown as FormEvent);
         });
+    };
+
+    it('does not sign up without terms', async () => {
+        const { hook, unmount } = await mount();
+        await submitSignUp(hook);
         expect(signUpWithEmail).not.toHaveBeenCalled();
         unmount();
     });
@@ -91,18 +100,7 @@ describe('useLogin signup', () => {
     it('moves to check-inbox when signUp needs email confirm', async () => {
         signUpWithEmail.mockResolvedValue('confirm_email');
         const { hook, unmount } = await mount();
-        await act(async () => {
-            hook().setScreen('sign-up');
-        });
-        await act(async () => {
-            hook().setEmail('a@b.com');
-            hook().setPassword('password1');
-            hook().setConfirmPassword('password1');
-            hook().setAgreedToTerms(true);
-        });
-        await act(async () => {
-            await hook().handleSubmit({ preventDefault: () => undefined } as unknown as FormEvent);
-        });
+        await submitSignUp(hook, { confirmPassword: 'password1', agreedToTerms: true });
         expect(signUpWithEmail).toHaveBeenCalledWith('a@b.com', 'password1');
         expect(hook().screen).toBe('check-inbox');
         unmount();
@@ -110,18 +108,7 @@ describe('useLogin signup', () => {
 
     it('does not sign up when passwords differ', async () => {
         const { hook, unmount } = await mount();
-        await act(async () => {
-            hook().setScreen('sign-up');
-        });
-        await act(async () => {
-            hook().setEmail('a@b.com');
-            hook().setPassword('password1');
-            hook().setConfirmPassword('password2');
-            hook().setAgreedToTerms(true);
-        });
-        await act(async () => {
-            await hook().handleSubmit({ preventDefault: () => undefined } as unknown as FormEvent);
-        });
+        await submitSignUp(hook, { confirmPassword: 'password2', agreedToTerms: true });
         expect(signUpWithEmail).not.toHaveBeenCalled();
         expect(hook().displayError).toBe('password_mismatch');
         unmount();
