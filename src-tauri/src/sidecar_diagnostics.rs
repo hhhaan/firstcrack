@@ -8,70 +8,314 @@ use crate::sentry_config;
 const RECENT_LIMIT: usize = 12;
 const STDERR_TAIL_MAX_LINES: usize = 40;
 const STDERR_TAIL_MAX_BYTES: usize = 4096;
-/// ponytail: raw buffer ceiling — tail formatter keeps last 40 lines / 4KiB only.
-const STDERR_RAW_CAP_BYTES: usize = 16_384;
+/// ponytail: scrubbed-chunk ceiling — whole stderr records drop from the front only.
+const SCRUBBED_BUFFER_CAP_BYTES: usize = 16_384;
+const REDACTED: &str = "[redacted]";
 
 #[derive(Default)]
 pub(crate) struct StderrDiagnostics {
     chunks_seen: u64,
     unclassified_chunks: u64,
     recent: VecDeque<Value>,
-    raw_stderr: String,
+    scrubbed_chunks: VecDeque<String>,
 }
 
-fn home_dir_prefix() -> Option<String> {
-    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
-    let home = home.to_string_lossy();
-    if home.is_empty() {
-        return None;
-    }
-    Some(home.into_owned())
-}
-
-/// Last ~40 lines, ≤4KiB, secrets scrubbed, home dir → `~`.
-pub(crate) fn format_stderr_tail(raw: &str) -> String {
-    let lines: Vec<&str> = raw.lines().collect();
+/// Line/byte limits only — input must already be scrubbed.
+pub(crate) fn format_stderr_tail(scrubbed: &str) -> String {
+    let lines: Vec<&str> = scrubbed.lines().collect();
     let skip = lines.len().saturating_sub(STDERR_TAIL_MAX_LINES);
     let mut joined = lines[skip..].join("\n");
     if joined.len() > STDERR_TAIL_MAX_BYTES {
-        let excess = joined.len() - STDERR_TAIL_MAX_BYTES;
-        let mut start = excess;
+        let mut start = joined.len().saturating_sub(STDERR_TAIL_MAX_BYTES);
         while start < joined.len() && !joined.is_char_boundary(start) {
             start += 1;
         }
-        joined = joined[start..].to_string();
-        if let Some(rest) = joined.strip_prefix('\n') {
-            joined = rest.to_string();
+        if let Some(nl) = joined[start..].find('\n') {
+            start += nl + 1;
         }
+        joined = joined[start..].to_string();
     }
-    scrub_stderr_tail(&joined)
+    joined
 }
 
-pub(crate) fn scrub_stderr_tail(text: &str) -> String {
-    let mut out = sentry_config::scrub(text);
-    if let Some(home) = home_dir_prefix() {
-        out = out.replace(&home, "~");
+fn is_value_boundary(c: char) -> bool {
+    c.is_whitespace() || matches!(c, '"' | '\'' | ',' | ';' | ')' | '}' | ']' | '&')
+}
+
+fn scrub_extra_assignments(text: &str, keys: &[&str]) -> String {
+    let lower = text.to_ascii_lowercase();
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+
+    while cursor < text.len() {
+        let hit = keys
+            .iter()
+            .filter_map(|key| lower[cursor..].find(key).map(|at| (cursor + at, key.len())))
+            .min_by_key(|(at, _)| *at);
+
+        let Some((key_start, key_len)) = hit else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        let after_key = key_start + key_len;
+        let mut value_start = after_key;
+        let mut saw_separator = false;
+        for c in text[after_key..].chars() {
+            match c {
+                '"' | '\'' | ' ' | '\t' => value_start += c.len_utf8(),
+                '=' | ':' if !saw_separator => {
+                    saw_separator = true;
+                    value_start += c.len_utf8();
+                }
+                _ => break,
+            }
+        }
+        if !saw_separator || value_start >= text.len() {
+            out.push_str(&text[cursor..after_key]);
+            cursor = after_key;
+            continue;
+        }
+        let value_end = text[value_start..]
+            .find(is_value_boundary)
+            .map(|at| value_start + at)
+            .unwrap_or(text.len());
+        if value_end == value_start {
+            out.push_str(&text[cursor..after_key]);
+            cursor = after_key;
+            continue;
+        }
+        out.push_str(&text[cursor..value_start]);
+        out.push_str(REDACTED);
+        cursor = value_end;
+    }
+
+    out
+}
+
+fn redact_bearer_value(text: &str, lower: &str, mut i: usize, out: &mut String, prefix_end: usize) -> usize {
+    if !lower[i..].starts_with("bearer") {
+        return (i + 1).min(text.len());
+    }
+    out.push_str(&text[prefix_end..i]);
+    i += "bearer".len();
+    while let Some(c) = text[i..].chars().next() {
+        if !c.is_whitespace() {
+            break;
+        }
+        i += c.len_utf8();
+    }
+    out.push_str("Bearer ");
+    out.push_str(REDACTED);
+    text[i..]
+        .find(is_value_boundary)
+        .map(|at| i + at)
+        .unwrap_or(text.len())
+}
+
+fn scrub_authorization_lines(text: &str) -> String {
+    let lower = text.to_ascii_lowercase();
+    let needle = "authorization:";
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+    while cursor < text.len() {
+        let Some(at) = lower[cursor..].find(needle) else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        let start = cursor + at;
+        out.push_str(&text[cursor..start]);
+        let line_end = text[start..]
+            .find('\n')
+            .map(|i| start + i)
+            .unwrap_or(text.len());
+        out.push_str(&text[start..start + needle.len()]);
+        out.push(' ');
+        out.push_str(REDACTED);
+        cursor = line_end;
     }
     out
 }
 
-impl StderrDiagnostics {
-    fn append_raw_stderr(&mut self, bytes: &[u8]) {
-        self.raw_stderr.push_str(&String::from_utf8_lossy(bytes));
-        if self.raw_stderr.len() > STDERR_RAW_CAP_BYTES {
-            let excess = self.raw_stderr.len() - STDERR_RAW_CAP_BYTES;
-            let mut start = excess;
-            while start < self.raw_stderr.len() && !self.raw_stderr.is_char_boundary(start) {
-                start += 1;
+fn scrub_bearer_headers(text: &str) -> String {
+    let lower = text.to_ascii_lowercase();
+    let mut out = String::with_capacity(text.len());
+    let mut cursor = 0usize;
+    let auth = "authorization:";
+    let bare = "bearer";
+    while cursor < text.len() {
+        let auth_at = lower[cursor..].find(auth).map(|at| (cursor + at, auth.len()));
+        let bare_at = lower[cursor..].find(bare).map(|at| (cursor + at, bare.len()));
+        let next = [auth_at, bare_at]
+            .into_iter()
+            .flatten()
+            .min_by_key(|(at, _)| *at);
+        let Some((hit, needle_len)) = next else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        out.push_str(&text[cursor..hit]);
+        let mut i = hit + needle_len;
+        while let Some(c) = text[i..].chars().next() {
+            if !c.is_whitespace() {
+                break;
             }
-            self.raw_stderr = self.raw_stderr[start..].to_string();
+            i += c.len_utf8();
+        }
+        let next = if needle_len == auth.len() {
+            if lower[i..].starts_with("bearer") {
+                redact_bearer_value(text, &lower, i, &mut out, hit)
+            } else {
+                out.push_str(&text[hit..i]);
+                text[i..]
+                    .find(is_value_boundary)
+                    .map(|at| i + at)
+                    .unwrap_or(text.len())
+            }
+        } else {
+            redact_bearer_value(text, &lower, hit, &mut out, hit)
+        };
+        cursor = if next <= hit { hit + 1 } else { next };
+    }
+    out
+}
+
+fn is_email_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '%' | '+' | '-')
+}
+
+fn scrub_emails(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] != '@' {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        let mut start = i;
+        while start > 0 && is_email_char(chars[start - 1]) {
+            start -= 1;
+        }
+        let mut end = i + 1;
+        while end < chars.len() && is_email_char(chars[end]) {
+            end += 1;
+        }
+        if end > i + 1 && start < i {
+            out.push_str(REDACTED);
+            i = end;
+        } else {
+            out.push('@');
+            i += 1;
+        }
+    }
+    out
+}
+
+fn ipv4_byte(b: u8) -> bool {
+    b.is_ascii_digit()
+}
+
+fn scrub_ip_endpoints(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0usize;
+    while i < bytes.len() {
+        if let Some((end, port_end)) = parse_ipv4_endpoint(text, i) {
+            out.push_str(REDACTED);
+            i = port_end.max(end);
+        } else {
+            let ch = text[i..].chars().next().unwrap();
+            out.push(ch);
+            i += ch.len_utf8();
+        }
+    }
+    out
+}
+
+fn parse_ipv4_endpoint(text: &str, start: usize) -> Option<(usize, usize)> {
+    let bytes = text.as_bytes();
+    if start >= bytes.len() || !ipv4_byte(bytes[start]) {
+        return None;
+    }
+    let mut pos = start;
+    for part in 0..4 {
+        if pos >= bytes.len() || !ipv4_byte(bytes[pos]) {
+            return None;
+        }
+        let part_start = pos;
+        let mut value = 0u16;
+        while pos < bytes.len() && ipv4_byte(bytes[pos]) {
+            value = value.saturating_mul(10).saturating_add((bytes[pos] - b'0') as u16);
+            if value > 255 {
+                return None;
+            }
+            pos += 1;
+        }
+        if part_start == pos {
+            return None;
+        }
+        if part < 3 {
+            if pos >= bytes.len() || bytes[pos] != b'.' {
+                return None;
+            }
+            pos += 1;
+        }
+    }
+    let end = pos;
+    let mut port_end = pos;
+    if pos < bytes.len() && bytes[pos] == b':' {
+        pos += 1;
+        if pos >= bytes.len() || !ipv4_byte(bytes[pos]) {
+            return Some((end, end));
+        }
+        while pos < bytes.len() && ipv4_byte(bytes[pos]) {
+            pos += 1;
+        }
+        port_end = pos;
+    }
+    // Avoid redacting version numbers like 1.2.3.4 inside semver-only noise — require context
+    // or at least that this isn't glued to alphanumeric on left (simple check).
+    if start > 0 {
+        let prev = text[..start].chars().last().unwrap();
+        if prev.is_ascii_alphanumeric() || prev == '_' {
+            return None;
+        }
+    }
+    Some((end, port_end))
+}
+
+/// Scrub one complete stderr chunk before it enters the buffer.
+pub(crate) fn scrub_stderr_tail(text: &str) -> String {
+    let mut out = scrub_bearer_headers(text);
+    out = sentry_config::scrub(&out);
+    out = scrub_extra_assignments(&out, &["api_key", "apikey"]);
+    out = scrub_bearer_headers(&out);
+    out = scrub_authorization_lines(&out);
+    out = scrub_emails(&out);
+    out = scrub_ip_endpoints(&out);
+    out
+}
+
+impl StderrDiagnostics {
+    fn push_scrubbed_chunk(&mut self, bytes: &[u8]) {
+        let piece = scrub_stderr_tail(&String::from_utf8_lossy(bytes));
+        if piece.is_empty() {
+            return;
+        }
+        self.scrubbed_chunks.push_back(piece);
+        let mut total: usize = self.scrubbed_chunks.iter().map(String::len).sum();
+        while total > SCRUBBED_BUFFER_CAP_BYTES {
+            let Some(front) = self.scrubbed_chunks.pop_front() else {
+                break;
+            };
+            total -= front.len();
         }
     }
 
-impl StderrDiagnostics {
     pub(crate) fn record(&mut self, bytes: &[u8], uptime_ms: u64) {
         self.chunks_seen = self.chunks_seen.saturating_add(1);
-        self.append_raw_stderr(bytes);
+        self.push_scrubbed_chunk(bytes);
         let text = String::from_utf8_lossy(bytes).to_lowercase();
         let mut observed_codes = Vec::new();
         for (pattern, code) in [
@@ -132,7 +376,8 @@ impl StderrDiagnostics {
 
     pub(crate) fn take(&mut self) -> Value {
         let previous = std::mem::take(self);
-        let sidecar_stderr_tail = format_stderr_tail(&previous.raw_stderr);
+        let scrubbed: String = previous.scrubbed_chunks.iter().cloned().collect();
+        let sidecar_stderr_tail = format_stderr_tail(&scrubbed);
         json!({
             "chunks_seen": previous.chunks_seen,
             "unclassified_chunks": previous.unclassified_chunks,
@@ -176,10 +421,10 @@ mod tests {
 
     #[test]
     fn stderr_tail_keeps_last_lines_and_byte_cap() {
-        for line in 0..60 {
+        for line in 0..60usize {
             let mut diagnostics = StderrDiagnostics::default();
             for i in 0..=line {
-                diagnostics.record(format!("line-{i}\n").as_bytes(), i);
+                diagnostics.record(format!("line-{i}\n").as_bytes(), i as u64);
             }
             let tail = diagnostics.take()["sidecar_stderr_tail"]
                 .as_str()
@@ -189,7 +434,7 @@ mod tests {
             assert!(line_count <= STDERR_TAIL_MAX_LINES, "{line_count} lines at {line}");
             if line >= STDERR_TAIL_MAX_LINES {
                 assert!(!tail.contains("line-0\n"));
-                assert!(tail.contains(format!("line-{line}")));
+                assert!(tail.contains(&format!("line-{line}")));
             }
         }
 
@@ -208,16 +453,42 @@ mod tests {
     }
 
     #[test]
-    fn scrub_stderr_tail_replaces_home_and_redacts_secrets() {
-        let home = home_dir_prefix().unwrap_or_else(|| "/home/testuser".to_string());
-        let raw = format!(
-            "File {home}/app/main.py\nSIDECAR_TOKEN=deadbeef host=10.0.0.2"
+    fn stderr_tail_byte_cap_applied_after_scrub() {
+        let raw = (0..300)
+            .map(|i| format!("line-{i} failed at 10.{i}.{i}.{i}:102 user{i}@example.com api_key=secret{i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let tail = format_stderr_tail(&scrub_stderr_tail(&raw));
+        assert!(tail.len() <= STDERR_TAIL_MAX_BYTES);
+        assert!(!tail.contains("example.com"));
+        assert!(!tail.contains("secret"));
+    }
+
+    #[test]
+    fn scrub_stderr_tail_redacts_paths_secrets_bearer_and_api_key() {
+        let raw = "File /Users/alice/app/main.py\n\
+            api_key=abc123\n\
+            Authorization: Bearer eyJ-leak\n\
+            PLC 203.0.113.7:102";
+        let scrubbed = scrub_stderr_tail(raw);
+        assert!(scrubbed.contains(REDACTED));
+        assert!(!scrubbed.contains("alice"));
+        assert!(!scrubbed.contains("abc123"));
+        assert!(!scrubbed.contains("eyJ-leak"));
+        assert!(!scrubbed.contains("203.0.113.7"));
+    }
+
+    #[test]
+    fn scrub_per_chunk_prevents_truncation_secret_leaks() {
+        let mut diagnostics = StderrDiagnostics::default();
+        diagnostics.record(
+            vec![b'x'; SCRUBBED_BUFFER_CAP_BYTES - 8].as_slice(),
+            0,
         );
-        let scrubbed = scrub_stderr_tail(&raw);
-        assert!(scrubbed.contains("~/app/main.py") || scrubbed.contains("File ~/"));
-        assert!(!scrubbed.contains("deadbeef"));
-        assert!(!scrubbed.contains("10.0.0.2"));
-        assert!(!scrubbed.contains(&home));
+        diagnostics.record(b"token=leak-me", 1);
+        let evidence = diagnostics.take();
+        let tail = evidence["sidecar_stderr_tail"].as_str().unwrap_or("");
+        assert!(!tail.contains("leak-me"));
     }
 
     #[test]

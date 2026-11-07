@@ -428,8 +428,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                                 payload.code, payload.signal,
                             );
                             let stderr_evidence = stderr.take();
-                            let stderr_tail = stderr_evidence["sidecar_stderr_tail"].clone();
-                            if let Some(tail) = stderr_tail.as_str() {
+                            if let Some(tail) = stderr_evidence["sidecar_stderr_tail"].as_str() {
                                 last_stderr_tail = tail.to_string();
                             }
                             // 이슈로 만들지 않는다 — 정상 종료·앱 종료·재시작으로 회복되는
@@ -456,7 +455,6 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                                     ),
                                     ("previous_failures".into(), serde_json::json!(attempts)),
                                     ("stderr".into(), stderr_evidence),
-                                    ("sidecar_stderr_tail".into(), stderr_tail),
                                 ].into_iter().collect(),
                                 ..Default::default()
                             });
@@ -475,20 +473,14 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                 }
                 if !saw_termination {
                     let stderr_evidence = stderr.take();
-                    let stderr_tail = stderr_evidence["sidecar_stderr_tail"].clone();
-                    if let Some(tail) = stderr_tail.as_str() {
+                    if let Some(tail) = stderr_evidence["sidecar_stderr_tail"].as_str() {
                         last_stderr_tail = tail.to_string();
                     }
                     sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
                         category: Some("sidecar".into()),
                         level: sentry::Level::Error,
                         message: Some("event stream closed without a termination status".into()),
-                        data: [
-                            ("stderr".into(), stderr_evidence),
-                            ("sidecar_stderr_tail".into(), stderr_tail),
-                        ]
-                        .into_iter()
-                        .collect(),
+                        data: [("stderr".into(), stderr_evidence)].into_iter().collect(),
                         ..Default::default()
                     });
                 }
