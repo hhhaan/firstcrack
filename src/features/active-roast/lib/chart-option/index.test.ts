@@ -339,7 +339,7 @@ describe('imported chart ticks', () => {
 });
 
 describe('buildRoastChartOption font scale', () => {
-    it.each([1, 1.01, 1.13, 1.25, 1.5, 1.75, 1.99, 2])(
+    it.each([5 / 6, 1, 1.01, 1.13, 1.25, 1.5, 1.75, 1.99, 2])(
         'scales chart labels by %s without moving the axes',
         (fontScale) => {
             const option = buildRoastChartOption({
@@ -348,7 +348,7 @@ describe('buildRoastChartOption font scale', () => {
                 bbpRange: { start: 0, end: 60, label: 'PREHEAT' },
             });
             const yAxis = option.yAxis as { axisLabel?: { fontSize?: number } }[];
-            expect(yAxis[0]?.axisLabel?.fontSize).toBe(14);
+            expect(yAxis[0]?.axisLabel?.fontSize).toBe(14 * Math.min(1, fontScale));
             expect(option.grid).toMatchObject([
                 { left: CHART_GRID_LEFT, right: CHART_GRID_RIGHT_WITH_ROR, bottom: 65 },
             ]);

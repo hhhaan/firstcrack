@@ -114,7 +114,7 @@ export interface ChartOptionParams {
     hideChargeLabel?: boolean;
     /** Live control value drawn at the series end. History hides it so it does not sit on the RoR axis. */
     showControlTailLabels?: boolean;
-    /** 1, 1.5, or 2. Event, phase, target-delta, and BBP labels on the plot. Axes stay put. */
+    /** Plot-label scale (0.75–2). Compact scales below 1 also shrink axes; enlarged settings keep axes fixed. */
     fontScale?: number;
     colors: ResolvedChartColors;
     /** User line styles. Omitted = DESIGN.md defaults. */

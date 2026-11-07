@@ -1,4 +1,5 @@
 import {
+    chartFontScale,
     getResolvedChartColors,
     ROR_Y_MAX,
     ROR_Y_MIN,
@@ -112,6 +113,8 @@ interface Props {
     turningPoints?: TurningPoint[];
     temperatureUnit?: TemperatureUnit;
     height: number;
+    /** Optional chart-local label scale; omitted follows the roast font setting. */
+    fontScale?: number;
     onCursorIdx?: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
     onEventMarkerEdit?: (logId: string, patch: EventMarkerPatch) => void;
@@ -318,6 +321,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         turningPoints = [],
         temperatureUnit = 'C',
         height,
+        fontScale: fontScaleOverride,
         onCursorIdx,
         onEventMarkerDrag,
         onEventMarkerEdit,
@@ -386,7 +390,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const noteUnitHistory = (controlData ?? printControlData)?.readUnits;
     const noteReadUnits = noteUnitHistory?.[noteUnitHistory.length - 1];
     const curves = useCurveStyles();
-    const fontScale = roastSettings.fontScalePct / 100;
+    const fontScale = chartFontScale(fontScaleOverride ?? roastSettings.fontScalePct / 100);
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
 
     const dragStateRef = useRef<{

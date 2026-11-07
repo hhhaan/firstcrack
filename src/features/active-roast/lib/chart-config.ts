@@ -40,9 +40,9 @@ export const MARKER_LABEL_FONT_FAMILY = NUMBER_FONT_FAMILY;
 export const MARKER_LABEL_FONT =
     `${MARKER_LABEL_FONT_WEIGHT} ${MARKER_LABEL_FONT_SIZE}px ${MARKER_LABEL_FONT_FAMILY}` as const;
 
-/** Roast font setting → chart scale. Anything else stays at 1 so layout tests keep base pixels. */
+/** Compact previews may shrink labels; saved roast font settings remain 1–2. */
 export const chartFontScale = (scale: number | undefined): number =>
-    typeof scale === 'number' && Number.isFinite(scale) && scale >= 1 && scale <= 2 ? scale : 1;
+    typeof scale === 'number' && Number.isFinite(scale) && scale >= 0.75 && scale <= 2 ? scale : 1;
 
 /** Keep fractional pixels so each 1% step changes labels and their hit boxes together. */
 export const scaleChartPx = (base: number, scale: number) => base * scale;

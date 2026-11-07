@@ -24,6 +24,7 @@ vi.mock('@features/active-roast', async () => ({
     useRoastSettings: () => ({
         ...getRoastSettings(),
         temperatureUnit: 'F',
+        fontScalePct: 175,
         showET: true,
         showRoRChart: true,
         showRoRET: true,
@@ -178,6 +179,7 @@ it('keeps temperature curves and phase marks without a phase bar or machine cont
     expect(props?.controlData).toBeUndefined();
     expect(props?.printControlData).toBeUndefined();
     expect(props?.height).toBe(360);
+    expect(props?.fontScale).toBe(5 / 6);
     expect(props?.eventMarkers.map((marker) => marker.event)).toEqual([
         'Charge',
         'Note',

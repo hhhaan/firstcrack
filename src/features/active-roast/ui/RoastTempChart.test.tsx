@@ -375,6 +375,31 @@ describe('RoastTempChart interactions', () => {
         }
     });
 
+    it('uses a local compact font scale without changing the roast font setting', () => {
+        const previous = getRoastSettings().fontScalePct;
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    fontScale: 5 / 6,
+                    eventMarkerStyle: 'callout',
+                    eventMarkers: [{ event: 'Yellow', timeSec: 0, timeStr: '0:00', temp: '180°C', color: '#888' }],
+                }),
+            ),
+        );
+        const option = setOption.mock.lastCall?.[0];
+        expect(option.xAxis[0].axisLabel.fontSize).toBe(14 * (5 / 6));
+        expect(option.yAxis[0].axisLabel.fontSize).toBe(14 * (5 / 6));
+        const series = option.series.find((item: { id: string }) => item.id === 'event-curve-labels');
+        const rendered = series.renderItem(
+            { dataIndex: 0, coordSys: { x: 0, y: 0, width: 1000, height: 200 } },
+            { coord: ([x, y]: number[]) => [x, y], getWidth: () => 1000, getHeight: () => 200 },
+        );
+        const label = rendered.children.find((child: { type: string }) => child.type === 'text');
+        expect(label.style.font).toBe('600 10px Inconsolata');
+        expect(getRoastSettings().fontScalePct).toBe(previous);
+    });
+
     it('uses a short connector as a drag target in callout mode', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerDrag = vi.fn();

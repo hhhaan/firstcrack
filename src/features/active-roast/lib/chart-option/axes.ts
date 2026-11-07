@@ -44,9 +44,10 @@ export const computeTempYRange = (
     return { tempYMin, tempYMax };
 };
 
-export const buildAxisStyles = (colors: ResolvedChartColors) => {
+export const buildAxisStyles = (colors: ResolvedChartColors, fontScale = 1) => {
     const axisLabelStyle = {
         ...AXIS_LABEL_FONT,
+        fontSize: AXIS_LABEL_FONT.fontSize * fontScale,
         color: colors.axisLabel,
         margin: AXIS_LABEL_MARGIN,
     };

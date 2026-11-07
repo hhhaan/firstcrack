@@ -130,7 +130,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     if (print) for (const curve of Object.values(curves)) curve.current.type = 'solid';
 
     const fontScale = chartFontScale(fontScaleRaw);
-    const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors);
+    const { axisLabelStyle, axisNameStyle, rightYAxisLabel } = buildAxisStyles(colors, Math.min(1, fontScale));
     const { tempYMin, tempYMax } = computeTempYRange(tempMinC, tempMaxC, temperatureUnit);
     const rorYMinDisp = print ? -10 : toDisplayRoR(rorYMin, temperatureUnit);
     const rorYMaxDisp = print ? 20 : toDisplayRoR(rorYMax, temperatureUnit);
