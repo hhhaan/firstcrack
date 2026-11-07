@@ -1070,8 +1070,6 @@ export const ActiveRoast = ({
                 autoDropMessage={t('settings.tabs.roast.autoDropUnavailable')}
             />
 
-            <ReadFeedback />
-
             <div
                 className={chartFrame.className}
                 data-testid={chartFrame.testId}
@@ -1173,6 +1171,7 @@ export const ActiveRoast = ({
                         phase={phase}
                         roastPhaseName={roastPhaseName}
                         roastPhaseColor={roastPhaseColor}
+                        readFeedback={<ReadFeedback />}
                         charged={charged}
                         roastEnded={roastEnded}
                         deltaBT={deltaBT}

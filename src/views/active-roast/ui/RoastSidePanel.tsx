@@ -17,7 +17,7 @@ import { formatElapsed } from '@shared/lib/format';
 import { useShortcutStore } from '@shared/store/keyboard-shortcuts';
 import type { LogEntry } from '@shared/types/roast';
 import { Play, Square } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastLogDisplayEntry, TargetDeltaResult } from '../lib/display-derivatives';
 import { EventButtons } from './EventButtons';
@@ -43,6 +43,7 @@ interface RoastSidePanelProps {
     /** roast chemistry phase display name (Drying/Maillard/Development/…) */
     roastPhaseName: string;
     roastPhaseColor: string;
+    readFeedback?: ReactNode;
     charged: boolean;
     roastEnded: boolean;
     deltaBT: string | null;
@@ -94,6 +95,7 @@ export const RoastSidePanel = ({
     phase,
     roastPhaseName,
     roastPhaseColor,
+    readFeedback,
     charged,
     roastEnded,
     deltaBT,
@@ -266,6 +268,7 @@ export const RoastSidePanel = ({
                     </div>
                 </div>
             )}
+            {readFeedback}
             {/* Phase */}
             <div className="flex items-center justify-between border-t border-border-subtle pt-3">
                 <span className="text-xs text-muted font-semibold uppercase">Phase</span>

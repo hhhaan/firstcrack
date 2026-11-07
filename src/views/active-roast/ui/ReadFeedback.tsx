@@ -13,12 +13,12 @@ export function ReadFeedback() {
     if (!connected || !live || (roles.length === 0 && !live.extra_readings?.length)) return null;
     const autoStatus = live.extra_readings?.find((reading) => reading.id === 'auto_status');
     return (
-        <div>
-            <dl className="m-0 flex flex-wrap gap-x-6 gap-y-2 text-xs">
+        <div className="min-w-0">
+            <dl className="m-0 flex flex-wrap justify-between gap-x-2 gap-y-2 text-[11px]">
                 {roles.map((role) => {
                     const value = live.stale ? null : feedbackValue(live[role], role, units);
                     return (
-                        <div key={role}>
+                        <div key={role} className="min-w-0 max-w-full break-words">
                             <dt className="text-muted">
                                 {t(
                                     `settings.firescope.feedback.${role === 'fan' && units.fan === 'Pa' ? 'airPressure' : role}`,
@@ -31,7 +31,7 @@ export function ReadFeedback() {
                     );
                 })}
                 {live.extra_readings?.map((reading) => (
-                    <div key={reading.id}>
+                    <div key={reading.id} className="min-w-0 max-w-full break-words">
                         <dt className="text-muted">
                             {reading.id === 'auto_status' ? t('machines.loringAuto.label') : reading.label}
                         </dt>
