@@ -65,8 +65,8 @@ export function ProfileRoastChart({
             aria-busy={isLoading}
         >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                <h3 className="text-[11px] font-medium text-muted">{t('profiles.detail.profileCurve')}</h3>
-                <SavedCurveLegend points={points} settings={settings} className="text-[11px]" />
+                <h3 className="text-xs font-medium text-muted">{t('profiles.detail.profileCurve')}</h3>
+                <SavedCurveLegend points={points} settings={settings} />
             </div>
             {status ? (
                 <div
@@ -91,7 +91,7 @@ export function ProfileRoastChart({
                     xViewMin={actual.bbpRange?.start ?? 0}
                     xViewMax={Math.max(1, duration, points[points.length - 1]?.t ?? 0)}
                     bbpRange={actual.bbpRange}
-                    fontScale={5 / 6}
+                    fontScale={11 / 12}
                     height={360}
                 />
             )}
