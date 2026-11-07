@@ -1,3 +1,5 @@
+import { cn } from '@shared/lib/cn';
+
 /**
  * Shared form field tokens for modals and settings panels.
  * Prefer these over local inputCls/labelCls copies.
@@ -7,7 +9,10 @@ export const inputCls =
     'w-full min-h-10 rounded-xl border border-muted bg-input-bg px-3 py-2 text-sm font-[450] leading-5 text-primary shadow-xs transition-colors placeholder:text-muted focus-visible:border-secondary disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Closed FormSelect trigger. The open list is the shared Select menu, not an OS popup. */
-export const selectCls = `${inputCls} appearance-none cursor-pointer pr-10`;
+export const selectCls = cn(
+    inputCls,
+    'appearance-none cursor-pointer border-border pr-10 outline-none focus:border-strong-border focus-visible:border-border focus-visible:ring-2 focus-visible:ring-strong-border/40',
+);
 
 export const labelCls = 'mb-2 flex items-center gap-1.5 text-sm font-medium leading-5 text-primary';
 
