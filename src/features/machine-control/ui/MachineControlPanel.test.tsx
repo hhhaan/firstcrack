@@ -273,6 +273,39 @@ describe('MachineControlPanel display', () => {
         fader.unmount();
     });
 
+    it('switches the scale to the fan range and a tick sets that fan value', () => {
+        const changeManual = vi.fn();
+        const model = panelModel({ fan: true, changeManual });
+        model.machine.limits.fan = { min: 25, max: 100, unit: '%' };
+        model.machine.limits.drum = { min: 0, max: 100, unit: '%' };
+        model.machine.desired.fan = 40;
+        model.machine.desired.drum = 50;
+        const { host, unmount } = renderPanel(model);
+        expect(host.querySelector('[data-tick="0"]')).not.toBeNull();
+        act(() => (host.querySelector('[aria-label="Fan scale"]') as HTMLButtonElement).click());
+        expect(host.querySelector('[data-tick="0"]')).toBeNull();
+        expect(host.querySelector('[data-tick="25"]')).not.toBeNull();
+        expect(host.querySelector('[data-tick="100"]')).not.toBeNull();
+        expect(host.querySelector('[aria-label="Fan scale"]')).toBeNull();
+        const chips = [...host.querySelectorAll('[aria-label$="scale"]')].map((el) => el.getAttribute('aria-label'));
+        expect(chips).toEqual(['Heater scale', 'Drum scale']);
+        act(() => (host.querySelector('[data-tick="40"]') as HTMLButtonElement).click());
+        expect(changeManual).toHaveBeenCalledExactlyOnceWith('fan', 40);
+        act(() => (host.querySelector('[aria-label="Heater scale"]') as HTMLButtonElement).click());
+        expect(host.querySelector('[data-tick="0"]')).not.toBeNull();
+        act(() => (host.querySelector('[data-tick="60"]') as HTMLButtonElement).click());
+        expect(changeManual).toHaveBeenLastCalledWith('heater', 60);
+        unmount();
+    });
+
+    it('keeps the fan scale usable while replay locks the heater', () => {
+        const { host, unmount } = renderPanel(panelModel({ fan: true, replayActive: true }));
+        expect((host.querySelector('[aria-label="Heater plus 5"]') as HTMLButtonElement).disabled).toBe(true);
+        act(() => (host.querySelector('[aria-label="Fan scale"]') as HTMLButtonElement).click());
+        expect((host.querySelector('[aria-label="Fan plus 5"]') as HTMLButtonElement).disabled).toBe(false);
+        unmount();
+    });
+
     it('exposes a Hz drum chip beside the percent heater and commits only drum', () => {
         const changeManual = vi.fn();
         const commitManual = vi.fn();

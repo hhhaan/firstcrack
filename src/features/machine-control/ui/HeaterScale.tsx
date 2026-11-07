@@ -4,8 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import { CONVERGE_TOLERANCE, type ControlRole } from '../lib/controlSender';
 import { percentTicks, showLiveFollow, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
+import { channelScaleLabel } from './ChannelChip';
+
+const SCALE_TONE: Record<ControlRole, { edge: string; fill: string }> = {
+    heater: { edge: 'border-(--color-control-heat)', fill: 'bg-(--color-control-heat-area)' },
+    fan: { edge: 'border-(--color-control-fan)', fill: 'bg-(--color-control-fan-area)' },
+    drum: { edge: 'border-(--color-control-drum)', fill: 'bg-(--color-control-drum)/22' },
+};
 
 interface Props {
+    role?: ControlRole;
     limit: ControlLimit;
     value: number | undefined;
     feedback: number | null;
@@ -25,6 +33,7 @@ const stepBtnCls =
  * 채움·손잡이·선택 숫자는 desired(드래그 중엔 preview). 가로선·기기 n은 커밋 뒤에만.
  */
 export const HeaterScale = ({
+    role = 'heater',
     limit,
     value,
     feedback,
@@ -38,6 +47,8 @@ export const HeaterScale = ({
     const min = limit.min ?? 0;
     const max = limit.max ?? 100;
     const unit = limit.unit || '%';
+    const label = channelScaleLabel(role, limit.unit);
+    const tone = SCALE_TONE[role];
     const current = unsupported ? min : (value ?? feedback ?? min);
     const ticks = percentTicks(min, max);
     const blocked = disabled || unsupported;
@@ -59,7 +70,7 @@ export const HeaterScale = ({
         if (blocked) return;
         const bounded = Math.min(max, Math.max(min, Math.round(next)));
         valueRef.current = bounded;
-        onChange('heater', bounded);
+        onChange(role, bounded);
         onCommit();
     };
 
@@ -76,7 +87,7 @@ export const HeaterScale = ({
             const next = stepPercent(valueRef.current, 5, min, max);
             if (next === valueRef.current) return;
             valueRef.current = next;
-            onChange('heater', next);
+            onChange(role, next);
             onCommit();
         },
         blocked,
@@ -90,7 +101,7 @@ export const HeaterScale = ({
             const next = stepPercent(valueRef.current, -5, min, max);
             if (next === valueRef.current) return;
             valueRef.current = next;
-            onChange('heater', next);
+            onChange(role, next);
             onCommit();
         },
         blocked,
@@ -104,7 +115,7 @@ export const HeaterScale = ({
             setPreview(null);
             return;
         }
-        if (preview != null) onChange('heater', preview);
+        if (preview != null) onChange(role, preview);
         onCommit();
         setPreview(null);
     };
@@ -116,7 +127,7 @@ export const HeaterScale = ({
         }
         const next = Math.min(max, Math.max(min, Math.round(Number(draft))));
         valueRef.current = next;
-        onChange('heater', next);
+        onChange(role, next);
         onCommit();
         setPreview(null);
         setDraft(null);
@@ -126,7 +137,7 @@ export const HeaterScale = ({
         <div className={cn('flex min-w-0 shrink-0 flex-col gap-3', (disabled || sending) && 'opacity-40')}>
             <div className="flex items-center justify-between gap-1">
                 <div className="flex flex-col">
-                    <span className="text-xs font-medium text-secondary">Heater</span>
+                    <span className="text-xs font-medium text-secondary">{label}</span>
                     {lockedNote && <span className="text-[10px] text-muted">{lockedNote}</span>}
                 </div>
                 <div className="flex flex-col items-end">
@@ -141,7 +152,7 @@ export const HeaterScale = ({
                                 type="text"
                                 inputMode="numeric"
                                 disabled={blocked}
-                                aria-label="Heater setpoint value"
+                                aria-label={`${label} setpoint value`}
                                 value={draft ?? String(Math.round(shown))}
                                 onChange={(e) => {
                                     if (blocked) return;
@@ -181,7 +192,7 @@ export const HeaterScale = ({
                     type="button"
                     data-step="-5"
                     disabled={blocked}
-                    aria-label="Heater minus 5"
+                    aria-label={`${label} minus 5`}
                     className={stepBtnCls}
                     {...minusHold}
                 >
@@ -191,7 +202,7 @@ export const HeaterScale = ({
                     type="button"
                     data-step="5"
                     disabled={blocked}
-                    aria-label="Heater plus 5"
+                    aria-label={`${label} plus 5`}
                     className={stepBtnCls}
                     {...plusHold}
                 >
@@ -201,10 +212,7 @@ export const HeaterScale = ({
 
             <div className="relative my-4 h-[420px] shrink-0">
                 <div className="pointer-events-none absolute inset-y-0 left-1/2 w-2.5 -translate-x-1/2 overflow-hidden rounded-full bg-surface-elevated">
-                    <div
-                        className="absolute inset-x-0 bottom-0 bg-(--color-control-heat-area)"
-                        style={{ height: `${fillPct}%` }}
-                    />
+                    <div className={cn('absolute inset-x-0 bottom-0', tone.fill)} style={{ height: `${fillPct}%` }} />
                 </div>
                 {ticks.map((tick) => {
                     const isTen = tick % 10 === 0;
@@ -219,14 +227,14 @@ export const HeaterScale = ({
                                 data-tick={tick}
                                 data-tick-label={isTen ? 'ten' : 'five'}
                                 disabled={blocked}
-                                aria-label={`Heater ${tick}${unit}`}
+                                aria-label={`${label} ${tick}${unit}`}
                                 aria-pressed={tick === selected}
                                 onClick={() => commit(tick)}
                                 className={cn(
                                     'pointer-events-auto absolute h-7 w-11 cursor-pointer rounded-md border font-inconsolata text-[13px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed',
                                     isTen ? 'left-0' : 'right-0',
                                     tick === selected
-                                        ? 'border-(--color-control-heat) bg-(--color-control-heat-area) font-semibold text-primary'
+                                        ? cn(tone.edge, tone.fill, 'font-semibold text-primary')
                                         : 'border-border-subtle bg-main-bg text-secondary hover:border-border hover:bg-surface-elevated',
                                 )}
                             >
@@ -252,7 +260,7 @@ export const HeaterScale = ({
                     step={1}
                     value={shown}
                     disabled={blocked}
-                    aria-label={unsupported ? 'Heater not supported' : 'Heater setpoint'}
+                    aria-label={unsupported ? `${label} not supported` : `${label} setpoint`}
                     aria-orientation="vertical"
                     aria-valuetext={`${Math.round(current)}${unit}`}
                     onChange={(e) => dragTo(Number(e.target.value))}
@@ -275,10 +283,13 @@ export const HeaterScale = ({
                     className="peer absolute -inset-y-[13px] left-1/2 z-20 m-0 h-[calc(100%+26px)] w-10 -translate-x-1/2 cursor-ns-resize touch-none appearance-none opacity-0 disabled:cursor-not-allowed [direction:rtl] [writing-mode:vertical-lr] [&::-webkit-slider-thumb]:h-[26px] [&::-webkit-slider-thumb]:w-[26px] [&::-webkit-slider-thumb]:appearance-none [&::-moz-range-thumb]:h-[26px] [&::-moz-range-thumb]:w-[26px] [&::-moz-range-thumb]:border-0"
                 />
                 <div
-                    className="pointer-events-none absolute left-1/2 flex h-[26px] w-[26px] -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-md border-[1.5px] border-(--color-control-heat) bg-main-bg shadow-(--shadow-elevation) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary"
+                    className={cn(
+                        'pointer-events-none absolute left-1/2 flex h-[26px] w-[26px] -translate-x-1/2 translate-y-1/2 items-center justify-center rounded-md border-[1.5px] bg-main-bg shadow-(--shadow-elevation) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-primary',
+                        tone.edge,
+                    )}
                     style={{ bottom: `${fillPct}%` }}
                 >
-                    <span className="h-[3px] w-2.5 border-y border-(--color-control-heat)" />
+                    <span className={cn('h-[3px] w-2.5 border-y', tone.edge)} />
                 </div>
             </div>
         </div>

@@ -405,6 +405,23 @@ describe('HeaterScale A′ (#436)', () => {
         scale.unmount();
     });
 
+    it('눈금은 그 채널 min–max의 5 간격이고 그 role로 보낸다', () => {
+        const scale = renderScale({
+            role: 'drum',
+            limit: { min: 35, max: 60, unit: 'Hz' },
+            value: 50,
+            feedback: 50,
+        });
+        const ticks = [...scale.container.querySelectorAll('[data-tick]')].map((el) => el.getAttribute('data-tick'));
+        expect(ticks).toEqual(['35', '40', '45', '50', '55', '60']);
+        expect(scale.container.querySelector('[data-tick="0"]')).toBeNull();
+        act(() => (scale.container.querySelector('[data-tick="45"]') as HTMLButtonElement).click());
+        expect(scale.onChange).toHaveBeenCalledExactlyOnceWith('drum', 45);
+        expect(scale.container.querySelector('[aria-label="Drum plus 5"]')).not.toBeNull();
+        expect(scale.container.textContent).toContain('Drum');
+        scale.unmount();
+    });
+
     it('±5를 누르고 있으면 반복한다', () => {
         vi.useFakeTimers();
         const { container, onChange, unmount } = renderScale({ value: 70, feedback: 70 });

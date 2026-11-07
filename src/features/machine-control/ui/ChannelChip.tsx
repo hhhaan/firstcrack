@@ -5,16 +5,22 @@ import type { ControlRole } from '../lib/controlSender';
 import { isPercentUnit, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
 
-const ROLE_LABEL = { fan: 'Fan', drum: 'Drum' } as const;
+const ROLE_LABEL = { heater: 'Heater', fan: 'Fan', drum: 'Drum' } as const;
+
+export const channelScaleLabel = (role: ControlRole, unit?: string): string => {
+    if (role === 'fan' && unit === 'Pa') return 'Airflow';
+    return ROLE_LABEL[role];
+};
 
 interface Props {
-    role: 'fan' | 'drum';
+    role: ControlRole;
     limit: ControlLimit;
     value: number | undefined;
     feedback: number | null;
     disabled: boolean;
     lockedNote?: string;
     unsupported?: boolean;
+    onSelect?: () => void;
     onChange: (role: ControlRole, value: number) => void;
     onCommit: () => void;
 }
@@ -30,11 +36,12 @@ export const ChannelChip = ({
     disabled,
     lockedNote,
     unsupported = false,
+    onSelect,
     onChange,
     onCommit,
 }: Props) => {
     const min = limit.min ?? 0;
-    const label = role === 'fan' && limit.unit === 'Pa' ? 'Airflow' : ROLE_LABEL[role];
+    const label = channelScaleLabel(role, limit.unit);
     const max = limit.max ?? 100;
     const current = unsupported ? min : (value ?? feedback ?? min);
     const step = isPercentUnit(limit.unit) ? 5 : 1;
@@ -87,7 +94,15 @@ export const ChannelChip = ({
                 locked && 'opacity-40',
             )}
         >
-            <span className="text-[11px] font-medium text-secondary">{label}</span>
+            <button
+                type="button"
+                aria-label={`${label} scale`}
+                disabled={unsupported}
+                onClick={onSelect}
+                className="border-0 bg-transparent p-0 text-[11px] font-medium text-secondary disabled:cursor-not-allowed"
+            >
+                {label}
+            </button>
             <div className="flex items-center gap-0.5">
                 <button
                     type="button"

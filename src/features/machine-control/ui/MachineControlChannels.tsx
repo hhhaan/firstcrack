@@ -1,5 +1,6 @@
 import type { ControlCapability } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
+import { useState } from 'react';
 import { MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import type { ControlCommand, ControlRole } from '../lib/controlSender';
 import { isPercentUnit } from '../lib/snapPercent';
@@ -7,8 +8,17 @@ import { ChannelChip } from './ChannelChip';
 import { HeaterScale } from './HeaterScale';
 import { SetpointControl } from './SetpointControl';
 
+/** Heater만 PID·Replay가 값을 잠근다. Fan·Drum은 그대로 둔다. */
+function heaterHold(role: ControlRole, pidHoldsHeater: boolean, replayActive: boolean): 'PID' | 'Replay' | undefined {
+    if (role !== 'heater') return undefined;
+    if (pidHoldsHeater) return 'PID';
+    if (replayActive) return 'Replay';
+    return undefined;
+}
+
 /**
  * Manual setpoint layout. Percent heaters use the scale plus optional fan/drum chips.
+ * Choosing a chip swaps that channel into the scale and leaves heater in the chip slot it left.
  * 0–10 faders keep the three-column row, with unsupported channels disabled.
  */
 export const MachineControlChannels = ({
@@ -32,37 +42,47 @@ export const MachineControlChannels = ({
     onChange: (role: ControlRole, value: number) => void;
     onCommit: () => void;
 }) => {
-    const chipRoles = (['fan', 'drum'] as const).filter((role) => limits[role] != null);
+    const lowerSlots = (['fan', 'drum'] as const).filter((role) => limits[role] != null);
+    const [picked, setPicked] = useState<ControlRole>('heater');
     if (isPercentUnit(limits.heater?.unit)) {
+        const scaleRole = picked !== 'heater' && limits[picked] != null ? picked : 'heater';
+        const chipRoles = lowerSlots.map((role) => (role === scaleRole ? 'heater' : role));
+        const scaleLimit = limits[scaleRole];
+        const scaleHold = heaterHold(scaleRole, pidHoldsHeater, replayActive);
         return (
             <>
                 <HeaterScale
-                    limit={limits.heater ?? {}}
-                    value={limits.heater != null ? desired.heater : undefined}
-                    feedback={limits.heater != null && liveData ? liveData.heater : null}
-                    disabled={!writable || limits.heater == null || pidHoldsHeater || replayActive}
-                    unsupported={limits.heater == null}
+                    key={scaleRole}
+                    role={scaleRole}
+                    limit={scaleLimit ?? {}}
+                    value={scaleLimit != null ? desired[scaleRole] : undefined}
+                    feedback={scaleLimit != null && liveData ? liveData[scaleRole] : null}
+                    disabled={!writable || scaleLimit == null || scaleHold != null}
+                    unsupported={scaleLimit == null}
                     sending={sending}
-                    lockedNote={
-                        limits.heater == null ? 'N/A' : pidHoldsHeater ? 'PID' : replayActive ? 'Replay' : undefined
-                    }
+                    lockedNote={scaleLimit == null ? 'N/A' : scaleHold}
                     onChange={onChange}
                     onCommit={onCommit}
                 />
                 {chipRoles.length > 0 && (
                     <div className="flex shrink-0 flex-col gap-1.5">
-                        {chipRoles.map((role) => (
-                            <ChannelChip
-                                key={role}
-                                role={role}
-                                limit={limits[role] ?? {}}
-                                value={desired[role]}
-                                feedback={liveData ? liveData[role] : null}
-                                disabled={!writable}
-                                onChange={onChange}
-                                onCommit={onCommit}
-                            />
-                        ))}
+                        {chipRoles.map((role) => {
+                            const hold = heaterHold(role, pidHoldsHeater, replayActive);
+                            return (
+                                <ChannelChip
+                                    key={role}
+                                    role={role}
+                                    limit={limits[role] ?? {}}
+                                    value={desired[role]}
+                                    feedback={liveData ? liveData[role] : null}
+                                    disabled={!writable || hold != null}
+                                    lockedNote={hold}
+                                    onSelect={() => setPicked(role)}
+                                    onChange={onChange}
+                                    onCommit={onCommit}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </>
@@ -72,10 +92,7 @@ export const MachineControlChannels = ({
         <div className={cn('flex min-h-24 flex-1 justify-around gap-1', sending && 'opacity-40')}>
             {MACHINE_CONTROL_CHANNEL_ROLES.map((role) => {
                 const supported = limits[role] != null;
-                const lockedByPid = role === 'heater' && pidHoldsHeater;
-                // Replay 재생 중 화력 소유권은 Replay에 있다 — 수동 조절은 체크 해제 후.
-                // (fan/drum은 Replay가 안 만지므로 열어둔다)
-                const lockedByReplay = role === 'heater' && replayActive;
+                const hold = heaterHold(role, pidHoldsHeater, replayActive);
                 return (
                     <SetpointControl
                         key={role}
@@ -83,9 +100,9 @@ export const MachineControlChannels = ({
                         limit={limits[role] ?? {}}
                         value={supported ? desired[role] : undefined}
                         feedback={supported && liveData ? liveData[role] : null}
-                        disabled={!writable || !supported || lockedByPid || lockedByReplay}
+                        disabled={!writable || !supported || hold != null}
                         unsupported={!supported}
-                        lockedNote={!supported ? 'N/A' : lockedByPid ? 'PID' : lockedByReplay ? 'Replay' : undefined}
+                        lockedNote={supported ? hold : 'N/A'}
                         onChange={onChange}
                         onCommit={onCommit}
                     />

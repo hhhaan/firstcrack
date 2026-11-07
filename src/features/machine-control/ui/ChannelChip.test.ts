@@ -134,6 +134,18 @@ describe('ChannelChip (#436)', () => {
         unmount();
     });
 
+    it('이름 클릭은 스케일 선택이고 ±는 값을 보낸다', () => {
+        const onSelect = vi.fn();
+        const { container, onChange, unmount } = renderChip({ onSelect });
+        act(() => (container.querySelector('[aria-label="Fan scale"]') as HTMLButtonElement).click());
+        expect(onSelect).toHaveBeenCalledOnce();
+        expect(onChange).not.toHaveBeenCalled();
+        act(() => (container.querySelector('[data-step="5"]') as HTMLButtonElement).click());
+        expect(onSelect).toHaveBeenCalledOnce();
+        expect(onChange).toHaveBeenCalledExactlyOnceWith('fan', 85);
+        unmount();
+    });
+
     it('disabled면 나가지 않는다', () => {
         const { container, onChange, onCommit, unmount } = renderChip({ disabled: true });
         act(() => (container.querySelector('[data-step="5"]') as HTMLButtonElement).click());
