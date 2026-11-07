@@ -1,4 +1,4 @@
-import { isSimulatorMachine, useVisibleMachines } from '@entities/machine';
+import { isSimulatorMachine, useMachines, useVisibleMachines } from '@entities/machine';
 import {
     isBuiltinManualControlId,
     isVirtualControlId,
@@ -15,6 +15,7 @@ import {
 } from '@features/active-roast/lib/manual-controls';
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
+import { useSidecarStatus } from '@features/machine-control/api/useSidecarStatus';
 import { sanitizeDecimal } from '@shared/lib/format';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { Trash2 } from 'lucide-react';
@@ -115,13 +116,19 @@ export function ManualControlSection() {
     const settings = useRoastSettings();
     const { recordVirtualControls } = settings;
     const machines = useVisibleMachines();
+    const allMachines = useMachines((state) => state.machines);
+    const { data: status } = useSidecarStatus(true);
     const activeMachineId = useRoastingStore((state) => state.machineSnapshot?.machine_id);
-    const activeMachine = machines.find((machine) => machine.id === activeMachineId);
+    const activeMachine = allMachines.find((machine) =>
+        status?.connected
+            ? machine.id === status.machine_id && machine.roasterKey === status.roaster
+            : machine.id === activeMachineId,
+    );
     const orderedMachines = activeMachine
         ? [activeMachine, ...machines.filter((machine) => machine.id !== activeMachine.id)]
         : machines;
     const [pickedId, setPickedId] = useState<string | null>(null);
-    const selectedId = machines.some((machine) => machine.id === pickedId)
+    const selectedId = orderedMachines.some((machine) => machine.id === pickedId)
         ? pickedId
         : (activeMachine?.id ??
           machines.find((machine) => !isSimulatorMachine(machine.id))?.id ??

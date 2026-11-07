@@ -16,6 +16,9 @@ vi.mock('@shared/lib/features', async (importOriginal) => ({
     useFeature: () => true,
 }));
 vi.mock('./RoastingSettingsImport', () => ({ RoastingSettingsImport: () => null }));
+vi.mock('@features/machine-control/api/useSidecarStatus', () => ({
+    useSidecarStatus: () => ({ data: undefined }),
+}));
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 it('selects profile or bean names independently of the title numbering', async () => {
