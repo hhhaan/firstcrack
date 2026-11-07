@@ -219,7 +219,7 @@ export const CuppingAddSamplesForm = ({ userId, eventId, onClose, sample }: Cupp
                                 value={freeLabel}
                                 onChange={(e) => setFreeLabel(e.target.value)}
                                 placeholder={t('cupping.freeLabelPlaceholder')}
-                                className="w-full rounded-xl border border-black/8 bg-white/80 px-3.5 py-2.5 text-sm text-primary outline-none transition-[color,background-color,box-shadow,opacity] focus:border-black/20 dark:border-border dark:bg-surface-elevated dark:focus:border-[#585d61] shadow-(--shadow-inset)"
+                                className="w-full rounded-xl border border-black/8 bg-white/80 px-3.5 py-2.5 text-sm text-primary outline-none transition-[color,background-color,box-shadow,opacity] focus-visible:border-secondary dark:border-border dark:bg-surface-elevated shadow-(--shadow-inset)"
                             />
                         </label>
                     </>

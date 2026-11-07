@@ -87,7 +87,7 @@ const WidthInput = ({ value, label, onCommit }: { value: number; label: string; 
             onKeyDown={(event) => {
                 if (event.key === 'Enter') commit();
             }}
-            className="h-8 w-14 rounded-md bg-surface px-2 text-right font-mono text-[13px] text-primary shadow-(--shadow-inset) outline-none focus:ring-1 focus:ring-primary/20"
+            className="h-8 w-14 rounded-md border border-transparent bg-surface px-2 text-right font-mono text-[13px] text-primary shadow-(--shadow-inset) outline-none focus-visible:border-secondary"
         />
     );
 };

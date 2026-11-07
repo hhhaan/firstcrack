@@ -21,10 +21,7 @@ type AccountSettingsTabProps = {
 const pillBtnCls =
     'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent px-3 text-[13px] font-medium text-primary transition-colors hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
 
-const valueCls = cn(
-    inputCls,
-    'min-w-0 rounded-lg py-2 text-[13px] leading-5 placeholder:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-);
+const valueCls = cn(inputCls, 'min-w-0 rounded-lg py-2 text-[13px] leading-5 placeholder:text-muted outline-none');
 
 function FieldRow({
     label,

@@ -12,7 +12,7 @@ const CHARGE_MAX_GRAMS = MAX_BATCH_WEIGHT_KG * 1000;
 
 const inputCls = (invalid: boolean) =>
     `w-full min-w-0 rounded-md border bg-main-bg px-2 py-1.5 font-mono text-[13px] font-medium tracking-[0.14px] text-primary outline-none ${
-        invalid ? 'border-red-500' : 'border-border-subtle focus:border-border'
+        invalid ? 'border-red-500' : 'border-border-subtle focus-visible:border-secondary'
     }`;
 
 const labelCls = 'mb-1 block text-[11px] font-medium tracking-[0.3px] text-muted';

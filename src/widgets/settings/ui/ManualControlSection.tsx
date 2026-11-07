@@ -25,7 +25,7 @@ import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
 const fieldCls =
-    'h-8 min-w-0 rounded-md border border-border bg-transparent px-3 text-xs text-primary outline-none focus:border-primary';
+    'h-8 min-w-0 rounded-md border border-border bg-transparent px-3 text-xs text-primary outline-none focus-visible:border-secondary';
 
 const builtinKey = (id: (typeof MANUAL_CONTROL_IDS)[number]) =>
     id === 'drum' ? 'activeRoast.controls.drum' : `activeRoast.noteEntry.${id}`;

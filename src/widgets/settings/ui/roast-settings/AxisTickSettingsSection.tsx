@@ -99,7 +99,7 @@ const RorTickListField = ({ unit, suffix }: { unit: TemperatureUnit; suffix: str
                 placeholder="-5, 0, 5, 10, 15, 20"
                 aria-invalid={invalid}
                 aria-describedby="roast-ror-ticks-hint"
-                className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-xs text-primary outline-none focus:border-primary"
+                className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-xs text-primary outline-none focus-visible:border-secondary"
                 onChange={(event) => setDraft({ value: event.currentTarget.value, unit })}
                 onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.nativeEvent.isComposing) event.currentTarget.blur();
@@ -303,7 +303,7 @@ export const AxisTickSettingsSection = () => {
                                     placeholder="100, 150, 180, 200, 250"
                                     aria-invalid={ticksInvalid}
                                     aria-describedby="roast-temp-ticks-hint"
-                                    className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-xs text-primary outline-none focus:border-primary"
+                                    className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-xs text-primary outline-none focus-visible:border-secondary"
                                     onChange={(event) => setTicksDraft({ value: event.currentTarget.value, unit })}
                                     onKeyDown={(event) => {
                                         if (event.key === 'Enter' && !event.nativeEvent.isComposing)

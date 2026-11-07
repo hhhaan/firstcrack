@@ -29,7 +29,7 @@ export const ProfileDefaultSourceFields = ({
                 placeholder={t('newProfileModal.searchSources')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-md border border-border px-3 py-2 text-sm bg-transparent mb-2"
+                className="mb-2 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-secondary"
             />
             <div className="max-h-52 overflow-y-auto space-y-3">
                 {groups.map((group) => (

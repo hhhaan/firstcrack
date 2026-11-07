@@ -69,7 +69,7 @@ export function SettingsSidebar({
                     onChange={(event) => onQueryChange(event.target.value)}
                     aria-label={t('settings.search')}
                     placeholder={t('settings.search')}
-                    className="h-10 w-full appearance-none rounded-xl border border-border bg-input-bg pl-10 pr-3 text-sm text-primary shadow-xs outline-none placeholder:text-muted transition-colors focus-visible:border-primary/25 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+                    className="h-10 w-full appearance-none rounded-xl border border-border bg-input-bg pl-10 pr-3 text-sm text-primary shadow-xs outline-none placeholder:text-muted transition-colors focus-visible:border-secondary [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                 />
             </div>
             <nav aria-label={t('settings.pageTitle')} className="space-y-5">

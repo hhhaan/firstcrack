@@ -513,7 +513,7 @@ export const RoastSidePanel = ({
                         }
                     }}
                     placeholder="Add note... (Enter to save)"
-                    className="h-16 text-xs px-2 py-1.5 rounded bg-surface dark:bg-surface-elevated text-primary placeholder:text-muted focus:outline-none focus:border-border resize-none"
+                    className="h-16 resize-none rounded border border-transparent bg-surface px-2 py-1.5 text-xs text-primary outline-none placeholder:text-muted focus-visible:border-secondary dark:bg-surface-elevated"
                 />
                 <button
                     onClick={onNoteSubmit}

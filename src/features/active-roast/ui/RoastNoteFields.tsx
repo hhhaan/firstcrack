@@ -65,7 +65,7 @@ export const RoastNoteFields = ({
     const measureRef = useRef<HTMLInputElement>(null);
     const commentRef = useRef<HTMLTextAreaElement>(null);
     const inputClass =
-        'min-w-0 w-full rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus:border-(--color-primary)';
+        'min-w-0 w-full rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus-visible:border-secondary';
 
     const labelFor = (id: string, custom: string) => {
         const name = custom.trim();

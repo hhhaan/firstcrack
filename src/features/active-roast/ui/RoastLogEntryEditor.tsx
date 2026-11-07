@@ -109,7 +109,7 @@ export function RoastLogEntryEditor({
                     autoFocus
                     name="time"
                     aria-label={t('activeRoast.noteEntry.time')}
-                    className="w-20 min-w-0 rounded border-[0.5px] border-border-subtle bg-surface px-1.5 py-1 font-inconsolata outline-none focus:border-muted"
+                    className="w-20 min-w-0 rounded border-[0.5px] border-border-subtle bg-surface px-1.5 py-1 font-inconsolata outline-none focus-visible:border-secondary"
                     onFocus={(event) => event.currentTarget.select()}
                     value={draft.time}
                     aria-invalid={draft.field === 'time' && !draft.valid}
@@ -122,7 +122,7 @@ export function RoastLogEntryEditor({
                     aria-label={`${t('activeRoast.summary.temperature')} °${options.unit}`}
                     inputMode="decimal"
                     name="temp"
-                    className="w-20 min-w-0 rounded border-[0.5px] border-border-subtle bg-surface px-1.5 py-1 font-inconsolata outline-none focus:border-muted"
+                    className="w-20 min-w-0 rounded border-[0.5px] border-border-subtle bg-surface px-1.5 py-1 font-inconsolata outline-none focus-visible:border-secondary"
                     onFocus={(event) => event.currentTarget.select()}
                     value={draft.temp}
                     aria-invalid={draft.field === 'temp' && !draft.valid}

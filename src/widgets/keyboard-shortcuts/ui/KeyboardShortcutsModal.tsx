@@ -124,7 +124,7 @@ export function KeyboardShortcutsModal() {
                 />
                 <div className="px-6 pb-6 sm:px-8">
                     <p className="m-0 mb-5 text-[13px] leading-relaxed text-secondary">{t('shortcuts.editHint')}</p>
-                    <label className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/50 px-3 py-2.5 text-muted">
+                    <label className="flex items-center gap-2 rounded-lg border border-border-subtle bg-surface/50 px-3 py-2.5 text-muted focus-within:border-secondary">
                         <Search size={17} strokeWidth={1.5} aria-hidden />
                         <input
                             ref={searchRef}

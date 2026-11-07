@@ -78,7 +78,7 @@ export const SmoothingControls = () => {
                                 onKeyUp={(event) => commit(setting, event.currentTarget.value)}
                                 onBlur={(event) => commit(setting, event.currentTarget.value)}
                             />
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-main-bg">
+                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-main-bg focus-within:border-secondary">
                                 <input
                                     type="number"
                                     min={0}

@@ -67,7 +67,7 @@ export const RoastedInventoryTab = () => {
     return (
         <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 flex-1 items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs sm:max-w-xs">
+                <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs focus-within:border-secondary sm:max-w-xs">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
                         value={search}

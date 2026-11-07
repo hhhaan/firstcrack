@@ -28,7 +28,8 @@ export const RoastCheckRows = ({ options }: { options: readonly RoastCheckOption
         />
     ));
 };
-const numberInputWrapCls = 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-main-bg';
+const numberInputWrapCls =
+    'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-main-bg focus-within:border-secondary';
 
 export const NumberInput = ({
     id,

@@ -104,7 +104,7 @@ export function OrdersTab() {
             <RoastingRequirementsCard />
 
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-                <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-64 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
+                <div className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs focus-within:border-secondary sm:max-w-64">
                     <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                     <input
                         className="w-full border-none bg-transparent font-body text-sm tracking-[0.14px] text-primary outline-none placeholder:text-muted"

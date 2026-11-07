@@ -21,7 +21,7 @@ import { SettingsCheckRow } from './SettingsOptionRow';
 import { SettingsSection } from './SettingsSection';
 
 const nameInputCls =
-    'h-8 min-w-0 flex-1 rounded-md border border-border bg-transparent px-3 text-xs text-primary outline-none focus:border-primary';
+    'h-8 min-w-0 flex-1 rounded-md border border-border bg-transparent px-3 text-xs text-primary outline-none focus-visible:border-secondary';
 const addBtnCls =
     'inline-flex h-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-transparent px-3 text-[13px] font-medium text-primary hover:bg-primary/5 focus-visible:outline-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40';
 const shortcutBtnCls =

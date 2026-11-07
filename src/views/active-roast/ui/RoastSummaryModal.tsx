@@ -263,7 +263,7 @@ export const RoastSummaryModal = ({
                                     autoComplete="off"
                                     {...register('batchName')}
                                     placeholder={displayName ?? t('activeRoast.summary.batchNamePlaceholder')}
-                                    className="min-w-0 w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
+                                    className="min-w-0 w-full px-3 py-2 rounded border border-transparent focus-visible:border-secondary dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) outline-none box-border"
                                 />
                                 {batchNumbers && (
                                     <span
@@ -332,7 +332,7 @@ export const RoastSummaryModal = ({
                                 {...register('notes')}
                                 placeholder={t('activeRoast.summary.notesPlaceholder')}
                                 rows={3}
-                                className="w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
+                                className="w-full px-3 py-2 rounded border border-transparent focus-visible:border-secondary dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[13px] font-(--font-body) resize-none outline-none box-border"
                             />
                         </div>
                     </div>
@@ -537,7 +537,7 @@ export const RoastSummaryModal = ({
                                     data-testid="roast-summary-weight"
                                     {...register('weightGrams', { valueAsNumber: true })}
                                     placeholder="0.0"
-                                    className="min-w-0 w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                    className="min-w-0 w-full px-3 py-2 rounded border border-transparent focus-visible:border-secondary dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
                                 />
                                 <span className="shrink-0 whitespace-nowrap text-[11px] text-muted font-semibold tracking-[0.3px]">
                                     kg
@@ -556,7 +556,7 @@ export const RoastSummaryModal = ({
                                     step={0.01}
                                     {...register('outputWeightKg', { valueAsNumber: true })}
                                     placeholder={t('activeRoast.summary.outputWeightPlaceholder')}
-                                    className="min-w-0 w-full px-3 py-2 rounded border-none dark:border dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
+                                    className="min-w-0 w-full px-3 py-2 rounded border border-transparent focus-visible:border-secondary dark:border-border bg-surface dark:bg-[#262B31] text-primary text-[15px] font-inconsolata outline-none box-border"
                                 />
                                 <span className="shrink-0 whitespace-nowrap text-[11px] text-muted font-semibold tracking-[0.3px]">
                                     kg

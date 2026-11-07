@@ -285,7 +285,7 @@ export function TeamSettingsTab() {
                         value={redeemCode}
                         onChange={(e) => setRedeemCode(e.target.value)}
                         placeholder={t('settings.tabs.team.redeemPlaceholder')}
-                        className="w-full px-3 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-border bg-white dark:bg-main-bg text-[13px] text-[#111827] dark:text-primary outline-none focus:border-palette-teal/50"
+                        className="w-full px-3 py-2.5 rounded-lg border border-[#E5E7EB] dark:border-border bg-white dark:bg-main-bg text-[13px] text-[#111827] dark:text-primary outline-none focus-visible:border-secondary"
                     />
                     <button
                         type="button"

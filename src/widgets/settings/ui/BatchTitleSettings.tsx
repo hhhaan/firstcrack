@@ -34,7 +34,7 @@ export const BatchTitleSettings = () => {
                         type="text"
                         maxLength={TOTAL_BATCH_PREFIX_MAX}
                         value={draft ?? totalBatchPrefix}
-                        className="w-28 rounded-md border border-border bg-transparent px-3 py-2 font-mono text-xs text-primary outline-none focus:border-primary"
+                        className="w-28 rounded-md border border-border bg-transparent px-3 py-2 font-mono text-xs text-primary outline-none focus-visible:border-secondary"
                         onChange={(event) => setDraft(event.currentTarget.value)}
                         onBlur={(event) => {
                             updateRoastSettings({

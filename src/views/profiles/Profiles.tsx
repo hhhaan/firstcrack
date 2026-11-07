@@ -261,7 +261,7 @@ export const Profiles = ({ onNavigate, onOpenHistoryBatch, initialSelectedId = n
     const profileList = (
         <div>
             <CatalogVisibilityFilter checked={showHidden} onChange={setShowHidden} />
-            <div className="flex items-center gap-2 mb-6 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
+            <div className="mb-6 flex h-10 items-center gap-2 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs focus-within:border-secondary">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}

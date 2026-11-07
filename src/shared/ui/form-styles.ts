@@ -6,7 +6,7 @@ import { cn } from '@shared/lib/cn';
  */
 
 export const inputCls =
-    'w-full min-h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm font-[450] leading-5 text-primary shadow-xs transition-colors placeholder:text-muted focus-visible:border-secondary disabled:cursor-not-allowed disabled:opacity-50';
+    'w-full min-h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm font-[450] leading-5 text-primary shadow-xs outline-none transition-colors placeholder:text-muted focus-visible:border-secondary disabled:cursor-not-allowed disabled:opacity-50';
 
 /** Closed FormSelect trigger. The open list is the shared Select menu, not an OS popup. */
 export const selectCls = cn(

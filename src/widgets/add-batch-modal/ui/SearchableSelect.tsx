@@ -123,7 +123,7 @@ export const SearchableSelect = ({
                     <div className="p-2 border-b border-black/4">
                         <input
                             autoFocus
-                            className="w-full px-3 py-2 rounded-xl border border-black/8 dark:border-border bg-surface dark:bg-surface-elevated text-sm text-primary outline-none"
+                            className="w-full rounded-xl border border-black/8 bg-surface px-3 py-2 text-sm text-primary outline-none focus-visible:border-secondary dark:border-border dark:bg-surface-elevated"
                             placeholder={t('addBatchModal.searchPlaceholder')}
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}

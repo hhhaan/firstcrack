@@ -64,7 +64,7 @@ export const HistoryReferencePicker = ({
                 placeholder={t('history.searchPlaceholder')}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="mb-3 rounded border border-border bg-surface p-2 text-sm text-primary"
+                className="mb-3 rounded border border-border bg-surface p-2 text-sm text-primary outline-none focus-visible:border-secondary"
             />
             {isLoading && <p role="status">{t('common.loading')}</p>}
             {isError && <p role="alert">{t('activeRoast.reference.failed')}</p>}

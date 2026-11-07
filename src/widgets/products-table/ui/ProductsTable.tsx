@@ -110,7 +110,7 @@ export const ProductsTable = ({ form, onFormChange }: Props) => {
                 </div>
             )}
 
-            <div className="flex min-w-0 max-w-xs items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
+            <div className="flex min-w-0 max-w-xs items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs focus-within:border-secondary">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
@@ -190,7 +190,7 @@ export const ProductsTable = ({ form, onFormChange }: Props) => {
                                                             setUnitsDraft((d) => ({ ...d, [p.id]: e.target.value }))
                                                         }
                                                         placeholder="+"
-                                                        className="w-14 rounded border border-border-subtle bg-transparent px-1.5 py-1 text-right font-mono text-[12px] text-primary outline-none focus:border-border dark:border-border"
+                                                        className="w-14 rounded border border-border-subtle bg-transparent px-1.5 py-1 text-right font-mono text-[12px] text-primary outline-none focus-visible:border-secondary dark:border-border"
                                                     />
                                                     <button
                                                         type="button"

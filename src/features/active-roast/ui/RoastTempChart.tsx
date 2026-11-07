@@ -1147,7 +1147,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 autoFocus
                                 placeholder={t('activeRoast.noteEntry.commentPlaceholder')}
                                 onChange={(event) => setNoteValues({ ...noteValues, note: event.target.value })}
-                                className="min-w-0 w-full resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus:border-(--color-primary)"
+                                className="min-w-0 w-full resize-none rounded border border-(--color-border) bg-transparent px-2 py-1 text-xs text-(--color-text-primary) outline-none placeholder:text-muted/40 focus-visible:border-secondary"
                             />
                         </label>
                     )}
@@ -1219,7 +1219,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                 const next = clampMarkerTime(editForm.event, current + delta, currentTimeSec, axisMax);
                                 setEditForm({ ...editForm, time: formatElapsed(next) });
                             }}
-                            className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-inconsolata text-[14px] text-(--color-text-primary) outline-none"
+                            className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-inconsolata text-[14px] text-(--color-text-primary) outline-none focus-visible:border-secondary"
                         />
                     </label>
                     {editForm.heat != null && (
@@ -1246,7 +1246,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                                     }
                                     setEditForm({ ...editForm, heat: next });
                                 }}
-                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-inconsolata text-[14px] text-(--color-text-primary) outline-none"
+                                className="min-w-0 flex-1 rounded border border-(--color-border) bg-transparent px-2 py-1 font-inconsolata text-[14px] text-(--color-text-primary) outline-none focus-visible:border-secondary"
                             />
                             {editForm.heatSuffix && (
                                 <span className="font-inconsolata text-[14px] text-(--color-text-primary)">

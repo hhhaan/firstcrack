@@ -406,7 +406,7 @@ export const RecordTextEditor = ({ session }: { session: RoastSessionWithRelatio
                             event.currentTarget.blur();
                         }
                     }}
-                    className="w-full resize-y rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] leading-6 text-secondary outline-none placeholder:text-muted focus:border-border read-only:cursor-default read-only:border-transparent read-only:bg-transparent read-only:px-0"
+                    className="w-full resize-y rounded-md border border-border-subtle bg-main-bg px-3 py-2 text-[13px] leading-6 text-secondary outline-none placeholder:text-muted focus-visible:border-secondary read-only:cursor-default read-only:border-transparent read-only:focus-visible:border-transparent read-only:bg-transparent read-only:px-0"
                 />
             )}
             {error && (

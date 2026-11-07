@@ -60,7 +60,7 @@ export const BeanList = ({
 
     return (
         <div>
-            <div className="mb-2.5 flex items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs">
+            <div className="mb-2.5 flex items-center gap-2 h-10 rounded-xl border border-border bg-input-bg px-3 py-2 shadow-xs focus-within:border-secondary">
                 <Search size={14} strokeWidth={2} className="shrink-0 text-muted" />
                 <input
                     value={search}
