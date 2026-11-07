@@ -425,7 +425,7 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
 export const buildCurveLabelSeries = (
     items: CurveLabelItem[],
     scale = 1,
-    dotColor?: string,
+    _dotColor?: string,
     backgroundColor?: string,
     font?: string,
 ) => ({
@@ -441,7 +441,6 @@ export const buildCurveLabelSeries = (
     // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
     renderItem: (params: any, api: any) => {
         if (params.dataIndex !== 0) return;
-        const { y: plotY, height: plotHeight } = params.coordSys;
         const laid = projectCurveLabels(items, (point) => api.coord(point), params.coordSys, scale);
         // Empty children are merged by index and leave the previous frame's text
         // (setOption notMerge:false while zooming). Returning nothing removes it.
@@ -457,18 +456,21 @@ export const buildCurveLabelSeries = (
                     style: { stroke: box.color, lineWidth: 1, opacity: box.opacity },
                 });
             }
+            /*
+            const { y: plotY, height: plotHeight } = params.coordSys;
             if (box.showDot && box.anchorY >= plotY && box.anchorY <= plotY + plotHeight) {
                 children.push({
                     type: 'circle',
                     shape: { cx: box.anchorX, cy: box.anchorY, r: scaleChartPx(1.5, scale) },
                     style: {
-                        fill: dotColor ?? box.color,
-                        stroke: dotColor ?? box.color,
+                        fill: _dotColor ?? box.color,
+                        stroke: _dotColor ?? box.color,
                         lineWidth: 1,
                         opacity: box.opacity,
                     },
                 });
             }
+            */
             children.push({
                 type: 'text',
                 x: box.x,

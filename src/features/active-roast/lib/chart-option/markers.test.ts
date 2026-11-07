@@ -92,7 +92,7 @@ it.each(['0%', '60%', '2.5 kPa'])('draws original reference heat events for %s w
     );
 });
 
-it.each([false, true])('renders event text and points with source opacity (reference: %s)', (reference) => {
+it.each([false, true])('renders event text without points, preserving source opacity (reference: %s)', (reference) => {
     const { curveLabels } = buildMarkers({
         ...baseParams,
         eventMarkerStyle: 'point',
@@ -106,7 +106,6 @@ it.each([false, true])('renders event text and points with source opacity (refer
     );
     const style = { fill: colors.eventControl, opacity: reference ? REFERENCE_EVENT_OPACITY : 1 };
     expect(rendered?.children).toEqual([
-        expect.objectContaining({ type: 'circle', style: expect.objectContaining(style) }),
         expect.objectContaining({
             type: 'text',
             style: expect.objectContaining({ ...style, text: '60%|09:00|204.0°C' }),
@@ -177,7 +176,7 @@ it('keeps the final event label inside the plot and away from the right axis', (
     const dot = rendered?.children.find((child) => child.type === 'circle');
     expect(label).toBeDefined();
     expect(label?.x + estimateLabelWidth(label?.style.text)).toBeLessThan(732);
-    expect(dot?.shape.cx).toBe(732);
+    expect(dot).toBeUndefined();
 });
 
 describe('FC band vs dual-mark Rolling', () => {
