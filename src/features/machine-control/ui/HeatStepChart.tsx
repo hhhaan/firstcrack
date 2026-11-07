@@ -1,10 +1,11 @@
+import { ChartNoAxesCombined } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { formatEditTime, toDisplayBt } from '../lib/heater-events';
 import { eventTrigger, isHeaterReplayEvent, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 import { formatReplayCondition } from '../lib/replayDisplay';
 
 const CHART_PAD = { l: 48, r: 50, t: 20, b: 28 };
-const CHART_WIDTH = 680;
+const CHART_WIDTH = 480;
 const CHART_HEIGHT = 260;
 
 export const HeatStepChart = ({
@@ -27,6 +28,17 @@ export const HeatStepChart = ({
     onSelect: (index: number) => void;
 }) => {
     const { t } = useTranslation();
+    if (events.length === 0 && btPoints.length === 0) {
+        return (
+            <div className="flex h-full flex-col items-center justify-center rounded-xl border border-dashed border-border bg-main-bg px-6 text-center">
+                <ChartNoAxesCombined size={28} strokeWidth={1.5} className="mb-3 text-muted" aria-hidden="true" />
+                <p className="m-0 text-sm font-medium text-primary">{t('heaterEventsEditor.chartEmpty')}</p>
+                <p className="mt-2 mb-0 max-w-64 text-xs leading-5 text-muted">
+                    {t('heaterEventsEditor.chartEmptyHint')}
+                </p>
+            </div>
+        );
+    }
     const heatEvents = events.filter(isHeaterReplayEvent);
     const width = CHART_WIDTH;
     const height = CHART_HEIGHT;
@@ -65,6 +77,9 @@ export const HeatStepChart = ({
                     {t('heaterEventsEditor.chartHeat')} ({heaterUnit})
                 </span>
             </div>
+            {btPoints.length === 0 && (
+                <p className="mt-0 mb-2 text-xs leading-5 text-muted">{t('heaterEventsEditor.chartNoBt')}</p>
+            )}
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 className="min-h-0 flex-1 w-full"

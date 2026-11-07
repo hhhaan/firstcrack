@@ -311,41 +311,12 @@ export const HeaterEventsEditor = ({
                         closeLabel={t('common.close')}
                     />
                 </div>
-                <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(420px,1fr)] lg:overflow-hidden">
-                    <section className="flex min-h-[500px] min-w-0 flex-col gap-3 overflow-y-auto border-b border-border-subtle px-7 py-5 lg:min-h-0 lg:border-r lg:border-b-0">
-                        <h3 className="m-0 text-sm font-semibold text-primary">{t('heaterEventsEditor.chartTitle')}</h3>
-                        <div className="h-[270px] shrink-0">
-                            <HeatStepChart
-                                events={parsed}
-                                tpTime={tpTime}
-                                btPoints={btPoints}
-                                unit={unit}
-                                heaterUnit={heaterUnit}
-                                heaterMax={heaterBounds.max}
-                                selected={selected}
-                                onSelect={setSelected}
-                            />
-                        </div>
-                        <p className="m-0 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
-                        {rows[selected] && (
-                            <div className="w-fit rounded-lg border border-border bg-main-bg px-3 py-2 text-xs text-secondary shadow-(--shadow-elevation)">
-                                <span className="font-semibold text-primary">
-                                    #{String(selected + 1).padStart(2, '0')}
-                                </span>
-                                {' · '}
-                                {rows[selected].trigger === 'time'
-                                    ? `${t('heaterEventsEditor.conditionTime')} ${rows[selected].t}`
-                                    : `${t('heaterEventsEditor.conditionBt')} ${rows[selected].bt}°${unit}`}
-                                {' · '}
-                                {rows[selected].kind === 'discharge_open'
-                                    ? t('heaterEventsEditor.dischargeOpen')
-                                    : `${t('heaterEventsEditor.heat')} ${rows[selected].heater}${heaterUnit}`}
-                            </div>
-                        )}
+                <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] overflow-hidden">
+                    <section className="flex min-h-0 min-w-0 flex-col overflow-y-auto border-r border-border-subtle">
                         <fieldset
                             disabled={busy}
                             aria-labelledby="heater-events-rule-title"
-                            className="m-0 mt-auto min-w-0 rounded-xl border border-border-subtle bg-surface-warm-solid p-4"
+                            className="m-5 min-w-0 shrink-0 rounded-xl border border-border bg-surface-elevated p-4"
                         >
                             <h3 id="heater-events-rule-title" className="m-0 text-sm font-semibold text-primary">
                                 {t('heaterEventsEditor.ruleTitle')}
@@ -367,7 +338,10 @@ export const HeaterEventsEditor = ({
                                         <option value="heater">{t('heaterEventsEditor.heat')}</option>
                                         <option
                                             value="discharge_open"
-                                            disabled={rows.some((row) => row.kind === 'discharge_open')}
+                                            disabled={
+                                                ruleAction !== 'discharge_open' &&
+                                                rows.some((row) => row.kind === 'discharge_open')
+                                            }
                                         >
                                             {t('heaterEventsEditor.dischargeOpen')}
                                         </option>
@@ -419,27 +393,58 @@ export const HeaterEventsEditor = ({
                                         rows.length >= MAX_EVENTS || rows.some((row) => row.kind === 'discharge_open')
                                     }
                                     onClick={addBtRule}
-                                    className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
+                                    className="min-h-10 cursor-pointer rounded-xl border border-strong-border bg-main-bg px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-primary shadow-xs hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {t('heaterEventsEditor.ruleAdd')}
                                 </button>
                             </div>
                         </fieldset>
+                        <HeaterEventsTable
+                            unit={unit}
+                            heaterUnit={heaterUnit}
+                            busy={busy}
+                            rows={rows}
+                            selected={selected}
+                            lockedCount={lockedCount}
+                            invalidCell={invalidCell}
+                            allowNegativeHeat={heaterBounds.min < 0}
+                            dischargeOpenSupported={dischargeOpenSupported}
+                            onSelect={setSelected}
+                            onUpdate={update}
+                            onDelete={(key) => setRows((prev) => prev.filter((row) => row.key !== key))}
+                        />
                     </section>
-                    <HeaterEventsTable
-                        unit={unit}
-                        heaterUnit={heaterUnit}
-                        busy={busy}
-                        rows={rows}
-                        selected={selected}
-                        lockedCount={lockedCount}
-                        invalidCell={invalidCell}
-                        allowNegativeHeat={heaterBounds.min < 0}
-                        dischargeOpenSupported={dischargeOpenSupported}
-                        onSelect={setSelected}
-                        onUpdate={update}
-                        onDelete={(key) => setRows((prev) => prev.filter((row) => row.key !== key))}
-                    />
+                    <section className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto bg-surface-elevated/50 px-5 py-5">
+                        <h3 className="m-0 text-sm font-semibold text-primary">{t('heaterEventsEditor.chartTitle')}</h3>
+                        <div className="h-[240px] shrink-0">
+                            <HeatStepChart
+                                events={parsed}
+                                tpTime={tpTime}
+                                btPoints={btPoints}
+                                unit={unit}
+                                heaterUnit={heaterUnit}
+                                heaterMax={heaterBounds.max}
+                                selected={selected}
+                                onSelect={setSelected}
+                            />
+                        </div>
+                        <p className="m-0 text-xs text-muted">{t('heaterEventsEditor.chartHint')}</p>
+                        {rows[selected] && (
+                            <div className="w-fit rounded-lg border border-border bg-main-bg px-3 py-2 text-xs text-secondary shadow-(--shadow-elevation)">
+                                <span className="font-semibold text-primary">
+                                    #{String(selected + 1).padStart(2, '0')}
+                                </span>
+                                {' · '}
+                                {rows[selected].trigger === 'time'
+                                    ? `${t('heaterEventsEditor.conditionTime')} ${rows[selected].t}`
+                                    : `${t('heaterEventsEditor.conditionBt')} ${rows[selected].bt}°${unit}`}
+                                {' · '}
+                                {rows[selected].kind === 'discharge_open'
+                                    ? t('heaterEventsEditor.dischargeOpen')
+                                    : `${t('heaterEventsEditor.heat')} ${rows[selected].heater}${heaterUnit}`}
+                            </div>
+                        )}
+                    </section>
                 </div>
                 {error && (
                     <p role="alert" className={`${formErrorCls} shrink-0 px-7 pb-2`}>
@@ -459,7 +464,7 @@ export const HeaterEventsEditor = ({
                         type="button"
                         onClick={submit}
                         disabled={busy}
-                        className="cursor-pointer rounded-xl border-none bg-primary px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 dark:bg-black"
+                        className="cursor-pointer rounded-xl border-none bg-action px-5 py-2.5 text-sm font-semibold text-on-action disabled:opacity-50 dark:[&&]:!text-on-action"
                     >
                         {busy
                             ? t('heaterEventsEditor.saving')
