@@ -8,9 +8,8 @@ import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { type ReferenceRoastLog, RoastLogViewer } from './RoastLogViewer';
 
-/** Current `w-44` temperature column, and the only other width: 1.5× that. */
 const SIDE_PANEL_NARROW_PX = 176;
-const SIDE_PANEL_WIDE_PX = 264;
+const SIDE_PANEL_WIDE_PX = 240;
 
 export const RoastSidePanelLayout = ({
     children,

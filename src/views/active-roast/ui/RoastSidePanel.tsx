@@ -282,7 +282,7 @@ export const RoastSidePanel = ({
         >
             <RoastAlertBanner alerts={activeAlerts} />
             <div data-testid="roast-readings">
-                <div className="flex flex-col @min-[256px]/readings:hidden">
+                <div className="flex flex-col @min-[232px]/readings:hidden">
                     <div className="text-right">
                         <div className="mb-1 text-[11px] font-medium text-muted uppercase">ET</div>
                         <div
@@ -339,7 +339,7 @@ export const RoastSidePanel = ({
                         </div>
                     )}
                 </div>
-                <div className="hidden grid-cols-2 gap-x-3 gap-y-4 @min-[256px]/readings:grid">
+                <div className="hidden grid-cols-2 gap-x-3 gap-y-4 @min-[232px]/readings:grid">
                     <MetricColumn
                         metric="ET"
                         label={`ET (${tempUnitLabel(unit)})`}
