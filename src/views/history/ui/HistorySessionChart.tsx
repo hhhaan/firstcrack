@@ -306,6 +306,17 @@ export function HistorySessionChart({
         canCapture: points.length > 0,
         roasting,
     });
+    const bbpToggle = hasBbpSource && (
+        <SurfaceButton
+            aria-pressed={joinBbp}
+            disabled={!hasBbpData}
+            onClick={() => setJoinBbp((shown) => !shown)}
+            icon={<Check size={14} strokeWidth={2} aria-hidden="true" className={joinBbp ? '' : 'invisible'} />}
+            className="focus-visible:outline-action aria-pressed:border-transparent aria-pressed:bg-action aria-pressed:text-on-action aria-pressed:hover:bg-action aria-pressed:hover:opacity-85"
+        >
+            {t('history.showBbp')}
+        </SurfaceButton>
+    );
 
     return (
         <section
@@ -313,60 +324,46 @@ export function HistorySessionChart({
             aria-label={t('history.compare.tempAndRor')}
         >
             <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-                    {hasBbpSource && (
-                        <SurfaceButton
-                            aria-pressed={joinBbp}
-                            disabled={!hasBbpData}
-                            onClick={() => setJoinBbp((shown) => !shown)}
-                            icon={
-                                <Check
-                                    size={14}
-                                    strokeWidth={2}
-                                    aria-hidden="true"
-                                    className={joinBbp ? '' : 'invisible'}
-                                />
-                            }
-                            className="focus-visible:outline-action aria-pressed:border-transparent aria-pressed:bg-action aria-pressed:text-on-action aria-pressed:hover:bg-action aria-pressed:hover:opacity-85"
-                        >
-                            {t('history.showBbp')}
-                        </SurfaceButton>
-                    )}
-                    <ChartMeta
-                        session={session}
-                        unit={unit}
-                        bbpStatus={bbpStatus}
-                        roastStatus={roastStatus}
-                        referenceStatus={referenceStatus}
-                        hasPoints={points.length > 0}
-                    />
-                </div>
+                <ChartMeta
+                    session={session}
+                    unit={unit}
+                    bbpStatus={bbpStatus}
+                    roastStatus={roastStatus}
+                    referenceStatus={referenceStatus}
+                    hasPoints={points.length > 0}
+                />
                 {exportContainer &&
                     createPortal(
-                        <button
-                            type="button"
-                            data-testid="history-export-pdf"
-                            onClick={() => void onExportPdf()}
-                            disabled={!canExport}
-                            className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-transparent bg-palette-black px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-palette-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary) disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                            <FileDown size={14} strokeWidth={2} />
-                            {t('history.exportPdf')}
-                        </button>,
+                        <>
+                            {bbpToggle}
+                            <button
+                                type="button"
+                                data-testid="history-export-pdf"
+                                onClick={() => void onExportPdf()}
+                                disabled={!canExport}
+                                className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-transparent bg-palette-black px-4 py-2 text-[12px] font-medium text-white transition-colors hover:bg-palette-black/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--color-primary) disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                <FileDown size={14} strokeWidth={2} />
+                                {t('history.exportPdf')}
+                            </button>
+                        </>,
                         exportContainer,
                     )}
-                <SavedCurveLegend
-                    points={points}
-                    settings={settings}
-                    showTarget={
-                        targetVisible &&
-                        (showProfileBt ||
-                            (showProfileEt && target.points.some((p) => p.et != null)) ||
-                            (showProfileRor && target.points.some((p) => p.ror != null)) ||
-                            (showProfileEtRor && displayedTarget.rorEt.some((value) => value != null)))
-                    }
-                    profileName={profile?.name || t('history.table.profile')}
-                />
+                <div className="ms-auto flex min-w-0 flex-wrap items-center justify-end gap-x-6 gap-y-3">
+                    <SavedCurveLegend
+                        points={points}
+                        settings={settings}
+                        showTarget={
+                            targetVisible &&
+                            (showProfileBt ||
+                                (showProfileEt && target.points.some((p) => p.et != null)) ||
+                                (showProfileRor && target.points.some((p) => p.ror != null)) ||
+                                (showProfileEtRor && displayedTarget.rorEt.some((value) => value != null)))
+                        }
+                        profileName={profile?.name || t('history.table.profile')}
+                    />
+                    {!exportContainer && bbpToggle}
+                </div>
             </div>
             {points.length > 0 && (
                 <RoastTempChart

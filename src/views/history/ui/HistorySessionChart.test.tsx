@@ -169,6 +169,9 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     const pdfBtn = container.querySelector('[data-testid="history-export-pdf"]') as HTMLButtonElement;
     expect(exportContainer.contains(pdfBtn)).toBe(true);
     expect(chartHost.querySelector('[data-testid="history-export-pdf"]')).toBeNull();
+    expect(exportContainer.querySelectorAll('button[aria-pressed]')).toHaveLength(1);
+    expect(chartHost.querySelector('button[aria-pressed]')).toBeNull();
+    expect(container.querySelectorAll('button[aria-pressed]')).toHaveLength(1);
     expect(pdfBtn.disabled).toBe(false);
     await act(async () => pdfBtn.click());
     expect(mocks.exportPdf).toHaveBeenCalledWith(
@@ -373,6 +376,7 @@ it('toggles actual and target BBP independently of live settings, including PDF 
     await render();
     const toggle = container.querySelector('button[aria-pressed]');
     if (!(toggle instanceof HTMLButtonElement)) throw new Error('Missing BBP toggle');
+    expect(container.querySelector('section')?.contains(toggle)).toBe(true);
     expect(toggle.textContent).toBe('history.showBbp');
     expect(toggle.disabled).toBe(false);
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
