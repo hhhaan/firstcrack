@@ -2203,3 +2203,22 @@ for _key, _pressure, _drum in (
     ROASTER_REGISTRY[_key]["default_params"] = with_airflow_controls(
         ROASTER_REGISTRY[_key]["default_params"], pressure=_pressure, drum=_drum,
     )
+
+# Screen stand-in for Giesen W1A. Same logical limits, no PLC address.
+_w1_write = ROASTER_REGISTRY["giesen_w1"]["default_params"]["write_map"]
+ROASTER_REGISTRY["virtual_giesen_w1"] = {
+    "display_name": "가상 머신 (Giesen W1A)",
+    "brand": "Internal",
+    "models": ["W1A"],
+    "protocol": "virtual",
+    "default_params": {
+        "mode": "C",
+        "write_map": {
+            role: {"min": spec["min"], "max": spec["max"], "unit": spec["unit"]}
+            for role, spec in _w1_write.items()
+            if role in {"heater", "fan", "drum"}
+        },
+    },
+    "pid": dict(ROASTER_REGISTRY["giesen_w1"]["pid"]),
+    "capabilities": ["heater", "fan", "drum"],
+}

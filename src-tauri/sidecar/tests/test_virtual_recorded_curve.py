@@ -4,6 +4,7 @@ import pytest
 
 from adapters.virtual import VirtualMachineAdapter, _BBP_END, _BBP_PROFILE, _ROAST_PROFILE
 from manager import RoasterManager
+from roaster_registry import ROASTER_REGISTRY
 
 
 def test_bbp_meets_charge_without_including_the_roast():
@@ -109,3 +110,21 @@ async def test_charge_during_the_drop_does_not_restart_it(monkeypatch):
 
     assert before.bt == pytest.approx(118.1, abs=0.3)
     assert after.bt == before.bt
+
+
+@pytest.mark.asyncio
+async def test_giesen_w1_virtual_uses_w1a_limits():
+    spec = ROASTER_REGISTRY["virtual_giesen_w1"]["default_params"]["write_map"]
+    w1 = ROASTER_REGISTRY["giesen_w1"]["default_params"]["write_map"]
+    for role in ("heater", "fan", "drum"):
+        assert spec[role] == {key: w1[role][key] for key in ("min", "max", "unit")}
+
+    manager = RoasterManager()
+    await manager.connect("virtual_giesen_w1", {})
+    assert manager.read_units() == {"heater": "%", "fan": "Pa", "drum": "Hz"}
+    assert manager.status()["control"]["limits"]["fan"]["min"] == 80
+    assert manager.status()["control"]["limits"]["drum"]["unit"] == "Hz"
+    sample = await manager.read_temperatures()
+    assert 80 <= sample["fan"] <= 150
+    assert 35 <= sample["drum"] <= 60
+    assert manager.read_units() != RoasterManager().read_units()

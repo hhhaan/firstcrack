@@ -64,6 +64,9 @@ describe('saved machine migration', () => {
         const seeded = useMachines.getState().machines;
         expect(machinesForPicker(seeded, false).some((machine) => machine.id.startsWith('__virtual'))).toBe(false);
         expect(machinesForPicker(seeded, true).some((machine) => machine.roasterKey === 'virtual_readonly')).toBe(true);
+        expect(machinesForPicker(seeded, true).some((machine) => machine.roasterKey === 'virtual_giesen_w1')).toBe(
+            true,
+        );
 
         vi.resetModules();
         const { useMachines: restarted } = await import('./model');
@@ -155,6 +158,7 @@ describe('machine imports', () => {
         expect(reloaded.useMachines.getState().machines.map((machine) => machine.name)).toEqual([
             'Virtual Machine',
             'Virtual Machine (read only)',
+            'Giesen W1A (가상)',
             'Imported',
             'Second',
         ]);

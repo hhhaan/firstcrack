@@ -120,7 +120,7 @@ class VirtualMachineAdapter:
             return Reading(bt=-1.0, et=-1.0, heater=None, fan=0, drum=0, timestamp=time.monotonic())
 
         reading = self._read_preheat() if not self._roasting else self._read_roasting()
-        return self._apply_cmd(reading)
+        return self._fit_write_range(self._apply_cmd(reading))
 
     def _since_connect(self) -> float:
         return time.monotonic() - self._connect_time
@@ -262,6 +262,28 @@ class VirtualMachineAdapter:
         for role, value in (("heater", heater), ("fan", fan), ("drum", drum)):
             if value is not None:
                 self._cmd[role] = float(value)
+
+    def _fit_write_range(self, reading: Reading) -> Reading:
+        """A scripted percent sits outside W1A Pa/Hz limits. Show a value inside the map."""
+        return dataclasses.replace(
+            reading,
+            heater=self._in_write_range("heater", reading.heater),
+            fan=self._in_write_range("fan", reading.fan),
+            drum=self._in_write_range("drum", reading.drum),
+        )
+
+    def _in_write_range(self, role: str, value: float | None) -> float | None:
+        spec = self._write_map.get(role)
+        if value is None or not isinstance(spec, dict):
+            return value
+        lo, hi = spec.get("min"), spec.get("max")
+        if isinstance(lo, bool) or isinstance(hi, bool):
+            return value
+        if not isinstance(lo, (int, float)) or not isinstance(hi, (int, float)) or lo > hi:
+            return value
+        if lo <= value <= hi:
+            return value
+        return (float(lo) + float(hi)) / 2
 
     def _apply_cmd(self, reading: Reading) -> Reading:
         """control()로 받은 값이 있으면 스크립트 값 대신 그것을 표시한다."""
