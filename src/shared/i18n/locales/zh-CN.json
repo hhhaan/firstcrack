@@ -1686,7 +1686,6 @@
         "exportOkLabel": "导出",
         "exportCancelLabel": "取消",
         "showBbp": "一起显示 BBP",
-        "hideBbp": "隐藏 BBP",
         "exportPdf": "PDF",
         "exportPdfConfirm": "保存到：{{path}}\n将此烘焙曲线导出为纵向 A4 单页 PDF？",
         "exportPdfUnavailable": "没有可导出的图表。",

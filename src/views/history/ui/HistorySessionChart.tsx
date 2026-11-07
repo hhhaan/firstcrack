@@ -42,7 +42,7 @@ import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { ChartNoAxesCombined, FileDown } from 'lucide-react';
+import { ChartNoAxesCombined, Check, FileDown } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -85,7 +85,7 @@ function ChartMeta({
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
             {showBbp && (
                 <span>
-                    BBP · {t('bbp.duration')}: {formatDuration(session.bbp_seconds)}
+                    {t('bbp.duration')}: {formatDuration(session.bbp_seconds)}
                 </span>
             )}
             {showCharge && (
@@ -162,6 +162,10 @@ export function HistorySessionChart({
     const { points: resolvedTargetPoints, source: targetSource } = useResolvedProfileCurve(profile);
     const targetPoints = targetSource === 'synthetic' ? [] : resolvedTargetPoints;
     const targetBbp = useBbpCurve(session.user_id, orNull(profile?.source_session_id), source?.bbp_tsv_path);
+    const hasBbpSource = Boolean(session.bbp_tsv_path || source?.bbp_tsv_path);
+    const hasBbpData =
+        (!bbp.isLoading && !bbp.isError && Boolean(bbp.data?.length)) ||
+        (!targetBbp.isLoading && !targetBbp.isError && Boolean(targetBbp.data?.length));
     const actual = useMemo(() => {
         const points = roast.isError ? [] : roast.points;
         return joinBbp
@@ -308,15 +312,35 @@ export function HistorySessionChart({
             className="min-w-0 overflow-hidden rounded-xl border border-border-subtle bg-(--color-roast-bg) px-5 pt-5 pb-4"
             aria-label={t('history.compare.tempAndRor')}
         >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                <ChartMeta
-                    session={session}
-                    unit={unit}
-                    bbpStatus={bbpStatus}
-                    roastStatus={roastStatus}
-                    referenceStatus={referenceStatus}
-                    hasPoints={points.length > 0}
-                />
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+                    {hasBbpSource && (
+                        <SurfaceButton
+                            aria-pressed={joinBbp}
+                            disabled={!hasBbpData}
+                            onClick={() => setJoinBbp((shown) => !shown)}
+                            icon={
+                                <Check
+                                    size={14}
+                                    strokeWidth={2}
+                                    aria-hidden="true"
+                                    className={joinBbp ? '' : 'invisible'}
+                                />
+                            }
+                            className="focus-visible:outline-action aria-pressed:border-transparent aria-pressed:bg-action aria-pressed:text-on-action aria-pressed:hover:bg-action aria-pressed:hover:opacity-85"
+                        >
+                            {t('history.showBbp')}
+                        </SurfaceButton>
+                    )}
+                    <ChartMeta
+                        session={session}
+                        unit={unit}
+                        bbpStatus={bbpStatus}
+                        roastStatus={roastStatus}
+                        referenceStatus={referenceStatus}
+                        hasPoints={points.length > 0}
+                    />
+                </div>
                 {exportContainer &&
                     createPortal(
                         <button
@@ -331,9 +355,6 @@ export function HistorySessionChart({
                         </button>,
                         exportContainer,
                     )}
-                <SurfaceButton aria-pressed={joinBbp} onClick={() => setJoinBbp((shown) => !shown)}>
-                    {t(joinBbp ? 'history.hideBbp' : 'history.showBbp')}
-                </SurfaceButton>
                 <SavedCurveLegend
                     points={points}
                     settings={settings}

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     query: { data: [] as TsvPoint[], isLoading: false, isError: false },
     roast: { points: [] as TsvPoint[], isLoading: false, isError: false },
     target: [] as TsvPoint[],
-    targetBbp: [] as TsvPoint[],
+    targetBbp: { data: [] as TsvPoint[], isLoading: false, isError: false },
     targetSource: 'session',
     chart: vi.fn(),
     useBbpCurve: vi.fn(),
@@ -23,7 +23,7 @@ vi.mock('@entities/roast', () => ({
     sessionBeanName: () => 'E2E Ethiopia',
     useBbpCurve: (...args: unknown[]) => {
         mocks.useBbpCurve(...args);
-        return args[1] === 'charge-session' ? mocks.query : { data: mocks.targetBbp };
+        return args[1] === 'charge-session' ? mocks.query : mocks.targetBbp;
     },
 }));
 vi.mock('@features/export-history-pdf', () => ({
@@ -366,11 +366,15 @@ it('toggles actual and target BBP independently of live settings, including PDF 
     mocks.roast.points = [point(0, 185), point(60, 150)];
     mocks.query.data = [point(0, 250), point(90, 185)];
     mocks.target = [point(0, 190), point(60, 155)];
-    mocks.targetBbp = [point(0, 280), point(110, 190)];
-    await act(async () => root.render(<HistorySessionChart session={session} exportContainer={null} />));
+    mocks.targetBbp.data = [point(0, 280), point(110, 190)];
+    const render = async () => {
+        await act(async () => root.render(<HistorySessionChart session={session} exportContainer={null} />));
+    };
+    await render();
     const toggle = container.querySelector('button[aria-pressed]');
     if (!(toggle instanceof HTMLButtonElement)) throw new Error('Missing BBP toggle');
-    expect(toggle.textContent).toBe('history.hideBbp');
+    expect(toggle.textContent).toBe('history.showBbp');
+    expect(toggle.disabled).toBe(false);
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
     expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
         xs: [-92, -2, 0, 60],
@@ -383,6 +387,7 @@ it('toggles actual and target BBP independently of live settings, including PDF 
     await act(async () => toggle.click());
     expect(toggle.textContent).toBe('history.showBbp');
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(toggle.disabled).toBe(false);
     expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
         xs: [0, 60],
         targetXs: [0, 60],
@@ -392,6 +397,7 @@ it('toggles actual and target BBP independently of live settings, including PDF 
         printTempBounds: { tempMinC: 140, tempMaxC: 200 },
     });
     await act(async () => toggle.click());
+    expect(toggle.textContent).toBe('history.showBbp');
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
     expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
         xs: [-92, -2, 0, 60],
@@ -400,6 +406,29 @@ it('toggles actual and target BBP independently of live settings, including PDF 
         xViewMin: -120,
         printTempBounds: { tempMinC: 140, tempMaxC: 290 },
     });
+    mocks.query.data = [];
+    mocks.targetBbp.data = [];
+    await render();
+    expect(toggle.disabled).toBe(true);
+    expect(container.textContent).toContain('bbp.empty');
+    mocks.query.isLoading = true;
+    await render();
+    expect(toggle.disabled).toBe(true);
+    expect(container.textContent).toContain('bbp.loading');
+    mocks.targetBbp.data = [point(0, 280)];
+    await render();
+    expect(toggle.disabled).toBe(false);
+    mocks.targetBbp.isError = true;
+    await render();
+    expect(toggle.disabled).toBe(true);
+    mocks.query.isLoading = false;
+    mocks.query.data = [point(0, 250)];
+    await render();
+    expect(toggle.disabled).toBe(false);
+    session.bbp_tsv_path = null;
+    session.profile_id = null;
+    await render();
+    expect(container.querySelector('button[aria-pressed]')).toBeNull();
     await act(async () => root.unmount());
 });
 
@@ -407,7 +436,7 @@ beforeEach(() => {
     mocks.query = { data: [], isLoading: false, isError: false };
     mocks.roast = { points: [], isLoading: false, isError: false };
     mocks.target = [];
-    mocks.targetBbp = [];
+    mocks.targetBbp = { data: [], isLoading: false, isError: false };
     mocks.targetSource = 'session';
     mocks.settingsOverrides = {};
 });

@@ -1686,7 +1686,6 @@
         "exportOkLabel": "エクスポート",
         "exportCancelLabel": "キャンセル",
         "showBbp": "BBP を一緒に表示",
-        "hideBbp": "BBP を非表示",
         "exportPdf": "PDF",
         "exportPdfConfirm": "保存先: {{path}}\nこの焙煎グラフをA4縦向き1ページのPDFに書き出しますか？",
         "exportPdfUnavailable": "書き出せるチャートがありません。",
