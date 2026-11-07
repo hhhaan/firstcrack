@@ -76,8 +76,49 @@ describe('RoastSidePanel live readings (#358)', () => {
         void act(() => root.render(createElement(RoastSidePanel, { ...baseProps, ...override })));
     };
 
+    it('keeps probe deltas together while session feedback stays outside the metric grid', () => {
+        renderPanel({
+            targetDelta: { deltaDisplay: 1.2, status: 'within' },
+            readFeedback: createElement('div', null, 'Gas feedback'),
+            bbpTimer: '1:05',
+            dtrPct: 20.5,
+            devTimeStr: '2:00',
+        });
+        const readings = container.querySelector('[data-testid="roast-readings"]');
+        const et = readings?.querySelector('[data-roast-metric="ET"]');
+        const bt = readings?.querySelector('[data-roast-metric="BT"]');
+        expect(et?.textContent).toContain('180.0°C');
+        expect(et?.textContent).toContain('ΔET (30s)');
+        expect(et?.textContent).not.toContain('ΔBT');
+        expect(bt?.textContent).toContain('200.0°C');
+        expect(bt?.textContent).toContain('ΔBT (30s)');
+        expect(bt?.textContent).not.toContain('Δ Target');
+        expect(readings?.querySelector('[data-testid="target-delta"]')).toBeNull();
+        expect(
+            container.querySelector('[data-testid="roast-summary"] [data-testid="target-delta"]')?.textContent,
+        ).toContain('1.2°');
+        expect(readings?.querySelectorAll('[data-roast-metric]')).toHaveLength(4);
+        expect(readings?.textContent).not.toContain('Gas feedback');
+        expect(readings?.querySelector('[data-testid="bbp-timer"]')).toBeNull();
+        expect(readings?.querySelector('[data-testid="dtr-row"]')).toBeNull();
+        expect(container.querySelector('[data-testid="dtr-row"]')?.textContent).toContain('20.5%');
+
+        renderPanel({ rollingDtrPct: 12.5, rollingDevTimeStr: '0:45' });
+        const rolling = container.querySelector('[data-testid="roast-summary"]');
+        expect(rolling?.textContent).toContain('DTR · Rolling');
+        expect(rolling?.textContent).toContain('12.5%');
+        expect(rolling?.textContent).toContain('0:45');
+        expect(container.querySelector('[data-testid="dtr-row"]')).toBeNull();
+
+        renderPanel({ phase: 'standby', charged: false, bbpChargeWait: true, bbpTimer: '1:05' });
+        expect(container.querySelectorAll('[data-roast-metric]')).toHaveLength(3);
+        expect(container.querySelector('[data-roast-metric="Time"]')).toBeNull();
+        expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
+    });
+
     it('hides DTR and Dev until they are calculated', () => {
         renderPanel();
+        expect(container.querySelector('[data-testid="roast-summary"]')).toBeNull();
         expect(container.querySelector('[data-testid="dtr-row"]')).toBeNull();
         expect(container.querySelector('[data-testid="dev-row"]')).toBeNull();
 

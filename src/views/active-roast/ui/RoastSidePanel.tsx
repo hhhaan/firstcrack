@@ -174,152 +174,205 @@ export const RoastSidePanel = ({
             editableEvent={reviewing ? isReviewEditableEvent : undefined}
         >
             <RoastAlertBanner alerts={activeAlerts} />
-            {/* ET */}
-            <div className="text-right">
-                <div className="text-sm text-muted font-semibold uppercase mb-1">ET</div>
+            <div
+                data-testid="roast-readings"
+                className="contents @min-[256px]/readings:grid @min-[256px]/readings:grid-cols-2 @min-[256px]/readings:gap-x-3 @min-[256px]/readings:gap-y-4"
+            >
                 <div
-                    className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: curves.et.current.color }}
+                    data-roast-metric="ET"
+                    className="contents @min-[256px]/readings:flex @min-[256px]/readings:min-w-0 @min-[256px]/readings:flex-col @min-[256px]/readings:gap-1.5"
                 >
-                    {formatTemp(rawET, unit)}
+                    {/* ET */}
+                    <div className="text-right">
+                        <div className="text-sm text-muted font-semibold uppercase mb-1 @min-[256px]/readings:text-xs">
+                            ET
+                        </div>
+                        <div
+                            className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                            style={{ color: curves.et.current.color }}
+                        >
+                            {formatTemp(rawET, unit)}
+                        </div>
+                    </div>
+                    {/* ΔET */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted font-semibold uppercase @min-[256px]/readings:text-[10px] @min-[256px]/readings:whitespace-nowrap">
+                            ΔET (30s)
+                        </span>
+                        <span
+                            className="font-inconsolata text-xl font-medium leading-tight @min-[256px]/readings:text-lg @min-[256px]/readings:whitespace-nowrap"
+                            style={{ color: curves.et.current.color }}
+                        >
+                            {deltaET != null ? (
+                                <>
+                                    <span className="mr-1">{Number(deltaET) >= 0 ? '+' : '−'}</span>
+                                    <span>{Math.abs(Number(deltaET)).toFixed(1)}°</span>
+                                </>
+                            ) : (
+                                '—'
+                            )}
+                        </span>
+                    </div>
                 </div>
-            </div>
-            {/* ΔET */}
-            <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase">ΔET (30s)</span>
-                <span
-                    className="font-inconsolata text-xl font-medium leading-tight"
-                    style={{ color: curves.et.current.color }}
-                >
-                    {deltaET != null ? (
-                        <>
-                            <span className="mr-1">{Number(deltaET) >= 0 ? '+' : '−'}</span>
-                            <span>{Math.abs(Number(deltaET)).toFixed(1)}°</span>
-                        </>
-                    ) : (
-                        '—'
-                    )}
-                </span>
-            </div>
-            {/* BT */}
-            <div className="text-right border-t border-border-subtle pt-3">
-                <div className="text-sm text-muted font-semibold uppercase mb-1">BT</div>
                 <div
-                    className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: curves.bt.current.color }}
+                    data-roast-metric="BT"
+                    className="contents @min-[256px]/readings:flex @min-[256px]/readings:min-w-0 @min-[256px]/readings:flex-col @min-[256px]/readings:gap-1.5"
                 >
-                    {formatTemp(rawBT, unit)}
+                    {/* BT */}
+                    <div className="text-right border-t border-border-subtle pt-3 @min-[256px]/readings:border-t-0 @min-[256px]/readings:pt-0">
+                        <div className="text-sm text-muted font-semibold uppercase mb-1 @min-[256px]/readings:text-xs">
+                            BT
+                        </div>
+                        <div
+                            className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                            style={{ color: curves.bt.current.color }}
+                        >
+                            {formatTemp(rawBT, unit)}
+                        </div>
+                    </div>
+                    {/* ΔBT */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted font-semibold uppercase @min-[256px]/readings:text-[10px] @min-[256px]/readings:whitespace-nowrap">
+                            ΔBT (30s)
+                        </span>
+                        <span
+                            className="font-inconsolata text-xl font-medium leading-tight @min-[256px]/readings:text-lg @min-[256px]/readings:whitespace-nowrap"
+                            style={{ color: curves.bt.current.color }}
+                        >
+                            {deltaBT != null ? (
+                                <>
+                                    <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
+                                    <span>{Math.abs(Number(deltaBT)).toFixed(1)}°</span>
+                                </>
+                            ) : (
+                                '—'
+                            )}
+                        </span>
+                    </div>
                 </div>
-            </div>
-            {/* ΔBT */}
-            <div className="flex items-center justify-between">
-                <span className="text-xs text-muted font-semibold uppercase">ΔBT (30s)</span>
-                <span
-                    className="font-inconsolata text-xl font-medium leading-tight"
-                    style={{ color: curves.bt.current.color }}
-                >
-                    {deltaBT != null ? (
-                        <>
-                            <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
-                            <span>{Math.abs(Number(deltaBT)).toFixed(1)}°</span>
-                        </>
-                    ) : (
-                        '—'
-                    )}
-                </span>
-            </div>
-            {/* Δ Target — 타겟 곡선 대비 현재 BT */}
-            {targetDelta != null && (
-                <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted font-semibold uppercase">Δ Target</span>
-                    <span
-                        className="font-inconsolata text-xl font-medium leading-tight"
-                        style={{ color: TARGET_DELTA_COLORS[targetDelta.status] }}
-                    >
-                        <span className="mr-1">{targetDelta.deltaDisplay >= 0 ? '+' : '−'}</span>
-                        <span>{Math.abs(targetDelta.deltaDisplay).toFixed(1)}°</span>
-                    </span>
-                </div>
-            )}
-            {/* RoR */}
-            <div className="text-right border-t border-border-subtle pt-3">
-                <div className="text-md text-muted font-semibold mb-1">RoR</div>
+                {/* RoR */}
                 <div
-                    className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                    style={{ color: curves.ror.current.color }}
+                    data-roast-metric="RoR"
+                    className="text-right border-t border-border-subtle pt-3 @min-[256px]/readings:border-t-0 @min-[256px]/readings:pt-0"
                 >
-                    {displayRoR}
-                </div>
-            </div>
-            {/* Time — hide frozen roast clock while unsaved ended + BBP (#484) */}
-            {!hideRoastClock && (
-                <div className="text-right border-t border-border-subtle pt-3" data-testid="roast-time">
-                    <div className="text-sm text-muted font-semibold uppercase mb-1">Time</div>
+                    <div className="text-md text-muted font-semibold mb-1 @min-[256px]/readings:text-xs">RoR</div>
                     <div
                         className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                        style={{ color: 'var(--color-primary)' }}
+                        style={{ color: curves.ror.current.color }}
                     >
-                        {timeStr}
+                        {displayRoR}
                     </div>
                 </div>
-            )}
+                {/* Time — hide frozen roast clock while unsaved ended + BBP (#484) */}
+                {!hideRoastClock && (
+                    <div
+                        data-roast-metric="Time"
+                        className="text-right border-t border-border-subtle pt-3 @min-[256px]/readings:border-t-0 @min-[256px]/readings:pt-0"
+                        data-testid="roast-time"
+                    >
+                        <div className="text-sm text-muted font-semibold uppercase mb-1 @min-[256px]/readings:text-xs">
+                            Time
+                        </div>
+                        <div
+                            className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                            style={{ color: 'var(--color-primary)' }}
+                        >
+                            {timeStr}
+                        </div>
+                    </div>
+                )}
+            </div>
             {readFeedback}
-            {bbpTimer != null && (
-                <div className="flex items-center justify-between" data-testid="bbp-timer">
-                    <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.bbp')}</span>
-                    <span className="font-inconsolata text-xl font-medium leading-tight">{bbpTimer}</span>
+            {(targetDelta != null || bbpTimer != null || showStartDev || showRollingDtr) && (
+                <div
+                    data-testid="roast-summary"
+                    className="contents @min-[256px]/readings:flex @min-[256px]/readings:flex-col @min-[256px]/readings:gap-2 @min-[256px]/readings:border-t @min-[256px]/readings:border-border-subtle @min-[256px]/readings:pt-3"
+                >
+                    {/* Δ Target — 타겟 곡선 대비 현재 BT */}
+                    {targetDelta != null && (
+                        <div data-testid="target-delta" className="flex items-center justify-between">
+                            <span className="text-xs text-muted font-semibold uppercase">Δ Target</span>
+                            <span
+                                className="font-inconsolata text-xl font-medium leading-tight"
+                                style={{ color: TARGET_DELTA_COLORS[targetDelta.status] }}
+                            >
+                                <span className="mr-1">{targetDelta.deltaDisplay >= 0 ? '+' : '−'}</span>
+                                <span>{Math.abs(targetDelta.deltaDisplay).toFixed(1)}°</span>
+                            </span>
+                        </div>
+                    )}
+                    {bbpTimer != null && (
+                        <div className="flex items-center justify-between" data-testid="bbp-timer">
+                            <span className="text-xs text-muted font-semibold uppercase">
+                                {t('activeRoast.sidebar.bbp')}
+                            </span>
+                            <span className="font-inconsolata text-xl font-medium leading-tight">{bbpTimer}</span>
+                        </div>
+                    )}
+                    {(showStartDev || showRollingDtr) && (
+                        <div className="contents @min-[256px]/readings:grid @min-[256px]/readings:grid-cols-2 @min-[256px]/readings:gap-x-3 @min-[256px]/readings:gap-y-2">
+                            {/* DTR + Dev — hidden until FC Start makes them calculable */}
+                            {showStartDev && (
+                                <>
+                                    <div
+                                        className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5"
+                                        data-testid="dtr-row"
+                                    >
+                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
+                                            {dtrLabel}
+                                        </span>
+                                        <span
+                                            className="font-inconsolata text-xl font-medium leading-tight"
+                                            style={{ color: PHASE_COLORS.development }}
+                                        >
+                                            {dtrPct != null ? `${dtrPct}%` : '—'}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5"
+                                        data-testid="dev-row"
+                                    >
+                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
+                                            {showRollingDtr ? 'Dev · Start' : 'Dev'}
+                                        </span>
+                                        <span
+                                            className="font-inconsolata text-lg font-medium leading-tight @min-[256px]/readings:text-xl"
+                                            style={{ color: PHASE_COLORS.development }}
+                                        >
+                                            {devTimeStr ?? '—'}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                            {showRollingDtr && (
+                                <>
+                                    <div className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5">
+                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
+                                            DTR · Rolling
+                                        </span>
+                                        <span
+                                            className="font-inconsolata text-xl font-medium leading-tight"
+                                            style={{ color: PHASE_COLORS.development }}
+                                        >
+                                            {rollingDtrPct}%
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5">
+                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
+                                            Dev · Rolling
+                                        </span>
+                                        <span
+                                            className="font-inconsolata text-lg font-medium leading-tight @min-[256px]/readings:text-xl"
+                                            style={{ color: PHASE_COLORS.development }}
+                                        >
+                                            {rollingDevTimeStr}
+                                        </span>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
-            )}
-            {/* DTR + Dev — hidden until FC Start makes them calculable */}
-            {showStartDev && (
-                <>
-                    <div className="flex items-center justify-between" data-testid="dtr-row">
-                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">{dtrLabel}</span>
-                        <span
-                            className="font-inconsolata text-xl font-medium leading-tight"
-                            style={{ color: PHASE_COLORS.development }}
-                        >
-                            {dtrPct != null ? `${dtrPct}%` : '—'}
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between" data-testid="dev-row">
-                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
-                            {showRollingDtr ? 'Dev · Start' : 'Dev'}
-                        </span>
-                        <span
-                            className="font-inconsolata text-lg font-medium leading-tight"
-                            style={{ color: PHASE_COLORS.development }}
-                        >
-                            {devTimeStr ?? '—'}
-                        </span>
-                    </div>
-                </>
-            )}
-            {showRollingDtr && (
-                <>
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
-                            DTR · Rolling
-                        </span>
-                        <span
-                            className="font-inconsolata text-xl font-medium leading-tight"
-                            style={{ color: PHASE_COLORS.development }}
-                        >
-                            {rollingDtrPct}%
-                        </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap">
-                            Dev · Rolling
-                        </span>
-                        <span
-                            className="font-inconsolata text-lg font-medium leading-tight"
-                            style={{ color: PHASE_COLORS.development }}
-                        >
-                            {rollingDevTimeStr}
-                        </span>
-                    </div>
-                </>
             )}
 
             <div className="border-t border-border-subtle" />
