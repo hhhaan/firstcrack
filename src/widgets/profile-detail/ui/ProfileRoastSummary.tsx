@@ -1,6 +1,7 @@
 import type { RoastProfileWithSource } from '@entities/roast-profile';
-import { tempUnitLabel, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import { type TemperatureUnit, tempUnitLabel, toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { formatDuration } from '@shared/lib/format';
+import type { ReactElement, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 type ProfileSummary = Pick<
@@ -14,7 +15,22 @@ type ProfileSummary = Pick<
     | 'machine_name'
 >;
 
-export const ProfileRoastSummary = ({ profile }: { profile: ProfileSummary }) => {
+interface ProfileRoastSummaryProps {
+    profile: ProfileSummary;
+}
+
+function renderTemperature(celsius: number | null, unit: TemperatureUnit): ReactNode {
+    if (celsius == null) return '—';
+
+    return (
+        <>
+            {toDisplayTemp(celsius, unit).toFixed(1)}
+            <span className="ms-0.5 text-xs font-[450] text-secondary @[375px]:text-sm">{tempUnitLabel(unit)}</span>
+        </>
+    );
+}
+
+export function ProfileRoastSummary({ profile }: ProfileRoastSummaryProps): ReactElement {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
 
@@ -37,34 +53,14 @@ export const ProfileRoastSummary = ({ profile }: { profile: ProfileSummary }) =>
                             {t('profiles.detail.chargeTemp')}
                         </dt>
                         <dd className="whitespace-nowrap pe-3 @[556px]:pe-6">
-                            {profile.charge_temp_celsius == null ? (
-                                '—'
-                            ) : (
-                                <>
-                                    {toDisplayTemp(profile.charge_temp_celsius, unit).toFixed(1)}
-                                    <span className="ms-0.5 text-xs font-[450] text-secondary @[375px]:text-sm">
-                                        {tempUnitLabel(unit)}
-                                    </span>
-                                </>
-                            )}
+                            {renderTemperature(profile.charge_temp_celsius, unit)}
                         </dd>
                     </div>
                     <div className="grid min-w-0 grid-cols-[minmax(0,23fr)_minmax(0,27fr)] items-baseline border-b border-border pb-3.5 pt-1">
                         <dt className="font-body text-xs font-medium leading-5 tracking-[0.14px] text-muted">
                             {t('profiles.detail.dropTemp')}
                         </dt>
-                        <dd className="whitespace-nowrap">
-                            {profile.drop_temp_celsius == null ? (
-                                '—'
-                            ) : (
-                                <>
-                                    {toDisplayTemp(profile.drop_temp_celsius, unit).toFixed(1)}
-                                    <span className="ms-0.5 text-xs font-[450] text-secondary @[375px]:text-sm">
-                                        {tempUnitLabel(unit)}
-                                    </span>
-                                </>
-                            )}
-                        </dd>
+                        <dd className="whitespace-nowrap">{renderTemperature(profile.drop_temp_celsius, unit)}</dd>
                     </div>
                     <div className="grid min-w-0 grid-cols-[minmax(0,23fr)_minmax(0,27fr)] items-baseline pb-1 pt-3.5">
                         <dt className="font-body text-xs font-medium leading-5 tracking-[0.14px] text-muted">
@@ -94,4 +90,4 @@ export const ProfileRoastSummary = ({ profile }: { profile: ProfileSummary }) =>
             </dl>
         </div>
     );
-};
+}
