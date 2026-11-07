@@ -2,6 +2,7 @@
 import { roastSessionKeys } from '@entities/roast';
 import type { roastSessionApi } from '@entities/roast/api';
 import { roastProfileKeys } from '@entities/roast-profile/queries';
+import { DEFAULT_MANUAL_CONTROLS } from '@features/active-roast/lib/manual-controls';
 import { serializeRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import { useBbpStore } from '@features/active-roast/model/bbp';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
@@ -22,7 +23,10 @@ import { ActiveRoastRuntime } from './ActiveRoastRuntime';
 import * as curveEditing from './model/useRoastCurveEditing';
 import * as roastHeader from './ui/RoastHeader';
 
-vi.mock('./model/useSidecarPolling', () => ({ useSidecarPolling: vi.fn() }));
+vi.mock('./model/useSidecarPolling', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./model/useSidecarPolling')>()),
+    useSidecarPolling: vi.fn(),
+}));
 
 const UNSAVED_CLOSE = 'activeRoast.dialogs.unsavedCloseMsg';
 
@@ -402,6 +406,79 @@ describe('ActiveRoast running clock (#627)', () => {
             updateRoastSettings({ bbpEnabled });
         }
     });
+
+    it.each(['giesen_w1', 'virtual', 'phidget_tmp1101'])(
+        'records enabled custom fields for the active %s machine during BBP without sending controls',
+        async (roasterKey) => {
+            const settings = getRoastSettings();
+            updateRoastSettings({
+                bbpEnabled: true,
+                manualControlsByMachine: {
+                    active: [
+                        ...DEFAULT_MANUAL_CONTROLS.map((row) => ({ ...row, enabled: row.id !== 'gas' })),
+                        { id: 'v_12345678', label: 'dsfa', unit: '', min: 0, max: 100, enabled: true },
+                        { id: 'v_99999999', label: 'Disabled', unit: '', min: 0, max: 100, enabled: false },
+                    ],
+                    other: [
+                        ...DEFAULT_MANUAL_CONTROLS,
+                        { id: 'v_87654321', label: 'Other machine', unit: '', min: 0, max: 100, enabled: true },
+                    ],
+                },
+            });
+            seed({
+                phase: 'standby',
+                roastStartMs: 0,
+                elapsed: 0,
+                machineSnapshot: {
+                    machine_id: 'active',
+                    machine_roaster_key: roasterKey,
+                    machine_name: 'Active machine',
+                    machine_brand: null,
+                    machine_protocol: null,
+                },
+            });
+            const unmount = mount();
+            try {
+                await flushMicrotasks();
+                act(() =>
+                    useBbpStore.getState().begin(Date.now() - 5000, [
+                        { t: 0, bt: 180, et: 200, heater: 20, fan: 30, drum: 40 },
+                        { t: 5, bt: 181, et: 201, heater: 20, fan: 30, drum: 40 },
+                    ]),
+                );
+                chart.convertFromPixel.mockReturnValue(2);
+                chart.convertToPixel.mockReturnValue(20);
+                act(() =>
+                    host
+                        .querySelector('[data-tour="active-roast-chart"] > [tabindex="-1"]')
+                        ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 20, clientY: 20 })),
+                );
+                const form = host.querySelector('[data-chart-note-form]');
+                expect(form).not.toBeNull();
+                const input = form?.querySelector<HTMLInputElement>('#chart-note-v_12345678');
+                expect(input?.closest('label')?.textContent).toContain('dsfa');
+                expect(form?.querySelector('#chart-note-v_99999999')).toBeNull();
+                expect(form?.querySelector('#chart-note-v_87654321')).toBeNull();
+                expect(form?.querySelector('#chart-note-gas')).toBeNull();
+                expect(Boolean(form?.querySelector('#chart-note-airflow'))).toBe(roasterKey !== 'phidget_tmp1101');
+                const writesBefore = vi.mocked(sidecar.setControl).mock.calls.length;
+                act(() => {
+                    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, '42');
+                    input?.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+                act(() => form?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+                expect(useBbpStore.getState().events).toMatchObject([
+                    { event: 'Note', timeSec: 2, virtual: { v_12345678: '42' } },
+                ]);
+                expect(vi.mocked(sidecar.setControl).mock.calls).toHaveLength(writesBefore);
+            } finally {
+                unmount();
+                chart.convertFromPixel.mockReturnValue(Number.NaN);
+                chart.convertToPixel.mockReturnValue(Number.NaN);
+                updateRoastSettings(settings);
+            }
+        },
+    );
 
     it('manual Charge starts roasting', async () => {
         workspace.owner = 'owner';

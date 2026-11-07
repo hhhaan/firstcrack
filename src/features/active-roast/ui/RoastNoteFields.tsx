@@ -47,7 +47,7 @@ export const RoastNoteFields = ({
     commentId: string;
     machineId?: string | null;
     readUnits?: ReadUnits;
-    /** When set, only these builtin channels. Custom virtual rows stay hidden. */
+    /** Restricts builtin channels; enabled custom virtual rows remain available. */
     onlyIds?: readonly ManualControlId[];
     autoFocus?: boolean;
 }) => {
@@ -56,7 +56,7 @@ export const RoastNoteFields = ({
     const controls = manualControlsFor(useRoastSettings(), machineId).filter(
         (control) =>
             control.enabled &&
-            (!onlyIds || (isBuiltinManualControlId(control.id) && onlyIds.includes(control.id))) &&
+            (!onlyIds || !isBuiltinManualControlId(control.id) || onlyIds.includes(control.id)) &&
             (!machineUnits ||
                 !isBuiltinManualControlId(control.id) ||
                 machineUnits[roleFor[control.id]] ||

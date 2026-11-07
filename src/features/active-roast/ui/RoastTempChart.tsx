@@ -119,9 +119,9 @@ interface Props {
     /** Saved curve. Drag stays put. Right-click labels and the roast log edit the record. */
     savedReview?: boolean;
     onAddNote?: (body: string, timeSec: number, controls?: RoastNoteControls) => void;
-    /** Right-click gas, airflow, and drum. Roast, and BBP for channels the machine reads. */
+    /** Right-click manual and custom controls during a roast or BBP. */
     recordManualControls?: boolean;
-    /** BBP: only the machine's registered heater, fan, and drum fields. */
+    /** BBP: restrict builtin fields to the machine's registered channels. Custom rows remain available. */
     noteControlIds?: readonly ManualControlId[];
     /** Machine whose name, unit, and range apply to those fields. */
     machineId?: string | null;

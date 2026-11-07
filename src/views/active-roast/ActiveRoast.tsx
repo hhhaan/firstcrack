@@ -1132,10 +1132,7 @@ export const ActiveRoast = ({
                         unit={unit}
                         onCursorIdx={handleChartCursorIdx}
                         savedReview={reviewing}
-                        recordManualControls={
-                            phase === 'roasting' ||
-                            (bbpActive && registeredNoteControlIds(machineSnapshot?.machine_roaster_key).length > 0)
-                        }
+                        recordManualControls={phase === 'roasting' || bbpActive}
                         noteControlIds={
                             phase === 'roasting'
                                 ? undefined
