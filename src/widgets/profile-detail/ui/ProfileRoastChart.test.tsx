@@ -13,13 +13,6 @@ const mocks = vi.hoisted(() => ({
     bbp: { data: [] as TsvPoint[], isLoading: false, isError: false },
     useBbpCurve: vi.fn(),
 }));
-vi.mock('@entities/machine', () => ({
-    ROASTER_REGISTRY: {},
-    useMachines: () => [
-        { id: 'profile-machine', connectionParams: { write_map: { heater: { unit: '%' } } } },
-        { id: 'source-machine', connectionParams: { write_map: { heater: { unit: 'kPa' } } } },
-    ],
-}));
 vi.mock('@entities/roast', () => ({
     useBbpCurve: (...args: unknown[]) => {
         mocks.useBbpCurve(...args);
@@ -55,8 +48,6 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const sample: TsvPoint = { t: 0, bt: 150, et: 180, ror: 4, rorEt: 2, heater: null, fan: null, drum: null };
 const profile = {
     user_id: 'owner',
-    machine_id: 'profile-machine',
-    machine_roaster_key: null,
     source_session_id: 'source-a',
     source_session: { tsv_path: 'source-a.tsv', bbp_tsv_path: 'source-a-bbp.tsv', events: null },
     duration_sec: 600,
@@ -103,7 +94,6 @@ it('shows every recorded channel with history display units and keeps gaps witho
             tempMinC: 80,
             tempMaxC: 250,
             showTargetCurve: false,
-            controlData: expect.objectContaining({ heatSet: [null, 0], heatSetUnit: '%' }),
         }),
     );
     const props = mocks.chart.mock.lastCall?.[0];
@@ -156,10 +146,56 @@ it('joins only the saved source BBP and renders its recorded milestones', () => 
     });
 });
 
-it('uses the source machine Heat set unit when the profile machine differs', () => {
+it('keeps only the temperature plot and phase marks when the source includes heat and machine controls', () => {
     render({
-        profile: { ...profile, source_session: { ...profile.source_session, machine_id: 'source-machine' } },
-        points: [{ ...sample, heaterSet: 0 }],
+        profile: {
+            ...profile,
+            source_session: { ...profile.source_session, heater_events: [{ t: 0, bt: 150, heater: 70 }] },
+        },
+        points: [{ ...sample, heater: 70, heaterSet: 65, fan: 40, drum: 55 }],
+        events: [
+            { id: 'charge', type: 'Charge', time_sec: 0, temp_c: 150 },
+            { id: 'heater', type: 'Heater', time_sec: 1, note: '70%' },
+            { id: 'command', type: 'Control', time_sec: 2, applied_control: { heater: 60, fan: 40, drum: 55 } },
+            { id: 'gas-only', type: 'Note', time_sec: 3, gas: '60' },
+            { id: 'plain-note', type: 'Note', time_sec: 4, note: 'Aroma changed' },
+            {
+                id: 'mixed-note',
+                type: 'Note',
+                time_sec: 5,
+                note: 'Sweet aroma',
+                gas: '50',
+                airflow: '30',
+                drum: '55',
+                virtual: { damper: '10' },
+            },
+            { id: 'yellow', type: 'Yellow', time_sec: 10, temp_c: 160 },
+            { id: 'fc', type: 'FC Start', time_sec: 20, temp_c: 180 },
+            { id: 'drop', type: 'Drop', time_sec: 30, temp_c: 200 },
+        ],
     });
-    expect(mocks.chart.mock.lastCall?.[0].controlData).toMatchObject({ heatSet: [0], heatSetUnit: 'kPa' });
+    const props = mocks.chart.mock.lastCall?.[0];
+    expect(props?.controlData).toBeUndefined();
+    expect(props?.printControlData).toBeUndefined();
+    expect(props?.height).toBe(360);
+    expect(props?.eventMarkers.map((marker) => marker.event)).toEqual([
+        'Charge',
+        'Note',
+        'Note',
+        'Yellow',
+        'FC Start',
+        'Drop',
+    ]);
+    expect(props?.eventMarkers.find((marker) => marker.logId === 'mixed-note')).toMatchObject({ note: 'Sweet aroma' });
+    for (const marker of props?.eventMarkers ?? []) {
+        expect(marker).not.toHaveProperty('gas');
+        expect(marker).not.toHaveProperty('airflow');
+        expect(marker).not.toHaveProperty('drum');
+        expect(marker).not.toHaveProperty('virtual');
+    }
+    expect(props?.phaseSegments?.map((phase) => phase.name)).toEqual(['Drying', 'Maillard', 'Development']);
+    expect(props?.btActual).toEqual([toDisplayTemp(150, 'F')]);
+    expect(props?.etActual).toEqual([toDisplayTemp(180, 'F')]);
+    expect(props?.rorActual).toEqual([toDisplayRoR(4, 'F')]);
+    expect(props?.rorEtActual).toEqual([toDisplayRoR(2, 'F')]);
 });

@@ -1,19 +1,14 @@
-import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useBbpCurve } from '@entities/roast';
 import { type RoastProfileWithSource, resolveSourceSession } from '@entities/roast-profile';
 import { computePhaseSegments, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
-import { savedChartControls } from '@features/active-roast/lib/saved-chart-controls';
-import { savedChartPresentation, savedControlsVisible } from '@features/active-roast/lib/saved-chart-presentation';
+import { savedChartPresentation } from '@features/active-roast/lib/saved-chart-presentation';
 import {
     parseStoredRoastEvents,
-    storedEventsToControlChanges,
     storedEventsToLogEntries,
     storedEventsToMarkers,
 } from '@features/active-roast/lib/serialize-roast-events';
-import { manualNotesToControlChanges, virtualControlLinesAllowed } from '@features/active-roast/lib/virtual-controls';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { SavedCurveLegend } from '@features/active-roast/ui/SavedCurveLegend';
-import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { ChartNoAxesCombined } from 'lucide-react';
@@ -27,10 +22,7 @@ export function ProfileRoastChart({
     isLoading,
     isError,
 }: {
-    profile: Pick<
-        RoastProfileWithSource,
-        'user_id' | 'source_session_id' | 'source_session' | 'duration_sec' | 'machine_id' | 'machine_roaster_key'
-    >;
+    profile: Pick<RoastProfileWithSource, 'user_id' | 'source_session_id' | 'source_session' | 'duration_sec'>;
     points: TsvPoint[];
     events: unknown;
     isLoading: boolean;
@@ -40,12 +32,6 @@ export function ProfileRoastChart({
     const settings = useRoastSettings();
     const unit = settings.temperatureUnit;
     const source = resolveSourceSession(profile.source_session);
-    const machines = useMachines((state) => state.machines);
-    const heaterUnit = profileHeaterBounds(
-        source?.machine_id || source?.machine_roaster_key ? source : profile,
-        machines,
-        ROASTER_REGISTRY,
-    ).unit;
     const bbp = useBbpCurve(profile.user_id, profile.source_session_id, source?.bbp_tsv_path);
     const actual = useMemo(() => {
         const points = isError ? [] : recordedPoints;
@@ -56,41 +42,22 @@ export function ProfileRoastChart({
     const { points } = actual;
     const storedEvents = useMemo(() => parseStoredRoastEvents(events), [events]);
     const eventMarkers = useMemo(
-        () => storedEventsToMarkers(withEditedHeaterLog(storedEvents, source?.heater_events, heaterUnit), unit),
-        [storedEvents, source?.heater_events, heaterUnit, unit],
+        () =>
+            storedEventsToMarkers(
+                storedEvents.flatMap(({ id, type, time_sec, temp_c, note }) => {
+                    if (['Heater', 'Control', 'Fan', 'Drum'].includes(type) || (type === 'Note' && !note?.trim()))
+                        return [];
+                    return [{ id, type, time_sec, temp_c, note }];
+                }),
+                unit,
+            ),
+        [storedEvents, unit],
     );
-    const duration = source?.duration_seconds ?? profile.duration_sec;
-    const dropTime = storedEvents.find((event) => event.type === 'Drop')?.time_sec ?? duration;
+    const duration = source?.duration_seconds ?? profile.duration_sec ?? 0;
     const phases = useMemo(
         () => computePhaseSegments(storedEventsToLogEntries(storedEvents, unit), duration, true),
         [storedEvents, unit, duration],
     );
-    const heatSet = useMemo(
-        () => editedHeatSet(points, dropTime, source?.heater_events) ?? points.map((point) => point.heaterSet ?? null),
-        [points, dropTime, source?.heater_events],
-    );
-    const { controlData } = savedChartControls({
-        points,
-        heatSet,
-        heatSetUnit: heaterUnit,
-        changes: [
-            ...storedEventsToControlChanges(storedEvents),
-            ...(settings.recordVirtualControls && virtualControlLinesAllowed(source?.machine_roaster_key)
-                ? manualNotesToControlChanges(
-                      storedEvents.map((event) => ({
-                          event: event.type,
-                          timeSec: event.time_sec,
-                          gas: event.gas,
-                          airflow: event.airflow,
-                          drum: event.drum,
-                      })),
-                  )
-                : []),
-        ],
-        referenceControls: false,
-        displayedTarget: { xs: [], drum: [], heater: [], fan: [] },
-    });
-    const showControls = savedControlsVisible(controlData, settings, false);
     const status = isLoading
         ? 'history.expanded.chartLoading'
         : isError
@@ -129,14 +96,11 @@ export function ProfileRoastChart({
                     showTargetCurve={false}
                     currentTimeSec={0}
                     eventMarkers={eventMarkers}
-                    machineId={source?.machine_id}
                     xViewMin={actual.bbpRange?.start ?? 0}
                     xViewMax={Math.max(1, duration, points[points.length - 1]?.t ?? 0)}
-                    showControlTailLabels={false}
                     bbpRange={actual.bbpRange}
-                    controlData={showControls ? controlData : undefined}
                     phaseSegments={settings.showPhaseBar ? phases : []}
-                    height={showControls ? 440 : 360}
+                    height={360}
                 />
             )}
             {source?.bbp_tsv_path && (bbp.isLoading || bbp.isError) && (
