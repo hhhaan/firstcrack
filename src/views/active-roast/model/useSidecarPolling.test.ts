@@ -1076,14 +1076,14 @@ const flushPendingPoll = async () => {
 };
 
 const holdStatus = () => {
-    let resolve = (_status: { connected: boolean; reconnecting?: boolean }) => {};
+    let resolve = (_status: { connected: boolean; reconnecting?: boolean; error?: string | null }) => {};
     mocks.getStatus.mockImplementationOnce(
         () =>
             new Promise((r) => {
                 resolve = r;
             }),
     );
-    return (status: { connected: boolean; reconnecting?: boolean }) => resolve(status);
+    return (status: { connected: boolean; reconnecting?: boolean; error?: string | null }) => resolve(status);
 };
 
 it.each([
@@ -1426,5 +1426,223 @@ it('moves the complete already observed auto-Charge tail and its events into the
     } finally {
         act(() => root.unmount());
         useBbpStore.getState().abort();
+    }
+});
+
+const machine = (id: string) => ({
+    machine_id: id,
+    machine_name: id,
+    machine_roaster_key: null,
+    machine_brand: null,
+    machine_protocol: null,
+});
+
+it.each([
+    { fallback: 'null BT', ownership: 'generation' },
+    { fallback: 'null BT', ownership: 'machine' },
+    { fallback: 'null BT', ownership: 'phase' },
+    { fallback: 'poll error', ownership: 'generation' },
+    { fallback: 'poll error', ownership: 'machine' },
+    { fallback: 'poll error', ownership: 'phase' },
+] as const)('does not apply a late $fallback status after $ownership changes', async ({ fallback, ownership }) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-07T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    const ready = captureSidecarReady();
+    mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 10 }));
+    mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'late-status',
+        roastStartMs: Date.now() - 1000,
+        sidecarConnected: true,
+        reconnecting: false,
+        sidecarError: null,
+        machineSnapshot: machine('current'),
+    });
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'roasting',
+            pollIntervalMs: 1000,
+            enterPreheating: vi.fn(),
+            setConnected: useRoastingStore.getState().setConnected,
+            sessionId: 'late-status',
+        });
+        return null;
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        const finishStatus = holdStatus();
+        if (fallback === 'null BT') {
+            mocks.getTemperatures.mockResolvedValueOnce(reading({ bt: null, bt_raw: null, timestamp: 11 }));
+        } else {
+            mocks.getTemperatures.mockRejectedValueOnce(new Error('timeout'));
+        }
+        await flushPendingPoll();
+        if (ownership === 'generation') act(() => ready());
+        if (ownership === 'machine') useRoastingStore.setState({ machineSnapshot: machine('next') });
+        if (ownership === 'phase') useRoastingStore.setState({ phase: 'standby' });
+        const before = useRoastingStore.getState();
+        const tsvWrites = mocks.enqueueTsvRow.mock.calls.length;
+        await act(async () => {
+            finishStatus({ connected: false, reconnecting: true, error: 'read failed' });
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        const after = useRoastingStore.getState();
+        expect(after.reconnecting).toBe(before.reconnecting);
+        expect(after.sidecarError).toBe(before.sidecarError);
+        expect(after.sidecarConnected).toBe(before.sidecarConnected);
+        expect(after.livePoints).toEqual(before.livePoints);
+        expect(after.pid).toBe(before.pid);
+        expect(after.observation).toBe(before.observation);
+        expect(after.displayObservation).toBe(before.displayObservation);
+        expect(mocks.enqueueTsvRow).toHaveBeenCalledTimes(tsvWrites);
+        expect(toastCount()).toBe(0);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it('records the next sample after a discarded late status', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-07T12:00:00Z'));
+    mocks.initSessionTsv.mockResolvedValue(undefined);
+    mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 10 }));
+    mocks.getStatus.mockResolvedValue({ connected: true, reconnecting: false });
+    useRoastingStore.setState({
+        phase: 'roasting',
+        sessionId: 'late-status-next',
+        roastStartMs: Date.now() - 1000,
+        sidecarConnected: true,
+        reconnecting: false,
+        sidecarError: null,
+        machineSnapshot: machine('current'),
+    });
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'roasting',
+            pollIntervalMs: 1000,
+            enterPreheating: vi.fn(),
+            setConnected: useRoastingStore.getState().setConnected,
+            sessionId: 'late-status-next',
+        });
+        return null;
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        await flushReady();
+        const points = useRoastingStore.getState().livePoints.length;
+        const finishStatus = holdStatus();
+        mocks.getTemperatures.mockResolvedValueOnce(reading({ bt: null, bt_raw: null, timestamp: 11 }));
+        await flushPendingPoll();
+        useRoastingStore.setState({ machineSnapshot: machine('next') });
+        await act(async () => {
+            finishStatus({ connected: false, reconnecting: true, error: 'read failed' });
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+        expect(useRoastingStore.getState().reconnecting).toBe(false);
+        expect(useRoastingStore.getState().livePoints).toHaveLength(points);
+        mocks.getTemperatures.mockResolvedValue(reading({ timestamp: 12, bt: 201, bt_raw: 201 }));
+        await act(async () => vi.advanceTimersByTimeAsync(1000));
+        expect(useRoastingStore.getState().reconnecting).toBe(false);
+        expect(useRoastingStore.getState().livePoints.length).toBeGreaterThan(points);
+        expect(useRoastingStore.getState().livePoints.at(-1)?.bt).toBe(201);
+    } finally {
+        act(() => root.unmount());
+    }
+});
+
+it.each(['machine', 'phase', 'generation', 'unmount'] as const)(
+    'does not apply an idle status after %s changes',
+    async (ownership) => {
+        const ready = captureSidecarReady();
+        let release = (_status: {
+            connected: boolean;
+            reconnecting?: boolean;
+            error?: string | null;
+            capabilities?: string[];
+        }) => {};
+        mocks.getStatus.mockReturnValue(
+            new Promise((resolve) => {
+                release = resolve;
+            }),
+        );
+        const enterPreheating = vi.fn();
+        useRoastingStore.setState({
+            phase: 'idle',
+            sidecarConnected: true,
+            reconnecting: false,
+            sidecarError: null,
+            machineSnapshot: machine('current'),
+        });
+        const root = createRoot(document.createElement('div'));
+        const Probe = () => {
+            useSidecarPolling({
+                isActive: true,
+                phase: 'idle',
+                pollIntervalMs: 60_000,
+                enterPreheating,
+                setConnected: useRoastingStore.getState().setConnected,
+                sessionId: null,
+            });
+            return null;
+        };
+        try {
+            act(() => root.render(createElement(Probe)));
+            await vi.waitFor(() => expect(mocks.getStatus).toHaveBeenCalled());
+            if (ownership === 'machine') useRoastingStore.setState({ machineSnapshot: machine('next') });
+            if (ownership === 'phase') useRoastingStore.setState({ phase: 'roasting' });
+            if (ownership === 'generation') act(() => ready());
+            if (ownership === 'unmount') act(() => root.unmount());
+            await act(async () => {
+                release({ connected: false, reconnecting: true, error: 'read failed', capabilities: ['heater'] });
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+            expect(enterPreheating).not.toHaveBeenCalled();
+            expect(useRoastingStore.getState().reconnecting).toBe(false);
+            expect(useRoastingStore.getState().sidecarError).toBeNull();
+            expect(useRoastingStore.getState().sidecarConnected).toBe(true);
+            if (ownership === 'machine') expect(useRoastingStore.getState().machineSnapshot?.machine_id).toBe('next');
+            if (ownership === 'phase') expect(useRoastingStore.getState().phase).toBe('roasting');
+            expect(toastCount()).toBe(0);
+        } finally {
+            act(() => root.unmount());
+        }
+    },
+);
+
+it('still enters preheating when an idle status stays current', async () => {
+    mocks.getStatus.mockResolvedValue({ connected: true, capabilities: ['heater'] });
+    const enterPreheating = vi.fn((capabilities?: string[]) =>
+        useRoastingStore.getState().enterPreheating(capabilities),
+    );
+    useRoastingStore.setState({ phase: 'idle', sidecarConnected: false });
+    const root = createRoot(document.createElement('div'));
+    const Probe = () => {
+        useSidecarPolling({
+            isActive: true,
+            phase: 'idle',
+            pollIntervalMs: 60_000,
+            enterPreheating,
+            setConnected: useRoastingStore.getState().setConnected,
+            sessionId: null,
+        });
+        return null;
+    };
+    try {
+        act(() => root.render(createElement(Probe)));
+        await vi.waitFor(() => expect(enterPreheating).toHaveBeenCalledWith(['heater']));
+        expect(useRoastingStore.getState().sidecarConnected).toBe(true);
+        expect(useRoastingStore.getState().phase).toBe('preheating');
+    } finally {
+        act(() => root.unmount());
     }
 });

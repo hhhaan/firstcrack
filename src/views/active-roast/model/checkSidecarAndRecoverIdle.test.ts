@@ -134,6 +134,89 @@ describe('checkSidecarAndRecoverIdle (#178)', () => {
         expect(enterPreheating).not.toHaveBeenCalled();
     });
 
+    it('drops a status that loses ownership while in flight', async () => {
+        let release = (_status: { connected: boolean; reconnecting?: boolean; error?: string | null }) => {};
+        const setConnected = vi.fn();
+        const enterPreheating = vi.fn();
+        const setReconnecting = vi.fn();
+        const setError = vi.fn();
+        const onConnectedStatus = vi.fn();
+        let owns = true;
+        const pending = checkSidecarAndRecoverIdle({
+            getStatus: () =>
+                new Promise((resolve) => {
+                    release = resolve;
+                }),
+            getPhase: () => 'idle',
+            setConnected,
+            enterPreheating,
+            setReconnecting,
+            setError,
+            onConnectedStatus,
+            reportLink: true,
+            stillCurrent: () => owns,
+        });
+
+        owns = false;
+        release({ connected: false, reconnecting: true, error: 'read failed' });
+        await pending;
+
+        expect(setConnected).not.toHaveBeenCalled();
+        expect(setReconnecting).not.toHaveBeenCalled();
+        expect(setError).not.toHaveBeenCalled();
+        expect(onConnectedStatus).not.toHaveBeenCalled();
+        expect(enterPreheating).not.toHaveBeenCalled();
+        expect(useToastStore.getState().toasts).toHaveLength(0);
+    });
+
+    it('does not disconnect when a thrown status loses ownership', async () => {
+        let reject = (_error: Error) => {};
+        const setConnected = vi.fn();
+        const setReconnecting = vi.fn();
+        let owns = true;
+        const pending = checkSidecarAndRecoverIdle({
+            getStatus: () =>
+                new Promise((_resolve, rejectStatus) => {
+                    reject = rejectStatus;
+                }),
+            getPhase: () => 'idle',
+            setConnected,
+            enterPreheating: vi.fn(),
+            setReconnecting,
+            stillCurrent: () => owns,
+        });
+
+        owns = false;
+        reject(new Error('sidecar down'));
+        await pending;
+
+        expect(setConnected).not.toHaveBeenCalled();
+        expect(setReconnecting).not.toHaveBeenCalled();
+    });
+
+    it('finishes preheating after one acceptance even if the snapshot changes identity', async () => {
+        const enterPreheating = vi.fn();
+        let snapshotted = false;
+        let checks = 0;
+
+        await checkSidecarAndRecoverIdle({
+            getStatus: async () => ({ connected: true, capabilities: ['heater'] }),
+            getPhase: () => 'idle',
+            setConnected: vi.fn(),
+            enterPreheating,
+            onConnectedStatus: () => {
+                snapshotted = true;
+            },
+            stillCurrent: () => {
+                checks += 1;
+                return !snapshotted;
+            },
+        });
+
+        expect(checks).toBe(1);
+        expect(enterPreheating).toHaveBeenCalledWith(['heater']);
+    });
+
     it('toasts once for an idle disconnect after a confirmed link', async () => {
         observeRoastLink({ connected: true, observation: 'valid' });
         const disconnected = async () =>

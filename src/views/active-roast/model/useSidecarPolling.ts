@@ -91,6 +91,8 @@ export async function checkSidecarAndRecoverIdle(deps: {
     onConnectedStatus?: (status: SidecarStatusLike) => void;
     /** Idle status loop owns the notice. Temperature polling reports for every other phase. */
     reportLink?: boolean;
+    /** False once this request's cleanup, generation, machine, or phase no longer owns the result. */
+    stillCurrent?: () => boolean;
 }): Promise<void> {
     const epoch = captureLinkEpoch();
     const report = (connected: boolean, reconnecting: boolean) => {
@@ -99,6 +101,8 @@ export async function checkSidecarAndRecoverIdle(deps: {
     };
     try {
         const s = await deps.getStatus();
+        // Accept once. A later machine snapshot changes identity; checking again would skip preheating.
+        if (deps.stillCurrent && !deps.stillCurrent()) return;
         if (s.connected) {
             deps.setReconnecting?.(false);
             deps.setError?.(null);
@@ -122,6 +126,7 @@ export async function checkSidecarAndRecoverIdle(deps: {
         // reconnecting hold: do not enter preheating from idle until link is solid
     } catch (err) {
         if (isUnauthorizedSidecar(err)) return;
+        if (deps.stillCurrent && !deps.stillCurrent()) return;
         logger.capture(err, { scope: 'sidecarPolling.status' });
         deps.setReconnecting?.(false);
         deps.setConnected(false);
@@ -311,9 +316,13 @@ export const useSidecarPolling = ({
     useEffect(() => {
         if (!isActive || !sidecarReady) return;
 
+        let cancelled = false;
         const idleWatch = phase === 'idle';
         if (idleWatch) setRoastLinkWatch(true);
-        const check = () =>
+        const check = () => {
+            const generation = sidecarGenerationRef.current;
+            const machine = useRoastingStore.getState().machineSnapshot;
+            const phaseAtStart = useRoastingStore.getState().phase;
             void checkSidecarAndRecoverIdle({
                 getStatus: () => sidecar.getStatus(),
                 getPhase: () => useRoastingStore.getState().phase,
@@ -322,18 +331,24 @@ export const useSidecarPolling = ({
                 setReconnecting: (r) => useRoastingStore.getState().setReconnecting(r),
                 setError: (err) => useRoastingStore.getState().setError(err),
                 reportLink: idleWatch,
+                stillCurrent: () =>
+                    !cancelled &&
+                    generation === sidecarGenerationRef.current &&
+                    machine === useRoastingStore.getState().machineSnapshot &&
+                    phaseAtStart === useRoastingStore.getState().phase,
                 onConnectedStatus: (status) => {
                     const snap = snapshotFromSidecar(status, useMachines.getState().machines);
                     if (snap) useRoastingStore.getState().rememberMachineSnapshot(snap);
                 },
             });
+        };
 
         check(); // ready 이후 1회 (기존 isActive 전환 동작 보존)
-        if (!idleWatch) return;
-        const id = setInterval(check, IDLE_STATUS_POLL_MS);
+        const id = idleWatch ? setInterval(check, IDLE_STATUS_POLL_MS) : undefined;
         return () => {
-            setRoastLinkWatch(false);
-            clearInterval(id);
+            cancelled = true;
+            if (idleWatch) setRoastLinkWatch(false);
+            if (id !== undefined) clearInterval(id);
         };
     }, [isActive, phase, sidecarReady]);
 
@@ -415,7 +430,7 @@ export const useSidecarPolling = ({
                 if (data.bt === null || data.bt === undefined) {
                     publishObservation(tick({ bt: null }));
                     const status = await sidecar.getStatus().catch(() => null);
-                    if (cancelled) return;
+                    if (!isCurrentGeneration()) return;
                     const decision = classifySidecarConnection({
                         kind: 'null_bt',
                         dataReconnecting: data.reconnecting,
@@ -557,10 +572,11 @@ export const useSidecarPolling = ({
                     if (isUnauthorizedSidecar(statusErr)) return 'unauthorized' as const;
                     return null;
                 });
-                if (cancelled || status === 'unauthorized') {
-                    if (status === 'unauthorized') skipLinkNotice = true;
+                if (status === 'unauthorized') {
+                    skipLinkNotice = true;
                     return;
                 }
+                if (!isCurrentGeneration()) return;
                 applyConnection(
                     classifySidecarConnection({
                         kind: 'poll_error',
