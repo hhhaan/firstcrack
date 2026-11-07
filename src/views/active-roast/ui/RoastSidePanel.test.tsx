@@ -87,16 +87,18 @@ describe('RoastSidePanel live readings (#358)', () => {
         const readings = container.querySelector('[data-testid="roast-readings"]');
         const et = readings?.querySelector('[data-roast-metric="ET"]');
         const bt = readings?.querySelector('[data-roast-metric="BT"]');
-        expect(et?.textContent).toContain('180.0°C');
+        expect(et?.textContent).toContain('ET (°C)');
+        expect(et?.textContent).toContain('180.0');
+        expect(et?.textContent).not.toContain('180.0°C');
         expect(et?.textContent).toContain('ΔET (30s)');
         expect(et?.textContent).not.toContain('ΔBT');
-        expect(bt?.textContent).toContain('200.0°C');
+        expect(bt?.textContent).toContain('200.0');
         expect(bt?.textContent).toContain('ΔBT (30s)');
         expect(bt?.textContent).not.toContain('Δ Target');
         expect(readings?.querySelector('[data-testid="target-delta"]')).toBeNull();
         expect(
             container.querySelector('[data-testid="roast-summary"] [data-testid="target-delta"]')?.textContent,
-        ).toContain('1.2°');
+        ).toContain('1.2');
         expect(readings?.querySelectorAll('[data-roast-metric]')).toHaveLength(4);
         expect(readings?.textContent).not.toContain('Gas feedback');
         expect(readings?.querySelector('[data-testid="bbp-timer"]')).toBeNull();
@@ -111,9 +113,22 @@ describe('RoastSidePanel live readings (#358)', () => {
         expect(container.querySelector('[data-testid="dtr-row"]')).toBeNull();
 
         renderPanel({ phase: 'standby', charged: false, bbpChargeWait: true, bbpTimer: '1:05' });
-        expect(container.querySelectorAll('[data-roast-metric]')).toHaveLength(3);
+        expect(container.querySelectorAll('[data-roast-metric]')).toHaveLength(2);
+        expect(container.querySelector('[data-roast-metric="RoR"]')).toBeNull();
         expect(container.querySelector('[data-roast-metric="Time"]')).toBeNull();
+        expect(container.textContent).not.toContain('RoR');
         expect(container.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('1:05');
+    });
+
+    it('shows RoR only after charge', () => {
+        renderPanel({ phase: 'preheating', charged: false });
+        expect(container.querySelector('[data-roast-metric="RoR"]')).toBeNull();
+        expect(container.textContent).not.toContain('RoR');
+        expect(container.textContent).not.toContain('12.0');
+        expect(container.querySelector('[data-roast-metric="Time"]')).not.toBeNull();
+
+        renderPanel({ phase: 'roasting', charged: true });
+        expect(container.querySelector('[data-roast-metric="RoR"]')?.textContent).toContain('12.0');
     });
 
     it('hides DTR and Dev until they are calculated', () => {

@@ -1,7 +1,7 @@
 import type { RorSpanSec } from '@features/active-roast';
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast';
+import { cn } from '@shared/lib/cn';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SettingsCheckRow } from '../SettingsOptionRow';
 import { SettingsSection } from '../SettingsSection';
@@ -16,87 +16,73 @@ const SMOOTHING_ROWS: { setting: SmoothingSetting; label: string }[] = [
     { setting: 'etRorSmoothing', label: 'ET RoR' },
 ];
 
-const smoothingRowCls = 'grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-x-3';
+/** Stored strengths stay 0–100. These three are the only choices the screen writes. */
+const SMOOTHING_LEVELS = [
+    { value: 0, key: 'smoothingNone' },
+    { value: 50, key: 'smoothingMedium' },
+    { value: 100, key: 'smoothingHigh' },
+] as const;
+
+/** Legacy values highlight the nearest level. 25 and 75 land on the higher level. */
+const smoothingLevel = (strength: number): (typeof SMOOTHING_LEVELS)[number]['value'] => {
+    if (strength < 25) return 0;
+    if (strength < 75) return 50;
+    return 100;
+};
 
 export const SmoothingControls = () => {
     const { t } = useTranslation();
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
     const roastSettings = useRoastSettings();
-    const [drafts, setDrafts] = useState<Partial<Record<SmoothingSetting, string>>>({});
-    const commit = (setting: SmoothingSetting, value: string | undefined) => {
-        if (value == null) return;
-        setDrafts((prev) => {
-            if (!(setting in prev)) return prev;
-            const next = { ...prev };
-            delete next[setting];
-            return next;
-        });
-        const next = Number(value);
-        if (value.trim() && Number.isFinite(next) && next !== roastSettings[setting]) {
-            updateRoastSettings({ [setting]: next });
-        }
-    };
     const dirty = SMOOTHING_ROWS.some(({ setting }) => roastSettings[setting] !== 0);
+    const select = (setting: SmoothingSetting, value: (typeof SMOOTHING_LEVELS)[number]['value']) => {
+        if (roastSettings[setting] !== value) updateRoastSettings({ [setting]: value });
+    };
 
     return (
         <SettingsSection group="sensors">
             <p className="m-0 text-xs leading-relaxed text-muted">{tk('smoothingHint')}</p>
             <div className="grid gap-2">
-                <div className={`${smoothingRowCls} text-[12px] text-muted`}>
-                    <span />
-                    <span className="flex justify-between">
-                        <span>{tk('btSmoothingFast')}</span>
-                        <span>{tk('btSmoothingSmooth')}</span>
-                    </span>
-                    <span />
-                </div>
                 {SMOOTHING_ROWS.map(({ setting, label }) => {
-                    const committed = roastSettings[setting];
-                    const shown = drafts[setting] ?? String(committed);
+                    const selected = smoothingLevel(roastSettings[setting]);
                     return (
-                        <div key={setting} className={smoothingRowCls}>
-                            <span className="whitespace-nowrap text-[13px] font-medium text-primary">
-                                <span aria-hidden="true">{label}</span>
-                                <span className="sr-only">{tk(setting)}</span>
+                        <div key={setting} className="flex flex-wrap items-center gap-x-8 gap-y-2">
+                            <span
+                                className="w-16 shrink-0 whitespace-nowrap text-[13px] font-medium text-primary"
+                                aria-hidden="true"
+                            >
+                                {label}
                             </span>
-                            <input
-                                type="range"
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={shown === '' ? committed : Number(shown)}
+                            <div
+                                role="radiogroup"
                                 aria-label={tk(setting)}
-                                aria-valuetext={`${shown || committed} / 100`}
-                                className="h-5 w-full accent-palette-black"
-                                onChange={(event) => {
-                                    const value = event.currentTarget.value;
-                                    setDrafts((prev) => ({ ...prev, [setting]: value }));
-                                }}
-                                onPointerUp={(event) => commit(setting, event.currentTarget.value)}
-                                onLostPointerCapture={(event) => commit(setting, event.currentTarget?.value)}
-                                onPointerCancel={(event) => commit(setting, event.currentTarget?.value)}
-                                onKeyUp={(event) => commit(setting, event.currentTarget.value)}
-                                onBlur={(event) => commit(setting, event.currentTarget.value)}
-                            />
-                            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-main-bg focus-within:border-secondary">
-                                <input
-                                    type="number"
-                                    min={0}
-                                    max={100}
-                                    step={1}
-                                    value={shown}
-                                    aria-label={tk(`${setting}Value`)}
-                                    onChange={(event) => {
-                                        const value = event.currentTarget.value;
-                                        setDrafts((prev) => ({ ...prev, [setting]: value }));
-                                    }}
-                                    onBlur={(event) => commit(setting, event.currentTarget.value)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === 'Enter') commit(setting, event.currentTarget.value);
-                                    }}
-                                    className="w-14 bg-transparent text-right text-[13px] font-medium text-primary outline-none"
-                                />
-                                <span className="shrink-0 whitespace-nowrap text-[12px] text-muted">/ 100</span>
+                                className="flex flex-wrap gap-0.5 rounded-lg border border-border bg-main-bg p-0.5"
+                            >
+                                {SMOOTHING_LEVELS.map((level) => {
+                                    const checked = selected === level.value;
+                                    return (
+                                        <label
+                                            key={level.value}
+                                            className={cn(
+                                                'inline-flex h-8 cursor-pointer items-center justify-center rounded-md border px-3 text-[13px] font-medium focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary',
+                                                checked
+                                                    ? 'border-action bg-action text-on-action'
+                                                    : 'border-transparent text-secondary hover:bg-surface',
+                                            )}
+                                        >
+                                            <input
+                                                type="radio"
+                                                className="sr-only"
+                                                name={setting}
+                                                value={level.value}
+                                                checked={checked}
+                                                onChange={() => select(setting, level.value)}
+                                                onClick={() => select(setting, level.value)}
+                                            />
+                                            {tk(level.key)}
+                                        </label>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -104,15 +90,14 @@ export const SmoothingControls = () => {
                 {dirty && (
                     <SurfaceButton
                         className="justify-self-start"
-                        onClick={() => {
-                            setDrafts({});
+                        onClick={() =>
                             updateRoastSettings({
                                 btSmoothing: 0,
                                 etSmoothing: 0,
                                 rorSmoothing: 0,
                                 etRorSmoothing: 0,
-                            });
-                        }}
+                            })
+                        }
                     >
                         {tk('btSmoothingReset')}
                     </SurfaceButton>

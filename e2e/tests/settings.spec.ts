@@ -135,51 +135,41 @@ test('settings shortcut, Feedback, and shortcut editing work through the app she
     await expect(settings).toBeVisible();
 });
 
-test('BT smoothing supports custom strength, keyboard input, reopening and reset', async ({
+test('BT smoothing selects a level, keeps it after reopening, and resets', async ({
     authedPage: page,
 }, testInfo) => {
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     const settings = page.getByTestId('settings-page');
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Sensors & RoR', exact: true }).click();
-    const slider = settings.getByRole('slider', { name: 'BT smoothing strength', exact: true });
-    const value = settings.getByRole('spinbutton', { name: 'BT smoothing strength value', exact: true });
-    await expect(value).toHaveValue('0');
-    await value.fill('75');
-    await value.press('Enter');
-    await expect(slider).toHaveValue('75');
-    await slider.focus();
-    await slider.press('End');
-    await expect(value).toHaveValue('100');
-    await value.fill('80');
-    await value.blur();
-    await expect(slider).toHaveValue('80');
+    const bt = settings.getByRole('radiogroup', { name: 'BT smoothing', exact: true });
+    const none = bt.getByRole('radio', { name: 'None', exact: true });
+    const high = bt.getByRole('radio', { name: 'High', exact: true });
+    await expect(none).toBeChecked();
+    await bt.getByRole('radio', { name: 'Medium', exact: true }).click();
+    await high.click();
+    await expect(high).toBeChecked();
     await settings
         .locator('[data-settings-section]')
         .filter({
-            has: page.getByRole('slider', { name: 'BT smoothing strength', exact: true }),
+            has: page.getByRole('radiogroup', { name: 'BT smoothing', exact: true }),
         })
         .screenshot({ path: testInfo.outputPath('bt-smoothing-custom.png') });
     await settings.getByRole('button', { name: 'Close settings', exact: true }).click();
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Roasting', exact: true }).click();
     await settings.getByRole('navigation').getByRole('button', { name: 'Sensors & RoR', exact: true }).click();
-    await expect(value).toHaveValue('80');
+    await expect(high).toBeChecked();
     const btSection = settings.locator('[data-settings-section]').filter({
-        has: page.getByRole('slider', { name: 'BT smoothing strength', exact: true }),
+        has: page.getByRole('radiogroup', { name: 'BT smoothing', exact: true }),
     });
-    await btSection.getByRole('button', { name: 'Restore default (0)', exact: true }).click();
-    await expect(value).toHaveValue('0');
-    await expect(slider).toHaveValue('0');
-    const etValue = settings.getByRole('spinbutton', { name: 'ET smoothing strength value', exact: true });
-    await expect(etValue).toHaveValue('0');
-    await etValue.fill('25');
-    await etValue.press('Enter');
-    await expect(settings.getByRole('slider', { name: 'ET smoothing strength', exact: true })).toHaveValue('25');
-    await expect(value).toHaveValue('0');
-    await value.fill('');
-    await value.blur();
-    await expect(value).toHaveValue('0');
+    await btSection.getByRole('button', { name: 'Restore default', exact: true }).click();
+    await expect(none).toBeChecked();
+    const et = settings.getByRole('radiogroup', { name: 'ET smoothing', exact: true });
+    await expect(et.getByRole('radio', { name: 'None', exact: true })).toBeChecked();
+    await et.getByRole('radio', { name: 'Medium', exact: true }).click();
+    await expect(et.getByRole('radio', { name: 'Medium', exact: true })).toBeChecked();
+    await expect(none).toBeChecked();
 });
 
 test('settings is a responsive page and preserves existing preferences and entry points', async ({
@@ -327,14 +317,17 @@ test('roasting submenus filter sections while search and saved preferences span 
     const sensors = submenus.getByRole('button', { name: 'Sensors & RoR', exact: true });
     await sensors.focus();
     await sensors.press('Enter');
-    const strength = main.getByRole('spinbutton', { name: 'BT smoothing strength value', exact: true });
-    await strength.fill('65');
-    await strength.press('Enter');
+    const medium = main.getByRole('radiogroup', { name: 'BT smoothing', exact: true }).getByRole('radio', {
+        name: 'Medium',
+        exact: true,
+    });
+    await medium.click();
+    await expect(medium).toBeChecked();
     await submenus.getByRole('button', { name: 'Alerts', exact: true }).click();
     await expect(main.getByRole('heading', { name: 'Live Alarms', exact: true })).toBeVisible();
-    await expect(strength).toBeHidden();
+    await expect(medium).toBeHidden();
     await sensors.click();
-    await expect(strength).toHaveValue('65');
+    await expect(medium).toBeChecked();
 
     const search = settings.getByRole('searchbox', { name: 'Search settings', exact: true });
     await search.fill('temperature unit');
