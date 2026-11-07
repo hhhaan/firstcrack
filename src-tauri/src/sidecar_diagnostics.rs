@@ -116,33 +116,52 @@ fn is_email_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '%' | '+' | '-')
 }
 
+fn email_local_start(text: &str, at: usize) -> usize {
+    let mut start = at;
+    while start > 0 {
+        let ch = text[..start].chars().last().unwrap();
+        if !is_email_char(ch) {
+            break;
+        }
+        start -= ch.len_utf8();
+    }
+    start
+}
+
+fn email_domain_end(text: &str, at: usize) -> usize {
+    let mut end = at + '@'.len_utf8();
+    while end < text.len() {
+        let ch = text[end..].chars().next().unwrap();
+        if !is_email_char(ch) {
+            break;
+        }
+        end += ch.len_utf8();
+    }
+    end
+}
+
+/// Forward-only scan: find a full email span in `text`, emit preceding bytes unchanged.
 fn scrub_emails(text: &str) -> String {
-    let chars: Vec<char> = text.chars().collect();
     let mut out = String::with_capacity(text.len());
-    let mut i = 0;
-    while i < chars.len() {
-        if chars[i] != '@' {
-            out.push(chars[i]);
-            i += 1;
-            continue;
-        }
-        let mut start = i;
-        while start > 0 && is_email_char(chars[start - 1]) {
-            start -= 1;
-        }
-        let mut end = i + 1;
-        while end < chars.len() && is_email_char(chars[end]) {
-            end += 1;
-        }
-        if end > i + 1 && start < i {
-            let local_len = i - start;
-            let keep = out.len().saturating_sub(local_len);
-            out.truncate(keep);
+    let mut cursor = 0usize;
+    while cursor < text.len() {
+        let Some(at_rel) = text[cursor..].find('@') else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        let at = cursor + at_rel;
+        let start = email_local_start(text, at);
+        let end = email_domain_end(text, at);
+        let domain_after_at = at + '@'.len_utf8();
+        let valid = start < at && end > domain_after_at && start >= cursor;
+        if valid {
+            out.push_str(&text[cursor..start]);
             out.push_str(REDACTED);
-            i = end;
+            cursor = end;
         } else {
-            out.push('@');
-            i += 1;
+            let after_at = domain_after_at;
+            out.push_str(&text[cursor..after_at]);
+            cursor = after_at;
         }
     }
     out
@@ -408,6 +427,25 @@ mod tests {
         assert!(!scrubbed.contains("alice"));
         assert!(!scrubbed.contains("smith"));
         assert!(!scrubbed.contains("example.com"));
+        assert_eq!(scrubbed, "contact [redacted] today");
+    }
+
+    #[test]
+    fn scrub_emails_nested_at_preserves_prefix_and_suffix() {
+        let scrubbed = scrub_emails("prefix a@abcdefghijkl@x suffix");
+        assert_eq!(scrubbed, "prefix [redacted]@x suffix");
+        assert!(scrubbed.starts_with("prefix "));
+        assert!(scrubbed.ends_with(" suffix"));
+    }
+
+    #[test]
+    fn scrub_emails_multibyte_neighbors_do_not_panic() {
+        let input = "한 a@abcdefghijkl@x 끝";
+        let scrubbed = std::panic::catch_unwind(|| scrub_emails(input));
+        let scrubbed = scrubbed.expect("scrub_emails must not panic on multibyte text");
+        assert!(scrubbed.contains('한'));
+        assert!(scrubbed.contains('끝'));
+        assert!(!scrubbed.contains("abcdefghijkl"));
         assert!(scrubbed.contains(REDACTED));
     }
 
