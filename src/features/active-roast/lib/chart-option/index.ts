@@ -182,6 +182,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 show: !control,
                 position: 'insideTopLeft' as const,
                 color: colors.axisLabel,
+                fontFamily: AXIS_LABEL_FONT.fontFamily,
+                fontWeight: AXIS_LABEL_FONT.fontWeight,
                 fontSize: scaleChartPx(AXIS_LABEL_FONT.fontSize, fontScale),
             },
             data: showBbp

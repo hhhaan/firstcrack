@@ -351,8 +351,16 @@ describe('buildRoastChartOption font scale', () => {
             expect(option.grid).toMatchObject([
                 { left: CHART_GRID_LEFT, right: CHART_GRID_RIGHT_WITH_ROR, bottom: 65 },
             ]);
-            const bbp = (option.series as { markArea?: { label?: { fontSize?: number } } }[])[0];
-            expect(bbp?.markArea?.label?.fontSize).toBe(14 * fontScale);
+            const bbp = (
+                option.series as {
+                    markArea?: { label?: { fontSize?: number; fontFamily?: string; fontWeight?: number } };
+                }[]
+            )[0];
+            expect(bbp?.markArea?.label).toMatchObject({
+                fontSize: 14 * fontScale,
+                fontFamily: 'Inconsolata',
+                fontWeight: 500,
+            });
             expect(markerLabelFont(fontScale)).toBe(`600 ${12 * fontScale}px Inconsolata`);
         },
     );
