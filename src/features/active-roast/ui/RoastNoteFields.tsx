@@ -1,4 +1,6 @@
 import { useRoastSettings } from '@features/active-roast/model/settings';
+import { feedbackLabel } from '@shared/lib/feedback';
+import type { ReadUnits } from '@shared/types/sidecar';
 import { useLayoutEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,6 +22,7 @@ export const noteValuesFilled = (values: RoastNoteValues) =>
     );
 
 const labelKey = (id: ManualControlId) => (id === 'drum' ? 'activeRoast.controls.drum' : `activeRoast.noteEntry.${id}`);
+const roleFor = { gas: 'heater', airflow: 'fan', drum: 'drum' } as const;
 
 const fitComment = (gas: HTMLInputElement, comment: HTMLTextAreaElement) => {
     comment.style.height = `${gas.offsetHeight}px`;
@@ -34,6 +37,7 @@ export const RoastNoteFields = ({
     prefix,
     commentId,
     machineId,
+    readUnits,
     onlyIds,
     autoFocus = false,
 }: {
@@ -42,14 +46,21 @@ export const RoastNoteFields = ({
     prefix: string;
     commentId: string;
     machineId?: string | null;
+    readUnits?: ReadUnits;
     /** When set, only these builtin channels. Custom virtual rows stay hidden. */
     onlyIds?: readonly ManualControlId[];
     autoFocus?: boolean;
 }) => {
     const { t } = useTranslation();
+    const machineUnits = readUnits && Object.keys(readUnits).length ? readUnits : undefined;
     const controls = manualControlsFor(useRoastSettings(), machineId).filter(
         (control) =>
-            control.enabled && (!onlyIds || (isBuiltinManualControlId(control.id) && onlyIds.includes(control.id))),
+            control.enabled &&
+            (!onlyIds || (isBuiltinManualControlId(control.id) && onlyIds.includes(control.id))) &&
+            (!machineUnits ||
+                !isBuiltinManualControlId(control.id) ||
+                machineUnits[roleFor[control.id]] ||
+                values[control.id]),
     );
     const measureRef = useRef<HTMLInputElement>(null);
     const commentRef = useRef<HTMLTextAreaElement>(null);
@@ -81,9 +92,19 @@ export const RoastNoteFields = ({
     return (
         <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-1 gap-y-1 px-1 text-[11px] text-muted">
             {controls.map((control, index) => {
-                const label = labelFor(control.id, control.label);
+                const role = isBuiltinManualControlId(control.id) ? roleFor[control.id] : undefined;
+                const machineUnit = role ? machineUnits?.[role] : undefined;
+                const label =
+                    role && machineUnit
+                        ? t(
+                              `settings.firescope.feedback.${role === 'fan' && machineUnit === 'Pa' ? 'airPressure' : role}`,
+                              {
+                                  defaultValue: feedbackLabel(role, machineUnits),
+                              },
+                          )
+                        : labelFor(control.id, control.label);
                 const ranged = controlHasRange(control.id);
-                const unit = control.unit.trim();
+                const unit = machineUnit ?? (ranged ? control.unit.trim() : '');
                 const bounds = `${control.min}–${control.max}`;
                 return (
                     <label key={control.id} className="contents" htmlFor={`${prefix}-${control.id}`}>
@@ -110,15 +131,15 @@ export const RoastNoteFields = ({
                                         ranged ? noteControlDraft(event.target.value) : event.target.value,
                                     )
                                 }
-                                className={ranged ? `${inputClass} pr-16` : inputClass}
+                                className={ranged ? `${inputClass} pr-16` : unit ? `${inputClass} pr-8` : inputClass}
                             />
-                            {ranged && (
+                            {(ranged || unit) && (
                                 <span
                                     className="pointer-events-none absolute inset-y-0 right-1.5 flex items-center gap-1 font-inconsolata text-[12px] tabular-nums text-muted"
-                                    title={unit ? `${unit} ${bounds}` : bounds}
+                                    title={ranged ? (unit ? `${unit} ${bounds}` : bounds) : unit}
                                 >
                                     {unit ? <span>{unit}</span> : null}
-                                    <span>{bounds}</span>
+                                    {ranged && <span>{bounds}</span>}
                                 </span>
                             )}
                         </span>

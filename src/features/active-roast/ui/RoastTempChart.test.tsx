@@ -786,6 +786,74 @@ describe('RoastTempChart interactions', () => {
         expect(container.querySelector('[data-chart-note-form]')).toBeNull();
     });
 
+    it.each([false, true])('uses W1A feedback names and units with the control chart hidden: %s', (hidden) => {
+        const onAddNote = vi.fn();
+        const data: ControlData = {
+            ...controlData(undefined),
+            readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }],
+            reference: {
+                xs: [0, 60],
+                heater: [40, 45],
+                fan: [30, 35],
+                drum: [50, 55],
+                readUnits: [{ heater: '%', fan: '%', drum: 'RPM' }],
+            },
+        };
+        act(() =>
+            root.render(
+                createElement(RoastTempChart, {
+                    ...baseProps,
+                    onAddNote,
+                    controlData: hidden ? undefined : data,
+                    printControlData: data,
+                }),
+            ),
+        );
+        act(() =>
+            container
+                .querySelector('[tabindex="-1"]')
+                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+        );
+        const form = container.querySelector('[data-chart-note-form]') as HTMLFormElement;
+        for (const [id, label, unit, value] of [
+            ['gas', 'Heat', '%', '70'],
+            ['airflow', 'Air pressure', 'Pa', '115'],
+            ['drum', 'Drum', 'Hz', '52'],
+        ]) {
+            const input = form.querySelector(`#chart-note-${id}`) as HTMLInputElement;
+            expect(input.closest('label')?.textContent).toBe(`${label}${unit}`);
+            act(() => replaceMarkerTime(input, value));
+        }
+        act(() => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+        expect(onAddNote).toHaveBeenCalledWith('', 9, { gas: '70', airflow: '115', drum: '52' });
+    });
+
+    it('shows only reported machine fields while temperature-only machines retain manual fields', () => {
+        const onAddNote = vi.fn();
+        const render = (readUnits: NonNullable<ControlData['readUnits']>) => {
+            act(() =>
+                root.render(
+                    createElement(RoastTempChart, {
+                        ...baseProps,
+                        onAddNote,
+                        controlData: { ...controlData(undefined), readUnits },
+                    }),
+                ),
+            );
+            act(() =>
+                container
+                    .querySelector('[tabindex="-1"]')
+                    ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+            );
+        };
+        render([{ heater: '%', drum: 'Hz' }]);
+        expect(container.querySelector('#chart-note-gas')).not.toBeNull();
+        expect(container.querySelector('#chart-note-drum')).not.toBeNull();
+        expect(container.querySelector('#chart-note-airflow')).toBeNull();
+        render([{}]);
+        expect(container.querySelector('#chart-note-airflow')).not.toBeNull();
+    });
+
     it('edits a note mark time and the values that were entered', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onEventMarkerEdit = vi.fn();
@@ -811,6 +879,7 @@ describe('RoastTempChart interactions', () => {
                         },
                     ],
                     onEventMarkerEdit,
+                    controlData: { ...controlData(undefined), readUnits: [{ heater: '%', fan: 'Pa', drum: 'Hz' }] },
                 }),
             ),
         );
@@ -822,6 +891,9 @@ describe('RoastTempChart interactions', () => {
         expect((form.querySelector('#chart-marker-gas') as HTMLInputElement).value).toBe('0');
         expect((form.querySelector('#chart-marker-airflow') as HTMLInputElement).value).toBe('50%');
         expect((form.querySelector('#chart-marker-drum') as HTMLInputElement).value).toBe('55');
+        expect(form.querySelector('#chart-marker-gas')?.closest('label')?.textContent).toBe('Heat%');
+        expect(form.querySelector('#chart-marker-airflow')?.closest('label')?.textContent).toBe('Air pressurePa');
+        expect(form.querySelector('#chart-marker-drum')?.closest('label')?.textContent).toBe('DrumHz');
         expect((form.querySelector('#chart-marker-note') as HTMLTextAreaElement).value).toBe('color');
         const time = form.querySelector('#chart-marker-time') as HTMLInputElement;
         act(() => time.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter', shiftKey: true })));

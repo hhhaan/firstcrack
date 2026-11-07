@@ -383,6 +383,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
     const resolvedTheme = useThemeStore((s) => s.resolvedTheme);
     const roastSettings = useRoastSettings();
     const { curveStyles, targetCurveTone } = roastSettings;
+    const noteUnitHistory = (controlData ?? printControlData)?.readUnits;
+    const noteReadUnits = noteUnitHistory?.[noteUnitHistory.length - 1];
     const curves = useCurveStyles();
     const fontScale = roastSettings.fontScalePct / 100;
     const axisSettings = useMemo(() => chartAxisSettings(roastSettings), [roastSettings]);
@@ -1131,6 +1133,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             prefix="chart-note"
                             commentId="chart-note-input"
                             machineId={machineId}
+                            readUnits={noteReadUnits}
                             onlyIds={noteControlIds}
                             autoFocus
                         />
@@ -1259,6 +1262,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                             prefix="chart-marker"
                             commentId="chart-marker-note"
                             machineId={machineId}
+                            readUnits={noteReadUnits}
                             onlyIds={noteControlIds}
                         />
                     )}
