@@ -542,7 +542,7 @@ const RecoveryItem = ({
                         <label className="block space-y-2 text-sm font-medium leading-[1.5] text-primary">
                             <span>{t('activeRoast.recovery.bean')}</span>
                             <FormSelect
-                                className="border-muted text-base focus-visible:outline-2 focus-visible:outline-secondary sm:text-sm"
+                                className="text-base focus-visible:outline-2 focus-visible:outline-secondary sm:text-sm"
                                 value={form.beanId ?? ''}
                                 onChange={(e) => updateForm({ beanId: e.target.value || null })}
                             >
@@ -560,7 +560,7 @@ const RecoveryItem = ({
                             <label className="block space-y-2 text-sm font-medium leading-[1.5] text-primary">
                                 <span>{t('activeRoast.recovery.inputWeight')}</span>
                                 <input
-                                    className={`${inputCls} border-muted text-base sm:text-sm`}
+                                    className={`${inputCls} text-base sm:text-sm`}
                                     name="inputWeight"
                                     inputMode="decimal"
                                     type="number"
@@ -576,7 +576,7 @@ const RecoveryItem = ({
                             <label className="block space-y-2 text-sm font-medium leading-[1.5] text-primary">
                                 <span>{t('activeRoast.recovery.outputWeight')}</span>
                                 <input
-                                    className={`${inputCls} border-muted text-base sm:text-sm`}
+                                    className={`${inputCls} text-base sm:text-sm`}
                                     name="outputWeight"
                                     inputMode="decimal"
                                     type="number"
@@ -601,7 +601,7 @@ const RecoveryItem = ({
                                 <label className="block space-y-2 text-sm font-medium leading-[1.5] text-primary">
                                     <span>{t('activeRoast.recovery.scheduleDate')}</span>
                                     <input
-                                        className={`${inputCls} min-w-0 border-muted text-base sm:text-sm`}
+                                        className={`${inputCls} min-w-0 text-base sm:text-sm`}
                                         name="scheduleDate"
                                         type="date"
                                         value={date}
@@ -611,7 +611,7 @@ const RecoveryItem = ({
                                 <label className="block space-y-2 text-sm font-medium leading-[1.5] text-primary">
                                     <span>{t('activeRoast.recovery.batch')}</span>
                                     <FormSelect
-                                        className="border-muted text-base focus-visible:outline-2 focus-visible:outline-secondary sm:text-sm"
+                                        className="text-base focus-visible:outline-2 focus-visible:outline-secondary sm:text-sm"
                                         value={linked?.planBatchId ?? form.linkedBatchId ?? ''}
                                         onChange={(e) => {
                                             const row = batches.find((b) => b.id === e.target.value);
