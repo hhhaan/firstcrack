@@ -32,13 +32,9 @@ export const RoastSummaryLiveStatus = () => {
     const temps = `BT ${formatTemp(fresh ? bt : null, unit)} · ET ${formatTemp(fresh ? et : null, unit)}`;
 
     return (
-        <section
-            aria-label={t('activeRoast.summary.bbpLive')}
-            data-testid="roast-summary-bbp"
-            className="min-w-0 flex-1 basis-64"
-        >
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                <span className="min-w-0 flex flex-wrap items-baseline gap-x-2">
+        <section aria-label={t('activeRoast.summary.bbpLive')} data-testid="roast-summary-bbp" className="min-w-0">
+            <div className="flex items-baseline gap-x-4">
+                <span className="flex items-baseline gap-x-2">
                     <span className="text-xs font-semibold uppercase text-muted">{t('activeRoast.sidebar.bbp')}</span>
                     <span className="font-inconsolata text-xl font-medium leading-tight text-primary">{elapsed}</span>
                 </span>

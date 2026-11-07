@@ -1252,7 +1252,6 @@
             "workspaceLoading": "工作区仍在加载中，请稍后重试。",
             "batchUnavailable": "所选的排程批次已不可用。",
             "bbpLive": "BBP · 当前烘焙机状态",
-            "scrollHint": "滚动查看其余项目",
             "liveUnavailable": "正在等待新的测量值"
         },
         "planBatch": {

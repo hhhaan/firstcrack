@@ -1646,7 +1646,6 @@
             "workspaceLoading": "작업 공간을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.",
             "batchUnavailable": "선택한 일정 배치는 더 이상 사용할 수 없습니다.",
             "bbpLive": "BBP · 현재 로스터 상태",
-            "scrollHint": "스크롤하여 나머지 항목 확인",
             "liveUnavailable": "새 측정값을 기다리는 중"
         },
         "planBatch": {

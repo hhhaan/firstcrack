@@ -20,8 +20,8 @@ import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
-import { Check, ChevronDown, Coffee, X } from 'lucide-react';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Check, Coffee, X } from 'lucide-react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
@@ -85,9 +85,6 @@ export const RoastSummaryModal = ({
     fallbackBeanName = null,
 }: RoastSummaryModalProps) => {
     const { t } = useTranslation();
-    const panelRef = useRef<HTMLDivElement>(null);
-    const scrollBodyRef = useRef<HTMLDivElement>(null);
-    const [hasMoreFields, setHasMoreFields] = useState(false);
     const snapshot = useRoastingStore((state) => state.completed?.snapshot);
     const { batchTitleNumbering, totalBatchPrefix } = useRoastSettings();
     const { batchCounters } = useRoastProfiles(open ? (snapshot?.sessionOwnerId ?? '') : '');
@@ -185,30 +182,6 @@ export const RoastSummaryModal = ({
         [beans, blends, formBeanId, selectedBeanId, hiddenBeans, t],
     );
 
-    useLayoutEffect(() => {
-        const panel = panelRef.current;
-        const body = scrollBodyRef.current;
-        if (!open || !summaryData || !panel || !body) return;
-
-        const viewports = [panel, body];
-        const update = () =>
-            setHasMoreFields(
-                viewports.some((viewport) => viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop > 1),
-            );
-        const observer = new ResizeObserver(update);
-        observer.observe(panel);
-        observer.observe(body);
-        if (body.firstElementChild) observer.observe(body.firstElementChild);
-        panel.addEventListener('scroll', update);
-        body.addEventListener('scroll', update);
-        update();
-        return () => {
-            observer.disconnect();
-            panel.removeEventListener('scroll', update);
-            body.removeEventListener('scroll', update);
-        };
-    }, [open, summaryData]);
-
     if (!open || !summaryData) {
         return null;
     }
@@ -224,12 +197,11 @@ export const RoastSummaryModal = ({
     return (
         <>
             <ModalShell
-                ref={panelRef}
                 onClose={onClose}
                 dismissable={false}
                 labelledBy="roast-summary-modal-title"
                 overlayClassName="z-[10000] bg-[rgba(23,23,23,0.12)]"
-                contentClassName={`${modalPanel.formXl} visible-scrollbar @container/roast-summary relative [overflow-wrap:anywhere] [@media(max-height:480px)]:overflow-y-auto`}
+                contentClassName={`${modalPanel.formXl} relative`}
             >
                 <button
                     type="button"
@@ -241,7 +213,7 @@ export const RoastSummaryModal = ({
                 >
                     <X size={18} strokeWidth={2.3} />
                 </button>
-                <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-7 pt-6 pb-5 pe-14">
+                <div className="flex shrink-0 items-center gap-3 px-7 pt-6 pb-5 pe-14">
                     <div className="w-9 h-9 shrink-0 rounded-md bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] flex items-center justify-center">
                         <Check size={16} strokeWidth={2.5} />
                     </div>
@@ -252,20 +224,11 @@ export const RoastSummaryModal = ({
                     >
                         {t('activeRoast.summary.title')}
                     </h2>
-                    <p
-                        aria-hidden={!hasMoreFields}
-                        data-testid="roast-summary-scroll-hint"
-                        className={`w-full flex items-center gap-1 text-[11px] text-muted ${hasMoreFields ? '' : 'invisible'}`}
-                    >
-                        <ChevronDown size={14} className="shrink-0" aria-hidden="true" />
-                        {t('activeRoast.summary.scrollHint')}
-                    </p>
                 </div>
 
                 <ModalScrollBody
-                    ref={scrollBodyRef}
-                    className="visible-scrollbar [@media(max-height:480px)]:flex-none [@media(max-height:480px)]:overflow-visible"
-                    contentClassName="grid gap-6 px-7 pb-6 @min-[44rem]/roast-summary:grid-cols-2 @min-[44rem]/roast-summary:gap-x-14"
+                    className="visible-scrollbar"
+                    contentClassName="grid grid-cols-2 gap-6 gap-x-14 px-7 pb-6"
                 >
                     <div className="min-w-0">
                         <div className={`grid grid-cols-3 gap-1.5 ${ambientLine ? 'mb-1' : 'mb-3.5'}`}>
@@ -632,16 +595,16 @@ export const RoastSummaryModal = ({
                     </div>
                 </ModalScrollBody>
 
-                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex flex-wrap items-center gap-x-6 gap-y-3 bg-main-bg dark:bg-main-bg">
+                <div className="shrink-0 px-7 py-4 border-t border-black/5 dark:border-border flex items-center gap-6 bg-main-bg dark:bg-main-bg">
                     {showBbpLive && <RoastSummaryLiveStatus />}
-                    <div className="min-w-0 max-w-full ms-auto flex flex-wrap justify-end gap-2">
+                    <div className="ms-auto flex shrink-0 justify-end gap-2">
                         {canCancelDrop && (
                             <button
                                 type="button"
                                 data-testid="roast-summary-cancel-drop"
                                 onClick={onCancelDrop}
                                 disabled={isSaving}
-                                className="min-w-0 max-w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 {t('activeRoast.unsaved.cancelDrop')}
                             </button>
@@ -658,7 +621,7 @@ export const RoastSummaryModal = ({
                                 });
                                 if (ok) onDiscard();
                             }}
-                            className="min-w-0 max-w-full px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
+                            className="px-4 py-2.5 rounded-lg bg-surface dark:bg-[#262B31] text-secondary text-sm font-medium cursor-pointer tracking-[0.14px] dark:border dark:border-border"
                         >
                             {t('activeRoast.summary.discard')}
                         </button>
@@ -667,7 +630,7 @@ export const RoastSummaryModal = ({
                             data-testid="roast-summary-save"
                             onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
                             disabled={isSaving}
-                            className="min-w-32 max-w-full px-6 py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="min-w-32 px-6 py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                             {isSaving && <Spinner />}
                             {t('activeRoast.summary.save')}

@@ -5,7 +5,7 @@ import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { RoastSummaryModal } from './RoastSummaryModal';
 
 vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
@@ -70,22 +70,6 @@ const baseProps = {
     onSave: async () => {},
 };
 
-const resizeCallbacks = new Set<() => void>();
-
-beforeEach(() => {
-    resizeCallbacks.clear();
-    vi.stubGlobal(
-        'ResizeObserver',
-        class {
-            constructor(callback: () => void) {
-                resizeCallbacks.add(callback);
-            }
-            observe = vi.fn();
-            disconnect = vi.fn();
-        },
-    );
-});
-
 afterEach(() => {
     vi.unstubAllGlobals();
     planMock.batches = [];
@@ -107,30 +91,14 @@ const renderModal = (props: Partial<Parameters<typeof RoastSummaryModal>[0]> = {
     };
 };
 
-it('shows a scroll cue for remaining fields in either the body or the short-window dialog', () => {
+it('keeps the wide two-column summary', () => {
     const { unmount } = renderModal();
-    const dialog = document.querySelector<HTMLDivElement>('[role="dialog"]');
-    const body = dialog?.querySelector<HTMLDivElement>('.overflow-y-auto');
-    const hint = dialog?.querySelector('[data-testid="roast-summary-scroll-hint"]');
-    expect(dialog).not.toBeNull();
-    expect(body).not.toBeNull();
-    if (!dialog || !body) throw new Error('Summary dialog is missing');
-
-    for (const viewport of [body, dialog]) {
-        Object.defineProperties(viewport, {
-            clientHeight: { configurable: true, value: 100 },
-            scrollHeight: { configurable: true, value: 300 },
-        });
-        act(() => {
-            for (const resize of resizeCallbacks) resize();
-        });
-        expect(hint?.getAttribute('aria-hidden')).toBe('false');
-        act(() => {
-            viewport.scrollTop = 200;
-            viewport.dispatchEvent(new Event('scroll'));
-        });
-        expect(hint?.getAttribute('aria-hidden')).toBe('true');
-    }
+    const dialog = document.querySelector('[role="dialog"]');
+    const columns = dialog?.querySelector('.grid');
+    expect(dialog?.className).not.toContain('@container');
+    expect(document.querySelector('[data-testid="roast-summary-scroll-hint"]')).toBeNull();
+    expect(columns?.className).toContain('grid-cols-2');
+    expect(columns?.className).not.toContain('@min-');
     unmount();
 });
 
