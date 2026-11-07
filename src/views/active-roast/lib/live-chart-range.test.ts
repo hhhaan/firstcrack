@@ -35,3 +35,12 @@ it.each([180, 600, 840, 900, 1200])('fixes the BBP viewport at 900 seconds after
         growLiveChartExtent(extent, { ...input, origin, latest: latest - origin, fixedRight: 900 }).right - origin,
     ).toBe(900);
 });
+
+it('keeps an unchanged fixed extent and updates it for growth, rolling, settings, or a new timeline', () => {
+    const fixed = { ...input, fixedRight: 1080 };
+    const initial = growLiveChartExtent(null, fixed);
+    expect(growLiveChartExtent(initial, { ...fixed, latest: 501 })).toBe(initial);
+    for (const change of [{ fixedRight: 1081 }, { origin: 1 }, { span: 1081 }, { key: 'b' }]) {
+        expect(growLiveChartExtent(initial, { ...fixed, ...change })).not.toBe(initial);
+    }
+});

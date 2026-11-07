@@ -103,13 +103,8 @@ export const useChartPipeline = (params: UseChartPipelineParams): UseChartPipeli
         rememberExtent(rangeInput);
     }, [rangeInput]);
     const maxTime = extent.right - coordinateOrigin;
-    const { chartData, targetSeries } = useMemo(
-        () => ({
-            chartData: buildLiveChartData(livePoints, xMin, 0, maxTime),
-            targetSeries: referenceCurveFromPoints(targetCurvePoints),
-        }),
-        [livePoints, targetCurvePoints, xMin, maxTime],
-    );
+    const chartData = useMemo(() => buildLiveChartData(livePoints, xMin, 0, maxTime), [livePoints, xMin, maxTime]);
+    const targetSeries = useMemo(() => referenceCurveFromPoints(targetCurvePoints), [targetCurvePoints]);
 
     const minTime = xMin;
     const chartRightGridPad = showRoR || showRoRET || showControlChart ? CHART_GRID_RIGHT_WITH_ROR : CHART_GRID_RIGHT;

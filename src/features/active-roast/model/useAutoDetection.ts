@@ -395,7 +395,10 @@ export const useAutoDetection = ({
         onTurningPoint(confirmedTP);
     }, [confirmedTP, onTurningPoint]);
 
-    const turningPoints = confirmedTP !== null ? [confirmedTP] : detectedTPs;
+    const turningPoints = useMemo(
+        () => (confirmedTP !== null ? [confirmedTP] : detectedTPs),
+        [confirmedTP, detectedTPs],
+    );
 
     // Manual charge를 누를 때 호출해 auto-charge race 방지
     const disableAutoCharge = useCallback(() => {

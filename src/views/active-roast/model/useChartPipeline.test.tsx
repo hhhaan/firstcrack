@@ -21,6 +21,41 @@ const point = (time: number) => ({
 });
 
 describe('continuous chart viewport', () => {
+    it('retains the reference while live samples advance and updates it when the reference or unit changes', () => {
+        const root = createRoot(document.createElement('div'));
+        let chart: UseChartPipelineReturn | undefined;
+        let params: UseChartPipelineParams = {
+            livePoints: [point(0)],
+            targetCurvePoints: [{ t: 0, bt: 200, et: null, ror: null, heater: 0, fan: 0, drum: 0 }],
+            xMin: 0,
+            xMaxFloor: 900,
+            showRoR: true,
+            showControlChart: true,
+            unit: 'C',
+        };
+        const Probe = () => {
+            chart = useChartPipeline(params);
+            return null;
+        };
+        const render = () => act(() => root.render(createElement(Probe)));
+        try {
+            render();
+            const reference = chart?.targetSeries;
+            params = { ...params, livePoints: [point(0), point(1)] };
+            render();
+            expect(chart?.visibleControlXs).toEqual([0, 1]);
+            expect(chart?.targetSeries).toBe(reference);
+            params = { ...params, targetCurvePoints: [{ ...params.targetCurvePoints[0], bt: 210 }] };
+            render();
+            expect(chart?.visibleTargetBt).toEqual([210]);
+            params = { ...params, unit: 'F' };
+            render();
+            expect(chart?.visibleTargetBt).toEqual([410]);
+        } finally {
+            act(() => root.unmount());
+        }
+    });
+
     it('preserves a manually selected real interval at Charge and during growth, then resumes automatic view', () => {
         const root = createRoot(document.createElement('div'));
         let chart: UseChartPipelineReturn | undefined;

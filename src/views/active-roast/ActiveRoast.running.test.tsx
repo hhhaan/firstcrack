@@ -52,6 +52,7 @@ const chart = vi.hoisted(() => ({
     containPixel: vi.fn(() => true),
     convertFromPixel: vi.fn(() => Number.NaN),
     convertToPixel: vi.fn(() => Number.NaN),
+    dispatchAction: vi.fn(),
     dispose: vi.fn(),
     getDataURL: vi.fn(() => ''),
     getOption: vi.fn(() => ({})),
@@ -71,9 +72,10 @@ vi.mock('echarts', () => ({
     graphic: { clipRectByRect: vi.fn(() => null) },
 }));
 
-vi.mock('react-i18next', () => ({
-    useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'en' } }),
-}));
+vi.mock('react-i18next', () => {
+    const t = (key: string) => key;
+    return { useTranslation: () => ({ t, i18n: { language: 'en' } }) };
+});
 
 vi.mock('@entities/organization', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/organization')>();
@@ -282,6 +284,78 @@ describe('ActiveRoast running clock (#627)', () => {
         vi.unstubAllGlobals();
         vi.useRealTimers();
         Reflect.deleteProperty(window, '__TAURI_INTERNALS__');
+    });
+
+    it('keeps polling and live readouts without resubmitting unchanged curves, then applies chart changes', async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout', 'Date'] });
+        const status = await sidecar.getStatus();
+        vi.mocked(sidecar.getStatus).mockImplementation(async () => structuredClone(status));
+        const settings = getRoastSettings();
+        const measurement = { bt: 185, et: 210, ror: 5, ror_et: 4, heater: 40, fan: 30, drum: 50 };
+        const points = [0, 5].map((time) => ({ ...measurement, time, label: '' }));
+        seed({ liveData: measurement, livePoints: points });
+        useRoastingStore.setState({ tick: () => {} });
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            chart.setOption.mockClear();
+            const polls = vi.mocked(sidecar.getStatus).mock.calls.length;
+            await advance(3000);
+            expect(vi.mocked(sidecar.getStatus).mock.calls.length).toBe(polls + 3);
+            expect(chart.setOption).not.toHaveBeenCalled();
+
+            act(() => useRoastingStore.setState({ liveData: { ...measurement, bt: 199, et: 220 } }));
+            expect(host.querySelector('[data-roast-metric="BT"]')?.textContent).toContain('199');
+            expect(host.querySelector('[data-roast-metric="ET"]')?.textContent).toContain('220');
+            expect(chart.setOption).not.toHaveBeenCalled();
+
+            act(() => useRoastingStore.setState({ elapsed: 6 }));
+            expect(chart.setOption).toHaveBeenCalled();
+            chart.setOption.mockClear();
+            act(() => useRoastingStore.setState({ livePoints: [...points, { ...points[1], time: 6, bt: 199 }] }));
+            expect(chart.setOption).toHaveBeenCalled();
+            chart.setOption.mockClear();
+            act(() => updateRoastSettings({ temperatureUnit: 'F', showET: false }));
+            expect(chart.setOption).toHaveBeenCalled();
+            chart.setOption.mockClear();
+            act(() =>
+                useRoastingStore.getState().setLogState({
+                    entries: [{ id: 'note', event: 'Note', time: '0:02', timeSec: 2, temp: '', note: 'marked' }],
+                    unwind: false,
+                }),
+            );
+            expect(chart.setOption).toHaveBeenCalled();
+        } finally {
+            unmount();
+            updateRoastSettings(settings);
+            vi.mocked(sidecar.getStatus).mockResolvedValue(status);
+        }
+    });
+
+    it('updates the BBP clock without resubmitting its curve and submits newly accepted measurements', async () => {
+        const settings = getRoastSettings();
+        updateRoastSettings({ bbpEnabled: true });
+        seed({ phase: 'standby', roastStartMs: 0, elapsed: 0, sessionId: null });
+        const unmount = mount((client) => client.setQueryData(profileKeys.detail(''), { plan: 'tester' }));
+        try {
+            await flushMicrotasks();
+            act(() =>
+                useBbpStore.getState().begin(Date.now() - 360_000, [
+                    { t: 0, bt: 180, et: 200, heater: 20, fan: 30, drum: 40 },
+                    { t: 360, bt: 181, et: 201, heater: 20, fan: 30, drum: 40 },
+                ]),
+            );
+            expect(host.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('6:00');
+            chart.setOption.mockClear();
+            await advance(3000);
+            expect(host.querySelector('[data-testid="bbp-timer"]')?.textContent).toContain('6:03');
+            expect(chart.setOption).not.toHaveBeenCalled();
+            act(() => useBbpStore.getState().append({ bt: 182, et: 202, heater: 0, fan: 40, drum: 50 }, Date.now()));
+            expect(chart.setOption).toHaveBeenCalled();
+        } finally {
+            unmount();
+            updateRoastSettings(settings);
+        }
     });
 
     it('manual Drop completes the batch', async () => {

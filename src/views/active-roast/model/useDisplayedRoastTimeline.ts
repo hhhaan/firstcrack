@@ -1,4 +1,5 @@
 import { splitBatchBbp } from '@features/active-roast/lib/batch-timeline';
+import { bbpEventsForDisplay } from '@features/active-roast/lib/bbp-events';
 import { storedEventsToLogEntries } from '@features/active-roast/lib/serialize-roast-events';
 import { selectReviewSnapshot } from '@features/active-roast/model/batch';
 import { useBbpStore } from '@features/active-roast/model/bbp';
@@ -145,28 +146,31 @@ export const useDisplayedRoastTimeline = (params: Params) => {
         ],
     );
     const currentEditing = useMemo(() => editingFor(roast, bbp, view, settings), [roast, bbp, view, settings]);
+    const bbpNowSec = bbp.points[bbp.points.length - 1]?.t ?? 0;
+    const displayingBbpEntries = !snapshot && bbp.active;
+    let entryOrigin = snapshot ? null : dropWaitOffsetFor(roast);
+    if (displayingBbpEntries) entryOrigin = view.eventTimeOrigin;
+    const bbpEnd = displayingBbpEntries ? (view.bbpRange?.end ?? Math.max(0, bbpNowSec - view.eventTimeOrigin)) : 0;
+    const entryCapture = snapshot?.bbpCapture ?? roast.bbpCapture;
     const entries = useMemo(() => {
-        if (!snapshot && currentEditing.kind === 'bbp') {
-            const displayed = currentEditing.displayEntries(bbp.events);
-            const bbpEnd = view.bbpRange?.end ?? currentEditing.maxTimeSec;
+        if (displayingBbpEntries) {
+            const displayed = bbpEventsForDisplay(bbp.events, entryOrigin ?? 0);
             return displayed.filter((entry) => (entry.timeSec ?? 0) <= bbpEnd);
         }
-        if (!snapshot && currentEditing.kind === 'live' && currentEditing.waiting)
-            return currentEditing.displayEntries(curveEntries);
-        const capture = snapshot?.bbpCapture ?? roast.bbpCapture;
+        if (entryOrigin != null) return bbpEventsForDisplay(curveEntries, entryOrigin);
         const before =
-            capture && bbpEnabled && settings.bbpJoinCharge ? (splitBatchBbp(capture).bbp?.events ?? []) : [];
+            entryCapture && bbpEnabled && settings.bbpJoinCharge ? (splitBatchBbp(entryCapture).bbp?.events ?? []) : [];
         return [...storedEventsToLogEntries(before, unit, true), ...curveEntries];
     }, [
-        snapshot,
-        currentEditing,
+        displayingBbpEntries,
+        entryOrigin,
+        bbpEnd,
         bbp.events,
         curveEntries,
-        roast.bbpCapture,
+        entryCapture,
         bbpEnabled,
         settings.bbpJoinCharge,
         unit,
-        view.bbpRange,
     ]);
     const capture = bbpEnabled && settings.bbpJoinCharge ? (snapshot?.bbpCapture ?? roast.bbpCapture) : null;
     let identity = `roast:${roast.sessionId ?? 'pre'}`;
@@ -223,7 +227,6 @@ export const useDisplayedRoastTimeline = (params: Params) => {
             currentRoast.rawBT,
         ).noteNow();
     }, []);
-    const bbpNowSec = bbp.points[bbp.points.length - 1]?.t ?? 0;
     return {
         chart,
         entries,
