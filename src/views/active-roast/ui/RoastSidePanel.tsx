@@ -40,9 +40,6 @@ interface RoastSidePanelProps {
     unit: TemperatureUnit;
     /** machine lifecycle phase (preheating/standby/roasting/ended) — control buttons */
     phase: string;
-    /** roast chemistry phase display name (Drying/Maillard/Development/…) */
-    roastPhaseName: string;
-    roastPhaseColor: string;
     readFeedback?: ReactNode;
     charged: boolean;
     roastEnded: boolean;
@@ -93,8 +90,6 @@ export const RoastSidePanel = ({
     timeStr,
     unit,
     phase,
-    roastPhaseName,
-    roastPhaseColor,
     readFeedback,
     charged,
     roastEnded,
@@ -269,16 +264,6 @@ export const RoastSidePanel = ({
                 </div>
             )}
             {readFeedback}
-            {/* Phase */}
-            <div className="flex items-center justify-between border-t border-border-subtle pt-3">
-                <span className="text-xs text-muted font-semibold uppercase">Phase</span>
-                <span
-                    className="font-(--font-body) text-base font-medium leading-tight tracking-tight"
-                    style={{ color: roastPhaseColor }}
-                >
-                    {roastPhaseName}
-                </span>
-            </div>
             {bbpTimer != null && (
                 <div className="flex items-center justify-between" data-testid="bbp-timer">
                     <span className="text-xs text-muted font-semibold uppercase">{t('activeRoast.sidebar.bbp')}</span>
