@@ -2,19 +2,76 @@ use std::collections::VecDeque;
 
 use serde_json::{json, Value};
 
+use crate::sentry_config;
+
 // Keep the last few error stages per process without retaining arbitrary stderr text.
 const RECENT_LIMIT: usize = 12;
+const STDERR_TAIL_MAX_LINES: usize = 40;
+const STDERR_TAIL_MAX_BYTES: usize = 4096;
+/// ponytail: raw buffer ceiling — tail formatter keeps last 40 lines / 4KiB only.
+const STDERR_RAW_CAP_BYTES: usize = 16_384;
 
 #[derive(Default)]
 pub(crate) struct StderrDiagnostics {
     chunks_seen: u64,
     unclassified_chunks: u64,
     recent: VecDeque<Value>,
+    raw_stderr: String,
 }
+
+fn home_dir_prefix() -> Option<String> {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
+    let home = home.to_string_lossy();
+    if home.is_empty() {
+        return None;
+    }
+    Some(home.into_owned())
+}
+
+/// Last ~40 lines, ≤4KiB, secrets scrubbed, home dir → `~`.
+pub(crate) fn format_stderr_tail(raw: &str) -> String {
+    let lines: Vec<&str> = raw.lines().collect();
+    let skip = lines.len().saturating_sub(STDERR_TAIL_MAX_LINES);
+    let mut joined = lines[skip..].join("\n");
+    if joined.len() > STDERR_TAIL_MAX_BYTES {
+        let excess = joined.len() - STDERR_TAIL_MAX_BYTES;
+        let mut start = excess;
+        while start < joined.len() && !joined.is_char_boundary(start) {
+            start += 1;
+        }
+        joined = joined[start..].to_string();
+        if let Some(rest) = joined.strip_prefix('\n') {
+            joined = rest.to_string();
+        }
+    }
+    scrub_stderr_tail(&joined)
+}
+
+pub(crate) fn scrub_stderr_tail(text: &str) -> String {
+    let mut out = sentry_config::scrub(text);
+    if let Some(home) = home_dir_prefix() {
+        out = out.replace(&home, "~");
+    }
+    out
+}
+
+impl StderrDiagnostics {
+    fn append_raw_stderr(&mut self, bytes: &[u8]) {
+        self.raw_stderr.push_str(&String::from_utf8_lossy(bytes));
+        if self.raw_stderr.len() > STDERR_RAW_CAP_BYTES {
+            let excess = self.raw_stderr.len() - STDERR_RAW_CAP_BYTES;
+            let mut start = excess;
+            while start < self.raw_stderr.len() && !self.raw_stderr.is_char_boundary(start) {
+                start += 1;
+            }
+            self.raw_stderr = self.raw_stderr[start..].to_string();
+        }
+    }
 
 impl StderrDiagnostics {
     pub(crate) fn record(&mut self, bytes: &[u8], uptime_ms: u64) {
         self.chunks_seen = self.chunks_seen.saturating_add(1);
+        self.append_raw_stderr(bytes);
         let text = String::from_utf8_lossy(bytes).to_lowercase();
         let mut observed_codes = Vec::new();
         for (pattern, code) in [
@@ -75,10 +132,12 @@ impl StderrDiagnostics {
 
     pub(crate) fn take(&mut self) -> Value {
         let previous = std::mem::take(self);
+        let sidecar_stderr_tail = format_stderr_tail(&previous.raw_stderr);
         json!({
             "chunks_seen": previous.chunks_seen,
             "unclassified_chunks": previous.unclassified_chunks,
             "recent": previous.recent,
+            "sidecar_stderr_tail": sidecar_stderr_tail,
         })
     }
 }
@@ -100,6 +159,9 @@ mod tests {
         assert_eq!(evidence["recent"][0]["code"], "python_traceback");
         assert_eq!(evidence["recent"][1]["code"], "timeout");
         assert_eq!(evidence["recent"][2]["code"], "access_violation");
+        let tail = evidence["sidecar_stderr_tail"].as_str().unwrap();
+        assert!(tail.contains("Traceback"));
+        assert!(tail.contains("access violation"));
         for secret in [
             "alice",
             "private.py",
@@ -107,9 +169,55 @@ mod tests {
             "192.0.2.1",
             "example.com",
         ] {
-            assert!(!evidence.to_string().contains(secret));
+            assert!(!evidence.to_string().contains(secret), "leaked {secret}");
         }
         assert_eq!(diagnostics.take()["chunks_seen"], 0);
+    }
+
+    #[test]
+    fn stderr_tail_keeps_last_lines_and_byte_cap() {
+        for line in 0..60 {
+            let mut diagnostics = StderrDiagnostics::default();
+            for i in 0..=line {
+                diagnostics.record(format!("line-{i}\n").as_bytes(), i);
+            }
+            let tail = diagnostics.take()["sidecar_stderr_tail"]
+                .as_str()
+                .unwrap()
+                .to_string();
+            let line_count = tail.lines().count();
+            assert!(line_count <= STDERR_TAIL_MAX_LINES, "{line_count} lines at {line}");
+            if line >= STDERR_TAIL_MAX_LINES {
+                assert!(!tail.contains("line-0\n"));
+                assert!(tail.contains(format!("line-{line}")));
+            }
+        }
+
+        let filler = "x".repeat(STDERR_TAIL_MAX_BYTES + 500);
+        let mut diagnostics = StderrDiagnostics::default();
+        diagnostics.record(b"marker-start\n", 0);
+        diagnostics.record(filler.as_bytes(), 1);
+        diagnostics.record(b"marker-end", 2);
+        let tail = diagnostics.take()["sidecar_stderr_tail"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert!(tail.len() <= STDERR_TAIL_MAX_BYTES);
+        assert!(tail.contains("marker-end"));
+        assert!(!tail.contains("marker-start"));
+    }
+
+    #[test]
+    fn scrub_stderr_tail_replaces_home_and_redacts_secrets() {
+        let home = home_dir_prefix().unwrap_or_else(|| "/home/testuser".to_string());
+        let raw = format!(
+            "File {home}/app/main.py\nSIDECAR_TOKEN=deadbeef host=10.0.0.2"
+        );
+        let scrubbed = scrub_stderr_tail(&raw);
+        assert!(scrubbed.contains("~/app/main.py") || scrubbed.contains("File ~/"));
+        assert!(!scrubbed.contains("deadbeef"));
+        assert!(!scrubbed.contains("10.0.0.2"));
+        assert!(!scrubbed.contains(&home));
     }
 
     #[test]
