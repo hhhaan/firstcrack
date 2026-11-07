@@ -178,6 +178,7 @@ it('keeps temperature curves and phase marks without a phase bar or machine cont
     const props = mocks.chart.mock.lastCall?.[0];
     expect(props?.controlData).toBeUndefined();
     expect(props?.printControlData).toBeUndefined();
+    expect(props?.showTooltip).toBe(false);
     expect(props?.height).toBe(360);
     expect(props?.fontScale).toBe(11 / 12);
     expect(props?.eventMarkers.map((marker) => marker.event)).toEqual([
