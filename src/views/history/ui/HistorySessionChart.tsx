@@ -41,6 +41,7 @@ import { combineBbpCurve } from '@shared/lib/roast-curve';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
+import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { ChartNoAxesCombined, FileDown } from 'lucide-react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -149,10 +150,9 @@ export function HistorySessionChart({
         showProfileDrum,
         showProfileHeat,
         showProfileFan,
-        bbpJoinCharge,
         recordVirtualControls,
     } = settings;
-    const joinBbp = bbpJoinCharge !== false;
+    const [joinBbp, setJoinBbp] = useState(true);
     const resolvedTheme = useThemeStore((state) => state.resolvedTheme);
     const roast = useHistoryChart(orNull(session.tsv_path));
     const bbp = useBbpCurve(session.user_id, session.id, session.bbp_tsv_path);
@@ -331,6 +331,9 @@ export function HistorySessionChart({
                         </button>,
                         exportContainer,
                     )}
+                <SurfaceButton aria-pressed={joinBbp} onClick={() => setJoinBbp((shown) => !shown)}>
+                    {t(joinBbp ? 'history.hideBbp' : 'history.showBbp')}
+                </SurfaceButton>
                 <SavedCurveLegend
                     points={points}
                     settings={settings}

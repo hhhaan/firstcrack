@@ -31,8 +31,11 @@ available roast reference, joined at the measured wait's end. The cap is not a
 reserved background: no saved and no measured BBP means no gray region, and
 shorter measured waits shade only their actual span on both grids. After Charge the live chart
 keeps that batch's measured BBP at negative times and continues the roast at 00:00
-when `bbpJoinCharge` is on. It defaults to off. When it is off, the charged live chart,
-its event log, and History start at Charge. The pre-Charge wait chart is unchanged.
+when `bbpJoinCharge` is on. It defaults to off. When it is off, the charged live chart
+and its event log start at Charge. History independently includes saved BBP by
+default; its chart button hides or restores actual and target BBP together, and
+PDF export follows that selection. This view-only choice is not persisted and
+does not change the live setting. The pre-Charge wait chart is unchanged.
 Recording and save do not follow this switch.
 The two grids share the same range. The recorded BBP belongs to the incoming roast,
 not to the previous completed batch (#1048).

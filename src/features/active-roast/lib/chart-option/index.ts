@@ -62,8 +62,8 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
               ),
               phaseSegments: [],
               showFcBand: false,
-              bbpRange: undefined,
-              xViewMin: 0,
+              bbpRange: params.bbpRange,
+              xViewMin: params.bbpRange?.start ?? 0,
               xViewMax: printEnd ?? params.xs[params.xs.length - 1],
           }
         : params;

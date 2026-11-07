@@ -126,6 +126,27 @@ it('prints each recorded control in its own plot while keeping screen controls i
     });
 });
 
+it.each([false, true])('fits printed temperature and control plots to selected BBP visibility (BBP: %s)', (showBbp) => {
+    const xs = showBbp ? [-92, -2, 0, 60] : [0, 60];
+    const btActual = showBbp ? [210, 195, 195, 155] : [195, 155];
+    const paper = buildRoastChartOption({
+        ...baseParams(),
+        print: true,
+        xs,
+        btActual,
+        bbpRange: showBbp ? { start: -92, end: 0 } : undefined,
+        eventMarkers: [{ event: 'Drop', timeSec: 60, timeStr: '1:00', temp: '155°C', color: '#777' }],
+        controlData: { xs, drumTemp: xs.map(() => 50), heatPower: xs.map(() => 20), fanSpeed: xs.map(() => 30) },
+    });
+    const axes = Array.isArray(paper.xAxis) ? paper.xAxis : [];
+    expect(axes).toHaveLength(4);
+    for (const axis of axes) expect(axis).toMatchObject({ min: showBbp ? -92 : 0, max: 60 });
+    const series = Array.isArray(paper.series) ? paper.series : [];
+    expect(series.find((curve) => curve.name === 'BT Actual')).toMatchObject({
+        data: xs.map((t, index) => [t, btActual[index]]),
+    });
+});
+
 it.each(['C', 'F'] as const)(
     'keeps the printed RoR axis fixed at -10 to 20 in °%s without changing recorded samples or screen axes',
     (unit) => {

@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
     query: { data: [] as TsvPoint[], isLoading: false, isError: false },
     roast: { points: [] as TsvPoint[], isLoading: false, isError: false },
     target: [] as TsvPoint[],
+    targetBbp: [] as TsvPoint[],
     targetSource: 'session',
     chart: vi.fn(),
     useBbpCurve: vi.fn(),
@@ -22,7 +23,7 @@ vi.mock('@entities/roast', () => ({
     sessionBeanName: () => 'E2E Ethiopia',
     useBbpCurve: (...args: unknown[]) => {
         mocks.useBbpCurve(...args);
-        return args[1] === 'charge-session' ? mocks.query : { data: [] };
+        return args[1] === 'charge-session' ? mocks.query : { data: mocks.targetBbp };
     },
 }));
 vi.mock('@features/export-history-pdf', () => ({
@@ -31,9 +32,19 @@ vi.mock('@features/export-history-pdf', () => ({
 }));
 vi.mock('@shared/store/toast', () => ({ useToastStore: { getState: () => ({ show: vi.fn() }) } }));
 vi.mock('@entities/roast-profile', () => ({
-    useRoastProfiles: () => ({ data: [] }),
+    useRoastProfiles: () => ({
+        data: [
+            {
+                id: 'target-profile',
+                user_id: 'owner',
+                name: 'Reference',
+                source_session_id: 'target-session',
+                source_session: { tsv_path: 'target.tsv', bbp_tsv_path: 'target.bbp.tsv', bbp_seconds: 120 },
+            },
+        ],
+    }),
     useResolvedProfileCurve: () => ({ points: mocks.target, source: mocks.targetSource }),
-    resolveSourceSession: () => null,
+    resolveSourceSession: (source: unknown) => source,
 }));
 vi.mock('@features/active-roast', async () => ({
     ...(await vi.importActual('@features/active-roast/lib/temperature')),
@@ -62,6 +73,7 @@ vi.mock('@features/active-roast', async () => ({
         showProfileDrum: true,
         showProfileHeat: true,
         showProfileFan: true,
+        bbpJoinCharge: false,
         ...mocks.settingsOverrides,
     }),
     useCurveStyles: () => {
@@ -330,4 +342,72 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
     await act(async () => root.unmount());
 });
 
-beforeEach(() => {});
+it('toggles actual and target BBP independently of live settings, including PDF inputs', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    const session = {
+        id: 'charge-session',
+        user_id: 'owner',
+        profile_id: 'target-profile',
+        tsv_path: 'saved.tsv',
+        bbp_tsv_path: 'saved.bbp.tsv',
+        bbp_seconds: 92,
+        duration_seconds: 60,
+    } as ComponentProps<typeof HistorySessionChart>['session'];
+    const point = (t: number, bt: number): TsvPoint => ({
+        t,
+        bt,
+        et: null,
+        ror: null,
+        heater: 20,
+        fan: 30,
+        drum: 60,
+    });
+    mocks.roast.points = [point(0, 185), point(60, 150)];
+    mocks.query.data = [point(0, 250), point(90, 185)];
+    mocks.target = [point(0, 190), point(60, 155)];
+    mocks.targetBbp = [point(0, 280), point(110, 190)];
+    await act(async () => root.render(<HistorySessionChart session={session} exportContainer={null} />));
+    const toggle = container.querySelector('button[aria-pressed]');
+    if (!(toggle instanceof HTMLButtonElement)) throw new Error('Missing BBP toggle');
+    expect(toggle.textContent).toBe('history.hideBbp');
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        xs: [-92, -2, 0, 60],
+        targetXs: [-120, -10, 0, 60],
+        bbpRange: { start: -120, end: 0 },
+        xViewMin: -120,
+        printControlData: { xs: [-92, -2, 0, 60] },
+        printTempBounds: { tempMinC: 140, tempMaxC: 290 },
+    });
+    await act(async () => toggle.click());
+    expect(toggle.textContent).toBe('history.showBbp');
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        xs: [0, 60],
+        targetXs: [0, 60],
+        bbpRange: undefined,
+        xViewMin: 0,
+        printControlData: { xs: [0, 60] },
+        printTempBounds: { tempMinC: 140, tempMaxC: 200 },
+    });
+    await act(async () => toggle.click());
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(mocks.chart.mock.lastCall?.[0]).toMatchObject({
+        xs: [-92, -2, 0, 60],
+        targetXs: [-120, -10, 0, 60],
+        bbpRange: { start: -120, end: 0 },
+        xViewMin: -120,
+        printTempBounds: { tempMinC: 140, tempMaxC: 290 },
+    });
+    await act(async () => root.unmount());
+});
+
+beforeEach(() => {
+    mocks.query = { data: [], isLoading: false, isError: false };
+    mocks.roast = { points: [], isLoading: false, isError: false };
+    mocks.target = [];
+    mocks.targetBbp = [];
+    mocks.targetSource = 'session';
+    mocks.settingsOverrides = {};
+});
