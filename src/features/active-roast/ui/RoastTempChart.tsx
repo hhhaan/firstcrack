@@ -101,6 +101,8 @@ const chartAxisSettings = (settings: ChartAxisInput) => ({
 
 interface Props {
     report?: boolean;
+    /** Hide the hover data card while retaining axis pointers. */
+    showTooltip?: boolean;
     xs: number[];
     btTarget: (number | null)[];
     btActual: (number | null)[];
@@ -309,6 +311,7 @@ const controlLegendItems = (
 export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function RoastTempChart(
     {
         report = false,
+        showTooltip = true,
         xs,
         btTarget,
         btActual,
@@ -471,6 +474,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             buildRoastChartOption({
                 axisSettings,
                 report,
+                showTooltip,
                 print,
                 xs,
                 btTarget,
@@ -528,6 +532,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             }),
         [
             report,
+            showTooltip,
             axisSettings,
             xs,
             btTarget,

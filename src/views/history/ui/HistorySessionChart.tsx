@@ -348,6 +348,7 @@ export function HistorySessionChart({
                 <RoastTempChart
                     {...savedChartPresentation(settings)}
                     ref={chartRef}
+                    showTooltip={false}
                     xs={points.map((p) => p.t)}
                     btActual={points.map((p) => toDisplayTemp(p.bt, unit))}
                     etActual={points.map((p) => (p.et == null ? null : toDisplayTemp(p.et, unit)))}

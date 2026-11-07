@@ -70,6 +70,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
     const {
         report: configuredReport = false,
         print = false,
+        showTooltip = true,
         xs,
         btActual,
         etActual,
@@ -399,6 +400,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             yAxis,
             tooltip: {
                 trigger: 'axis',
+                showContent: showTooltip,
                 className: 'font-inconsolata',
                 backgroundColor: colors.tooltipBg,
                 borderWidth: 1,
@@ -452,6 +454,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         grid,
         tooltip: {
             trigger: 'axis',
+            showContent: showTooltip,
             className: 'font-inconsolata',
             backgroundColor: colors.tooltipBg,
             borderWidth: 1,

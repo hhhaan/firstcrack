@@ -191,6 +191,7 @@ it('joins BBP and roast in one Charge-relative chart and keeps roast visible on 
             xViewMin: -92,
             xViewMax: 120,
             showControlTailLabels: false,
+            showTooltip: false,
             eventMarkers: [{ event: 'Charge', timeSec: 0 }],
             controlData: expect.objectContaining({
                 xs: [-90, -2, 0, 60],

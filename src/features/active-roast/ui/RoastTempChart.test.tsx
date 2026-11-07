@@ -279,6 +279,18 @@ describe('RoastTempChart interactions', () => {
         vi.unstubAllGlobals();
     });
 
+    it('updates hover content visibility without disabling the axis pointer', () => {
+        act(() => root.render(createElement(RoastTempChart, baseProps)));
+        expect(setOption.mock.lastCall?.[0].tooltip).toMatchObject({ showContent: true });
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, showTooltip: false })));
+        expect(setOption.mock.lastCall?.[0].tooltip).toMatchObject({
+            showContent: false,
+            axisPointer: { type: 'cross' },
+        });
+        act(() => root.render(createElement(RoastTempChart, baseProps)));
+        expect(setOption.mock.lastCall?.[0].tooltip).toMatchObject({ showContent: true });
+    });
+
     it.each([101, 113, 125, 175, 199])('matches rendered labels and click/drag bounds at %s%%', (fontScalePct) => {
         const previous = getRoastSettings().fontScalePct;
         const ref = createRef<RoastTempChartHandle>();

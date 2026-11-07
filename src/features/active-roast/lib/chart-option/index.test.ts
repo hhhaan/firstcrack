@@ -48,6 +48,17 @@ const baseParams = (): ChartOptionParams => ({
     colors: mockColors,
 });
 
+it.each([false, true])('can hide hover content while retaining axis pointers (controls: %s)', (controls) => {
+    const params: ChartOptionParams = {
+        ...baseParams(),
+        controlData: controls ? { xs: [0], drumTemp: [50], heatPower: [60], fanSpeed: [30] } : undefined,
+    };
+    const visible = buildRoastChartOption(params);
+    const hidden = buildRoastChartOption({ ...params, showTooltip: false });
+    expect(visible.tooltip).toMatchObject({ showContent: true, trigger: 'axis', axisPointer: { type: 'cross' } });
+    expect(hidden.tooltip).toMatchObject({ showContent: false, trigger: 'axis', axisPointer: { type: 'cross' } });
+});
+
 it('prints each recorded control in its own plot while keeping screen controls intact', () => {
     const params: ChartOptionParams = {
         ...baseParams(),
