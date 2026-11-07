@@ -1,3 +1,4 @@
+import { CHART_LABEL_Z } from '@features/active-roast/lib/chart-config';
 import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
 import { type CustomSeriesOption, format } from 'echarts';
 import type { CurveLabelItem } from './markers';
@@ -14,7 +15,7 @@ export const buildPrintEventLabels = (items: CurveLabelItem[]): CustomSeriesOpti
         yAxisIndex: 0,
         silent: true,
         clip: false,
-        z: 10,
+        z: CHART_LABEL_Z,
         tooltip: { show: false },
         data: items.length ? [[0]] : [],
         renderItem: (params, api) => {

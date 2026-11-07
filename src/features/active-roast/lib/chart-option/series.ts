@@ -1,4 +1,5 @@
 import {
+    CHART_LABEL_Z,
     MARKER_LABEL_CHAR_WIDTH_PX,
     MARKER_LABEL_STACK_PX,
     markerLabelFont,
@@ -84,7 +85,7 @@ const controlMarks = (
     if (showTail && tailTime != null && typeof tail?.[1] === 'number') marks.push(mark(tailTime, tail[1]));
     return {
         step: 'end' as const,
-        markPoint: { silent: true, animation: false, data: marks },
+        markPoint: { silent: true, animation: false, data: marks, z: CHART_LABEL_Z },
     };
 };
 
@@ -207,6 +208,7 @@ export const buildTempSeries = (params: TempSeriesParams): object[] => {
                           silent: false,
                           data: markPointData,
                           animation: false,
+                          z: CHART_LABEL_Z,
                       }
                     : undefined,
             markArea: fcMarkArea ?? undefined,
@@ -436,7 +438,7 @@ export const buildCurveLabelSeries = (
     yAxisIndex: 0,
     clip: false,
     silent: true,
-    z: 10,
+    z: CHART_LABEL_Z,
     tooltip: { show: false },
     // biome-ignore lint/suspicious/noExplicitAny: ECharts custom series API is loosely typed
     renderItem: (params: any, api: any) => {
@@ -593,7 +595,7 @@ export const buildPhaseSeries = (params: PhaseSeriesParams) => {
                 };
             },
             data,
-            z: 10,
+            z: CHART_LABEL_Z,
             silent: true,
         },
     ];

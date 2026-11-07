@@ -108,6 +108,7 @@ it.each([false, true])('renders event text without points, preserving source opa
     expect(rendered?.children?.filter((child) => child.type === 'text')).toEqual([
         expect.objectContaining({
             type: 'text',
+            y: 100 - MARKER_LABEL_LEADER_Y_PX,
             style: expect.objectContaining({ ...style, text: '60%|09:00|204.0°C' }),
         }),
     ]);
@@ -429,20 +430,52 @@ describe('event marker visual grammar', () => {
 });
 
 describe('layoutCurveLabelBoxes', () => {
-    it.each([1, 1.5, 2])('keeps control and note labels at the top while milestones follow BT at scale %s', (scale) => {
+    it('callout sticks every event label to its own BT sample', () => {
+        const samples = [
+            { timeSec: 30, event: 'Heater', note: '90%', bt: 201.1 },
+            { timeSec: 180, event: 'Note', note: 'aroma', bt: 150 },
+            { timeSec: 330, event: 'Fan', note: '70', bt: 161.8 },
+            { timeSec: 480, event: 'Drum', note: '55', bt: 191.7 },
+            { timeSec: 640, event: 'FC Start', bt: 196 },
+        ];
         const { curveLabels } = buildMarkers({
             ...baseParams,
             eventMarkerStyle: 'callout',
+            xs: samples.map((sample) => sample.timeSec),
+            btActual: samples.map((sample) => sample.bt),
+            eventMarkers: samples.map((sample) => ({
+                timeSec: sample.timeSec,
+                event: sample.event,
+                note: 'note' in sample ? sample.note : undefined,
+                color: '',
+                timeStr: '',
+                temp: '',
+            })),
+        });
+        expect(curveLabels.map((label) => label.y)).toEqual(samples.map((sample) => sample.bt));
+        expect(curveLabels.every((label) => label.labelAtTop === false)).toBe(true);
+        const rendered = buildCurveLabelSeries(curveLabels).renderItem(
+            { dataIndex: 0, coordSys: { x: 0, y: 10, width: 2500, height: 400 } },
+            { coord: ([time, bt]: number[]) => [time * 3, bt], getWidth: () => 2600, getHeight: () => 500 },
+        );
+        const texts = rendered?.children.filter((child) => child.type === 'text') ?? [];
+        const leader = MARKER_LABEL_LEADER_Y_PX;
+        expect(texts.map((label) => label.y)).toEqual(samples.map((sample) => sample.bt - leader));
+        expect(texts.every((label) => label.y > 10 + NOTE_LABEL_TOP_INSET_PX)).toBe(true);
+    });
+
+    it.each([1, 1.5, 2])('line style keeps control and note labels at the top of the plot at scale %s', (scale) => {
+        const { curveLabels } = buildMarkers({
+            ...baseParams,
+            eventMarkerStyle: 'line',
             fontScale: scale,
-            xs: [2, 3, 4, 5, 6, 8],
-            btActual: [180, 175, 170, 165, 160, 155],
+            xs: [2, 4, 5, 6],
+            btActual: [180, 170, 165, 160],
             eventMarkers: [
                 { timeSec: 2, event: 'Heater', note: '70%', tempC: 180, reference: true },
-                { timeSec: 3, event: 'Yellow' },
                 { timeSec: 4, event: 'Note', note: 'Check\naroma' },
                 { timeSec: 5, event: 'Fan', note: '50' },
                 { timeSec: 6, event: 'Drum', note: '55' },
-                { timeSec: 8, event: 'FC Start' },
             ]
                 .reverse()
                 .map((marker) => ({ ...marker, color: '', timeStr: '', temp: '' })),

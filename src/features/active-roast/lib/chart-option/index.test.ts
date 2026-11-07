@@ -1,6 +1,7 @@
 import {
     CHART_GRID_LEFT,
     CHART_GRID_RIGHT_WITH_ROR,
+    CHART_LABEL_Z,
     CONTROL_CURVE_WIDTH,
     MARKER_LABEL_FONT,
     markerLabelFont,
@@ -351,16 +352,28 @@ describe('buildRoastChartOption font scale', () => {
             expect(option.grid).toMatchObject([
                 { left: CHART_GRID_LEFT, right: CHART_GRID_RIGHT_WITH_ROR, bottom: 65 },
             ]);
-            const bbp = (
-                option.series as {
-                    markArea?: { label?: { fontSize?: number; fontFamily?: string; fontWeight?: number } };
-                }[]
-            )[0];
-            expect(bbp?.markArea?.label).toMatchObject({
-                fontSize: 14 * fontScale,
-                fontFamily: 'Inconsolata',
-                fontWeight: 500,
+            const series = option.series as {
+                id?: string;
+                z?: number;
+                name?: string;
+                markArea?: {
+                    z?: number;
+                    label?: { show?: boolean; fontSize?: number; fontFamily?: string; fontWeight?: number };
+                };
+            }[];
+            const bbp = series.find((item) => item.id === 'bbp-label');
+            expect(bbp?.markArea).toMatchObject({
+                z: CHART_LABEL_Z,
+                label: {
+                    show: true,
+                    fontSize: 14 * fontScale,
+                    fontFamily: 'Inconsolata',
+                    fontWeight: 500,
+                },
             });
+            expect(series.find((item) => item.id === 'bbp-background')?.markArea?.label?.show).toBe(false);
+            expect(series.find((item) => item.name === 'BT Actual')?.z).toBeLessThan(CHART_LABEL_Z);
+            expect(series.find((item) => item.id === 'event-curve-labels')?.z).toBe(CHART_LABEL_Z);
             expect(markerLabelFont(fontScale)).toBe(`600 ${12 * fontScale}px Inconsolata`);
         },
     );
@@ -1047,7 +1060,7 @@ describe('buildRoastChartOption', () => {
             data: unknown;
             markArea?: { data: unknown; itemStyle: unknown };
         }[];
-        const backgrounds = series.filter((s) => s.id?.startsWith('bbp-'));
+        const backgrounds = series.filter((s) => s.id === 'bbp-background' || s.id === 'bbp-control-background');
         expect(backgrounds.map((s) => s.xAxisIndex)).toEqual([0, 1]);
         const axes = option.xAxis as { min: number; max: number }[];
         expect(axes.map((axis) => [axis.min, axis.max])).toEqual([

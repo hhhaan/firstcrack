@@ -40,6 +40,7 @@ const { chart, paper, convertFromPixel, convertToPixel, setOption, zrHandlers } 
         init: vi.fn(),
         on: vi.fn(),
         off: vi.fn(),
+        dispatchAction: vi.fn(),
         resize: vi.fn(),
         setOption,
         getWidth: () => 1000,
@@ -106,6 +107,7 @@ describe('RoastTempChart Heat set lifecycle', () => {
                 observe() {}
             },
         );
+        chart.dispatchAction.mockClear();
         setOption.mockClear();
         convertFromPixel.mockClear();
         convertToPixel.mockClear();
@@ -710,6 +712,29 @@ describe('RoastTempChart interactions', () => {
         expect(onAddNote).not.toHaveBeenCalled();
         act(() => input.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })));
         expect(onAddNote).toHaveBeenCalledWith('past note', 9);
+    });
+
+    it('hides the axis tooltip once the pointer leaves the plot or enters Add record', () => {
+        act(() => root.render(createElement(RoastTempChart, { ...baseProps, onAddNote: vi.fn() })));
+
+        act(() => zrHandlers.get('globalout')?.({}));
+        expect(chart.dispatchAction).toHaveBeenCalledWith({ type: 'hideTip' });
+
+        chart.dispatchAction.mockClear();
+        act(() =>
+            container
+                .querySelector('[tabindex="-1"]')
+                ?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 90, clientY: 20 })),
+        );
+        expect(chart.dispatchAction).toHaveBeenCalledWith({ type: 'hideTip' });
+
+        chart.dispatchAction.mockClear();
+        act(() =>
+            container
+                .querySelector('[data-chart-note-form]')
+                ?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true, pointerType: 'mouse' })),
+        );
+        expect(chart.dispatchAction).toHaveBeenCalledWith({ type: 'hideTip' });
     });
 
     it('records a Note from a right-click outside the temperature plot when x is on the time axis', () => {

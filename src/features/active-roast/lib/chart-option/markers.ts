@@ -60,9 +60,6 @@ export const isCurveMarkerVisible = (
     return !xs.some((x, i) => Number.isFinite(x) && Number.isFinite(btActual[i]));
 };
 
-/** Note, fan, and drum text stays at the top of the axis. The dot still follows BT. */
-export const noteAnchoredAtTop = (event: string) => event === 'Note' || event === 'Fan' || event === 'Drum';
-
 /**
  * Dot anchor. Nearby BT wins so the point sits on the curve; stored temp is the fallback.
  * The axis max is not a temperature reading.
@@ -471,7 +468,8 @@ export const buildCurveLabels = ({
     colors,
 }: CurveLabelBuildParams): CurveLabelItem[] => {
     const callout = eventMarkerStyle === 'callout';
-    // Callouts sit on BT (TP·Drop·End below, others above). line/tempLine stay at the plot top.
+    // callout: every event with a BT sample sits on that sample (TP·Drop·End below, others above).
+    // line/tempLine, and events with no sample, stay at the plot top.
     const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
         if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
         if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
@@ -486,8 +484,7 @@ export const buildCurveLabels = ({
             if (!visible) return [];
             const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
             const onCurve = markerCurveY(nearest, marker.tempC, temperatureUnit);
-            const atTop = noteAnchoredAtTop(marker.event);
-            const labelAtTop = !callout || atTop || isControlEvent(marker.event) || onCurve == null;
+            const labelAtTop = !callout || onCurve == null;
             return [
                 {
                     marker,

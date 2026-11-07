@@ -1,5 +1,6 @@
 import {
     AXIS_LABEL_FONT,
+    CHART_LABEL_Z,
     chartFontScale,
     scaleChartPx,
     TEMP_Y_INTERVAL,
@@ -166,6 +167,15 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         applyChartAxisSettings(axes, paper.axisSettings, temperatureUnit);
     };
 
+    const showBbp = bbpRange && bbpRange.start < xMax && bbpRange.end > xMin;
+    const bbpSpan = showBbp
+        ? [
+              [
+                  { name: bbpRange?.label ?? 'BBP', xAxis: Math.max(xMin, bbpRange?.start ?? 0) },
+                  { xAxis: Math.min(xMax, bbpRange?.end ?? 0) },
+              ],
+          ]
+        : [];
     const bbpBackground = (control: boolean) => ({
         id: control ? 'bbp-control-background' : 'bbp-background',
         type: 'line' as const,
@@ -178,25 +188,34 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         markArea: {
             silent: true,
             itemStyle: { color: colors.bbpFill },
+            label: { show: false },
+            data: bbpSpan,
+        },
+    });
+    // The fill stays under the curves. The name is a separate layer so the stroke cannot cover it.
+    const bbpLabel = {
+        id: 'bbp-label',
+        type: 'line' as const,
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: [],
+        silent: true,
+        tooltip: { show: false },
+        markArea: {
+            silent: true,
+            z: CHART_LABEL_Z,
+            itemStyle: { color: 'transparent', borderWidth: 0 },
             label: {
-                show: !control,
+                show: true,
                 position: 'insideTopLeft' as const,
                 color: colors.axisLabel,
                 fontFamily: AXIS_LABEL_FONT.fontFamily,
                 fontWeight: AXIS_LABEL_FONT.fontWeight,
                 fontSize: scaleChartPx(AXIS_LABEL_FONT.fontSize, fontScale),
             },
-            data: showBbp
-                ? [
-                      [
-                          { name: bbpRange?.label ?? 'BBP', xAxis: Math.max(xMin, bbpRange?.start ?? 0) },
-                          { xAxis: Math.min(xMax, bbpRange?.end ?? 0) },
-                      ],
-                  ]
-                : [],
+            data: bbpSpan,
         },
-    });
-    const showBbp = bbpRange && bbpRange.start < xMax && bbpRange.end > xMin;
+    };
 
     const profileOn = (flag: boolean | undefined) => flag !== false;
     const reference = controlData?.reference;
@@ -384,7 +403,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 backgroundColor: colors.tooltipBg,
                 borderWidth: 1,
                 borderColor: colors.tooltipBorder,
-                extraCssText: 'box-shadow: none;',
+                extraCssText: 'box-shadow: none; z-index: 15;',
                 axisPointer: tooltipCrossPointer,
                 formatter: formatAxisTooltip,
             },
@@ -398,6 +417,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
                 })),
                 curveLabelSeries,
                 ...phaseSeries,
+                ...(bbpRange ? [bbpLabel] : []),
             ],
             // Zoom/pan owned by useChartZoom — ECharts dataZoom would steal drag/wheel
             dataZoom: [],
@@ -436,13 +456,19 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
             backgroundColor: colors.tooltipBg,
             borderWidth: 1,
             borderColor: colors.tooltipBorder,
-            extraCssText: 'box-shadow: none;',
+            extraCssText: 'box-shadow: none; z-index: 15;',
             axisPointer: tooltipCrossPointer,
             formatter: formatAxisTooltip,
         },
         dataZoom: [],
         xAxis,
         yAxis,
-        series: [...(bbpRange ? [bbpBackground(false)] : []), ...tempSeries, curveLabelSeries, ...phaseSeries],
+        series: [
+            ...(bbpRange ? [bbpBackground(false)] : []),
+            ...tempSeries,
+            curveLabelSeries,
+            ...phaseSeries,
+            ...(bbpRange ? [bbpLabel] : []),
+        ],
     };
 };

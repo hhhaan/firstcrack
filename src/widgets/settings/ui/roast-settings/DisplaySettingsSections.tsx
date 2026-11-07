@@ -24,11 +24,11 @@ const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; desc
         labelKey: 'settings.tabs.roast.eventMarkerTempLine',
         descKey: 'settings.tabs.roast.eventMarkerTempLineDescription',
     },
-    {
-        value: 'line',
-        labelKey: 'settings.tabs.roast.eventMarkerLine',
-        descKey: 'settings.tabs.roast.eventMarkerLineDescription',
-    },
+    // {
+    //     value: 'line',
+    //     labelKey: 'settings.tabs.roast.eventMarkerLine',
+    //     descKey: 'settings.tabs.roast.eventMarkerLineDescription',
+    // },
 ];
 const visibilityOptions = [
     {

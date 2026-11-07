@@ -637,13 +637,20 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         chart.setOption(option, { notMerge: structureChanged, lazyUpdate: !structureChanged });
     }, [option, structureKey]);
 
+    const hideChartTip = useCallback(() => {
+        // hideTip drops the cached pointer. A later setOption would otherwise
+        // redraw the tooltip after the pointer has left the plot.
+        chartInstanceRef.current?.dispatchAction({ type: 'hideTip' });
+    }, []);
+
     useEffect(() => {
         const chart = chartInstanceRef.current;
-        if (!chart || !onCursorIdx) return;
+        if (!chart) return;
         const zr = chart.getZr();
 
         // biome-ignore lint/suspicious/noExplicitAny: ECharts event payload is loosely typed
         const handleMouseMove = (e: any) => {
+            if (!onCursorIdx) return;
             const x = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, e.offsetX));
             if (x != null && xs.length && chart.containPixel({ gridIndex: 0 }, [e.offsetX, e.offsetY])) {
                 let nearestIdx = -1;
@@ -662,13 +669,16 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         };
 
         zr.on('mousemove', handleMouseMove);
-        const handleGlobalOut = () => onCursorIdx(null);
+        const handleGlobalOut = () => {
+            hideChartTip();
+            onCursorIdx?.(null);
+        };
         zr.on('globalout', handleGlobalOut);
         return () => {
             zr.off('mousemove', handleMouseMove);
             zr.off('globalout', handleGlobalOut);
         };
-    }, [xs, onCursorIdx]);
+    }, [hideChartTip, xs, onCursorIdx]);
 
     const localPoint = useCallback((clientX: number, clientY: number) => {
         const rect = chartRef.current?.getBoundingClientRect();
@@ -875,6 +885,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const editWidth = controls ? 260 : 220;
             setNoteForm(null);
             setNoteValues(emptyNote);
+            hideChartTip();
             setEditForm({
                 logId: selected.logId,
                 event: selected.event,
@@ -888,7 +899,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             });
             return true;
         },
-        [findDraggableMarker, localPoint, machineId, onEventMarkerEdit, t],
+        [findDraggableMarker, hideChartTip, localPoint, machineId, onEventMarkerEdit, t],
     );
 
     const capturePdf = useCallback(async () => {
@@ -961,6 +972,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             const converted = scalar(chart.convertFromPixel({ xAxisIndex: 0 }, point.x));
             if (converted == null || (charged && converted < 0)) return;
             event.preventDefault();
+            hideChartTip();
             setNoteValues(emptyNote);
             setEditForm(null);
             setNoteForm({
@@ -969,7 +981,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 timeSec: clampMarkerTime('Note', converted, currentTimeSec, xMax),
             });
         },
-        [currentTimeSec, localPoint, onAddNote, xs, xViewMax, xViewMin, charged],
+        [charged, currentTimeSec, hideChartTip, localPoint, onAddNote, xs, xViewMax, xViewMin],
     );
 
     const submitNote = useCallback(() => {
@@ -1069,6 +1081,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         submitNote();
                     }}
                     onPointerDown={(event) => event.stopPropagation()}
+                    onPointerEnter={hideChartTip}
                     onWheel={(event) => event.stopPropagation()}
                 >
                     <div className="flex items-center justify-between px-1 text-[11px] text-(--color-text-primary)">
@@ -1174,6 +1187,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         submitEdit();
                     }}
                     onPointerDown={(event) => event.stopPropagation()}
+                    onPointerEnter={hideChartTip}
                     onWheel={(event) => event.stopPropagation()}
                 >
                     <div className="px-1 text-[11px] font-medium text-(--color-text-primary)">{editForm.title}</div>
