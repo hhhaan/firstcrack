@@ -9,7 +9,7 @@ import ja from './locales/ja.json';
 import ko from './locales/ko.json';
 import zhCNJson from './locales/zh-CN.json';
 
-export const supportedLanguages = ['ko', 'en', 'ja', 'zh-CN'] as const;
+export const supportedLanguages = ['en', 'ko', 'ja', 'zh-CN'] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
 const LANGUAGE_KEY = 'language';

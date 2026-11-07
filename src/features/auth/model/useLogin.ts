@@ -1,4 +1,5 @@
 import { mapAuthError } from '@features/auth/lib/mapAuthError';
+import { readLastLoginEmail, rememberLastLoginEmail } from '@shared/lib/last-login-email';
 import { logger } from '@shared/lib/logger';
 import { supabase } from '@shared/lib/supabase';
 import type { AuthErrorCode } from '@shared/store/auth';
@@ -13,7 +14,7 @@ const OAUTH_REDIRECT = import.meta.env.PUBLIC_TAURI_REDIRECT ?? 'firstcrack://au
 export type AuthScreen = 'sign-in' | 'sign-up' | 'check-inbox';
 
 export const useLogin = (onLogin?: () => void) => {
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(readLastLoginEmail);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -63,11 +64,13 @@ export const useLogin = (onLogin?: () => void) => {
                         return;
                     }
                     const result = await signUpWithEmail(trimmedEmail, password);
+                    rememberLastLoginEmail(trimmedEmail);
                     if (result === 'session') onLogin?.();
                     else setScreen('check-inbox');
                     return;
                 }
                 await signInWithEmail(trimmedEmail, password);
+                rememberLastLoginEmail(trimmedEmail);
                 onLogin?.();
             } catch (err: unknown) {
                 logger.capture(err, {

@@ -1,5 +1,5 @@
 import { cn } from '@shared/lib/cn';
-import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { labelCls, loginInputCls } from '@shared/ui/form-styles';
 import { Eye, EyeOff } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -70,7 +70,7 @@ export const PasswordField = ({
                     disabled={disabled}
                     aria-invalid={invalid || undefined}
                     aria-describedby={described || undefined}
-                    className={cn(inputCls, 'h-[42px] pr-11')}
+                    className={cn(loginInputCls, 'h-[42px] pr-11')}
                 />
                 <button
                     type="button"

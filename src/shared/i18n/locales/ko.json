@@ -84,7 +84,6 @@
     "auth": {
         "oauthCompleting": "로그인 완료 중…",
         "signInTitle": "로그인",
-        "signInLead": "로스터리의 작업을 이어가세요.",
         "signUpTitle": "회원가입",
         "signIn": "로그인",
         "signingIn": "로그인 중...",

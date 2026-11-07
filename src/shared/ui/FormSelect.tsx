@@ -115,7 +115,7 @@ export const FormSelect = forwardRef<HTMLButtonElement, FormSelectProps>(
                         ref={ref}
                         onBlur={onBlur as FocusEventHandler<HTMLButtonElement> | undefined}
                         data-value={current}
-                        className={cn(selectCls, 'w-full', className)}
+                        className={cn(selectCls, 'w-full px-3', className)}
                         {...triggerAttrs(props)}
                     >
                         <SelectValue placeholder={placeholder} />

@@ -84,7 +84,6 @@
     "auth": {
         "oauthCompleting": "Completing sign-in…",
         "signInTitle": "Sign in",
-        "signInLead": "Continue your work at the roastery.",
         "signUpTitle": "Sign up",
         "signIn": "Sign in",
         "signingIn": "Signing in...",

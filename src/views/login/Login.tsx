@@ -1,5 +1,5 @@
 import { useLogin } from '@features/auth';
-import { inputCls, labelCls } from '@shared/ui/form-styles';
+import { labelCls, loginInputCls } from '@shared/ui/form-styles';
 import { PillButton } from '@shared/ui/PillButton';
 import { Spinner } from '@shared/ui/Spinner';
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -76,10 +76,10 @@ export const Login = ({ onLogin }: LoginProps) => {
     }, [displayError]);
 
     return (
-        <div className="h-dvh overflow-y-auto bg-shell-bg p-2">
-            <div className="flex min-h-full flex-col rounded-2xl border border-border bg-main-bg px-6 pt-4 pb-6 shadow-xs sm:px-8">
+        <div className="h-dvh overflow-y-auto bg-shell-bg px-2 pb-2">
+            <div className="flex min-h-full flex-col rounded-2xl border border-border bg-main-bg shadow-xs">
                 <LoginHeader />
-                <main className="flex flex-1 flex-col justify-center py-10" aria-labelledby="auth-title">
+                <main className="flex flex-1 flex-col justify-center px-6 py-10 sm:px-8" aria-labelledby="auth-title">
                     <div className="mx-auto w-full max-w-[340px]">
                         <div className="mb-8 text-center">
                             <h1
@@ -92,9 +92,6 @@ export const Login = ({ onLogin }: LoginProps) => {
                                       ? t('auth.signUpTitle')
                                       : t('auth.signInTitle')}
                             </h1>
-                            {!isSignUp && !isInbox && (
-                                <p className="mt-2.5 text-sm leading-relaxed text-muted">{t('auth.signInLead')}</p>
-                            )}
                         </div>
 
                         {isInbox ? (
@@ -133,7 +130,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                                                 autoCapitalize="none"
                                                 spellCheck={false}
                                                 required
-                                                className={`${inputCls} h-[42px]`}
+                                                className={`${loginInputCls} h-[42px]`}
                                             />
                                         </div>
                                         <PasswordField
@@ -267,7 +264,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                         )}
                     </div>
                 </main>
-                <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted">
+                <footer className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-6 pb-6 text-xs text-muted sm:px-8">
                     <span>{t('auth.copyright')}</span>
                     <button type="button" className={authLinkCls} onClick={() => void openUrl(TERMS_URL)}>
                         {t('auth.terms')}

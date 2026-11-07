@@ -84,7 +84,6 @@
     "auth": {
         "oauthCompleting": "サインインを完了しています…",
         "signInTitle": "サインイン",
-        "signInLead": "ロースタリーの作業を続けましょう。",
         "signUpTitle": "新規登録",
         "signIn": "サインイン",
         "signingIn": "サインイン中...",

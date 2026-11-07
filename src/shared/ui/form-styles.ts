@@ -8,6 +8,12 @@ import { cn } from '@shared/lib/cn';
 export const inputCls =
     'w-full min-h-10 rounded-xl border border-border bg-input-bg px-3 py-2 text-sm font-[450] leading-5 text-primary shadow-xs outline-none transition-colors placeholder:text-muted focus-visible:border-secondary disabled:cursor-not-allowed disabled:opacity-50';
 
+/** Login fields. Resting border matches the shared input; focus keeps the hairline ring. */
+export const loginInputCls = cn(
+    inputCls,
+    'border-border outline-none focus:border-strong-border focus-visible:border-border focus-visible:ring-2 focus-visible:ring-strong-border/40',
+);
+
 /** Closed FormSelect trigger. The open list is the shared Select menu, not an OS popup. */
 export const selectCls = cn(
     inputCls,

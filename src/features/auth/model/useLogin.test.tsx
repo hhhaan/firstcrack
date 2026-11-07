@@ -30,6 +30,7 @@ vi.mock('@shared/lib/supabase', () => ({
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => false }));
 vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn() }));
 
+import { rememberLastLoginEmail } from '@shared/lib/last-login-email';
 import { useLogin } from './useLogin';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -48,6 +49,7 @@ describe('useLogin signup', () => {
         signUpWithEmail.mockReset();
         startOAuth.mockReset();
         cancelOAuth.mockReset();
+        localStorage.clear();
     });
 
     const mount = async (): Promise<{ hook: () => Hook; unmount: () => void }> => {
@@ -103,6 +105,41 @@ describe('useLogin signup', () => {
         await submitSignUp(hook, { confirmPassword: 'password1', agreedToTerms: true });
         expect(signUpWithEmail).toHaveBeenCalledWith('a@b.com', 'password1');
         expect(hook().screen).toBe('check-inbox');
+        unmount();
+    });
+
+    it('does not prefill an address left by an older session', async () => {
+        localStorage.setItem('fc.lastLoginEmail', 'person@gmail.com');
+        const { hook, unmount } = await mount();
+        expect(hook().email).toBe('');
+        expect(localStorage.getItem('fc.lastLoginEmail')).toBeNull();
+        unmount();
+    });
+
+    it('prefills and keeps the last signed-in email', async () => {
+        rememberLastLoginEmail('kept@example.com');
+        const { hook, unmount } = await mount();
+        expect(hook().email).toBe('kept@example.com');
+
+        signInWithEmail.mockRejectedValueOnce(new Error('invalid'));
+        await act(async () => {
+            hook().setEmail('other@example.com');
+            hook().setPassword('password1');
+        });
+        await act(async () => {
+            await hook().handleSubmit({ preventDefault: () => undefined } as unknown as FormEvent);
+        });
+        expect(localStorage.getItem('fc.lastLoginEmail')).toBe(
+            JSON.stringify({ method: 'email', email: 'kept@example.com' }),
+        );
+
+        signInWithEmail.mockResolvedValueOnce(undefined);
+        await act(async () => {
+            await hook().handleSubmit({ preventDefault: () => undefined } as unknown as FormEvent);
+        });
+        expect(localStorage.getItem('fc.lastLoginEmail')).toBe(
+            JSON.stringify({ method: 'email', email: 'other@example.com' }),
+        );
         unmount();
     });
 

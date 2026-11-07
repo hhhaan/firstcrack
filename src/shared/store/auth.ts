@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js';
 import type { QueryClient } from '@tanstack/react-query';
 import { create } from 'zustand';
+import { syncRememberedLoginEmail } from '../lib/last-login-email';
 import { profileKeys } from '../lib/query-keys';
 import { supabase } from '../lib/supabase';
 
@@ -84,6 +85,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
             if (!get().loading) return;
             clearTimeout(timeout);
             const next = session?.user ?? null;
+            syncRememberedLoginEmail(next);
             set({
                 user: next,
                 loading: false,
@@ -101,6 +103,7 @@ export const useAuthStore = create<AuthState & AuthActions>((set, get) => ({
 
             const prevUser = get().user;
             const next = session?.user ?? null;
+            syncRememberedLoginEmail(next);
 
             // Same user already applied (token refresh etc.)
             if (get().user?.id === next?.id && !get().loading && !get().oauthPending) {

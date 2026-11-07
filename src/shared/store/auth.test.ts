@@ -1,7 +1,17 @@
 import { profileKeys } from '@shared/lib/query-keys';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-type AuthCb = (event: string, session: { user: { id: string } } | null) => void;
+type AuthCb = (
+    event: string,
+    session: {
+        user: {
+            id: string;
+            email?: string;
+            app_metadata?: { provider?: string };
+            identities?: { provider: string }[];
+        };
+    } | null,
+) => void;
 
 let authCb: AuthCb | null = null;
 const unsubscribe = vi.fn();
@@ -136,6 +146,50 @@ describe('auth session lifecycle', () => {
         expect(useAuthStore.getState().user).toEqual(user);
         expect(removeQueries).not.toHaveBeenCalled();
         expect(sendOsNotification).not.toHaveBeenCalled();
+    });
+
+    it('remembers an email-password session after sign-out', () => {
+        const store = new Map<string, string>();
+        vi.stubGlobal('localStorage', {
+            getItem: (key: string) => store.get(key) ?? null,
+            setItem: (key: string, value: string) => {
+                store.set(key, value);
+            },
+            removeItem: (key: string) => {
+                store.delete(key);
+            },
+        });
+
+        authCb?.('SIGNED_IN', {
+            user: { id: 'user-1', email: 'roaster@example.com', app_metadata: { provider: 'email' } },
+        });
+        authCb?.('SIGNED_OUT', null);
+
+        expect(store.get('fc.lastLoginEmail')).toBe(JSON.stringify({ method: 'email', email: 'roaster@example.com' }));
+        expect(useAuthStore.getState().user).toBeNull();
+        vi.unstubAllGlobals();
+    });
+
+    it('does not store a Google session email', () => {
+        const kept = JSON.stringify({ method: 'email', email: 'roaster@example.com' });
+        const store = new Map<string, string>([['fc.lastLoginEmail', kept]]);
+        vi.stubGlobal('localStorage', {
+            getItem: (key: string) => store.get(key) ?? null,
+            setItem: (key: string, value: string) => {
+                store.set(key, value);
+            },
+            removeItem: (key: string) => {
+                store.delete(key);
+            },
+        });
+
+        authCb?.('SIGNED_IN', {
+            user: { id: 'user-2', email: 'person@gmail.com', app_metadata: { provider: 'google' } },
+        });
+        authCb?.('SIGNED_OUT', null);
+
+        expect(store.get('fc.lastLoginEmail')).toBe(kept);
+        vi.unstubAllGlobals();
     });
 
     it('keeps the signed-in user and cache on token refresh', () => {

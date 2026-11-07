@@ -84,7 +84,6 @@
     "auth": {
         "oauthCompleting": "正在完成登录…",
         "signInTitle": "登录",
-        "signInLead": "继续您的烘焙工作。",
         "signUpTitle": "注册",
         "signIn": "登录",
         "signingIn": "正在登录...",
