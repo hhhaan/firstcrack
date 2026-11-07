@@ -10,8 +10,8 @@ export type PollIntervalMs = 500 | 1000;
 export type RorSpanSec = 15 | 30 | 60;
 /** Labels drawn inside the roast chart. Stored as 100–200 (1×–2×). */
 export type FontScalePct = number;
-/** line = verticals on temp+control with top labels | tempLine = temp verticals + top labels | point = BT dot with curve-side labels | callout = short leader from the BT point */
-export type EventMarkerStyle = 'line' | 'tempLine' | 'point' | 'callout';
+/** line = verticals on temp+control with top labels | tempLine = temp verticals + top labels | callout = short leader from the BT point */
+export type EventMarkerStyle = 'line' | 'tempLine' | 'callout';
 /**
  * DROP 시 PID가 풀릴 때 화력 처리.
  * 'hold' — 머신이 보고하는 현재 duty를 유지 (연속 배치 재승온 시간 절약)

@@ -735,9 +735,8 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                         point.y <= box.bottom + 4,
                 );
                 const plotHit = chart.containPixel({ gridIndex: [0, 1, 2] }, [point.x, point.y]);
-                const pointHit =
-                    eventMarkerStyle === 'point' &&
-                    item.showDot &&
+                const anchorHit =
+                    eventMarkerStyle === 'callout' &&
                     anchorY >= top &&
                     anchorY <= bottom &&
                     plotHit &&
@@ -749,7 +748,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                     Math.abs(point.x - x) <= PIXEL_THRESHOLD;
                 const labelY = box?.textY ?? anchorY;
                 const leaderHit = box && plotHit && isCurveLabelLeaderHit(box, point.x, point.y, PIXEL_THRESHOLD);
-                return labelHit || pointHit || lineHit || leaderHit
+                return labelHit || anchorHit || lineHit || leaderHit
                     ? [
                           {
                               marker,

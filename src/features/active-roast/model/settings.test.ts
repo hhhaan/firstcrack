@@ -668,7 +668,11 @@ describe('normalize — event marker style', () => {
         expect(normalizeRoastSettings({ eventMarkerStyle: 'both' as never }).eventMarkerStyle).toBe('line');
     });
 
-    it.each(['point', 'line', 'tempLine', 'callout'] as const)('preserves stored %s mode', (eventMarkerStyle) => {
+    it('maps the removed point style onto callout', () => {
+        expect(normalizeRoastSettings({ eventMarkerStyle: 'point' as never }).eventMarkerStyle).toBe('callout');
+    });
+
+    it.each(['line', 'tempLine', 'callout'] as const)('preserves stored %s mode', (eventMarkerStyle) => {
         expect(normalizeRoastSettings({ eventMarkerStyle }).eventMarkerStyle).toBe(eventMarkerStyle);
     });
 });

@@ -15,11 +15,6 @@ import { type RoastCheckOption, RoastCheckRows } from './RoastSettingsFields';
 
 const eventMarkerStyleOptions: { value: EventMarkerStyle; labelKey: string; descKey: string }[] = [
     {
-        value: 'point',
-        labelKey: 'settings.tabs.roast.eventMarkerPoint',
-        descKey: 'settings.tabs.roast.eventMarkerPointDescription',
-    },
-    {
         value: 'callout',
         labelKey: 'settings.tabs.roast.eventMarkerCallout',
         descKey: 'settings.tabs.roast.eventMarkerCalloutDescription',

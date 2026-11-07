@@ -574,7 +574,7 @@ describe('RoastTempChart interactions', () => {
         expect(onEventMarkerDrag).not.toHaveBeenCalled();
     });
 
-    it('selects finite cursor samples and supports point-symbol hits only inside a plot', () => {
+    it('selects finite cursor samples and supports callout-anchor hits only inside a plot', () => {
         const ref = createRef<RoastTempChartHandle>();
         const onCursorIdx = vi.fn();
         act(() => {
@@ -584,7 +584,7 @@ describe('RoastTempChart interactions', () => {
                     ref,
                     xs: [Number.NaN, 5],
                     btActual: [null, 180],
-                    eventMarkerStyle: 'point',
+                    eventMarkerStyle: 'callout',
                     eventMarkers: [
                         { logId: 'note-1', event: 'Note', timeSec: 5, timeStr: '0:05', temp: '180°C', color: '#888' },
                     ],

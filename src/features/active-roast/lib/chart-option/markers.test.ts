@@ -95,7 +95,7 @@ it.each(['0%', '60%', '2.5 kPa'])('draws original reference heat events for %s w
 it.each([false, true])('renders event text without points, preserving source opacity (reference: %s)', (reference) => {
     const { curveLabels } = buildMarkers({
         ...baseParams,
-        eventMarkerStyle: 'point',
+        eventMarkerStyle: 'callout',
         eventMarkers: [
             { reference, timeSec: 540, event: 'Heater', color: '', timeStr: '', temp: '', tempC: 204, note: '60%' },
         ],
@@ -105,7 +105,7 @@ it.each([false, true])('renders event text without points, preserving source opa
         { coord: () => [120, 100], getWidth: () => 440 },
     );
     const style = { fill: colors.eventControl, opacity: reference ? REFERENCE_EVENT_OPACITY : 1 };
-    expect(rendered?.children).toEqual([
+    expect(rendered?.children?.filter((child) => child.type === 'text')).toEqual([
         expect.objectContaining({
             type: 'text',
             style: expect.objectContaining({ ...style, text: '60%|09:00|204.0°C' }),
@@ -116,7 +116,7 @@ it.each([false, true])('renders event text without points, preserving source opa
 it('paints an opaque background behind printed event text so curves cannot cross the letters', () => {
     const { curveLabels } = buildMarkers({
         ...baseParams,
-        eventMarkerStyle: 'point',
+        eventMarkerStyle: 'callout',
         eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
     });
     const rendered = buildCurveLabelSeries(curveLabels, 1, undefined, '#ffffff').renderItem(
@@ -165,7 +165,7 @@ it('connects major event labels near their BT anchors', () => {
 it('keeps the final event label inside the plot and away from the right axis', () => {
     const { curveLabels } = buildMarkers({
         ...baseParams,
-        eventMarkerStyle: 'point',
+        eventMarkerStyle: 'callout',
         eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
     });
     const rendered = buildCurveLabelSeries(curveLabels).renderItem(
@@ -245,10 +245,10 @@ describe('buildMarkers label position', () => {
         ]);
     });
 
-    it('point keeps milestone labels on the BT curve; TP, Drop, and End sit below', () => {
+    it('callout keeps milestone labels on the BT curve; TP, Drop, and End sit below', () => {
         const { curveLabels, markPointData } = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'point',
+            eventMarkerStyle: 'callout',
             xs: [120, 200, 480, 520, 600, 640],
             btActual: [108, 157, 196, 200, 205, 207],
             eventMarkers: [
@@ -265,26 +265,26 @@ describe('buildMarkers label position', () => {
             y: 157,
             below: false,
             labelAtTop: false,
-            showLeader: false,
-            showDot: true,
+            showLeader: true,
+            showDot: false,
         });
         expect(byName['FC Start']).toMatchObject({
             y: 196,
             below: false,
             labelAtTop: false,
-            showLeader: false,
-            showDot: true,
+            showLeader: true,
+            showDot: false,
         });
         expect(byName['FC Rolling']).toMatchObject({
             y: 200,
             below: false,
             labelAtTop: false,
-            showLeader: false,
-            showDot: true,
+            showLeader: true,
+            showDot: false,
         });
-        expect(byName.Drop).toMatchObject({ y: 205, below: true, labelAtTop: false, showLeader: false, showDot: true });
-        expect(byName.End).toMatchObject({ y: 207, below: true, labelAtTop: false, showLeader: false, showDot: true });
-        expect(byName.TP).toMatchObject({ y: 108, below: true, labelAtTop: false, showLeader: false, showDot: true });
+        expect(byName.Drop).toMatchObject({ y: 205, below: true, labelAtTop: false, showLeader: true, showDot: false });
+        expect(byName.End).toMatchObject({ y: 207, below: true, labelAtTop: false, showLeader: true, showDot: false });
+        expect(byName.TP).toMatchObject({ y: 108, below: true, labelAtTop: false, showLeader: true, showDot: false });
     });
 
     it('callout follows BT with a short leader', () => {
@@ -400,12 +400,12 @@ describe('event marker visual grammar', () => {
     it('returns Note formatter text literally', () => {
         const result = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'point',
+            eventMarkerStyle: 'callout',
             eventMarkers: [{ timeSec: 540, event: 'Note', color: '#old', timeStr: '', temp: '', note: '{b}' }],
         });
         expect(result.curveLabels[0]?.text).toBe('{b}|09:00|202.0°C');
         expect(result.curveLabels[0]?.y).toBe(202);
-        expect(result.curveLabels[0]?.showDot).toBe(true);
+        expect(result.curveLabels[0]?.showDot).toBe(false);
     });
 
     it('retains line mode and mirrors its event guides into the control grid', () => {
@@ -680,7 +680,7 @@ describe('zoom window (#599)', () => {
     const yellow = { timeSec: 60, event: 'Yellow', color: '#old', timeStr: '1:00', temp: '120°C' };
     const fc = { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' };
 
-    it.each(['point', 'tempLine', 'line'] as const)(
+    it.each(['callout', 'tempLine', 'line'] as const)(
         '%s: hides labels, lines, and dots outside the visible window',
         (eventMarkerStyle) => {
             const result = buildMarkers({
@@ -708,7 +708,7 @@ describe('zoom window (#599)', () => {
     it('shows an in-window label on the BT sample at that time', () => {
         const result = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'point',
+            eventMarkerStyle: 'callout',
             xMin: 100,
             xMax: 160,
             xs: [120, 122, 140],
@@ -721,7 +721,7 @@ describe('zoom window (#599)', () => {
                 timeSec: 122,
                 y: 141.7,
                 text: 'TP|02:02|141.7°C',
-                showDot: true,
+                showDot: false,
             }),
         ]);
     });
@@ -795,9 +795,9 @@ describe('zoom window (#599)', () => {
                 showDot: false,
             }),
         ]);
-        const pointed = buildMarkers({
+        const callout = buildMarkers({
             ...baseParams,
-            eventMarkerStyle: 'point',
+            eventMarkerStyle: 'callout',
             xMin: 0,
             xMax: 780,
             currentTimeSec: 14,
@@ -805,7 +805,7 @@ describe('zoom window (#599)', () => {
             btActual: [200, 187.2, null],
             eventMarkers: [{ timeSec: 300, event: 'Note', color: '#old', timeStr: '5:00', temp: '', note: 'ㅎ' }],
         });
-        expect(pointed.curveLabels[0]).toMatchObject({ y: baseParams.tempYMax, showDot: false });
+        expect(callout.curveLabels[0]).toMatchObject({ y: baseParams.tempYMax, showDot: false });
         expect(result.allMarkLines).toEqual(expect.arrayContaining([expect.objectContaining({ xAxis: 300 })]));
         expect(result.controlGuideMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 300)).toBe(false);
     });
@@ -862,12 +862,12 @@ describe('Charge marker (#451)', () => {
         );
     });
 
-    it('point style: Charge is label-only, other events stay as dots', () => {
+    it('callout style: Charge and other events use leaders without dots', () => {
         const { curveLabels, allMarkLines } = buildMarkers({
             ...baseParams,
             xs: [0, 480],
             btActual: [210.1, 196],
-            eventMarkerStyle: 'point',
+            eventMarkerStyle: 'callout',
             eventMarkers: [
                 chargeMarker,
                 { timeSec: 480, event: 'FC Start', color: '#1b', timeStr: '8:00', temp: '196°C' },
@@ -877,7 +877,9 @@ describe('Charge marker (#451)', () => {
             curveLabels.map((l) => [l.text.includes('Charge') ? 'Charge' : 'FC Start', l]),
         );
         expect(byEvent.Charge.showDot).toBe(false);
-        expect(byEvent['FC Start'].showDot).toBe(true);
+        expect(byEvent['FC Start'].showDot).toBe(false);
+        expect(byEvent.Charge.showLeader).toBe(true);
+        expect(byEvent['FC Start'].showLeader).toBe(true);
         expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
     });
 

@@ -220,7 +220,7 @@ const coerceAutoDropStartMin = (value: unknown, previous: number): number => {
 
 /** Retired `both` was one line through both charts. Keep lines on each chart. */
 const eventMarkerStyleOf = (value: unknown): EventMarkerStyle =>
-    value === 'line' || value === 'tempLine' || value === 'point' || value === 'callout' ? value : 'line';
+    value === 'point' ? 'callout' : value === 'line' || value === 'tempLine' || value === 'callout' ? value : 'line';
 
 const migratePollIntervalMs = (ms: unknown): PollIntervalMs => {
     if (ms === 250) return 500;

@@ -24,7 +24,7 @@ const baseParams = (): ChartOptionParams => ({
     rorActual: [],
     currentTimeSec: 0,
     charged: false,
-    eventMarkerStyle: 'point',
+    eventMarkerStyle: 'callout',
     eventMarkers: [],
     turningPoints: [],
     temperatureUnit: 'C',

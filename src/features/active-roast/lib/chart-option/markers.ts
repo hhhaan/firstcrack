@@ -470,10 +470,8 @@ export const buildCurveLabels = ({
     machineId,
     colors,
 }: CurveLabelBuildParams): CurveLabelItem[] => {
-    const showDot = eventMarkerStyle === 'point';
     const callout = eventMarkerStyle === 'callout';
-    // point/callout sit on BT (TP·Drop·End below, others above). line/tempLine stay at the plot top.
-    const curveSide = showDot || callout;
+    // Callouts sit on BT (TP·Drop·End below, others above). line/tempLine stay at the plot top.
     const markerTemp = (m: RoastEventMarker, nearest: number | null) => {
         if (typeof m.tempC === 'number' && Number.isFinite(m.tempC)) return formatTemp(m.tempC, temperatureUnit);
         if (nearest != null) return `${nearest.toFixed(1)}${unitLabel}`;
@@ -489,7 +487,7 @@ export const buildCurveLabels = ({
             const nearest = marker.reference ? null : nearestBtAt(xs, btActual, marker.timeSec);
             const onCurve = markerCurveY(nearest, marker.tempC, temperatureUnit);
             const atTop = noteAnchoredAtTop(marker.event);
-            const labelAtTop = !curveSide || atTop || isControlEvent(marker.event) || onCurve == null;
+            const labelAtTop = !callout || atTop || isControlEvent(marker.event) || onCurve == null;
             return [
                 {
                     marker,
@@ -504,7 +502,7 @@ export const buildCurveLabels = ({
                     color: (isControlEvent(marker.event) ? colors?.eventControl : colors?.markerLabelColor) ?? '',
                     opacity: marker.reference ? REFERENCE_EVENT_OPACITY : 1,
                     below: labelAtTop || ['TP', 'Drop', 'End'].includes(marker.event),
-                    showDot: marker.event !== 'Charge' && showDot && onCurve != null,
+                    showDot: false,
                     labelAtTop,
                     showLeader: callout && !labelAtTop,
                     topInsetPx: noteLabelTopInsetPx(labelAtTop, fontScale),
@@ -528,8 +526,8 @@ export const buildCurveLabels = ({
                 text: eventLabelText('TP', tp.timeSec, formatTemp(tp.temp, temperatureUnit)),
                 color: colors?.markerLabelColor ?? '',
                 below: true,
-                showDot,
-                labelAtTop: !curveSide,
+                showDot: false,
+                labelAtTop: !callout,
                 showLeader: callout,
             })),
     ];
@@ -559,7 +557,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
 
     // Charge: t=0 = 좌단 축 (#451). 세로선 없음. 라이브는 라벨도 숨김.
     // NOW: 세로 markLine 가이드 (항상)
-    // 라벨은 항상 BT 커브 위 custom series. 점은 point 모드만.
+    // 라벨은 custom series로 표시한다. 이벤트 점 렌더링은 비활성화 상태로 유지한다.
     // tempLine: 온도 차트만. line: 온도 차트와 컨트롤 차트.
     const guideMarkLines: object[] = [];
     const controlGuideMarkLines: object[] = [];

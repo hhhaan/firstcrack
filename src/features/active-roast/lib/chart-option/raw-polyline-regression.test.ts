@@ -32,7 +32,7 @@ const activeRoastMeasuredParams = (): ChartOptionParams => ({
     btTarget: [],
     currentTimeSec: 120,
     charged: true,
-    eventMarkerStyle: 'point',
+    eventMarkerStyle: 'callout',
     eventMarkers: [],
     turningPoints: [],
     temperatureUnit: 'C',
