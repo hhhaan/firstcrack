@@ -14,6 +14,7 @@ import {
     virtualControlNameError,
 } from '@features/active-roast/lib/manual-controls';
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
+import { useRoastingStore } from '@features/active-roast/model/status';
 import { sanitizeDecimal } from '@shared/lib/format';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { Trash2 } from 'lucide-react';
@@ -114,10 +115,18 @@ export function ManualControlSection() {
     const settings = useRoastSettings();
     const { recordVirtualControls } = settings;
     const machines = useVisibleMachines();
+    const activeMachineId = useRoastingStore((state) => state.machineSnapshot?.machine_id);
+    const activeMachine = machines.find((machine) => machine.id === activeMachineId);
+    const orderedMachines = activeMachine
+        ? [activeMachine, ...machines.filter((machine) => machine.id !== activeMachine.id)]
+        : machines;
     const [pickedId, setPickedId] = useState<string | null>(null);
     const selectedId = machines.some((machine) => machine.id === pickedId)
         ? pickedId
-        : (machines.find((machine) => !isSimulatorMachine(machine.id))?.id ?? machines[0]?.id ?? null);
+        : (activeMachine?.id ??
+          machines.find((machine) => !isSimulatorMachine(machine.id))?.id ??
+          machines[0]?.id ??
+          null);
     const controls = manualControlsFor(settings, selectedId);
     const [draft, setDraft] = useState('');
     const [error, setError] = useState<VirtualControlNameError | null>(null);
@@ -176,7 +185,7 @@ export function ManualControlSection() {
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            {machines.map((machine) => (
+                            {orderedMachines.map((machine) => (
                                 <SelectItem key={machine.id} value={machine.id}>
                                     {machine.name}
                                 </SelectItem>

@@ -104,7 +104,7 @@ export const RoastNoteFields = ({
                           )
                         : labelFor(control.id, control.label);
                 const ranged = controlHasRange(control.id);
-                const unit = machineUnit ?? (ranged ? control.unit.trim() : '');
+                const unit = machineUnit ?? control.unit.trim();
                 const bounds = `${control.min}–${control.max}`;
                 return (
                     <label key={control.id} className="contents" htmlFor={`${prefix}-${control.id}`}>
@@ -117,11 +117,6 @@ export const RoastNoteFields = ({
                                 id={`${prefix}-${control.id}`}
                                 autoFocus={autoFocus && index === 0}
                                 value={valueFor(control.id)}
-                                placeholder={
-                                    isBuiltinManualControlId(control.id)
-                                        ? t(`activeRoast.noteEntry.${control.id}Placeholder`)
-                                        : undefined
-                                }
                                 inputMode={ranged ? 'decimal' : 'text'}
                                 autoComplete="off"
                                 spellCheck={false}
