@@ -7,6 +7,7 @@ mod webview_environment;
 mod roast_monitor;
 #[cfg(desktop)]
 mod poll_clock;
+mod scrub_util;
 mod sentry_config;
 #[cfg(any(desktop, test))]
 mod sidecar_diagnostics;

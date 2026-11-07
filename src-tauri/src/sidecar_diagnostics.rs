@@ -2,6 +2,7 @@ use std::collections::VecDeque;
 
 use serde_json::{json, Value};
 
+use crate::scrub_util::{self, REDACTED};
 use crate::sentry_config;
 
 // Keep the last few error stages per process without retaining arbitrary stderr text.
@@ -10,7 +11,6 @@ const STDERR_TAIL_MAX_LINES: usize = 40;
 const STDERR_TAIL_MAX_BYTES: usize = 4096;
 /// ponytail: scrubbed-chunk ceiling — whole stderr records drop from the front only.
 const SCRUBBED_BUFFER_CAP_BYTES: usize = 16_384;
-const REDACTED: &str = "[redacted]";
 
 #[derive(Default)]
 pub(crate) struct StderrDiagnostics {
@@ -38,102 +38,35 @@ pub(crate) fn format_stderr_tail(scrubbed: &str) -> String {
     joined
 }
 
-fn is_value_boundary(c: char) -> bool {
-    c.is_whitespace() || matches!(c, '"' | '\'' | ',' | ';' | ')' | '}' | ']' | '&')
-}
-
-fn scrub_extra_assignments(text: &str, keys: &[&str]) -> String {
-    let lower = text.to_ascii_lowercase();
-    let mut out = String::with_capacity(text.len());
-    let mut cursor = 0usize;
-
-    while cursor < text.len() {
-        let hit = keys
-            .iter()
-            .filter_map(|key| lower[cursor..].find(key).map(|at| (cursor + at, key.len())))
-            .min_by_key(|(at, _)| *at);
-
-        let Some((key_start, key_len)) = hit else {
-            out.push_str(&text[cursor..]);
-            break;
-        };
-        let after_key = key_start + key_len;
-        let mut value_start = after_key;
-        let mut saw_separator = false;
-        for c in text[after_key..].chars() {
-            match c {
-                '"' | '\'' | ' ' | '\t' => value_start += c.len_utf8(),
-                '=' | ':' if !saw_separator => {
-                    saw_separator = true;
-                    value_start += c.len_utf8();
-                }
-                _ => break,
-            }
-        }
-        if !saw_separator || value_start >= text.len() {
-            out.push_str(&text[cursor..after_key]);
-            cursor = after_key;
-            continue;
-        }
-        let value_end = text[value_start..]
-            .find(is_value_boundary)
-            .map(|at| value_start + at)
-            .unwrap_or(text.len());
-        if value_end == value_start {
-            out.push_str(&text[cursor..after_key]);
-            cursor = after_key;
-            continue;
-        }
-        out.push_str(&text[cursor..value_start]);
-        out.push_str(REDACTED);
-        cursor = value_end;
-    }
-
-    out
-}
-
-fn redact_bearer_value(text: &str, lower: &str, mut i: usize, out: &mut String, prefix_end: usize) -> usize {
-    if !lower[i..].starts_with("bearer") {
+fn redact_auth_scheme_value(
+    text: &str,
+    lower: &str,
+    mut i: usize,
+    out: &mut String,
+    prefix_end: usize,
+) -> usize {
+    let scheme = if lower[i..].starts_with("bearer") {
+        "Bearer "
+    } else if lower[i..].starts_with("basic") {
+        "Basic "
+    } else {
         return (i + 1).min(text.len());
-    }
+    };
+    let scheme_len = scheme.trim_end().len();
     out.push_str(&text[prefix_end..i]);
-    i += "bearer".len();
+    i += scheme_len;
     while let Some(c) = text[i..].chars().next() {
         if !c.is_whitespace() {
             break;
         }
         i += c.len_utf8();
     }
-    out.push_str("Bearer ");
+    out.push_str(scheme);
     out.push_str(REDACTED);
     text[i..]
-        .find(is_value_boundary)
+        .find(scrub_util::is_value_boundary)
         .map(|at| i + at)
         .unwrap_or(text.len())
-}
-
-fn scrub_authorization_lines(text: &str) -> String {
-    let lower = text.to_ascii_lowercase();
-    let needle = "authorization:";
-    let mut out = String::with_capacity(text.len());
-    let mut cursor = 0usize;
-    while cursor < text.len() {
-        let Some(at) = lower[cursor..].find(needle) else {
-            out.push_str(&text[cursor..]);
-            break;
-        };
-        let start = cursor + at;
-        out.push_str(&text[cursor..start]);
-        let line_end = text[start..]
-            .find('\n')
-            .map(|i| start + i)
-            .unwrap_or(text.len());
-        out.push_str(&text[start..start + needle.len()]);
-        out.push(' ');
-        out.push_str(REDACTED);
-        cursor = line_end;
-    }
-    out
 }
 
 fn scrub_bearer_headers(text: &str) -> String {
@@ -162,17 +95,17 @@ fn scrub_bearer_headers(text: &str) -> String {
             i += c.len_utf8();
         }
         let next = if needle_len == auth.len() {
-            if lower[i..].starts_with("bearer") {
-                redact_bearer_value(text, &lower, i, &mut out, hit)
+            if lower[i..].starts_with("bearer") || lower[i..].starts_with("basic") {
+                redact_auth_scheme_value(text, &lower, i, &mut out, hit)
             } else {
                 out.push_str(&text[hit..i]);
                 text[i..]
-                    .find(is_value_boundary)
+                    .find(scrub_util::is_value_boundary)
                     .map(|at| i + at)
                     .unwrap_or(text.len())
             }
         } else {
-            redact_bearer_value(text, &lower, hit, &mut out, hit)
+            redact_auth_scheme_value(text, &lower, hit, &mut out, hit)
         };
         cursor = if next <= hit { hit + 1 } else { next };
     }
@@ -202,6 +135,9 @@ fn scrub_emails(text: &str) -> String {
             end += 1;
         }
         if end > i + 1 && start < i {
+            let local_len = i - start;
+            let keep = out.len().saturating_sub(local_len);
+            out.truncate(keep);
             out.push_str(REDACTED);
             i = end;
         } else {
@@ -286,12 +222,14 @@ fn parse_ipv4_endpoint(text: &str, start: usize) -> Option<(usize, usize)> {
 }
 
 /// Scrub one complete stderr chunk before it enters the buffer.
+const EXTRA_ASSIGNMENT_KEYS: [&str; 2] = ["api_key", "apikey"];
+
 pub(crate) fn scrub_stderr_tail(text: &str) -> String {
     let mut out = scrub_bearer_headers(text);
     out = sentry_config::scrub(&out);
-    out = scrub_extra_assignments(&out, &["api_key", "apikey"]);
+    out = scrub_util::scrub_assignments(&out, &EXTRA_ASSIGNMENT_KEYS);
     out = scrub_bearer_headers(&out);
-    out = scrub_authorization_lines(&out);
+    out = scrub_util::scrub_authorization_credentials(&out);
     out = scrub_emails(&out);
     out = scrub_ip_endpoints(&out);
     out
@@ -462,6 +400,26 @@ mod tests {
         assert!(tail.len() <= STDERR_TAIL_MAX_BYTES);
         assert!(!tail.contains("example.com"));
         assert!(!tail.contains("secret"));
+    }
+
+    #[test]
+    fn scrub_emails_redacts_full_address() {
+        let scrubbed = scrub_emails("contact alice.smith@example.com today");
+        assert!(!scrubbed.contains("alice"));
+        assert!(!scrubbed.contains("smith"));
+        assert!(!scrubbed.contains("example.com"));
+        assert!(scrubbed.contains(REDACTED));
+    }
+
+    #[test]
+    fn scrub_stderr_tail_regression_basic_paths_and_unc() {
+        let raw = "authorization=Basic dXNlcjpwYXNz\n\
+            path C:/Users/bob/src\n\
+            share \\\\nas\\roasts\\log.txt";
+        let scrubbed = scrub_stderr_tail(raw);
+        assert!(!scrubbed.contains("dXNlcjpwYXNz"));
+        assert!(!scrubbed.contains("bob"));
+        assert!(!scrubbed.contains("nas"));
     }
 
     #[test]

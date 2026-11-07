@@ -12,11 +12,11 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
+use crate::scrub_util;
+
 // DSN은 클라이언트 공개값 (프론트/사이드카도 동일하게 하드코딩) — 빌드 시크릿 의존 제거
 const SENTRY_DSN: &str =
     "https://a7ad70395dfd0d01e1a94e04fdf4e0e1@o4511400846884864.ingest.us.sentry.io/4511400857042944";
-
-const REDACTED: &str = "[redacted]";
 
 /// debug 빌드에서 SDK를 켜는 명시 opt-in. 프론트 `VITE_SENTRY_SMOKE`와 같은 역할.
 fn is_smoke() -> bool {
@@ -43,106 +43,8 @@ fn environment() -> &'static str {
     }
 }
 
-/// `key=value` / `key: value` 형태의 비밀·연결정보와 사용자 홈 경로를 지운다.
-///
-/// 정규식 의존성을 새로 들이지 않으려고 수동 스캔으로 처리한다.
-/// ponytail: 천장은 아래 키 목록과 홈 디렉터리 접두 3종 — 더 넓은 스크러빙이 필요해지면
-/// `regex` crate로 교체하고 프론트 `SENSITIVE_ASSIGNMENT`와 패턴을 맞춘다.
-const SENSITIVE_KEYS: [&str; 9] = [
-    "password",
-    "token",
-    "secret",
-    "authorization",
-    "cookie",
-    "host",
-    "comport",
-    "serial",
-    "path",
-];
-
-const HOME_PREFIXES: [&str; 3] = ["/Users/", "/home/", ":\\Users\\"];
-
 pub fn scrub(text: &str) -> String {
-    let mut out = scrub_assignments(text);
-    if HOME_PREFIXES.iter().any(|p| out.contains(p)) {
-        out = scrub_paths(&out);
-    }
-    out
-}
-
-/// 값 경계: 공백과 흔한 구분자에서 멈춘다 (뒤따르는 본문까지 잘리지 않게).
-fn is_value_boundary(c: char) -> bool {
-    c.is_whitespace() || matches!(c, '"' | '\'' | ',' | ';' | ')' | '}' | ']' | '&')
-}
-
-fn scrub_assignments(text: &str) -> String {
-    // to_lowercase()가 아니라 ASCII 전용 — 유니코드 소문자화는 바이트 길이를 바꿔
-    // `text`와 인덱스가 어긋난다(슬라이싱 패닉). 민감 키는 모두 ASCII다.
-    let lower = text.to_ascii_lowercase();
-    let mut out = String::with_capacity(text.len());
-    let mut cursor = 0usize;
-
-    while cursor < text.len() {
-        // 남은 구간에서 가장 먼저 등장하는 민감 키를 찾는다.
-        let hit = SENSITIVE_KEYS
-            .iter()
-            .filter_map(|key| lower[cursor..].find(key).map(|at| (cursor + at, key.len())))
-            .min_by_key(|(at, _)| *at);
-
-        let Some((key_start, key_len)) = hit else {
-            break;
-        };
-        let after_key = key_start + key_len;
-
-        // 키 뒤 `=` 또는 `:` (따옴표·공백 허용). 없으면 이 키는 대입이 아니다.
-        let mut value_start = after_key;
-        let mut saw_separator = false;
-        for c in text[after_key..].chars() {
-            match c {
-                '"' | '\'' | ' ' | '\t' => value_start += c.len_utf8(),
-                '=' | ':' if !saw_separator => {
-                    saw_separator = true;
-                    value_start += c.len_utf8();
-                }
-                _ => break,
-            }
-        }
-        if !saw_separator || value_start >= text.len() {
-            out.push_str(&text[cursor..after_key]);
-            cursor = after_key;
-            continue;
-        }
-
-        let value_end = text[value_start..]
-            .find(is_value_boundary)
-            .map(|at| value_start + at)
-            .unwrap_or(text.len());
-        if value_end == value_start {
-            out.push_str(&text[cursor..after_key]);
-            cursor = after_key;
-            continue;
-        }
-
-        out.push_str(&text[cursor..value_start]);
-        out.push_str(REDACTED);
-        cursor = value_end;
-    }
-
-    out.push_str(&text[cursor.min(text.len())..]);
-    out
-}
-
-fn scrub_paths(text: &str) -> String {
-    text.split_inclusive(char::is_whitespace)
-        .map(|token| {
-            if HOME_PREFIXES.iter().any(|p| token.contains(p)) {
-                let trailing = token.len() - token.trim_end().len();
-                format!("{REDACTED}{}", &token[token.len() - trailing..])
-            } else {
-                token.to_owned()
-            }
-        })
-        .collect()
+    scrub_util::scrub_known_assignments_and_paths(text)
 }
 
 fn scrub_event(
