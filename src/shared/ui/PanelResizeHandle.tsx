@@ -3,9 +3,10 @@ import { type PanelResizeOptions, usePanelResize } from './usePanelResize';
 export const PanelResizeHandle = ({
     label,
     controls,
+    stops,
     ...options
 }: PanelResizeOptions & { label: string; controls: string }) => {
-    const handlers = usePanelResize(options);
+    const handlers = usePanelResize({ ...options, stops });
     return (
         <div
             role="separator"

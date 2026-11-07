@@ -1,10 +1,16 @@
 import { updateRoastSettings, useRoastSettings } from '@features/active-roast/model/settings';
 import type { RoastLogEditOptions } from '@features/active-roast/ui/RoastLogEntryEditor';
 import type { LogEntry } from '@shared/types/roast';
+import { PanelResizeHandle } from '@shared/ui/PanelResizeHandle';
 import { Minus, Plus } from 'lucide-react';
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { type ReferenceRoastLog, RoastLogViewer } from './RoastLogViewer';
+
+/** Current `w-44` temperature column, and the only other width: 1.5× that. */
+const SIDE_PANEL_NARROW_PX = 176;
+const SIDE_PANEL_WIDE_PX = 264;
 
 export const RoastSidePanelLayout = ({
     children,
@@ -31,6 +37,8 @@ export const RoastSidePanelLayout = ({
     const { logExpanded } = useRoastSettings();
     const [showReference, setShowReference] = useState(false);
     const logPanelId = useId();
+    const sidePanelId = useId();
+    const [sidePanelWidth, setSidePanelWidth] = useState(SIDE_PANEL_NARROW_PX);
     const logTriggerRef = useRef<HTMLButtonElement>(null);
     const logCloseRef = useRef<HTMLButtonElement>(null);
     const wasExpandedRef = useRef(logExpanded);
@@ -42,44 +50,59 @@ export const RoastSidePanelLayout = ({
     return (
         <>
             <div
+                id={sidePanelId}
                 data-testid="roast-side-panel"
-                className="@container/readings w-44 flex flex-col gap-2.5 px-3 pb-5 border-l border-border-subtle overflow-y-auto shrink-0 min-h-0 self-stretch [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                className="@container/readings relative flex min-h-0 shrink-0 flex-col self-stretch border-l border-border-subtle"
+                style={{ width: sidePanelWidth }}
             >
-                {children}
-                {!logExpanded && (
-                    <>
-                        <div className="border-t border-border-subtle" />
-                        <div className="flex shrink-0 items-center justify-between">
-                            <span className="text-xs font-semibold uppercase text-muted">
-                                {t('activeRoast.log.title')}
-                            </span>
-                            <button
-                                ref={logTriggerRef}
-                                type="button"
-                                aria-label={t('activeRoast.log.expand')}
-                                aria-expanded={false}
-                                aria-controls={logPanelId}
-                                onClick={() => updateRoastSettings({ logExpanded: true })}
-                                className="flex size-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface cursor-pointer"
-                            >
-                                <Plus size={14} />
-                            </button>
-                        </div>
-                        <RoastLogViewer
-                            reference={referenceLog}
-                            showReference={showReference}
-                            onSourceChange={setShowReference}
-                            variant="sidebar"
-                            showHeading={false}
-                            entries={roastLogDisplayEntries}
-                            onRemoveEntry={onRemoveLogEntry}
-                            editOptions={logEditOptions}
-                            deletableEvent={deletableEvent}
-                            editableEvent={editableEvent}
-                            machineId={machineId}
-                        />
-                    </>
-                )}
+                <PanelResizeHandle
+                    label={t('activeRoast.readings.resize')}
+                    controls={sidePanelId}
+                    width={sidePanelWidth}
+                    min={SIDE_PANEL_NARROW_PX}
+                    max={SIDE_PANEL_WIDE_PX}
+                    stops={[SIDE_PANEL_NARROW_PX, SIDE_PANEL_WIDE_PX]}
+                    onWidthChange={(next) => {
+                        flushSync(() => setSidePanelWidth(next));
+                    }}
+                />
+                <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto px-3 pb-5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+                    {children}
+                    {!logExpanded && (
+                        <>
+                            <div className="border-t border-border-subtle" />
+                            <div className="flex shrink-0 items-center justify-between">
+                                <span className="text-xs font-semibold uppercase text-muted">
+                                    {t('activeRoast.log.title')}
+                                </span>
+                                <button
+                                    ref={logTriggerRef}
+                                    type="button"
+                                    aria-label={t('activeRoast.log.expand')}
+                                    aria-expanded={false}
+                                    aria-controls={logPanelId}
+                                    onClick={() => updateRoastSettings({ logExpanded: true })}
+                                    className="flex size-6 shrink-0 items-center justify-center rounded-md text-secondary hover:text-primary hover:bg-surface cursor-pointer"
+                                >
+                                    <Plus size={14} />
+                                </button>
+                            </div>
+                            <RoastLogViewer
+                                reference={referenceLog}
+                                showReference={showReference}
+                                onSourceChange={setShowReference}
+                                variant="sidebar"
+                                showHeading={false}
+                                entries={roastLogDisplayEntries}
+                                onRemoveEntry={onRemoveLogEntry}
+                                editOptions={logEditOptions}
+                                deletableEvent={deletableEvent}
+                                editableEvent={editableEvent}
+                                machineId={machineId}
+                            />
+                        </>
+                    )}
+                </div>
             </div>
             {logExpanded && (
                 <section

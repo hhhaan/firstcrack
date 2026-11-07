@@ -1118,7 +1118,8 @@
             "beanTemp": "ベーン温度",
             "envTemp": "環境温度",
             "rateOfRise": "上昇率",
-            "phase": "フェーズ"
+            "phase": "フェーズ",
+            "resize": "温度パネルの幅を変更"
         },
         "controls": {
             "heater": "ヒーター",

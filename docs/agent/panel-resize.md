@@ -1,6 +1,7 @@
 # Reusable panel resizing
 
-Panel resizing is intentionally disconnected from the active roast screen.
+The temperature panel (`data-testid="roast-side-panel"`) uses this handle on its left edge.
+It has two widths only: 176px, and 264px (1.5×). A left drag selects 264px. A right drag selects 176px.
 Machine Control and the expanded roast log keep their original 160px widths.
 The compact log layout and remembered expanded/collapsed state remain active.
 

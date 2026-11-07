@@ -49,3 +49,41 @@ it.each([false, true])('orders automatic marks and manual controls by event time
         host.remove();
     }
 });
+
+it('switches the temperature panel between 176px and 1.5× that', () => {
+    settings.logExpanded = false;
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const pointer = (divider: HTMLDivElement, type: string, x: number) =>
+        act(() => {
+            divider.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, pointerId: 1, button: 0 }));
+        });
+    try {
+        act(() =>
+            root.render(
+                <RoastSidePanelLayout roastLogDisplayEntries={[]} onRemoveLogEntry={vi.fn()}>
+                    {null}
+                </RoastSidePanelLayout>,
+            ),
+        );
+        const panel = host.querySelector('[data-testid="roast-side-panel"]') as HTMLDivElement;
+        const divider = panel.querySelector('[role="separator"]') as HTMLDivElement;
+        divider.setPointerCapture = vi.fn();
+        expect(divider.getAttribute('aria-valuemin')).toBe('176');
+        expect(divider.getAttribute('aria-valuemax')).toBe('264');
+        expect(panel.style.width).toBe('176px');
+        pointer(divider, 'pointerdown', 400);
+        pointer(divider, 'pointermove', 398);
+        expect(panel.style.width).toBe('176px');
+        pointer(divider, 'pointermove', 340);
+        expect(panel.style.width).toBe('264px');
+        pointer(divider, 'lostpointercapture', 340);
+        pointer(divider, 'pointerdown', 300);
+        pointer(divider, 'pointermove', 360);
+        expect(panel.style.width).toBe('176px');
+    } finally {
+        act(() => root.unmount());
+        host.remove();
+    }
+});

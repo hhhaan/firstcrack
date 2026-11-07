@@ -1118,7 +1118,8 @@
             "beanTemp": "Bean Temp",
             "envTemp": "Env Temp",
             "rateOfRise": "Rate of Rise",
-            "phase": "Phase"
+            "phase": "Phase",
+            "resize": "Resize temperature panel"
         },
         "controls": {
             "heater": "Heater",

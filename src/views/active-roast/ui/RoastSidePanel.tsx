@@ -7,7 +7,7 @@ import {
     reviewMarkToAdd,
 } from '@features/active-roast/lib/review-record-events';
 import type { RoastAlertKind } from '@features/active-roast/lib/roastAlerts';
-import { formatTemp } from '@features/active-roast/lib/temperature';
+import { formatTemp, tempUnitLabel, toDisplayTemp } from '@features/active-roast/lib/temperature';
 import { type TemperatureUnit, useRoastSettings } from '@features/active-roast/model/settings';
 import { useCurveStyles } from '@features/active-roast/model/useCurveStyles';
 import { isRoastEventMarkEnabled } from '@features/active-roast/model/useRoastKeyboardShortcuts';
@@ -24,6 +24,72 @@ import { EventButtons } from './EventButtons';
 import { RoastAlertBanner } from './RoastAlertBanner';
 import type { ReferenceRoastLog } from './RoastLogViewer';
 import { RoastSidePanelLayout } from './RoastSidePanelLayout';
+
+const READING_FIGURE =
+    "font-inconsolata font-medium tabular-nums leading-none [font-feature-settings:'kern'_1,'tnum'_1,'lnum'_1,'zero'_0]";
+
+const formatProbe = (celsius: number | null, unit: TemperatureUnit) =>
+    celsius == null ? '—' : toDisplayTemp(celsius, unit).toFixed(1);
+
+const formatSigned = (value: number) => (value < 0 ? `−${Math.abs(value).toFixed(1)}` : Math.abs(value).toFixed(1));
+
+const MetricColumn = ({
+    metric,
+    testId,
+    label,
+    value,
+    detailLabel,
+    detail,
+    color,
+    className = '',
+}: {
+    metric?: string;
+    testId?: string;
+    label: string;
+    value: string;
+    detailLabel?: string;
+    detail?: string;
+    color: string;
+    className?: string;
+}) => (
+    <div
+        data-roast-metric={metric}
+        data-testid={testId}
+        className={`flex min-w-0 flex-col items-end gap-1 text-right ${className}`}
+    >
+        <div className="text-[11px] font-medium leading-none text-muted">{label}</div>
+        <div className={`${READING_FIGURE} text-[34px]`} style={{ color }}>
+            {value}
+        </div>
+        {detailLabel != null && (
+            <>
+                <div className="mt-1.5 text-[11px] font-medium leading-none text-muted">{detailLabel}</div>
+                <div className={`${READING_FIGURE} text-lg @min-[256px]/readings:text-2xl`} style={{ color }}>
+                    {detail}
+                </div>
+            </>
+        )}
+    </div>
+);
+
+const SummaryCell = ({
+    testId,
+    label,
+    value,
+    color,
+}: {
+    testId?: string;
+    label: string;
+    value: string;
+    color: string;
+}) => (
+    <div data-testid={testId} className="flex flex-col items-end gap-1 text-right">
+        <span className="text-[11px] font-medium leading-none whitespace-nowrap text-muted">{label}</span>
+        <span className={`${READING_FIGURE} text-xl @min-[256px]/readings:text-2xl`} style={{ color }}>
+            {value}
+        </span>
+    </div>
+);
 
 const TARGET_DELTA_COLORS: Record<TargetDeltaResult['status'], string> = {
     within: PHASE_COLORS.ready,
@@ -131,6 +197,46 @@ export const RoastSidePanel = ({
     const showRollingDtr = rollingDtrPct != null;
     const showStartDev = dtrPct != null || (devTimeStr !== '' && devTimeStr !== '—');
     const dtrLabel = showRollingDtr ? 'DTR · Start' : 'DTR';
+    const summaryCells: { testId?: string; label: string; value: string; color: string }[] = [];
+    if (showStartDev) {
+        summaryCells.push(
+            {
+                testId: 'dtr-row',
+                label: dtrLabel,
+                value: dtrPct != null ? `${dtrPct}%` : '—',
+                color: PHASE_COLORS.development,
+            },
+            {
+                testId: 'dev-row',
+                label: showRollingDtr ? 'Dev · Start' : 'Dev',
+                value: devTimeStr ?? '—',
+                color: PHASE_COLORS.development,
+            },
+        );
+    }
+    if (showRollingDtr) {
+        summaryCells.push(
+            { label: 'DTR · Rolling', value: `${rollingDtrPct}%`, color: PHASE_COLORS.development },
+            { label: 'Dev · Rolling', value: rollingDevTimeStr, color: PHASE_COLORS.development },
+        );
+    }
+    if (targetDelta != null) {
+        summaryCells.push({
+            testId: 'target-delta',
+            label: 'Δ Target',
+            value: formatSigned(targetDelta.deltaDisplay),
+            color: TARGET_DELTA_COLORS[targetDelta.status],
+        });
+    }
+    if (bbpTimer != null) {
+        summaryCells.push({
+            testId: 'bbp-timer',
+            label: t('activeRoast.sidebar.bbp'),
+            value: bbpTimer,
+            color: 'var(--color-primary)',
+        });
+    }
+    const summarySpread = summaryCells.length >= 3;
     const fcDualStage = fcDualMarkEnabled ? getFcDualStage(logEntries) : undefined;
     const canMark = isRoastEventMarkEnabled(phase);
     const marksEnabled = reviewing ? Boolean(onAddEvent && logEditOptions) : canMark;
@@ -156,6 +262,7 @@ export const RoastSidePanel = ({
     };
     const chargeWait = bbpChargeWait && !charged && !roastEnded;
     const hideRoastClock = chargeWait || (roastEnded && bbpTimer != null);
+    const showRoR = charged;
     const endDisabled = reviewing || (!charged && !roastEnded);
     const curves = useCurveStyles();
     const eventButtons = useRoastSettings().eventButtons;
@@ -174,204 +281,109 @@ export const RoastSidePanel = ({
             editableEvent={reviewing ? isReviewEditableEvent : undefined}
         >
             <RoastAlertBanner alerts={activeAlerts} />
-            <div
-                data-testid="roast-readings"
-                className="contents @min-[256px]/readings:grid @min-[256px]/readings:grid-cols-2 @min-[256px]/readings:gap-x-3 @min-[256px]/readings:gap-y-4"
-            >
-                <div
-                    data-roast-metric="ET"
-                    className="contents @min-[256px]/readings:flex @min-[256px]/readings:min-w-0 @min-[256px]/readings:flex-col @min-[256px]/readings:gap-1.5"
-                >
-                    {/* ET */}
+            <div data-testid="roast-readings">
+                <div className="flex flex-col @min-[256px]/readings:hidden">
                     <div className="text-right">
-                        <div className="text-sm text-muted font-semibold uppercase mb-1 @min-[256px]/readings:text-xs">
-                            ET
-                        </div>
+                        <div className="mb-1 text-[11px] font-medium text-muted uppercase">ET</div>
                         <div
-                            className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                            className="font-inconsolata text-[34px] font-medium leading-tight whitespace-nowrap"
                             style={{ color: curves.et.current.color }}
                         >
                             {formatTemp(rawET, unit)}
                         </div>
                     </div>
-                    {/* ΔET */}
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted font-semibold uppercase @min-[256px]/readings:text-[10px] @min-[256px]/readings:whitespace-nowrap">
-                            ΔET (30s)
-                        </span>
+                        <span className="text-[11px] font-medium text-muted uppercase">ΔET (30s)</span>
                         <span
-                            className="font-inconsolata text-xl font-medium leading-tight @min-[256px]/readings:text-lg @min-[256px]/readings:whitespace-nowrap"
+                            className="font-inconsolata text-xl font-medium leading-tight"
                             style={{ color: curves.et.current.color }}
                         >
-                            {deltaET != null ? (
-                                <>
-                                    <span className="mr-1">{Number(deltaET) >= 0 ? '+' : '−'}</span>
-                                    <span>{Math.abs(Number(deltaET)).toFixed(1)}°</span>
-                                </>
-                            ) : (
-                                '—'
-                            )}
+                            {deltaET != null ? formatSigned(Number(deltaET)) + '°' : '—'}
                         </span>
                     </div>
-                </div>
-                <div
-                    data-roast-metric="BT"
-                    className="contents @min-[256px]/readings:flex @min-[256px]/readings:min-w-0 @min-[256px]/readings:flex-col @min-[256px]/readings:gap-1.5"
-                >
-                    {/* BT */}
-                    <div className="text-right border-t border-border-subtle pt-3 @min-[256px]/readings:border-t-0 @min-[256px]/readings:pt-0">
-                        <div className="text-sm text-muted font-semibold uppercase mb-1 @min-[256px]/readings:text-xs">
-                            BT
-                        </div>
+                    <div className="border-t border-border-subtle pt-3 text-right">
+                        <div className="mb-1 text-[11px] font-medium text-muted uppercase">BT</div>
                         <div
-                            className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
+                            className="font-inconsolata text-[34px] font-medium leading-tight whitespace-nowrap"
                             style={{ color: curves.bt.current.color }}
                         >
                             {formatTemp(rawBT, unit)}
                         </div>
                     </div>
-                    {/* ΔBT */}
                     <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted font-semibold uppercase @min-[256px]/readings:text-[10px] @min-[256px]/readings:whitespace-nowrap">
-                            ΔBT (30s)
-                        </span>
+                        <span className="text-[11px] font-medium text-muted uppercase">ΔBT (30s)</span>
                         <span
-                            className="font-inconsolata text-xl font-medium leading-tight @min-[256px]/readings:text-lg @min-[256px]/readings:whitespace-nowrap"
+                            className="font-inconsolata text-xl font-medium leading-tight"
                             style={{ color: curves.bt.current.color }}
                         >
-                            {deltaBT != null ? (
-                                <>
-                                    <span className="mr-1">{Number(deltaBT) >= 0 ? '+' : '−'}</span>
-                                    <span>{Math.abs(Number(deltaBT)).toFixed(1)}°</span>
-                                </>
-                            ) : (
-                                '—'
-                            )}
+                            {deltaBT != null ? formatSigned(Number(deltaBT)) + '°' : '—'}
                         </span>
                     </div>
-                </div>
-                {/* RoR */}
-                <div
-                    data-roast-metric="RoR"
-                    className="text-right border-t border-border-subtle pt-3 @min-[256px]/readings:border-t-0 @min-[256px]/readings:pt-0"
-                >
-                    <div className="text-md text-muted font-semibold mb-1 @min-[256px]/readings:text-xs">RoR</div>
-                    <div
-                        className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                        style={{ color: curves.ror.current.color }}
-                    >
-                        {displayRoR}
-                    </div>
-                </div>
-                {/* Time — hide frozen roast clock while unsaved ended + BBP (#484) */}
-                {!hideRoastClock && (
-                    <div
-                        data-roast-metric="Time"
-                        className="text-right border-t border-border-subtle pt-3 @min-[256px]/readings:border-t-0 @min-[256px]/readings:pt-0"
-                        data-testid="roast-time"
-                    >
-                        <div className="text-sm text-muted font-semibold uppercase mb-1 @min-[256px]/readings:text-xs">
-                            Time
+                    {showRoR && (
+                        <div className="border-t border-border-subtle pt-3 text-right">
+                            <div className="mb-1 text-[11px] font-medium text-muted">RoR</div>
+                            <div
+                                className="font-inconsolata text-[34px] font-medium leading-tight whitespace-nowrap"
+                                style={{ color: curves.ror.current.color }}
+                            >
+                                {displayRoR}
+                            </div>
                         </div>
-                        <div
-                            className="font-inconsolata text-3xl font-medium whitespace-nowrap overflow-hidden text-ellipsis leading-tight"
-                            style={{ color: 'var(--color-primary)' }}
-                        >
-                            {timeStr}
+                    )}
+                    {!hideRoastClock && (
+                        <div className="border-t border-border-subtle pt-3 text-right" data-testid="roast-time">
+                            <div className="mb-1 text-[11px] font-medium text-muted uppercase">Time</div>
+                            <div className="font-inconsolata text-[34px] font-medium leading-tight whitespace-nowrap text-primary">
+                                {timeStr}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
+                <div className="hidden grid-cols-2 gap-x-3 gap-y-4 @min-[256px]/readings:grid">
+                    <MetricColumn
+                        metric="ET"
+                        label={`ET (${tempUnitLabel(unit)})`}
+                        value={formatProbe(rawET, unit)}
+                        detailLabel="ΔET (30s)"
+                        detail={deltaET != null ? formatSigned(Number(deltaET)) : '—'}
+                        color={curves.et.current.color}
+                    />
+                    <MetricColumn
+                        metric="BT"
+                        label="BT"
+                        value={formatProbe(rawBT, unit)}
+                        detailLabel="ΔBT (30s)"
+                        detail={deltaBT != null ? formatSigned(Number(deltaBT)) : '—'}
+                        color={curves.bt.current.color}
+                    />
+                    {showRoR && (
+                        <MetricColumn metric="RoR" label="RoR" value={displayRoR} color={curves.ror.current.color} />
+                    )}
+                    {!hideRoastClock && (
+                        <MetricColumn
+                            metric="Time"
+                            testId="roast-time-wide"
+                            label="Time"
+                            value={timeStr}
+                            color="var(--color-primary)"
+                            className="col-start-2"
+                        />
+                    )}
+                </div>
             </div>
             {readFeedback}
-            {(targetDelta != null || bbpTimer != null || showStartDev || showRollingDtr) && (
+            {summaryCells.length > 0 && (
                 <div
                     data-testid="roast-summary"
-                    className="contents @min-[256px]/readings:flex @min-[256px]/readings:flex-col @min-[256px]/readings:gap-2 @min-[256px]/readings:border-t @min-[256px]/readings:border-border-subtle @min-[256px]/readings:pt-3"
+                    className={`flex gap-y-2 border-t border-border-subtle pt-2.5 ${
+                        summarySpread
+                            ? 'justify-between [&>*]:min-w-0 [&>*]:flex-1'
+                            : 'justify-end gap-x-10 [&>*]:shrink-0'
+                    }`}
                 >
-                    {/* Δ Target — 타겟 곡선 대비 현재 BT */}
-                    {targetDelta != null && (
-                        <div data-testid="target-delta" className="flex items-center justify-between">
-                            <span className="text-xs text-muted font-semibold uppercase">Δ Target</span>
-                            <span
-                                className="font-inconsolata text-xl font-medium leading-tight"
-                                style={{ color: TARGET_DELTA_COLORS[targetDelta.status] }}
-                            >
-                                <span className="mr-1">{targetDelta.deltaDisplay >= 0 ? '+' : '−'}</span>
-                                <span>{Math.abs(targetDelta.deltaDisplay).toFixed(1)}°</span>
-                            </span>
-                        </div>
-                    )}
-                    {bbpTimer != null && (
-                        <div className="flex items-center justify-between" data-testid="bbp-timer">
-                            <span className="text-xs text-muted font-semibold uppercase">
-                                {t('activeRoast.sidebar.bbp')}
-                            </span>
-                            <span className="font-inconsolata text-xl font-medium leading-tight">{bbpTimer}</span>
-                        </div>
-                    )}
-                    {(showStartDev || showRollingDtr) && (
-                        <div className="contents @min-[256px]/readings:grid @min-[256px]/readings:grid-cols-2 @min-[256px]/readings:gap-x-3 @min-[256px]/readings:gap-y-2">
-                            {/* DTR + Dev — hidden until FC Start makes them calculable */}
-                            {showStartDev && (
-                                <>
-                                    <div
-                                        className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5"
-                                        data-testid="dtr-row"
-                                    >
-                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
-                                            {dtrLabel}
-                                        </span>
-                                        <span
-                                            className="font-inconsolata text-xl font-medium leading-tight"
-                                            style={{ color: PHASE_COLORS.development }}
-                                        >
-                                            {dtrPct != null ? `${dtrPct}%` : '—'}
-                                        </span>
-                                    </div>
-                                    <div
-                                        className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5"
-                                        data-testid="dev-row"
-                                    >
-                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
-                                            {showRollingDtr ? 'Dev · Start' : 'Dev'}
-                                        </span>
-                                        <span
-                                            className="font-inconsolata text-lg font-medium leading-tight @min-[256px]/readings:text-xl"
-                                            style={{ color: PHASE_COLORS.development }}
-                                        >
-                                            {devTimeStr ?? '—'}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-                            {showRollingDtr && (
-                                <>
-                                    <div className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5">
-                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
-                                            DTR · Rolling
-                                        </span>
-                                        <span
-                                            className="font-inconsolata text-xl font-medium leading-tight"
-                                            style={{ color: PHASE_COLORS.development }}
-                                        >
-                                            {rollingDtrPct}%
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between @min-[256px]/readings:flex-col @min-[256px]/readings:items-end @min-[256px]/readings:gap-0.5">
-                                        <span className="text-xs text-muted font-semibold uppercase whitespace-nowrap @min-[256px]/readings:text-[10px]">
-                                            Dev · Rolling
-                                        </span>
-                                        <span
-                                            className="font-inconsolata text-lg font-medium leading-tight @min-[256px]/readings:text-xl"
-                                            style={{ color: PHASE_COLORS.development }}
-                                        >
-                                            {rollingDevTimeStr}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
+                    {summaryCells.map((cell) => (
+                        <SummaryCell key={cell.label} {...cell} />
+                    ))}
                 </div>
             )}
 
@@ -413,7 +425,7 @@ export const RoastSidePanel = ({
                                 className={`flex items-center justify-center gap-1 py-2 rounded-md border-none text-xs font-semibold ${
                                     chargeLocked ? 'cursor-default opacity-60' : 'cursor-pointer'
                                 }`}
-                                style={{ background: PHASE_COLORS.readyBg, color: PHASE_COLORS.ready }}
+                                style={{ background: 'oklch(0.86 0.11 155)', color: 'oklch(0.4 0.16 155)' }}
                                 type="button"
                             >
                                 <Play size={12} />

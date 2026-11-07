@@ -1026,7 +1026,7 @@ export const ActiveRoast = ({
     // ── 렌더 ──────────────────────────────────────────────────────
     return (
         <div
-            className={`flex h-full min-h-0 flex-col gap-0 overflow-hidden pt-6 pb-3 ${
+            className={`flex h-full min-h-0 flex-col gap-0 overflow-hidden pt-4.5 pb-3 ${
                 isFullscreen ? 'px-6' : 'pl-6 pr-0'
             }`}
         >

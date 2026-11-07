@@ -1494,7 +1494,8 @@
             "beanTemp": "생두 온도",
             "envTemp": "환경 온도",
             "rateOfRise": "상승률",
-            "phase": "단계"
+            "phase": "단계",
+            "resize": "온도 패널 너비 조절"
         },
         "controls": {
             "heater": "히터",

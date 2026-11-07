@@ -57,7 +57,8 @@ for (const machineControl of [false, true]) {
                 await trigger.focus();
                 await page.keyboard.press('Enter');
                 await expect(panel).toBeVisible();
-                await expect(page.getByRole('separator')).toHaveCount(0);
+                await expect(sidePanel.getByRole('separator', { name: 'Resize temperature panel' })).toHaveCount(1);
+                await expect(panel.getByRole('separator')).toHaveCount(0);
                 await expect(sidePanel.getByText('Roast Log', { exact: true })).toHaveCount(0);
                 await expect(panel.getByRole('button', { name: 'Collapse roast log' })).toBeFocused();
                 const position = await panel.evaluate((element) => getComputedStyle(element).position);

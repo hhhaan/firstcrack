@@ -1118,7 +1118,8 @@
             "beanTemp": "豆温",
             "envTemp": "环境温度",
             "rateOfRise": "升温率",
-            "phase": "阶段"
+            "phase": "阶段",
+            "resize": "调整温度面板宽度"
         },
         "controls": {
             "heater": "加热器",

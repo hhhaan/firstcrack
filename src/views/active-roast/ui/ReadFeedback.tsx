@@ -1,7 +1,11 @@
 import { useRoastingStore } from '@features/active-roast/model/status';
-import { feedbackValue, formatFeedback } from '@shared/lib/feedback';
-import type { ReadUnits } from '@shared/types/sidecar';
+import { feedbackLabel, feedbackValue, formatFeedback } from '@shared/lib/feedback';
+import type { ExtraSensorReading, ReadUnits } from '@shared/types/sidecar';
 import { useTranslation } from 'react-i18next';
+
+const readingCell = 'flex min-w-0 flex-col items-end break-words';
+const readingLabel = 'text-[11px] font-medium leading-none text-muted';
+const readingValue = 'm-0 mt-1 font-inconsolata text-[15px] font-medium tabular-nums leading-none text-primary';
 
 /** Measured channels stay visible on read-only machines, without setpoint controls. */
 export function ReadFeedback() {
@@ -12,38 +16,31 @@ export function ReadFeedback() {
     const roles = (['heater', 'fan', 'drum'] as const).filter((role) => units[role] !== undefined);
     if (!connected || !live || (roles.length === 0 && !live.extra_readings?.length)) return null;
     const autoStatus = live.extra_readings?.find((reading) => reading.id === 'auto_status');
+    const extraText = (reading: ExtraSensorReading) => {
+        if (live.stale || reading.value == null) return '—';
+        if (reading.id === 'auto_status') {
+            return t(reading.value > 0 ? 'machines.loringAuto.on' : 'machines.loringAuto.off');
+        }
+        return `${reading.value}${reading.unit ? ` ${reading.unit}` : ''}`;
+    };
     return (
         <div className="min-w-0">
-            <dl className="m-0 flex flex-wrap justify-between gap-x-2 gap-y-2 text-[11px]">
+            <dl className="m-0 grid grid-cols-3 gap-x-3 gap-y-2 text-right text-[11px]">
                 {roles.map((role) => {
                     const value = live.stale ? null : feedbackValue(live[role], role, units);
                     return (
-                        <div key={role} className="min-w-0 max-w-full break-words">
-                            <dt className="text-muted">
-                                {t(
-                                    `settings.firescope.feedback.${role === 'fan' && units.fan === 'Pa' ? 'airPressure' : role}`,
-                                )}
-                            </dt>
-                            <dd className="m-0 font-inconsolata text-[14px] text-primary">
-                                {value == null ? '—' : formatFeedback(value, role, units)}
-                            </dd>
+                        <div key={role} className={readingCell}>
+                            <dt className={readingLabel}>{feedbackLabel(role, units)}</dt>
+                            <dd className={readingValue}>{value == null ? '—' : formatFeedback(value, role, units)}</dd>
                         </div>
                     );
                 })}
                 {live.extra_readings?.map((reading) => (
-                    <div key={reading.id} className="min-w-0 max-w-full break-words">
-                        <dt className="text-muted">
+                    <div key={reading.id} className={readingCell}>
+                        <dt className={readingLabel}>
                             {reading.id === 'auto_status' ? t('machines.loringAuto.label') : reading.label}
                         </dt>
-                        <dd className="m-0 font-inconsolata text-[14px] text-primary">
-                            {reading.id === 'auto_status'
-                                ? live.stale || reading.value == null
-                                    ? '—'
-                                    : t(reading.value > 0 ? 'machines.loringAuto.on' : 'machines.loringAuto.off')
-                                : live.stale || reading.value == null
-                                  ? '—'
-                                  : `${reading.value}${reading.unit ? ` ${reading.unit}` : ''}`}
-                        </dd>
+                        <dd className={readingValue}>{extraText(reading)}</dd>
                     </div>
                 ))}
             </dl>
