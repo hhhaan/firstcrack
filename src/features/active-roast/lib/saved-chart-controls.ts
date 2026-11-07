@@ -29,9 +29,8 @@ export const savedChartControls = (input: {
     );
     const hasControls = sessionHasControls || input.referenceControls;
     const hasRecordedCommands =
-        input.changes?.some((change) =>
-            Object.values(change.values).some((value) => value != null && Number.isFinite(value)),
-        ) || input.heatSet.some((value) => value != null && Number.isFinite(value));
+        input.changes?.some((change) => Object.values(change.values).some((value) => Number.isFinite(value))) ||
+        input.heatSet.some((value) => value != null && Number.isFinite(value));
     if (!hasControls && !hasRecordedCommands) return { hasControls, controlData: undefined };
     return {
         hasControls,

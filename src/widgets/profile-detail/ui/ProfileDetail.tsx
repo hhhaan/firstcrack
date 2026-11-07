@@ -18,8 +18,7 @@ import type { TsvPoint } from '@shared/lib/tsv';
 import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
-import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
-import { AlertCircle, Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -31,6 +30,7 @@ import {
 import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
 import { ProfileReferenceBatches } from './ProfileReferenceBatches';
+import { ProfileRoastChart } from './ProfileRoastChart';
 import { ProfileStartButton } from './ProfileStartButton';
 
 interface ProfileDetailProps {
@@ -39,7 +39,8 @@ interface ProfileDetailProps {
     selectedRealCurve: TsvPoint[];
     selectedHasReal: boolean;
     defaultId: string | null;
-    chartKey: string;
+    curveLoading: boolean;
+    curveError: boolean;
     onSetDefault: (id: string | null) => void;
     onEdit: () => void;
     onDuplicate: (profile: RoastProfileWithSource) => void;
@@ -54,7 +55,8 @@ export const ProfileDetail = ({
     selectedRealCurve,
     selectedHasReal,
     defaultId,
-    chartKey,
+    curveLoading,
+    curveError,
     onSetDefault,
     onEdit,
     onDuplicate,
@@ -70,8 +72,13 @@ export const ProfileDetail = ({
     const exportFile = useCsvFileExport();
     const unit = useRoastSettings().temperatureUnit;
     const machines = useMachines((s) => s.machines);
-    const heaterUnit = profileHeaterBounds(selected, machines, ROASTER_REGISTRY).unit;
-    const sourceHeaterEvents = resolveSourceSession(selected.source_session)?.heater_events;
+    const source = resolveSourceSession(selected.source_session);
+    const heaterUnit = profileHeaterBounds(
+        source?.machine_id || source?.machine_roaster_key ? source : selected,
+        machines,
+        ROASTER_REGISTRY,
+    ).unit;
+    const sourceHeaterEvents = source?.heater_events;
     const extraSensorColumns = useMemo(() => profileExtraSensorColumns(selectedRealCurve), [selectedRealCurve]);
     const extraSensorPoints = useMemo(
         () => selectedRealCurve.filter((point) => point.extraReadings?.length),
@@ -121,7 +128,7 @@ export const ProfileDetail = ({
                         {selected.name}
                         {batchNumber !== undefined && (
                             <Badge
-                                className="ml-2 align-middle font-body tabular-nums"
+                                className="ml-2 h-4 align-middle px-3 font-body text-[11px] leading-none tabular-nums"
                                 title={t('history.batchNumbers.label')}
                                 data-testid="profile-detail-batch-number"
                             >
@@ -187,35 +194,14 @@ export const ProfileDetail = ({
                 </div>
             </div>
 
-            <div className="bg-surface dark:bg-surface-elevated rounded-lg px-4 pt-4 pb-2 mb-5 ">
-                <div className="flex items-center justify-between mb-2">
-                    <div className="text-[12px] font-medium text-muted tracking-[0.5px] uppercase">
-                        {t('profiles.detail.profileCurve')}
-                    </div>
-                    {!selectedHasReal && (
-                        <Badge
-                            size="sm"
-                            tone="yellow"
-                            icon={<AlertCircle size={10} strokeWidth={2} />}
-                            className="tracking-[0.2px]"
-                        >
-                            {t('profiles.detail.noRecordedData')}
-                        </Badge>
-                    )}
-                </div>
-                <ProfileCurveChart
-                    key={chartKey}
-                    series={[
-                        {
-                            curve: selectedHasReal
-                                ? selectedRealCurve.map((pt) => ({ t: pt.t, bt: pt.bt }))
-                                : generateProfileCurve(selected.drop_temp_celsius ?? 200, selected.duration_sec ?? 720),
-                            color: 'var(--color-primary)',
-                            label: selected.name,
-                        },
-                    ]}
-                />
-            </div>
+            <ProfileRoastChart
+                key={`${selected.id}:${selected.source_session_id}`}
+                profile={selected}
+                points={selectedRealCurve}
+                events={sourceEvents}
+                isLoading={curveLoading}
+                isError={curveError}
+            />
 
             <ProfileReferenceBatches
                 profileId={selected.id}
