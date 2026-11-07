@@ -110,13 +110,14 @@ export const getResolvedChartColors = (print = false) => {
     };
 
     return {
-        btTarget: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
-        btTargetTooltip: gv('--color-sensor-bt-target', 'rgba(0,157,76,0.55)'),
-        btActual: gv('--color-sensor-bt', '#009d4c'),
-        etActual: gv('--color-sensor-et', '#0091cb'),
-        etTarget: gv('--color-sensor-et-target', 'oklch(0.6 0.17 225 / 0.55)'),
-        rorActual: gv('--color-sensor-ror', '#e7ae00'),
-        rorTarget: gv('--color-sensor-ror-target', 'oklch(0.78 0.18 88 / 0.55)'),
+        btTarget: gv('--color-sensor-bt-target', 'oklch(0.502 0.16 263.3 / 0.55)'),
+        btTargetTooltip: gv('--color-sensor-bt-target', 'oklch(0.502 0.16 263.3 / 0.55)'),
+        btActual: gv('--color-sensor-bt', '#315dbe'),
+        etActual: gv('--color-sensor-et', '#dc4729'),
+        etTarget: gv('--color-sensor-et-target', 'oklch(0.605 0.19 33.2 / 0.55)'),
+        etRorActual: gv('--color-sensor-et-ror', '#315dbe'),
+        rorActual: gv('--color-sensor-ror', '#dfa62f'),
+        rorTarget: gv('--color-sensor-ror-target', 'oklch(0.759 0.143 80.6 / 0.55)'),
         tp: gv('--color-event-mark', '#777'),
         phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
@@ -142,14 +143,14 @@ export const getResolvedChartColors = (print = false) => {
         phaseBarDevelopment: gv('--color-chart-phasebar-development', 'oklch(0.74 0.12 155)'),
 
         // Control chart colors
-        controlDrum: gv('--color-control-drum', '#00a36d'),
-        controlDrumTarget: gv('--color-control-drum-target', 'oklch(0.62 0.16 165 / 0.55)'),
-        controlHeat: gv('--color-control-heat', '#e7ae00'),
-        controlHeatTarget: gv('--color-control-heat-target', 'oklch(0.78 0.18 88 / 0.55)'),
-        controlHeatArea: gv('--color-control-heat-area', 'rgba(231,174,0,0.22)'),
-        controlFan: gv('--color-control-fan', '#0091cb'),
-        controlFanTarget: gv('--color-control-fan-target', 'oklch(0.6 0.17 225 / 0.55)'),
-        controlFanArea: gv('--color-control-fan-area', 'rgba(0,145,203,0.22)'),
+        controlDrum: gv('--color-control-drum', '#2e9566'),
+        controlDrumTarget: gv('--color-control-drum-target', 'oklch(0.598 0.118 159.4 / 0.55)'),
+        controlHeat: gv('--color-control-heat', '#dfa62f'),
+        controlHeatTarget: gv('--color-control-heat-target', 'oklch(0.759 0.143 80.6 / 0.55)'),
+        controlHeatArea: gv('--color-control-heat-area', 'oklch(0.759 0.143 80.6 / 0.22)'),
+        controlFan: gv('--color-control-fan', '#3e73c9'),
+        controlFanTarget: gv('--color-control-fan-target', 'oklch(0.562 0.145 259.6 / 0.55)'),
+        controlFanArea: gv('--color-control-fan-area', 'oklch(0.562 0.145 259.6 / 0.22)'),
 
         // Event marker categories (resolved for canvas)
         eventMark: gv('--color-event-mark', '#777'),
@@ -161,7 +162,7 @@ export const getResolvedChartColors = (print = false) => {
         // BT−target delta label (canvas)
         targetDeltaWithin: gv('--color-phase-ready', '#81fba5'),
         targetDeltaOver: gv('--color-phase-danger', '#dc2626'),
-        targetDeltaUnder: gv('--color-sensor-et', '#0091cb'),
+        targetDeltaUnder: gv('--color-sensor-et', '#dc4729'),
     };
 };
 

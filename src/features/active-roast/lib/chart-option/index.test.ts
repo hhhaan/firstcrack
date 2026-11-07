@@ -1546,7 +1546,7 @@ describe('buildRoastChartOption', () => {
                 [60, null],
             ],
             lineStyle: {
-                color: mockColors.etActual,
+                color: mockColors.etRorActual,
                 width: TEMP_CURVE_WIDTH,
                 type: 'solid',
                 opacity: REFERENCE_CURVE_OPACITY,

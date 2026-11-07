@@ -1508,7 +1508,7 @@ describe('RoastTempChart interactions', () => {
             ).toBeCloseTo(roastPdfLayout.plotGap + roastPdfLayout.axisSpace);
             expect(
                 printOption.series.find((series: { name: string }) => series.name === 'BT Actual').lineStyle.color,
-            ).toBe('#009d4c');
+            ).toBe('#315dbe');
             expect(document.documentElement.style.getPropertyValue('--color-sensor-bt')).toBe('#ffffff');
             expect(chart.setOption.mock.lastCall?.[0]).toBe(screenOption);
             expect(chart.dispose).not.toHaveBeenCalled();

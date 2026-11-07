@@ -2,17 +2,15 @@
 // Values are resolved from :root (light) / html.dark (dark) at runtime
 export const SENSOR_COLORS = {
     bt: 'var(--color-sensor-bt)',
-    btBg: 'var(--color-sensor-bt-bg, rgba(0,157,76,0.12))',
-    btTarget: 'var(--color-sensor-bt-target, rgba(0,157,76,0.55))',
-    btTargetHover: 'var(--color-sensor-bt-target-hover, rgba(0,157,76,0.75))',
-    btTargetStrong: 'var(--color-sensor-bt-target-strong, rgba(0,157,76,0.85))',
-    // light: oklch(0.6 0.17 225) / dark: #BEACF8
+    btBg: 'var(--color-sensor-bt-bg, rgba(49,93,190,0.12))',
+    btTarget: 'var(--color-sensor-bt-target, rgba(49,93,190,0.55))',
+    btTargetHover: 'var(--color-sensor-bt-target-hover, rgba(49,93,190,0.75))',
+    btTargetStrong: 'var(--color-sensor-bt-target-strong, rgba(49,93,190,0.85))',
     et: 'var(--color-sensor-et)',
     etChart: 'var(--color-sensor-et)',
-    etBg: 'var(--color-sensor-et-bg, rgba(0,145,203,0.14))',
-    // light: oklch(0.78 0.18 88) / dark: #FFFF54
+    etBg: 'var(--color-sensor-et-bg, rgba(220,71,41,0.14))',
     ror: 'var(--color-sensor-ror)',
-    rorBg: 'var(--color-sensor-ror-bg, rgba(231,174,0,0.22))',
+    rorBg: 'var(--color-sensor-ror-bg, rgba(223,166,47,0.22))',
 } as const;
 
 export const PHASE_COLORS = {

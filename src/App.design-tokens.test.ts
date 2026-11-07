@@ -83,16 +83,16 @@ describe('DESIGN.md ↔ App.css design tokens', () => {
     it('keeps known prior-drift tokens correct (oklch light, phase-danger, divider dark)', () => {
         const { light, dark } = inventory(loadAppCss());
 
-        expect(light['--color-sensor-bt']).toBe('oklch(0.6 0.18 155)');
-        expect(light['--color-sensor-bt-target']).toBe('oklch(0.6 0.18 155 / 0.55)');
-        expect(dark['--color-sensor-bt-target']).toBe('rgba(75, 224, 140, 0.65)');
+        expect(light['--color-sensor-bt']).toBe('oklch(0.502 0.16 263.3)');
+        expect(light['--color-sensor-bt-target']).toBe('oklch(0.502 0.16 263.3 / 0.55)');
+        expect(dark['--color-sensor-bt-target']).toBe('rgba(49, 93, 190, 0.65)');
         expect(light['--color-phase-danger']).toBe('#dc2626');
         expect(dark['--color-phase-danger']).toBe('#ffffff');
         expect(dark['--color-divider']).toBe('#212121');
         expect(light['--color-palette-yellow']).toBe('oklch(0.78 0.18 88)');
         expect(light['--color-event-mark']).toBe('oklch(0.55 0 0)');
         expect(dark['--color-event-control']).toBe('oklch(0.72 0.17 25)');
-        expect(light['--color-control-drum']).toBe('oklch(0.62 0.16 165)');
+        expect(light['--color-control-drum']).toBe('oklch(0.598 0.118 159.4)');
 
         // Doc must carry the same effective strings (not stale hex substitutes)
         expect(designMd).toContain(light['--color-sensor-bt']);

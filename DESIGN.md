@@ -112,12 +112,14 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 | Token | Light | Dark | 의미 |
 |---|---|---|---|
-| `--color-sensor-bt` | `oklch(0.6 0.18 155)` | `#4be08c` | Bean Temperature |
-| `--color-sensor-bt-target` | `oklch(0.6 0.18 155 / 0.55)` | `rgba(75, 224, 140, 0.65)` | BT 참조 곡선 (같은 색, 낮은 알파, 점선) |
-| `--color-sensor-et` | `oklch(0.6 0.17 225)` | `#beacf8` | Environmental Temp |
-| `--color-sensor-et-target` | `oklch(0.6 0.17 225 / 0.55)` | `rgba(190, 172, 248, 0.65)` | ET 참조 곡선 |
-| `--color-sensor-ror` | `oklch(0.78 0.18 88)` | `#ffff54` | Rate of Rise |
-| `--color-sensor-ror-target` | `oklch(0.78 0.18 88 / 0.55)` | `rgba(255, 255, 84, 0.65)` | RoR 참조 곡선 |
+| `--color-sensor-bt` | `oklch(0.502 0.16 263.3)` | `#315dbe` | Bean Temperature |
+| `--color-sensor-bt-target` | `oklch(0.502 0.16 263.3 / 0.55)` | `rgba(49, 93, 190, 0.65)` | BT 참조 곡선 (같은 색, 낮은 알파, 점선) |
+| `--color-sensor-et` | `oklch(0.605 0.19 33.2)` | `#dc4729` | Environmental Temp |
+| `--color-sensor-et-target` | `oklch(0.605 0.19 33.2 / 0.55)` | `rgba(220, 71, 41, 0.65)` | ET 참조 곡선 |
+| `--color-sensor-et-ror` | `oklch(0.502 0.16 263.3)` | `#315dbe` | ET Rate of Rise |
+| `--color-sensor-et-ror-target` | `oklch(0.502 0.16 263.3 / 0.55)` | `rgba(49, 93, 190, 0.65)` | ET RoR 참조 곡선 |
+| `--color-sensor-ror` | `oklch(0.759 0.143 80.6)` | `#dfa62f` | Rate of Rise |
+| `--color-sensor-ror-target` | `oklch(0.759 0.143 80.6 / 0.55)` | `rgba(223, 166, 47, 0.65)` | RoR 참조 곡선 |
 
 ### Phase colors
 
@@ -149,14 +151,14 @@ Tailwind: `bg-palette-blue`, `text-palette-green`, `bg-palette-lavender/15` 등.
 
 | Token | Light | Dark |
 |---|---|---|
-| `--color-control-drum` | `oklch(0.62 0.16 165)` | `#72ebbc` |
-| `--color-control-drum-target` | `oklch(0.62 0.16 165 / 0.55)` | `rgba(114, 235, 188, 0.65)` |
-| `--color-control-heat` | `oklch(0.78 0.18 88)` | `#ffff54` |
-| `--color-control-heat-target` | `oklch(0.78 0.18 88 / 0.55)` | `rgba(255, 255, 84, 0.65)` |
-| `--color-control-heat-area` | `oklch(0.78 0.18 88 / 0.22)` | `rgba(255, 255, 84, 0.15)` |
-| `--color-control-fan` | `oklch(0.6 0.17 225)` | `#44bffc` |
-| `--color-control-fan-target` | `oklch(0.6 0.17 225 / 0.55)` | `rgba(68, 191, 252, 0.65)` |
-| `--color-control-fan-area` | `oklch(0.6 0.17 225 / 0.22)` | `rgba(68, 191, 252, 0.15)` |
+| `--color-control-drum` | `oklch(0.598 0.118 159.4)` | `#2e9566` |
+| `--color-control-drum-target` | `oklch(0.598 0.118 159.4 / 0.55)` | `rgba(46, 149, 102, 0.65)` |
+| `--color-control-heat` | `oklch(0.759 0.143 80.6)` | `#dfa62f` |
+| `--color-control-heat-target` | `oklch(0.759 0.143 80.6 / 0.55)` | `rgba(223, 166, 47, 0.65)` |
+| `--color-control-heat-area` | `oklch(0.759 0.143 80.6 / 0.22)` | `rgba(223, 166, 47, 0.15)` |
+| `--color-control-fan` | `oklch(0.562 0.145 259.6)` | `#3e73c9` |
+| `--color-control-fan-target` | `oklch(0.562 0.145 259.6 / 0.55)` | `rgba(62, 115, 201, 0.65)` |
+| `--color-control-fan-area` | `oklch(0.562 0.145 259.6 / 0.22)` | `rgba(62, 115, 201, 0.15)` |
 
 ### Chart chrome
 

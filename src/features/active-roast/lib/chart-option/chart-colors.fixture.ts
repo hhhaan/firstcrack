@@ -6,6 +6,7 @@ export const mockChartColors: ResolvedChartColors = {
     btActual: '#3',
     etActual: '#4',
     etTarget: '#25',
+    etRorActual: '#4b',
     rorActual: '#5',
     rorTarget: '#26',
     tp: '#6',
