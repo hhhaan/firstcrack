@@ -53,6 +53,40 @@ describe('profileHeatTarget', () => {
     });
 });
 
+describe('discharge replay JSON', () => {
+    const door = { kind: 'discharge_open', t: 300, bt: 205, trigger: 'bt' } as const;
+    const heat = { t: 0, bt: 180, heater: 80 };
+
+    it('round-trips physical actions without fake heater values or changing legacy heat rows', () => {
+        expect(parseHeaterEvents(heaterEventsToJson([heat, door]))).toEqual([heat, door]);
+        expect(withEditedHeaterLog([], [heat, door], '%')).toEqual([
+            { id: 'heater-plan-0', type: 'Heater', time_sec: 0, temp_c: 180, note: '80%' },
+        ]);
+        expect(editedHeatSet([{ t: 301 }], null, [heat, door])).toEqual([80]);
+        expect(patchHeaterPlanMarker([heat, door], 'heater-plan-1', { note: '10%' })).toBeNull();
+    });
+
+    it.each([
+        [{ ...door, bt: -1 }],
+        [{ ...door, bt: 401 }],
+        [{ ...door, bt: Number.NaN }],
+        [{ ...door, trigger: 'time' }],
+        [{ ...door, heater: 0 }],
+        [{ ...door, t: -1 }],
+        [door, door],
+        [door, heat],
+        [{ ...door, kind: 'unsupported' }],
+    ])('rejects malformed or nonterminal door plans %j', (...raw) => {
+        expect(parseHeaterEvents(raw)).toBeNull();
+    });
+
+    it('keeps the final BT action after same-time heat sorting', () => {
+        const events =
+            resolveReplayPlan({ profileEvents: [{ ...heat, t: 300, bt: 210 }, door], points: [] }).plan?.events ?? [];
+        expect(events[events.length - 1]).toEqual(door);
+    });
+});
+
 describe('parseHeaterEvents', () => {
     it('유효 배열만 통과하고 trigger를 보존한다', () => {
         expect(parseHeaterEvents([{ t: 10, bt: 192, heater: 50, trigger: 'bt' }])).toEqual([

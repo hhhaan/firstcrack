@@ -280,11 +280,18 @@ async def handle_door_probe(request: web.Request) -> web.Response:
         body = await request.json()
     except Exception:
         return web.Response(status=400, text="invalid json")
-    if not isinstance(body, dict) or set(body) != {"action"} or not isinstance(body.get("action"), str):
+    if not isinstance(body, dict) or set(body) not in ({"action"}, {"action", "connection_epoch"}) or not isinstance(body.get("action"), str):
         return web.json_response({"error": "action is required"}, status=400)
+    epoch = body.get("connection_epoch")
+    if "connection_epoch" in body and (type(epoch) is not int or epoch < 0 or body["action"] != "discharge_open"):
+        return web.json_response({"error": "invalid discharge connection epoch"}, status=400)
     manager: RoasterManager = request.app["manager"]
     try:
-        result = await manager.door_probe(body["action"])
+        transport = request.transport
+        result = await manager.door_probe(
+            body["action"], expected_epoch=epoch,
+            request_current=lambda: transport is not None and not transport.is_closing(),
+        ) if epoch is not None else await manager.door_probe(body["action"])
     except control_guard.ControlRangeError as exc:
         return web.json_response({"error": str(exc)}, status=400)
     except control_guard.ControlUnavailable as exc:

@@ -1,6 +1,7 @@
 """W60A actuator traffic matches the pinned Artisan preset without extra reads."""
 
 import logging
+import asyncio
 import threading
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -35,6 +36,42 @@ def _adapter(registers: dict[tuple[int, int], bytearray]) -> S7Adapter:
 
 
 class TestDoorProbe:
+    async def test_replay_guard_is_rechecked_after_io_lock_before_physical_write(self):
+        adapter = _adapter({})
+        waiting = threading.Event()
+        release = threading.Event()
+        current = True
+
+        class DelayedLock:
+            def acquire(self, **_kwargs):
+                waiting.set()
+                release.wait(2)
+                return True
+
+            def release(self):
+                pass
+
+        adapter._io_lock = DelayedLock()
+        pending = asyncio.create_task(adapter.door_probe(5, is_current=lambda: current))
+        await asyncio.to_thread(waiting.wait, 2)
+        current = False
+        release.set()
+        with pytest.raises(ConnectionError):
+            await pending
+        adapter._plc.write_area.assert_not_called()
+
+    async def test_cancelled_replay_does_not_write_after_lock_is_released(self):
+        adapter = _adapter({})
+        adapter._io_lock.acquire()
+        pending = asyncio.create_task(adapter.door_probe(5, is_current=lambda: True))
+        await asyncio.sleep(0)
+        pending.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+        adapter._io_lock.release()
+        await asyncio.to_thread(lambda: None)
+        adapter._plc.write_area.assert_not_called()
+
     async def test_read_does_not_write(self):
         registers = {(2, 30): _int_bytes(6), (2, 82): bytearray([1 << 6])}
         adapter = _adapter(registers)
@@ -325,6 +362,36 @@ async def client(monkeypatch):
 
 
 class TestDoorProbeRoute:
+    @pytest.mark.parametrize("epoch", [None, True, -1, 1.5, "1"])
+    async def test_invalid_replay_epoch_is_400(self, client, epoch):
+        response = await client.post("/door-probe", json={"action": "discharge_open", "connection_epoch": epoch})
+        assert response.status == 400
+
+    async def test_stale_replay_epoch_is_rejected_without_a_write(self, client):
+        manager = client.server.app["manager"]
+        adapter = _adapter({})
+        manager._adapter = adapter
+        manager._connected = True
+        manager._protocol = "s7"
+        manager._roaster_key = "giesen_w45a_w60a"
+        manager._connection_epoch = 2
+        response = await client.post("/door-probe", json={"action": "discharge_open", "connection_epoch": 1})
+        assert response.status == 409
+        adapter._plc.write_area.assert_not_called()
+
+    async def test_matching_replay_epoch_delivers_exactly_one_command(self, client):
+        manager = client.server.app["manager"]
+        adapter = _adapter({})
+        manager._adapter = adapter
+        manager._connected = True
+        manager._protocol = "s7"
+        manager._roaster_key = "giesen_w45a_w60a"
+        manager._connection_epoch = 2
+        response = await client.post("/door-probe", json={"action": "discharge_open", "connection_epoch": 2})
+        assert response.status == 200
+        assert (await response.json())["wrote"] == 5
+        adapter._plc.write_area.assert_called_once()
+
     async def test_returns_the_probe(self, client):
         seen: dict[str, str] = {}
 

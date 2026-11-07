@@ -1876,6 +1876,10 @@
         "editHeat": "编辑火力"
     },
     "heaterEventsEditor": {
+        "action": "动作",
+        "dischargeOpen": "打开出豆门",
+        "dischargeInvalid": "打开出豆门只能作为最后一步添加一次，BT条件范围为0–400°C。",
+        "dischargeHint": "每批仅发送一次开门命令，不自动重试。请自行确认实际门状态。",
         "title": "编辑火力",
         "chartTitle": "参考火力图",
         "stepsTitle": "火力重放计划",

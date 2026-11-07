@@ -1864,6 +1864,10 @@
         "editHeat": "화력 편집"
     },
     "heaterEventsEditor": {
+        "action": "동작",
+        "dischargeOpen": "배출문 열기",
+        "dischargeInvalid": "배출문 열기는 BT 0–400°C 조건의 마지막 단계에 한 번만 추가할 수 있습니다.",
+        "dischargeHint": "배출문 명령은 배치당 한 번만 전송하며 자동 재시도하지 않습니다. 실제 문 열림은 직접 확인하세요.",
         "title": "화력 편집",
         "chartTitle": "기준 화력 참고",
         "stepsTitle": "화력 실행 계획",

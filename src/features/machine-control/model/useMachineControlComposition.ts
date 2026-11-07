@@ -1,9 +1,10 @@
 import type { PidRuntime } from '@entities/machine';
+import { sidecar } from '@shared/lib/sidecar';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
 import { numericHeaterStep } from '../lib/heater-events';
-import type { ReplayPoint } from '../lib/replay';
+import { type ReplayPoint, supportsDischargeOpen } from '../lib/replay';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
@@ -137,6 +138,15 @@ export const useMachineControlComposition = ({
         void machine.commitNow('manual');
     }, [machine.commitNow]);
     const retryEpoch = machine.connectionStatus?.connection_epoch;
+    const dischargeOpenSupported = supportsDischargeOpen(machine.connectionStatus?.roaster);
+    const writeDischargeOpen = useCallback(
+        async (signal: AbortSignal) => {
+            if (!dischargeOpenSupported || retryEpoch == null || signal.aborted) return false;
+            const result = await sidecar.doorProbe('discharge_open', { connectionEpoch: retryEpoch, signal });
+            return result.wrote === 5;
+        },
+        [dischargeOpenSupported, retryEpoch],
+    );
     const retryHeater = useCallback(
         async (value: number) => {
             if (retryEpoch == null) return null;
@@ -171,6 +181,8 @@ export const useMachineControlComposition = ({
         writeHeater,
         retryHeater: retryEpoch == null ? undefined : retryHeater,
         connectionEpoch: retryEpoch,
+        dischargeOpenSupported,
+        writeDischargeOpen,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,
         heaterMin: machine.limits.heater?.min,

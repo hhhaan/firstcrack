@@ -79,6 +79,219 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     };
 };
 
+describe('BT discharge replay', () => {
+    const plan = [
+        { t: 0, bt: 180, heater: 80, trigger: 'time' },
+        { kind: 'discharge_open', t: 300, bt: 205, trigger: 'bt' },
+    ];
+    const inputs = (sessionId: string, writeDischargeOpen = vi.fn(async () => true)): Partial<ReplayControlInputs> => ({
+        sessionId,
+        connectionEpoch: 7,
+        dischargeOpenSupported: true,
+        writeDischargeOpen,
+        profileHeaterEvents: plan,
+        liveBt: 205,
+        elapsed: 300,
+        confirmedTurningPoint: {},
+    });
+
+    it('delivers heat before the terminal door action, once, and stays armed for actual Drop zero', async () => {
+        const options = inputs('door-success');
+        const h = await renderReplay({ ...options, dropBehavior: 'zero' });
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        expect(h.get().firedCount).toBe(2);
+        expect(h.get().active).toBe(true);
+        await h.rerender({ ...options, dropBehavior: 'zero', roastFinished: true });
+        expect(h.writeHeater).toHaveBeenLastCalledWith(0, 'safety');
+        h.unmount();
+    });
+
+    it.each([
+        { confirmedTurningPoint: null },
+        { confirmedTurningPoint: { fallback: true } },
+        { observationQuality: 'spike' as const },
+        { observationQuality: null },
+        { reconnecting: true },
+        { referenceMachineMismatch: true },
+        { dischargeOpenSupported: false },
+        { sessionId: null },
+        { connectionEpoch: undefined },
+        { liveBt: 204.9 },
+    ])('does not open with a failed execution gate %j', async (gate) => {
+        const options = inputs(`door-gate-${JSON.stringify(gate)}`);
+        const h = await renderReplay({ ...options, ...gate });
+        await act(async () => h.get().toggle());
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it('does not retry an ambiguous failure, including OFF/ON, edits, source changes and remount', async () => {
+        const options = inputs(
+            'door-failed-remount',
+            vi.fn(async () => false),
+        );
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        expect(h.get().stopReason).toBe('dischargeAttempted');
+        expect(h.get().firedCount).toBe(2);
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().applyBatchEvents(h.get().plan?.events ?? null));
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(false);
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+        const remounted = await renderReplay({
+            ...options,
+            profileHeaterEvents: plan.map((row) => ({ ...row, bt: 204 })),
+        });
+        await act(async () => remounted.get().toggle());
+        expect(remounted.get().active).toBe(false);
+        expect(remounted.writeHeater).not.toHaveBeenCalled();
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        remounted.unmount();
+    });
+
+    it('requires explicit rearm after replacing a connection before the door threshold', async () => {
+        const options = inputs('door-replaced-before-send');
+        const h = await renderReplay({ ...options, liveBt: 204 });
+        await act(async () => h.get().toggle());
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender({ ...options, connectionEpoch: 8 });
+        expect(h.get().active).toBe(false);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await act(async () => h.get().toggle());
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('keeps actual Drop zero after failure without issuing another physical command', async () => {
+        const options = inputs(
+            'door-failed-drop',
+            vi.fn(async () => false),
+        );
+        const h = await renderReplay({ ...options, dropBehavior: 'zero' });
+        await act(async () => h.get().toggle());
+        expect(h.get().active).toBe(true);
+        await h.rerender({ ...options, dropBehavior: 'zero', roastFinished: true });
+        expect(h.writeHeater).toHaveBeenLastCalledWith(0, 'safety');
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('does not auto-arm or rewind an attempted session after real Drop and Drop undo', async () => {
+        const options = { ...inputs('door-undo-auto-arm'), armOnCharge: true };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender({ ...options, roasting: false, roastFinished: true });
+        const count = h.writeHeater.mock.calls.length;
+        await h.rerender({ ...options, roasting: true, roastFinished: false });
+        await act(async () => h.get().restore(true));
+        expect(h.get().active).toBe(false);
+        expect(h.writeHeater).toHaveBeenCalledTimes(count);
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('does not send old-batch Drop zero when replacement and Drop arrive together', async () => {
+        const options = { ...inputs('door-replaced-and-drop'), liveBt: 204, dropBehavior: 'zero' as const };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        const count = h.writeHeater.mock.calls.length;
+        await h.rerender({ ...options, connectionEpoch: 8, roastFinished: true });
+        expect(h.writeHeater).toHaveBeenCalledTimes(count);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        expect(h.get().active).toBe(false);
+        h.unmount();
+    });
+
+    it('cancels old-batch Drop zero retries on replacement', async () => {
+        const options = { ...inputs('door-replaced-after-drop'), dropBehavior: 'zero' as const };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender({ ...options, roastFinished: true });
+        const count = h.writeHeater.mock.calls.length;
+        await h.rerender({ ...options, roastFinished: true, connectionEpoch: 8, safeOffUnacknowledged: true });
+        expect(h.writeHeater).toHaveBeenCalledTimes(count);
+        h.unmount();
+    });
+
+    it('fences Drop-zero ownership after Drop clears a batch-only door override', async () => {
+        const options = {
+            ...inputs('door-batch-only-safe-off'),
+            profileHeaterEvents: undefined,
+            liveBt: 204,
+            dropBehavior: 'zero' as const,
+        };
+        const h = await renderReplay(options);
+        await act(async () =>
+            h.get().applyBatchEvents([
+                { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                { kind: 'discharge_open', t: 300, bt: 205, trigger: 'bt' },
+            ]),
+        );
+        await act(async () => h.get().toggle());
+        await h.rerender({ ...options, roasting: false, roastFinished: true });
+        expect(h.get().plan?.events.every((event) => event.kind !== 'discharge_open')).toBe(true);
+        expect(h.writeHeater).toHaveBeenLastCalledWith(0, 'safety');
+        const count = h.writeHeater.mock.calls.length;
+        await h.rerender({
+            ...options,
+            roasting: false,
+            roastFinished: true,
+            connectionEpoch: 8,
+            safeOffUnacknowledged: true,
+        });
+        expect(h.writeHeater).toHaveBeenCalledTimes(count);
+        h.unmount();
+    });
+
+    it.each(['off', 'observation', 'connection', 'profile', 'unmount'] as const)(
+        'cancels pending delivery on %s and ignores its late completion',
+        async (stop) => {
+            let resolve!: (sent: boolean) => void;
+            const write = vi.fn(
+                (_signal: AbortSignal) =>
+                    new Promise<boolean>((done) => {
+                        resolve = done;
+                    }),
+            );
+            const options = { ...inputs(`door-pending-${stop}`), writeDischargeOpen: write };
+            const h = await renderReplay({ ...options, dropBehavior: 'zero' });
+            await act(async () => h.get().toggle());
+            expect(write).toHaveBeenCalledOnce();
+            if (stop === 'off') await act(async () => h.get().toggle());
+            if (stop === 'observation')
+                await h.rerender({ ...options, observationQuality: 'null', dropBehavior: 'zero' });
+            if (stop === 'connection') await h.rerender({ ...options, connectionEpoch: 8, dropBehavior: 'zero' });
+            if (stop === 'profile') await h.rerender({ ...options, profileHeaterEvents: null });
+            if (stop === 'unmount') h.unmount();
+            expect(write.mock.calls[0][0].aborted).toBe(true);
+            const before = h.get();
+            await act(async () => resolve(false));
+            expect(h.get().stopReason).toBe(before.stopReason);
+            expect(h.get().active).toBe(before.active);
+            expect(write).toHaveBeenCalledOnce();
+            if (stop === 'observation') {
+                await h.rerender({
+                    ...options,
+                    connectionEpoch: 7,
+                    roastFinished: true,
+                    dropBehavior: 'zero',
+                });
+                expect(h.writeHeater).toHaveBeenLastCalledWith(0, 'safety');
+            }
+            if (stop === 'connection') {
+                const count = h.writeHeater.mock.calls.length;
+                await h.rerender({ ...options, connectionEpoch: 8, roastFinished: true, dropBehavior: 'zero' });
+                expect(h.writeHeater).toHaveBeenCalledTimes(count);
+            }
+            if (stop !== 'unmount') h.unmount();
+        },
+    );
+});
+
 describe('Replay plan ownership', () => {
     it('does not reuse recorded commands when the same curve changes to a profile with no plan', async () => {
         const h = await renderReplay({ profileHeaterEvents: null });

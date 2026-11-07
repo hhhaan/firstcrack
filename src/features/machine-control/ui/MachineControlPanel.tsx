@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { controlFeedback } from '../lib/controlFeedback';
 import { isMachineControlPanelShown, MACHINE_CONTROL_CHANNEL_ROLES } from '../lib/controlPanelShown';
 import { numericHeaterStep } from '../lib/heater-events';
-import type { ReplayPoint } from '../lib/replay';
+import { type ReplayPoint, supportsDischargeOpen } from '../lib/replay';
 import type { MachineControlComposition } from '../model/useMachineControlComposition';
 import { CollapsedControlStatus } from './CollapsedControlStatus';
 import { DoorCommandProbe } from './DoorCommandProbe';
@@ -135,6 +135,7 @@ export const MachineControlPanel = ({
                         heaterMax={limits.heater?.max}
                         heaterUnit={limits.heater?.unit ?? '%'}
                         heaterStep={numericHeaterStep((limits.heater as { step?: unknown } | undefined)?.step)}
+                        dischargeOpenSupported={supportsDischargeOpen(machine.connectionStatus?.roaster)}
                         lockedCount={replay.active ? replay.firedCount : 0}
                         onClose={() => setHeatEditorOpen(false)}
                         onApply={(events) => {

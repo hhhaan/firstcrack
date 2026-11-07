@@ -12,6 +12,7 @@ import random
 import time
 import logging
 from bisect import bisect_right
+from collections.abc import Callable
 from typing import Any
 
 from adapters.base import Reading
@@ -178,9 +179,11 @@ class VirtualMachineAdapter:
         self._roasting = True
         _log.info("VirtualMachine: roasting started — recorded curve")
 
-    async def door_probe(self, write: int | None) -> dict[str, Any]:
+    async def door_probe(self, write: int | None, *, is_current: Callable[[], bool] | None = None) -> dict[str, Any]:
         if not self._connected:
             raise ConnectionError("가상 머신이 연결되어 있지 않습니다.")
+        if is_current is not None and not is_current():
+            raise ConnectionError("Replay discharge connection changed before actuator command")
         if write is not None and write not in (1, 2, 5, 6):
             raise ValueError("W60A door command must be 1, 2, 5, or 6")
         command_before = self._door_command

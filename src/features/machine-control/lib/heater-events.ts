@@ -3,6 +3,7 @@ import type { Json } from '@shared/types/database.types';
 import type { StoredRoastEvent } from '@shared/types/roast';
 import {
     extractReplayEvents,
+    isHeaterReplayEvent,
     MAX_EVENTS,
     type ReplayEvent,
     type ReplayPlan,
@@ -70,10 +71,11 @@ export const heaterFitsBounds = (heater: number, bounds: HeaterBounds): boolean 
 };
 
 export type HeaterDraftIssue =
-    | { code: 'time' | 'bt' | 'heat-empty' | 'heat-range' | 'heat-step'; row: number }
+    | { code: 'time' | 'bt' | 'heat-empty' | 'heat-range' | 'heat-step' | 'discharge'; row: number }
     | { code: 'too-many' };
 
 export type HeaterDraftInput = {
+    kind?: 'heater' | 'discharge_open';
     t: string;
     bt: string;
     heater: string;
@@ -88,7 +90,21 @@ export type HeaterDraftInput = {
 export const issueForHeaterEvents = (events: ReplayEvent[], bounds: HeaterBounds): HeaterDraftIssue | null => {
     if (events.length > MAX_EVENTS) return { code: 'too-many' };
     for (let i = 0; i < events.length; i++) {
-        const heater = events[i].heater;
+        const event = events[i];
+        if (event.kind === 'discharge_open') {
+            if (
+                event.trigger !== 'bt' ||
+                i !== events.length - 1 ||
+                !Number.isFinite(event.t) ||
+                event.t < 0 ||
+                !Number.isFinite(event.bt) ||
+                event.bt < 0 ||
+                event.bt > 400
+            )
+                return { code: 'discharge', row: i + 1 };
+            continue;
+        }
+        const heater = event.heater;
         if (!Number.isFinite(heater) || heater < bounds.min || heater > bounds.max) {
             return { code: 'heat-range', row: i + 1 };
         }
@@ -121,6 +137,12 @@ export const validateHeaterDraft = (
                   ? Number.NaN
                   : fromDisplayBt(btDisplay, unit);
         if (!Number.isFinite(bt)) return { ok: false, issue: { code: 'bt', row: rowNo } };
+        if (row.kind === 'discharge_open') {
+            if (row.trigger !== 'bt' || bt < 0 || bt > 400)
+                return { ok: false, issue: { code: 'discharge', row: rowNo } };
+            events.push({ kind: 'discharge_open', t, bt, trigger: 'bt', ...(row.id ? { id: row.id } : {}) });
+            continue;
+        }
         const heater = parseFiniteNumber(row.heater);
         if (heater == null) return { ok: false, issue: { code: 'heat-empty', row: rowNo } };
         if (heater < bounds.min || heater > bounds.max) return { ok: false, issue: { code: 'heat-range', row: rowNo } };
@@ -143,12 +165,27 @@ export const parseHeaterEvents = (raw: unknown): ReplayEvent[] | null => {
         const t = asFinite(rec.t);
         const bt = asFinite(rec.bt);
         const heater = asFinite(rec.heater);
-        if (t == null || t < 0 || bt == null || heater == null) return null;
+        if (t == null || t < 0 || bt == null) return null;
+        if (rec.kind === 'discharge_open') {
+            if (
+                rec.trigger !== 'bt' ||
+                rec.heater != null ||
+                bt < 0 ||
+                bt > 400 ||
+                events.some((e) => e.kind === 'discharge_open')
+            )
+                return null;
+            events.push({ kind: 'discharge_open', t, bt, trigger: 'bt' });
+            continue;
+        }
+        if ((rec.kind != null && rec.kind !== 'heater') || heater == null) return null;
         const trigger = rec.trigger;
         if (trigger != null && trigger !== 'time' && trigger !== 'bt') return null;
         events.push(trigger === 'time' || trigger === 'bt' ? { t, bt, heater, trigger } : { t, bt, heater });
     }
-    return events;
+    return events.some((event, index) => event.kind === 'discharge_open' && index !== events.length - 1)
+        ? null
+        : events;
 };
 
 /** null = no profile plan; undefined = a directly selected record's own TSV commands. */
@@ -163,7 +200,10 @@ export const profileHeatTarget = (
             ? extractReplayEvents(points, dropTime, referenceTpTime)?.events
             : parseHeaterEvents(profileEvents);
     const end = dropTime ?? points[points.length - 1]?.t;
-    const steps = events?.filter((event) => end != null && event.t < end).sort((a, b) => a.t - b.t);
+    const steps = events
+        ?.filter(isHeaterReplayEvent)
+        .filter((event) => end != null && event.t < end)
+        .sort((a, b) => a.t - b.t);
     if (!steps?.length || end == null) return undefined;
     return {
         xs: [...steps.map((event) => event.t), end],
@@ -182,7 +222,7 @@ export const editedHeatSet = (
 ): (number | null)[] | null => {
     const events = heaterEvents == null ? null : parseHeaterEvents(heaterEvents);
     if (!events) return null;
-    const steps = [...events].sort((a, b) => a.t - b.t);
+    const steps = events.filter(isHeaterReplayEvent).sort((a, b) => a.t - b.t);
     const end = dropTime ?? Number.POSITIVE_INFINITY;
     return points.map((p) => {
         if (p.t < 0 || p.t >= end) return p.heaterSet ?? null;
@@ -200,13 +240,19 @@ export const withEditedHeaterLog = (
 ): StoredRoastEvent[] => {
     const plan = heaterEvents == null ? null : parseHeaterEvents(heaterEvents);
     if (!plan) return events;
-    const rows: StoredRoastEvent[] = plan.map((e, i) => ({
-        id: `heater-plan-${i}`,
-        type: 'Heater',
-        time_sec: e.t,
-        temp_c: e.bt,
-        note: `${e.heater}${heaterUnit}`,
-    }));
+    const rows: StoredRoastEvent[] = plan.flatMap((e, i) =>
+        e.kind === 'discharge_open'
+            ? []
+            : [
+                  {
+                      id: `heater-plan-${i}`,
+                      type: 'Heater',
+                      time_sec: e.t,
+                      temp_c: e.bt,
+                      note: `${e.heater}${heaterUnit}`,
+                  },
+              ],
+    );
     return [...events.filter((e) => e.type !== 'Heater' || e.time_sec < 0), ...rows].sort(
         (a, b) => a.time_sec - b.time_sec,
     );
@@ -214,7 +260,11 @@ export const withEditedHeaterLog = (
 
 export const heaterEventsToJson = (events: ReplayEvent[]): Json =>
     events.map((e) =>
-        e.trigger ? { t: e.t, bt: e.bt, heater: e.heater, trigger: e.trigger } : { t: e.t, bt: e.bt, heater: e.heater },
+        e.kind === 'discharge_open'
+            ? { kind: e.kind, t: e.t, bt: e.bt, trigger: e.trigger }
+            : e.trigger
+              ? { t: e.t, bt: e.bt, heater: e.heater, trigger: e.trigger }
+              : { t: e.t, bt: e.bt, heater: e.heater },
     );
 
 const heaterNoteNumber = (note: string): number | null => {
@@ -236,11 +286,13 @@ export const patchHeaterPlanMarker = (
     if (!plan) return null;
     const at = Number(index[1]);
     const step = plan[at];
-    if (!step) return null;
+    if (!step || step.kind === 'discharge_open') return null;
     const heater = patch.note == null ? step.heater : heaterNoteNumber(patch.note);
     if (heater == null) return null;
     const t = patch.timeSec != null && Number.isFinite(patch.timeSec) ? Math.max(0, Math.round(patch.timeSec)) : step.t;
-    return heaterEventsToJson(plan.map((event, i) => (i === at ? { ...event, t, heater } : event)));
+    return heaterEventsToJson(
+        plan.map((event, i) => (i === at && event.kind !== 'discharge_open' ? { ...event, t, heater } : event)),
+    );
 };
 
 /** A recorded Heater row (BBP, or a log with no separate heat plan). */
@@ -423,8 +475,11 @@ export const normalizeHeaterPlan = (
     bounds?: HeaterBounds,
 ): ReplayPlan | null => {
     if (events.length === 0 || events.length > MAX_EVENTS) return null;
-    if (bounds && events.some((e) => !heaterFitsBounds(e.heater, bounds))) return null;
-    const sorted = [...events].sort((a, b) => a.t - b.t || a.bt - b.bt);
+    if (bounds && issueForHeaterEvents(events, bounds)) return null;
+    const sorted = [...events].sort((a, b) =>
+        a.kind === 'discharge_open' ? 1 : b.kind === 'discharge_open' ? -1 : a.t - b.t || a.bt - b.bt,
+    );
+    if (bounds && issueForHeaterEvents(sorted, bounds)) return null;
     return { events: sorted, tpTime };
 };
 
@@ -457,7 +512,9 @@ export const resolveReplayPlan = ({
     const extracted = points && points.length > 0 ? extractReplayEvents(points, dropTime, tpTime) : null;
     const bounds = resolveHeaterBounds({ min: heaterMin, max: heaterMax, step: heaterStep });
 
-    const inRangeTsv = extracted?.events.every((e) => heaterFitsBounds(e.heater, bounds)) ? extracted : null;
+    const inRangeTsv = extracted?.events.every((e) => isHeaterReplayEvent(e) && heaterFitsBounds(e.heater, bounds))
+        ? extracted
+        : null;
 
     if (batchEvents != null) {
         const batchPlan = normalizeHeaterPlan(batchEvents, tpTime, bounds);

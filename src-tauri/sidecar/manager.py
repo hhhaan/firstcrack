@@ -6,6 +6,7 @@ import time
 import uuid
 from collections import deque
 from typing import Any
+from collections.abc import Callable
 
 import sentry_sdk
 
@@ -1339,7 +1340,7 @@ class RoasterManager:
             "error": self._error,
         }
 
-    async def door_probe(self, action: str) -> dict[str, Any]:
+    async def door_probe(self, action: str, *, expected_epoch: int | None = None, request_current: Callable[[], bool] | None = None) -> dict[str, Any]:
         """W60A Artisan 명령/명시적 읽기. 전송 완료는 물리 동작 확인이 아니다."""
         commands = {
             "read": None,
@@ -1356,6 +1357,16 @@ class RoasterManager:
                 "discharge_open, discharge_close, cooling_on, cooling_off, stirrer_on, or stirrer_off"
             )
         adapter = self._adapter
+        epoch = self._connection_epoch
+        def is_current() -> bool:
+            return (
+                self._adapter is adapter and self._connected and not self._resetting
+                and self._connection_epoch == epoch
+                and (request_current is None or request_current())
+                and (self._pid is None or self._pid.state().get("state") == "off")
+            )
+        if expected_epoch is not None and (expected_epoch != epoch or action != "discharge_open" or not is_current()):
+            raise ControlUnavailable("배출문 명령의 연결이 변경되었습니다.")
         w60a = self._roaster_key == "giesen_w45a_w60a" and self._protocol == "s7"
         simulator = self._roaster_key == "virtual" and self._protocol == "virtual"
         if (
@@ -1374,7 +1385,14 @@ class RoasterManager:
                 raise ControlUnavailable("이 연결은 교반기 명령을 확인하지 않습니다.")
             result = await adapter.stirrer_probe(stirrer[action])
         else:
-            result = await adapter.door_probe(commands[action])
+            try:
+                result = await adapter.door_probe(commands[action], is_current=is_current) if expected_epoch is not None else await adapter.door_probe(commands[action])
+            except Exception as exc:
+                if expected_epoch is not None and not is_current():
+                    raise ControlUnavailable("배출문 명령의 연결이 변경되었습니다.") from exc
+                raise
+        if expected_epoch is not None and not is_current():
+            raise ControlUnavailable("배출문 명령의 연결이 변경되었습니다.")
         result["action"] = action
         self._record_door_probe(action, result)
         return result

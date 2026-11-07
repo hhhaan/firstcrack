@@ -9,7 +9,7 @@ import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
 
 export interface ReplayControlInputs {
-    /** Diagnostic correlation only; never used to decide Replay behavior. */
+    /** Stable live Charge UUID, preserved by Drop undo. Required for physical actions. */
     sessionId?: string | null;
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
     referencePoints: ReplayPoint[] | null;
@@ -71,6 +71,9 @@ export interface ReplayControlInputs {
     /** Guarded retry: confirm the command first where supported, then resend only if needed. */
     retryHeater?: (value: number) => Promise<number | null>;
     connectionEpoch?: number;
+    dischargeOpenSupported?: boolean;
+    /** One physical command attempt; no automatic retry or movement confirmation. */
+    writeDischargeOpen?: (signal: AbortSignal) => Promise<boolean>;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
      */
@@ -93,6 +96,7 @@ export type ReplayStopReason =
     | 'manual'
     | 'profileChanged'
     | 'timingGap'
+    | 'dischargeAttempted'
     | 'writeFailed';
 
 const replayStopCause = ({
@@ -127,6 +131,9 @@ export const PROPOSED_OBSERVATION_STALE_LIMIT_MS = 5_000;
 
 /** NaN !== NaN, so a bad elapsed or timestamp must not schedule another render. */
 const sameNumber = (left: number, right: number) => left === right || (Number.isNaN(left) && Number.isNaN(right));
+
+// Session lifetime, including view remount and Drop undo. An ambiguous delivery is still an attempt.
+const dischargeAttemptedSessions = new Set<string>();
 
 /**
  * Render-phase plan updates compare these keys, not array identity.
@@ -174,6 +181,8 @@ export const useReplayControl = ({
     writeHeater,
     retryHeater,
     connectionEpoch,
+    dischargeOpenSupported = false,
+    writeDischargeOpen,
     cancelUnsentHeater,
     heaterMax,
     heaterMin,
@@ -234,14 +243,21 @@ export const useReplayControl = ({
     );
     const rawPlan = overrideInvalid ? null : resolvedPlan;
     const rawEvents = rawPlan?.events ?? null;
+    const hasDischarge = rawEvents?.some((event) => event.kind === 'discharge_open') ?? false;
+    const dischargeBlocked =
+        hasDischarge && (!dischargeOpenSupported || !sessionId || connectionEpoch == null || !writeDischargeOpen);
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
-    const stopCause = replayStopCause({
-        sidecarConnected,
-        pidEngaged,
-        heaterWritable,
-        roastFinished,
-    });
+    const stopCause = referenceMachineMismatch
+        ? 'profileChanged'
+        : dischargeBlocked
+          ? 'unwritable'
+          : replayStopCause({
+                sidecarConnected,
+                pidEngaged,
+                heaterWritable,
+                roastFinished,
+            });
 
     const [active, setActive] = useState(false);
     const [restoreRequest, setRestoreRequest] = useState<boolean | null>(null);
@@ -258,6 +274,8 @@ export const useReplayControl = ({
     });
     /** zero 정책의 safe-off write가 나갔다 — 기기가 따라올 때까지 재시도 대상 (#316) */
     const [safeOffIssued, setSafeOffIssued] = useState(false);
+    const [safeOffEpoch, setSafeOffEpoch] = useState(connectionEpoch);
+    if (safeOffIssued && safeOffEpoch !== connectionEpoch) setSafeOffIssued(false);
     /** 직전 렌더의 elapsed — 타이밍 갭 감지 기준 (#313) */
     const [prevElapsed, setPrevElapsed] = useState(elapsed);
     /**
@@ -272,7 +290,7 @@ export const useReplayControl = ({
     const writeGenRef = useRef(0);
     const [safeOffNonce, setSafeOffNonce] = useState(0);
     const [pendingWrite, setPendingWrite] = useState<{
-        heater: number;
+        heater: number | undefined;
         nextIndex: number;
         oldEvents: ReplayEvent[];
         id?: string;
@@ -311,12 +329,31 @@ export const useReplayControl = ({
     );
 
     const [previousConnectionEpoch, setPreviousConnectionEpoch] = useState(connectionEpoch);
+    const doorConnectionReplaced = hasDischarge && connectionEpoch !== previousConnectionEpoch;
     if (connectionEpoch !== previousConnectionEpoch) {
         setPreviousConnectionEpoch(connectionEpoch);
         // A new connection invalidates old deliveries; reconnecting holds Replay without switching it off.
         // eslint-disable-next-line react-hooks/refs -- connection replacement invalidates the pending owner immediately
         bumpWriteGenOnRenderStop();
         if (writing) setWriting(false);
+        if (hasDischarge && active) {
+            setActive(false);
+            setStopReason('profileChanged');
+        }
+        if (hasDischarge && safeOffIssued) setSafeOffIssued(false);
+    }
+
+    const [previousSessionId, setPreviousSessionId] = useState(sessionId);
+    if (sessionId !== previousSessionId) {
+        setPreviousSessionId(sessionId);
+        // eslint-disable-next-line react-hooks/refs -- invalidate the previous live batch before effects run
+        bumpWriteGenOnRenderStop();
+        if (writing) setWriting(false);
+        setIndex(0);
+        if (hasDischarge && active) {
+            setActive(false);
+            setStopReason('profileChanged');
+        }
     }
 
     // Hold cancels queued Replay writes too; an already-sent response cannot consume the held event.
@@ -328,14 +365,17 @@ export const useReplayControl = ({
 
     // PID 등은 렌더에서 stopCause가 먼저 보인다. effect가 세대를 올리기 전에 도착한
     // 응답이 index·사유를 덮지 않게 이 커밋에서 무효화한다.
-    const stoppingForCause = active && stopCause != null;
+    const stoppingForCause = active && stopCause != null && !doorConnectionReplaced;
     if (stoppingForCause) {
         // eslint-disable-next-line react-hooks/refs -- monotonic invalidation; extra StrictMode bump is fail-closed
         bumpWriteGenOnRenderStop();
         if (writing) setWriting(false);
         setActive(false);
         setStopReason(stopCause);
-        if (roastFinished && dropBehavior === 'zero') setSafeOffNonce((n) => n + 1);
+        if (roastFinished && dropBehavior === 'zero') {
+            setSafeOffNonce((n) => n + 1);
+            setSafeOffEpoch(connectionEpoch);
+        }
     }
 
     // 레퍼런스/프로파일 오버라이드가 바뀌면 진행 중인 재생은 무효.
@@ -399,7 +439,14 @@ export const useReplayControl = ({
         // 이번 배치 편집본은 배치가 끝나면 버린다. Charge(false→true)에서는 유지.
         if (prevRoasting && !roasting) setBatchEvents(null);
         const arm =
-            !prevRoasting && roasting && armOnCharge && !roastFinished && rawPlan != null && !referenceMachineMismatch;
+            !prevRoasting &&
+            roasting &&
+            armOnCharge &&
+            !roastFinished &&
+            rawPlan != null &&
+            !referenceMachineMismatch &&
+            !dischargeBlocked &&
+            !(hasDischarge && sessionId && dischargeAttemptedSessions.has(sessionId));
         if (arm) setActive(true);
     }
 
@@ -437,7 +484,7 @@ export const useReplayControl = ({
     );
 
     useEffect(() => {
-        if (safeOffNonce === 0) return;
+        if (safeOffNonce === 0 || safeOffEpoch !== connectionEpoch) return;
         // 재생이 화력을 잡은 채 배출됐다 — zero 정책이면 즉시 끈다 (#316, PID off와
         // 동일 타이밍). stopCause 라벨이 아니라 roastFinished를 보는 이유: "끊김+배출"
         // 커밋에서는 우선순위가 'disconnected'로 밀리는데, 그때도 write는 시도해야
@@ -445,7 +492,7 @@ export const useReplayControl = ({
         // 잔류라 PID hold와 같은 등급의 문서화된 동작이다.
         void writeHeater(0, 'safety');
         setSafeOffIssued(true);
-    }, [safeOffNonce, writeHeater]);
+    }, [safeOffNonce, safeOffEpoch, connectionEpoch, writeHeater]);
 
     // safe-off 재시도 — zero write가 나갔는데 기기가 안 따라오면 다시 쓴다 (#269의
     // PID safe-off와 같은 등급: 아무도 안 보는 로스터에 불이 남는 쪽이 최악이다).
@@ -465,13 +512,18 @@ export const useReplayControl = ({
 
     const setEnabled = useCallback(
         (enabled: boolean) => {
+            if (enabled && hasDischarge && sessionId && dischargeAttemptedSessions.has(sessionId)) {
+                setActive(false);
+                setStopReason('dischargeAttempted');
+                return;
+            }
             setStopReason(null);
-            setActive(enabled && plan != null && !referenceMachineMismatch);
+            setActive(enabled && plan != null && !referenceMachineMismatch && !dischargeBlocked);
             if (!enabled) return;
             // 시작·재개 모두 현재 조건의 마지막 화력으로 동기화한다.
             setIndex(0);
         },
-        [plan, referenceMachineMismatch],
+        [plan, referenceMachineMismatch, hasDischarge, sessionId, dischargeBlocked],
     );
 
     const toggle = useCallback(() => {
@@ -518,6 +570,51 @@ export const useReplayControl = ({
         if (observationQuality !== 'valid' || lastValidAgeHold) return;
         if (writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
+        if (result.dischargeOpen) {
+            if (
+                !dischargeOpenSupported ||
+                !writeDischargeOpen ||
+                !sessionId ||
+                connectionEpoch == null ||
+                dischargeAttemptedSessions.has(sessionId) ||
+                !Number.isFinite(liveBt) ||
+                liveBt < 0 ||
+                liveBt > 400
+            ) {
+                setActive(false);
+                setStopReason('dischargeAttempted');
+                return;
+            }
+            dischargeAttemptedSessions.add(sessionId);
+            setStopReason('dischargeAttempted');
+            // Delivery can be ambiguous. Consume this terminal action before sending, keeping real Drop safe-off armed.
+            setIndex(result.nextIndex);
+            writeGenRef.current += 1;
+            const gen = writeGenRef.current;
+            const controller = new AbortController();
+            deliveryController.current = controller;
+            setPendingWrite({
+                heater: undefined,
+                nextIndex: result.nextIndex,
+                oldEvents: plan.events,
+                id: plan.events[index]?.id,
+            });
+            setDeliveryAttempt(1);
+            setWriting(true);
+            void writeDischargeOpen(controller.signal)
+                .catch(() => false)
+                .then((sent) => {
+                    if (gen !== writeGenRef.current) return;
+                    setPendingWrite(null);
+                    setWriting(false);
+                    if (sent) {
+                        return;
+                    } else {
+                        setStopReason('dischargeAttempted');
+                    }
+                });
+            return;
+        }
         if (result.nextIndex === index || result.heater == null) return;
         // Keep this step pending through bounded retries; later eligible steps cannot replace it.
         const heater = result.heater;
@@ -570,6 +667,8 @@ export const useReplayControl = ({
         retryHeater,
         sessionId,
         connectionEpoch,
+        dischargeOpenSupported,
+        writeDischargeOpen,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;
@@ -585,7 +684,7 @@ export const useReplayControl = ({
         applyBatchEvents,
         overrideInvalid,
         /** 레퍼런스에 Heat set 지시가 있고(합성/PID 기록 아님) 같은 기기이며 쓰기 가능한가 */
-        available: plan != null && !referenceMachineMismatch && heaterWritable && sidecarConnected,
+        available: plan != null && !referenceMachineMismatch && !dischargeBlocked && heaterWritable && sidecarConnected,
         /** 타겟 곡선 로딩 중 — 이전 계획/기록 없음 문구를 쓰지 않는다 */
         referenceLoading: referencePoints == null,
         /** 선택한 기준에 재생할 자체 화력 계획이 없다. */

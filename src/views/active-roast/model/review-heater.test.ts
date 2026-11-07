@@ -14,6 +14,17 @@ const heater = (id: string, timeSec: number, note: string, tempC: number | null 
 });
 
 describe('review heater plan', () => {
+    it('preserves the terminal door action when a Heater mark is changed or removed', () => {
+        const door = { kind: 'discharge_open', t: 30, bt: 205, trigger: 'bt' };
+        const previous = [heater('heat', 30, '80%')];
+        const stored = [{ t: 30, bt: 160, heater: 80, trigger: 'time' }, door];
+        expect(reviewHeaterToSave(previous, [], stored, [], previous)).toEqual([door]);
+        const next = [heater('heat', 45, '70%')];
+        expect(reviewHeaterToSave(previous, next, stored, next, previous)).toEqual([
+            { ...stored[0], t: 45, heater: 70 },
+            door,
+        ]);
+    });
     const points = [
         { t: 0, heaterSet: 80 },
         { t: 30, heaterSet: 80 },

@@ -139,12 +139,16 @@ _Avoid_: Reference roast. 또 다른 프로파일. A second heat plan stored on 
 _Avoid_: Heat feedback. A future replay instruction.
 
 **Replay plan**:
-화력 재현 계획. An ordered set of Heat set instructions and their replay conditions for a batch. It is distinct from the record of the reference roast.
+화력 재현 계획. An ordered set of Heat set instructions and their replay conditions for a batch. Supported W45A/W60A machines and the simulator can also carry one final BT-triggered discharge-open action. It is distinct from the record of the reference roast.
 _Avoid_: Recorded heat set. A target temperature curve.
 
 **Replay condition**:
 화력 변경 조건. The selected criterion for applying a Heat set in a replay plan, such as elapsed time from Charge or reaching a BT on the rising side of TP.
 _Avoid_: Recorded time and BT as simultaneous requirements. Elapsed time from TP as a synonym for elapsed time from Charge.
+
+**Discharge-open action**:
+배출문 열기. One physical command attempt after confirmed actual TP and a valid BT reaching the threshold. It is terminal in the replay plan and attempted at most once per live Charge session, including view remount, reconnect, OFF/ON and Drop undo. A failed or uncertain delivery is never automatically retried. Command delivery does not confirm physical opening and does not create a Drop mark; Replay remains armed for the existing heat-off policy at actual Drop. A replacement connection stops Replay and requires explicit rearming before any unattempted action.
+_Avoid_: Automatic Drop detection. Confirmed door movement. A heater setpoint.
 
 **Replay assist**:
 기준 로스팅의 Heat set 명령을 시간·온도 조건에 맞춰 적용하는 운전 보조. 명령의 재현은 온도 커브나 향미 결과의 일치를 뜻하지 않는다.

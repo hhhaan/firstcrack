@@ -833,9 +833,11 @@ The first line stays the column header. Columns 9–13 are `et_raw`, `bt_raw`, `
 The metadata records the actual sidecar RoR window, BT RoR EMA, ET RoR EMA, display EMA alphas, warmup read count, units, timestamp clock, and algorithm version. Older archives omit `et_ror_ema_alpha`; those curves used `ror_ema_alpha` for both rates. Bump `MEASUREMENT_ALGORITHM_VERSION` when changing the sidecar measurement algorithm. Recorded samples are the frontend polling subset; this metadata does not promise exact recomputation of every sidecar/PID read. ET/RoR visibility settings affect only the live chart and tooltip; collection and archive writing continue.
 
 
-## POST /door-probe — W60A manual actuator commands
+## POST /door-probe — W60A actuator commands
 
 Requires a connected `giesen_w45a_w60a` S7 machine (or the simulator). Body: `{ "action": "fill_open" }`.
+
+Replay uses `{ "action": "discharge_open", "connection_epoch": 7 }`, with the current nonnegative integer from `/status`. Other actions reject this field. A mismatched epoch returns 409. Replay discharge checks connection, PID ownership and request liveness again under the S7 I/O lock immediately before writing; cancellation prevents a queued write but cannot undo a command already sent. The frontend requires a stable live Charge session, confirmed actual TP, valid current BT and a final BT-only plan row, and latches the attempt before dispatch. It never automatically retries a discharge command, even after failed or uncertain delivery, reconnect, view remount or Drop undo. Untagged heater rows in saved `heater_events` remain unchanged; the additional row is `{ "kind": "discharge_open", "t": 300, "bt": 205, "trigger": "bt" }` without a `heater` field. The action does not mark Drop or confirm physical door movement.
 
 | action | Artisan W60A command sequence |
 | --- | --- |

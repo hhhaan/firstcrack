@@ -133,8 +133,9 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                             <li key={`${i}-${e.t}`} className={rowCls}>
                                 <span className="font-mono text-[12px] text-secondary">{formatEditTime(e.t)}</span>
                                 <span className="font-mono text-[13px] font-medium text-primary">
-                                    {e.heater}
-                                    {heaterUnit}
+                                    {e.kind === 'discharge_open'
+                                        ? t('heaterEventsEditor.dischargeOpen')
+                                        : `${e.heater}${heaterUnit}`}
                                 </span>
                             </li>
                         ))}

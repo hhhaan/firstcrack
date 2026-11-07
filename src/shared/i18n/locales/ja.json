@@ -1864,6 +1864,10 @@
         "editHeat": "火力を編集"
     },
     "heaterEventsEditor": {
+        "action": "動作",
+        "dischargeOpen": "排出扉を開く",
+        "dischargeInvalid": "排出扉を開く動作は、BT 0–400°Cの条件で最後のステップに1回だけ追加できます。",
+        "dischargeHint": "扉の指令はバッチごとに1回だけ送信し、自動再試行しません。実際の扉の状態は直接確認してください。",
         "title": "火力を編集",
         "chartTitle": "基準火力の参考チャート",
         "stepsTitle": "火力再生計画",

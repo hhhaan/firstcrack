@@ -1,3 +1,4 @@
+import { FormSelect } from '@shared/ui/FormSelect';
 import { formErrorCls, inputCls } from '@shared/ui/form-styles';
 import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
@@ -36,6 +37,7 @@ type Props = {
     heaterMax?: number;
     heaterUnit?: string;
     heaterStep?: number;
+    dischargeOpenSupported?: boolean;
     /** ACK된 앞쪽 행. 실행 중에는 값을 바꿔도 다시 보내지 않는다. */
     lockedCount?: number;
     boundsNote?: string;
@@ -50,7 +52,8 @@ const toDraft = (events: ReplayEvent[], tpTime: number, unit: 'C' | 'F'): DraftR
         key: e.id ?? `${i}-${e.t}-${e.heater}-${e.trigger ?? ''}`,
         t: formatEditTime(e.t),
         bt: String(Math.round(toDisplayBt(e.bt, unit) * 10) / 10),
-        heater: String(e.heater),
+        heater: e.kind === 'discharge_open' ? '' : String(e.heater),
+        kind: e.kind,
         trigger: eventTrigger(e, tpTime),
         referenceT: e.t,
         referenceBt: e.bt,
@@ -76,6 +79,7 @@ export const HeaterEventsEditor = ({
     heaterMax,
     heaterUnit = '%',
     heaterStep,
+    dischargeOpenSupported = false,
     lockedCount = 0,
     boundsNote,
     saveErrorMessage,
@@ -96,6 +100,7 @@ export const HeaterEventsEditor = ({
     const [invalidCell, setInvalidCell] = useState<{ row: number; field: 'time' | 'bt' | 'heat' } | null>(null);
     const [ruleBt, setRuleBt] = useState(() => String(toDisplayBt(192, unit)));
     const [ruleHeater, setRuleHeater] = useState('50');
+    const [ruleAction, setRuleAction] = useState<'heater' | 'discharge_open'>('heater');
     const [selected, setSelected] = useState(0);
     const [busy, setBusy] = useState(false);
     const inFlight = useRef(false);
@@ -126,6 +131,7 @@ export const HeaterEventsEditor = ({
     const issueText = (issue: HeaterDraftIssue): string => {
         if (issue.code === 'time') return t('heaterEventsEditor.timeInvalid', { row: issue.row });
         if (issue.code === 'bt') return t('heaterEventsEditor.btInvalid', { row: issue.row });
+        if (issue.code === 'discharge') return t('heaterEventsEditor.dischargeInvalid');
         if (issue.code === 'heat-empty') return t('heaterEventsEditor.heatEmpty', { row: issue.row });
         if (issue.code === 'heat-range') {
             return t('heaterEventsEditor.heatRange', {
@@ -158,6 +164,25 @@ export const HeaterEventsEditor = ({
         if (bt == null) {
             setInvalidCell(null);
             setError(t('heaterEventsEditor.ruleBt'));
+            return;
+        }
+        if (ruleAction === 'discharge_open' && dischargeOpenSupported) {
+            if (rows.some((row) => row.kind === 'discharge_open')) return;
+            const referenceT = parsed[parsed.length - 1]?.t ?? 0;
+            setSelected(rows.length);
+            setRows((prev) => [
+                ...prev,
+                {
+                    key: `discharge-${Date.now()}`,
+                    kind: 'discharge_open',
+                    t: formatEditTime(referenceT),
+                    referenceT,
+                    bt: String(bt),
+                    heater: '',
+                    trigger: 'bt',
+                },
+            ]);
+            clearError();
             return;
         }
         if (heater == null) {
@@ -312,8 +337,9 @@ export const HeaterEventsEditor = ({
                                     ? `${t('heaterEventsEditor.conditionTime')} ${rows[selected].t}`
                                     : `${t('heaterEventsEditor.conditionBt')} ${rows[selected].bt}°${unit}`}
                                 {' · '}
-                                {t('heaterEventsEditor.heat')} {rows[selected].heater}
-                                {heaterUnit}
+                                {rows[selected].kind === 'discharge_open'
+                                    ? t('heaterEventsEditor.dischargeOpen')
+                                    : `${t('heaterEventsEditor.heat')} ${rows[selected].heater}${heaterUnit}`}
                             </div>
                         )}
                         <fieldset
@@ -325,6 +351,36 @@ export const HeaterEventsEditor = ({
                                 {t('heaterEventsEditor.ruleTitle')}
                             </h3>
                             <p className="mt-1 mb-3 text-xs text-muted">{t('heaterEventsEditor.ruleHint')}</p>
+                            {dischargeOpenSupported && (
+                                <label className="mb-3 block text-[11px] font-semibold text-muted">
+                                    {t('heaterEventsEditor.action')}
+                                    <FormSelect
+                                        aria-label={t('heaterEventsEditor.action')}
+                                        className="mt-1 py-2 text-xs"
+                                        value={ruleAction}
+                                        onChange={(event) =>
+                                            setRuleAction(
+                                                event.target.value === 'discharge_open' ? 'discharge_open' : 'heater',
+                                            )
+                                        }
+                                    >
+                                        <option value="heater">{t('heaterEventsEditor.heat')}</option>
+                                        <option
+                                            value="discharge_open"
+                                            disabled={rows.some((row) => row.kind === 'discharge_open')}
+                                        >
+                                            {t('heaterEventsEditor.dischargeOpen')}
+                                        </option>
+                                    </FormSelect>
+                                </label>
+                            )}
+                            {dischargeOpenSupported &&
+                                (ruleAction === 'discharge_open' ||
+                                    rows.some((row) => row.kind === 'discharge_open')) && (
+                                    <p className="mt-0 mb-3 text-xs text-muted">
+                                        {t('heaterEventsEditor.dischargeHint')}
+                                    </p>
+                                )}
                             <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
                                 <label className="min-w-0 text-[11px] font-semibold text-muted">
                                     {t('heaterEventsEditor.ruleWhen')} (°{unit})
@@ -338,22 +394,30 @@ export const HeaterEventsEditor = ({
                                         aria-label={t('heaterEventsEditor.bt')}
                                     />
                                 </label>
-                                <label className="min-w-0 text-[11px] font-semibold text-muted">
-                                    {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
-                                    <input
-                                        value={ruleHeater}
-                                        onChange={(e) => {
-                                            if (isDecimalDraft(e.target.value, HEAT_DECIMALS, heaterBounds.min < 0))
-                                                setRuleHeater(e.target.value);
-                                        }}
-                                        className={`${inputCls} mt-1 py-2 text-xs`}
-                                        inputMode="decimal"
-                                        aria-label={t('heaterEventsEditor.heat')}
-                                    />
-                                </label>
+                                {ruleAction === 'discharge_open' && dischargeOpenSupported ? (
+                                    <span className="pb-2 text-xs text-secondary">
+                                        {t('heaterEventsEditor.dischargeOpen')}
+                                    </span>
+                                ) : (
+                                    <label className="min-w-0 text-[11px] font-semibold text-muted">
+                                        {t('heaterEventsEditor.ruleThen')} ({heaterUnit})
+                                        <input
+                                            value={ruleHeater}
+                                            onChange={(e) => {
+                                                if (isDecimalDraft(e.target.value, HEAT_DECIMALS, heaterBounds.min < 0))
+                                                    setRuleHeater(e.target.value);
+                                            }}
+                                            className={`${inputCls} mt-1 py-2 text-xs`}
+                                            inputMode="decimal"
+                                            aria-label={t('heaterEventsEditor.heat')}
+                                        />
+                                    </label>
+                                )}
                                 <button
                                     type="button"
-                                    disabled={rows.length >= MAX_EVENTS}
+                                    disabled={
+                                        rows.length >= MAX_EVENTS || rows.some((row) => row.kind === 'discharge_open')
+                                    }
                                     onClick={addBtRule}
                                     className="cursor-pointer rounded-xl border-none bg-primary px-3 py-2.5 text-xs font-semibold whitespace-nowrap text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-black"
                                 >
@@ -371,6 +435,7 @@ export const HeaterEventsEditor = ({
                         lockedCount={lockedCount}
                         invalidCell={invalidCell}
                         allowNegativeHeat={heaterBounds.min < 0}
+                        dischargeOpenSupported={dischargeOpenSupported}
                         onSelect={setSelected}
                         onUpdate={update}
                         onDelete={(key) => setRows((prev) => prev.filter((row) => row.key !== key))}

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { formatEditTime, toDisplayBt } from '../lib/heater-events';
-import { eventTrigger, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import { eventTrigger, isHeaterReplayEvent, type ReplayEvent, type ReplayPoint } from '../lib/replay';
 import { formatReplayCondition } from '../lib/replayDisplay';
 
 const CHART_PAD = { l: 48, r: 50, t: 20, b: 28 };
@@ -27,6 +27,7 @@ export const HeatStepChart = ({
     onSelect: (index: number) => void;
 }) => {
     const { t } = useTranslation();
+    const heatEvents = events.filter(isHeaterReplayEvent);
     const width = CHART_WIDTH;
     const height = CHART_HEIGHT;
     const pad = CHART_PAD;
@@ -37,7 +38,7 @@ export const HeatStepChart = ({
     }
     const minBt = (bts.length ? Math.min(...bts) : 80) - 10;
     const maxBt = (bts.length ? Math.max(...bts) : 220) + 10;
-    const heatMax = Math.max(heaterMax, ...events.map((e) => e.heater), 1);
+    const heatMax = Math.max(heaterMax, ...heatEvents.map((e) => e.heater), 1);
     const innerW = width - pad.l - pad.r;
     const innerH = height - pad.t - pad.b;
     const x = (t: number) => pad.l + (t / maxT) * innerW;
@@ -45,9 +46,9 @@ export const HeatStepChart = ({
     const yHeat = (h: number) => pad.t + (1 - h / heatMax) * innerH;
     const btPath = btPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.t)} ${yBt(p.bt)}`).join(' ');
     const heatPath =
-        events.length === 0
+        heatEvents.length === 0
             ? ''
-            : `M${x(events[0].t)} ${yHeat(events[0].heater)}${events
+            : `M${x(heatEvents[0].t)} ${yHeat(heatEvents[0].heater)}${heatEvents
                   .slice(1)
                   .map((e) => ` H${x(e.t)} V${yHeat(e.heater)}`)
                   .join('')} H${x(maxT)}`;
@@ -124,7 +125,7 @@ export const HeatStepChart = ({
                         className="cursor-pointer"
                         role="button"
                         tabIndex={0}
-                        aria-label={`${formatReplayCondition(e, eventTrigger(e, tpTime), unit)}, ${e.heater}${heaterUnit}`}
+                        aria-label={`${formatReplayCondition(e, eventTrigger(e, tpTime), unit)}, ${e.kind === 'discharge_open' ? t('heaterEventsEditor.dischargeOpen') : `${e.heater}${heaterUnit}`}`}
                         onKeyDown={(event) => {
                             if (event.key === 'Enter' || event.key === ' ') {
                                 event.preventDefault();
@@ -133,10 +134,15 @@ export const HeatStepChart = ({
                         }}
                         onClick={() => onSelect(i)}
                     >
-                        <circle cx={x(e.t)} cy={yHeat(e.heater)} r="12" fill="transparent" />
                         <circle
                             cx={x(e.t)}
-                            cy={yHeat(e.heater)}
+                            cy={e.kind === 'discharge_open' ? yBt(e.bt) : yHeat(e.heater)}
+                            r="12"
+                            fill="transparent"
+                        />
+                        <circle
+                            cx={x(e.t)}
+                            cy={e.kind === 'discharge_open' ? yBt(e.bt) : yHeat(e.heater)}
                             r={i === selected ? 5 : 3.5}
                             fill={i === selected ? 'var(--color-control-heat)' : 'var(--color-main-bg)'}
                             stroke="var(--color-control-heat)"

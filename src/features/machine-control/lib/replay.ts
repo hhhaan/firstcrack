@@ -25,17 +25,34 @@ export interface ReplayPoint {
 /** 행별 발화 기준. 없으면 TSV 추출과 같이 TP 이전·동일 시각=time, 이후=bt (#435). */
 export type ReplayTrigger = 'time' | 'bt';
 
-export interface ReplayEvent {
+export interface HeaterReplayEvent {
     t: number;
     bt: number;
     heater: number;
+    kind?: 'heater';
     trigger?: ReplayTrigger;
     /** Session-only row id. Not persisted in jsonb. */
     id?: string;
 }
 
-export interface ReplayPlan {
-    events: ReplayEvent[];
+export type ReplayEvent =
+    | HeaterReplayEvent
+    | {
+          kind: 'discharge_open';
+          t: number;
+          bt: number;
+          trigger: 'bt';
+          heater?: never;
+          id?: string;
+      };
+
+export const isHeaterReplayEvent = (event: ReplayEvent): event is HeaterReplayEvent => event.kind !== 'discharge_open';
+
+export const supportsDischargeOpen = (roaster: string | null | undefined): boolean =>
+    roaster === 'giesen_w45a_w60a' || roaster === 'virtual';
+
+export interface ReplayPlan<Event extends ReplayEvent = ReplayEvent> {
+    events: Event[];
     /** 기준 기록의 TP 시각 — 이전·동일 시각 이벤트는 시간축으로 재생한다 */
     tpTime: number;
 }
@@ -126,14 +143,14 @@ export const extractReplayEvents = (
     points: ReplayPoint[],
     dropTime?: number | null,
     referenceTpTime?: number | null,
-): ReplayPlan | null => {
+): ReplayPlan<HeaterReplayEvent> | null => {
     if (dropTime != null && !Number.isFinite(dropTime)) return null;
     const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
     if (points.some((p) => !Number.isFinite(p.t) || !Number.isFinite(p.bt))) return null;
     const post = points.filter((p) => p.t >= 0 && p.t < cutoff);
     if (post.length === 0) return null;
 
-    const events: ReplayEvent[] = [];
+    const events: HeaterReplayEvent[] = [];
     let lastHeater: number | null = null;
     for (const p of post) {
         const cmd = replayCommand(p);
@@ -180,7 +197,7 @@ export const judgeReplay = (
     plan: ReplayPlan,
     nextIndex: number,
     sample: ReplaySample,
-): { nextIndex: number; heater: number | null } => {
+): { nextIndex: number; heater: number | null; dischargeOpen?: true } => {
     let heater: number | null = null;
     let i = nextIndex;
     while (i < plan.events.length) {
@@ -191,6 +208,11 @@ export const judgeReplay = (
                 ? sample.elapsed >= e.t
                 : sample.afterTurningPoint && sample.bt >= e.bt;
         if (!fires) break;
+        // A physical action is a barrier: never coalesce across it or retry it as heat.
+        if (e.kind === 'discharge_open') {
+            if (heater != null) break;
+            return { nextIndex: i + 1, heater: null, dischargeOpen: true };
+        }
         heater = e.heater;
         i += 1;
     }

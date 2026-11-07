@@ -106,7 +106,8 @@ test('profile and batch editors keep BT additions and stored TP classification',
     await expect(rows.nth(1).getByLabel('Time', { exact: true })).toHaveValue('2:00');
     await expect(rows.nth(1).getByLabel('BT', { exact: true })).toHaveCount(0);
     await expect(rows.nth(2).getByLabel('BT', { exact: true })).toHaveValue('150');
-    await expect(editor.getByRole('combobox')).toHaveCount(0);
+    await expect(editor.getByRole('combobox', { name: 'Action', exact: true })).toHaveCount(1);
+    await expect(rows.getByRole('combobox')).toHaveCount(0);
     await expect(editor.getByRole('button', { name: 'Add step', exact: true })).toHaveCount(0);
     const rule = editor.locator('[aria-labelledby="heater-events-rule-title"]');
     await rule.getByLabel('BT', { exact: true }).fill('170');
@@ -118,7 +119,8 @@ test('profile and batch editors keep BT additions and stored TP classification',
     await expect(editor).toBeHidden();
     await page.getByRole('button', { name: 'Edit heat', exact: true }).click();
     await expect(rows.nth(3).getByLabel('BT', { exact: true })).toHaveValue('170');
-    await expect(editor.getByRole('combobox')).toHaveCount(0);
+    await expect(editor.getByRole('combobox', { name: 'Action', exact: true })).toHaveCount(1);
+    await expect(rows.getByRole('combobox')).toHaveCount(0);
     await page.keyboard.press('Escape');
     await expect(editor).toBeHidden();
     await page.keyboard.press('Escape');

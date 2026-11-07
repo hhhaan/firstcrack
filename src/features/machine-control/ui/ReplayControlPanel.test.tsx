@@ -74,6 +74,19 @@ const mount = async (props: { replay?: Replay; unit?: 'C' | 'F'; heaterUnit?: st
 const event = (over: Partial<ReplayEvent>): ReplayEvent => ({ t: 0, bt: 180, heater: 80, ...over });
 
 describe('ReplayControlPanel next-event display (R07)', () => {
+    it('shows the door-state warning while completed Replay stays armed for real Drop', async () => {
+        const { container, unmount } = await mount({
+            replay: baseReplay({
+                active: true,
+                stopReason: 'dischargeAttempted',
+                nextEvent: null,
+                nextEventTrigger: null,
+            }),
+        });
+        expect(container.textContent).toContain(en.heaterEventsEditor.dischargeHint);
+        expect(container.textContent).not.toContain(en.activeRoast.replay.complete);
+        unmount();
+    });
     beforeAll(async () => {
         if (!i18n.isInitialized) {
             await i18n.init({

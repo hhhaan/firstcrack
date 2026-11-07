@@ -1864,6 +1864,10 @@
         "editHeat": "Edit heat"
     },
     "heaterEventsEditor": {
+        "action": "Action",
+        "dischargeOpen": "Open discharge door",
+        "dischargeInvalid": "Open discharge door must be the final step, once, with a BT condition from 0–400°C.",
+        "dischargeHint": "The door command is sent once per batch without automatic retry. Check the physical door yourself.",
         "title": "Edit heat",
         "chartTitle": "Reference heat chart",
         "stepsTitle": "Heat replay plan",

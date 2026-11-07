@@ -59,7 +59,12 @@ const replayDisabledHint = (
 
 export const ReplayControlPanel = ({ replay, unit, heaterUnit, onEditHeat, commandsLocked = false }: Props) => {
     const { t } = useTranslation();
-    const stopText = replay.stopReason ? STOP_REASON_TEXT[replay.stopReason] : undefined;
+    const stopText =
+        replay.stopReason === 'dischargeAttempted'
+            ? t('heaterEventsEditor.dischargeHint')
+            : replay.stopReason
+              ? STOP_REASON_TEXT[replay.stopReason]
+              : undefined;
     const tpWait = resolveReplayTpWait({
         active: replay.active,
         nextEvent: replay.nextEvent,
@@ -143,7 +148,11 @@ const ReplayPanelMessages = ({
         <>
             {/* <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p> */}
 
-            {!replay.active && stopText && <p className="text-[11px] leading-snug text-red-500">{stopText}</p>}
+            {(!replay.active || replay.stopReason === 'dischargeAttempted') && stopText && (
+                <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500" role="status">
+                    {stopText}
+                </p>
+            )}
             {!replay.active && !stopText && replay.missingHeatSet && (
                 <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.missingHeatSet')}</p>
             )}
@@ -174,12 +183,16 @@ const ReplayPanelMessages = ({
                 </p>
             )}
             {chrome === 'running' &&
+                replay.stopReason !== 'dischargeAttempted' &&
                 !observationHold &&
                 (replay.nextEvent && replay.nextEventTrigger ? (
                     <p className="font-inconsolata text-[13px] text-muted">
                         {t('activeRoast.replay.next', {
                             condition: formatReplayCondition(replay.nextEvent, replay.nextEventTrigger, unit),
-                            heater: formatReplayHeater(replay.nextEvent.heater, heaterUnit),
+                            heater:
+                                replay.nextEvent.kind === 'discharge_open'
+                                    ? t('heaterEventsEditor.dischargeOpen')
+                                    : formatReplayHeater(replay.nextEvent.heater, heaterUnit),
                         })}
                     </p>
                 ) : (

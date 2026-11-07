@@ -2,7 +2,7 @@ import { ROASTER_REGISTRY, useMachines } from '@entities/machine';
 import { useTranslation } from 'react-i18next';
 import { useSidecarStatus } from '../api/useSidecarStatus';
 import { liveHeaterFromStatus, profileHeaterBounds, type ReplayPlanSource } from '../lib/heater-events';
-import type { ReplayEvent, ReplayPoint } from '../lib/replay';
+import { type ReplayEvent, type ReplayPoint, supportsDischargeOpen } from '../lib/replay';
 import { HeaterEventsEditor } from './HeaterEventsEditor';
 
 /** Profile or saved roast record — both carry the machine snapshot that fixes heater bounds. */
@@ -52,6 +52,10 @@ export const ProfileHeaterEventsEditor = ({
             heaterMax={heater.max}
             heaterUnit={heater.unit}
             heaterStep={heater.step}
+            dischargeOpenSupported={supportsDischargeOpen(
+                machines.find((machine) => machine.id === profile.machine_id)?.roasterKey ??
+                    profile.machine_roaster_key,
+            )}
             boundsNote={heater.origin === 'fallback' ? t('heaterEventsEditor.boundsFallback') : undefined}
             saveErrorMessage={saveErrorMessage}
             onClose={onClose}

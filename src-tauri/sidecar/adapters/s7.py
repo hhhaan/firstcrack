@@ -459,12 +459,12 @@ class S7Adapter:
 
         return await diagnostics.run(_read_one)
 
-    async def door_probe(self, write: int | None) -> dict[str, Any]:
+    async def door_probe(self, write: int | None, *, is_current: Callable[[], bool] | None = None) -> dict[str, Any]:
         if write is None:
             return await self._read_actuator_probe("discharge_open", 2, 82, 6)
         if write not in (1, 2, 5, 6):
             raise ValueError("W60A door command must be 1, 2, 5, or 6")
-        return await self._write_actuator_commands(((2, 30, write, None),))
+        return await self._write_actuator_commands(((2, 30, write, None),), is_current=is_current)
 
     async def cooling_fan_probe(self, on: bool | None) -> dict[str, Any]:
         if on is None:
@@ -486,6 +486,7 @@ class S7Adapter:
         self,
         commands: tuple[tuple[int, int, int | bool, int | None], ...],
         bit_name: str | None = None,
+        *, is_current: Callable[[], bool] | None = None,
     ) -> dict[str, Any]:
         """W60A.aset commands: Artisan writeInt/writeBool RMW, one lock per command."""
         from snap7.type import Area
@@ -497,10 +498,13 @@ class S7Adapter:
             raise ConnectionError("S7 PLC가 연결되어 있지 않습니다.")
         diagnostics = S7Diagnostics("actuator")
         diagnostics.update(final_zero_reached=False if len(commands) > 1 else None)
+        cancelled = threading.Event()
 
         def check_session() -> None:
             if self._plc is not plc or self._session != session:
                 raise ConnectionError("S7 connection changed during actuator command")
+            if is_current is not None and (cancelled.is_set() or not is_current()):
+                raise ConnectionError("Replay discharge connection changed before actuator command")
 
         def execute() -> dict[str, Any]:
             result: dict[str, Any] = {
@@ -558,7 +562,11 @@ class S7Adapter:
                 raise first_error
             return result
 
-        result = await diagnostics.run(execute)
+        try:
+            result = await diagnostics.run(execute)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
         result["diagnostics"] = diagnostics.snapshot()
         return result
 

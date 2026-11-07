@@ -19,6 +19,7 @@ export const HeaterEventsTable = ({
     lockedCount,
     invalidCell,
     allowNegativeHeat,
+    dischargeOpenSupported,
     onSelect,
     onUpdate,
     onDelete,
@@ -31,6 +32,7 @@ export const HeaterEventsTable = ({
     lockedCount: number;
     invalidCell?: { row: number; field: 'time' | 'bt' | 'heat' } | null;
     allowNegativeHeat: boolean;
+    dischargeOpenSupported?: boolean;
     onSelect: (index: number) => void;
     onUpdate: (key: string, patch: Partial<DraftRow>) => void;
     onDelete?: (key: string) => void;
@@ -66,7 +68,9 @@ export const HeaterEventsTable = ({
                                 {t('heaterEventsEditor.condition')}
                             </th>
                             <th className="sticky top-0 z-10 bg-main-bg px-1 pb-1 text-left">
-                                {t('heaterEventsEditor.heat')} ({heaterUnit})
+                                {dischargeOpenSupported
+                                    ? t('heaterEventsEditor.action')
+                                    : `${t('heaterEventsEditor.heat')} (${heaterUnit})`}
                             </th>
                             <th className="sticky top-0 z-10 bg-main-bg" />
                         </tr>
@@ -143,21 +147,33 @@ export const HeaterEventsTable = ({
                                         )}
                                     </td>
                                     <td className={`${cellClass} border-y px-1 py-2 align-bottom`}>
-                                        <input
-                                            value={row.heater}
-                                            onChange={(e) => {
-                                                if (!isDecimalDraft(e.target.value, HEAT_DECIMALS, allowNegativeHeat)) {
-                                                    e.target.value = row.heater;
-                                                    return;
-                                                }
-                                                onUpdate(row.key, { heater: e.target.value });
-                                            }}
-                                            className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('heat') ? ' border-red-500' : ''}`}
-                                            aria-invalid={cellInvalid('heat') || undefined}
-                                            inputMode="decimal"
-                                            aria-label={t('heaterEventsEditor.heat')}
-                                            readOnly={locked}
-                                        />
+                                        {row.kind === 'discharge_open' ? (
+                                            <span className="text-xs font-medium text-secondary">
+                                                {t('heaterEventsEditor.dischargeOpen')}
+                                            </span>
+                                        ) : (
+                                            <input
+                                                value={row.heater}
+                                                onChange={(e) => {
+                                                    if (
+                                                        !isDecimalDraft(
+                                                            e.target.value,
+                                                            HEAT_DECIMALS,
+                                                            allowNegativeHeat,
+                                                        )
+                                                    ) {
+                                                        e.target.value = row.heater;
+                                                        return;
+                                                    }
+                                                    onUpdate(row.key, { heater: e.target.value });
+                                                }}
+                                                className={`${inputCls} min-w-0 px-2 py-1.5 text-xs${cellInvalid('heat') ? ' border-red-500' : ''}`}
+                                                aria-invalid={cellInvalid('heat') || undefined}
+                                                inputMode="decimal"
+                                                aria-label={t('heaterEventsEditor.heat')}
+                                                readOnly={locked}
+                                            />
+                                        )}
                                     </td>
                                     <td
                                         className={`${cellClass} rounded-r-xl border-y border-r py-2 pr-1 align-bottom`}

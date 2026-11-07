@@ -141,7 +141,9 @@ async function request<T>(
                 ...(token ? { [TOKEN_HEADER]: token } : {}),
             },
             ...init,
-            signal: AbortSignal.timeout(timeoutMs),
+            signal: init?.signal
+                ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
+                : AbortSignal.timeout(timeoutMs),
         });
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
@@ -267,12 +269,16 @@ export const sidecar = {
      * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
      */
     /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
-    doorProbe: async (action: DoorProbeAction) => {
+    doorProbe: async (action: DoorProbeAction, options?: { connectionEpoch: number; signal: AbortSignal }) => {
         try {
             // Python owns completed commands and hardware failures; report only client failures here.
             return await request<DoorProbeResult>(
                 '/door-probe',
-                { method: 'POST', body: JSON.stringify({ action }) },
+                {
+                    method: 'POST',
+                    body: JSON.stringify({ action, ...(options ? { connection_epoch: options.connectionEpoch } : {}) }),
+                    signal: options?.signal,
+                },
                 DEFAULT_TIMEOUT_MS,
                 false,
             );

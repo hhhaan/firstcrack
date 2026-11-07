@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { logger } from '@shared/lib/logger';
-import { act, createElement } from 'react';
+import { act, type ComponentProps, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { heaterEventsToJson, parseHeaterEvents, profileHeaterBounds } from '../lib/heater-events';
@@ -15,8 +15,67 @@ vi.mock('react-i18next', () => ({
     }),
 }));
 
+vi.mock('@shared/ui/FormSelect', () => ({
+    FormSelect: (props: ComponentProps<'select'>) => createElement('select', props),
+}));
+
 describe('HeaterEventsEditor', () => {
     let host: HTMLDivElement;
+
+    it.each([false, true])(
+        'offers discharge only with machine support (%s) and saves BT-only JSON',
+        async (supported) => {
+            host = document.createElement('div');
+            document.body.appendChild(host);
+            const root = createRoot(host);
+            const onApply = vi.fn();
+            await act(async () =>
+                root.render(
+                    createElement(HeaterEventsEditor, {
+                        mode: 'profile',
+                        events: [],
+                        tpTime: 60,
+                        btPoints: [],
+                        source: 'profile',
+                        unit: 'C',
+                        dischargeOpenSupported: supported,
+                        onClose: () => {},
+                        onApply,
+                    }),
+                ),
+            );
+            const select = document.querySelector<HTMLSelectElement>('select');
+            expect(Boolean(select)).toBe(supported);
+            if (select) {
+                await act(async () => {
+                    select.value = 'discharge_open';
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                expect(document.querySelector('input[aria-label="heaterEventsEditor.heat"]')).toBeNull();
+                await act(async () =>
+                    [...document.querySelectorAll('button')]
+                        .find((button) => button.textContent === 'heaterEventsEditor.ruleAdd')
+                        ?.click(),
+                );
+                expect(document.querySelector('tbody')?.textContent).toContain('heaterEventsEditor.dischargeOpen');
+                expect(document.querySelector('tbody input[aria-label="heaterEventsEditor.heat"]')).toBeNull();
+                expect(
+                    [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+                        (button) => button.textContent === 'heaterEventsEditor.ruleAdd',
+                    )?.disabled,
+                ).toBe(true);
+                await act(async () =>
+                    [...document.querySelectorAll('button')]
+                        .find((button) => button.textContent === 'heaterEventsEditor.save')
+                        ?.click(),
+                );
+                expect(heaterEventsToJson(onApply.mock.calls[0][0])).toEqual([
+                    { kind: 'discharge_open', t: 0, bt: 192, trigger: 'bt' },
+                ]);
+            }
+            await act(async () => root.unmount());
+        },
+    );
 
     it.each([
         ['giesen_standard', 'time'],

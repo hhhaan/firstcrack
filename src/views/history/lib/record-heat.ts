@@ -21,6 +21,7 @@ export const sameHeatPlan = (a: ReplayEvent[], b: ReplayEvent[], tpTime: number)
         (e, i) =>
             e.t === b[i].t &&
             e.heater === b[i].heater &&
+            e.kind === b[i].kind &&
             eventTrigger(e, tpTime) === eventTrigger(b[i], tpTime) &&
             Math.abs(e.bt - b[i].bt) < 0.1,
     );

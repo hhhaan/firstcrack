@@ -27,7 +27,7 @@ export const heaterEventsFromLog = (
     );
     const stepsByTime = new Map<number, typeof stored>();
     for (const step of stored) {
-        if (typeof step.t !== 'number') continue;
+        if (step.kind === 'discharge_open' || typeof step.t !== 'number') continue;
         const group = stepsByTime.get(step.t) ?? [];
         group.push(step);
         stepsByTime.set(step.t, group);
@@ -57,7 +57,8 @@ export const heaterEventsFromLog = (
         rows.push({ ...step, t, bt, heater });
     }
     rows.sort((a, b) => a.t - b.t);
-    return rows.length > 0 ? rows : null;
+    const plan = [...rows, ...stored.filter((step) => step.kind === 'discharge_open')];
+    return plan.length > 0 ? plan : null;
 };
 
 /** Keep the stored plan unless a Heater mark itself changed. */
