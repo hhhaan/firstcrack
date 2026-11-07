@@ -13,14 +13,17 @@ Stored reference curves are not rewritten; only the live chart drops samples old
 than that window. The roast's 00:00 sample owns the Charge boundary, and RoR stays
 absent during BBP. Live waiting BBP is its own timeline starting at 0:00:
 the reference (dashed) and the measured curve share that axis. A positive saved
-BBP reference fixes the gray interval from `0` to its saved Charge. Its BBP and
-complete Charge-to-Drop roast remain joined and fixed in view, independent of
-the configured X-axis range. When measurements exceed that BBP duration, the
-display discards the oldest measured samples and shifts the remaining window
-left, keeping the latest observation at the saved Charge. Temperatures, controls,
-events and the current-time marker use the same display origin, including READY.
-Stored timestamps, saved-reference sample gaps and the 15-minute recording cap
-are unchanged; this shorter FIFO affects presentation only.
+BBP reference initially sets the gray interval from `0` to its saved BBP duration.
+When the measured wait exceeds that duration, the interval grows with it up to
+15 minutes (900s). Reference Charge moves to the interval's right edge; the saved
+BBP and its complete Charge-to-Drop roast translate together, retaining their
+durations and observation gaps without stretching. The viewport fits this joined
+reference independently of the configured X-axis range; the 15-minute cap applies
+only to BBP, not the appended roast. Only after 15 minutes does the measured
+display discard its oldest samples and shift the remaining window left.
+Temperatures, controls, events and the current-time marker use the same display
+origin, including READY. Stored timestamps and the 15-minute recording cap are
+unchanged; growth, translation and rolling affect presentation only.
 
 Missing, failed or zero-duration BBP references use the existing 15-minute
 measured window. Their viewport fits at least that window and the entire
@@ -54,8 +57,8 @@ the configured roast range and reserves at least 60 seconds or 10% of the initia
 span (whichever is larger) after the latest observation and grows in 60-second steps,
 without shrinking within the same timeline. New waits and review sessions have their
 own viewport identity. A late reference does not reset the viewport. Reference BBP
-and roast are aligned at Charge without stretching their samples. Waiting display
-FIFO rebases again at actual Charge, preserving the selected real measurement interval.
+and roast are aligned at Charge without stretching their samples. The waiting display
+rebases at actual Charge, preserving the selected real measurement interval.
 
 A batch-owned capture keeps the wait origin, actual Charge boundary, original BBP
 samples/events and the higher-frequency auto-Charge lookback. Partition before

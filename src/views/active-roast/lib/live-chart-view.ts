@@ -82,9 +82,7 @@ export const resolveLiveChartView = (input: {
             ? explicitCharge
             : sourceExtent.max;
     const targetOrigin = Math.max(0, targetEnd - BBP_MAX_SECONDS);
-    const referenceBbp = source.flatMap((point) =>
-        point.t >= targetOrigin && point.t <= targetEnd ? [{ ...point, t: point.t - targetOrigin, ror: null }] : [],
-    );
+    const referenceBbp = source.filter((point) => point.t >= targetOrigin && point.t <= targetEnd);
     const referenceDuration = targetEnd - targetOrigin;
     const hasReferenceBbp = referenceBbp.length > 0 && referenceDuration > 0;
     const windowSeconds = hasReferenceBbp
@@ -106,7 +104,7 @@ export const resolveLiveChartView = (input: {
         point.t >= 0 ? [{ ...point, t: referenceCharge + point.t }] : [],
     );
     const targetPoints = [
-        ...referenceBbp.map((point) => ({ ...point, t: point.t + referenceShift })),
+        ...referenceBbp.map((point) => ({ ...point, t: point.t - targetOrigin + referenceShift, ror: null })),
         ...referenceRoast,
     ].sort((a, b) => a.t - b.t);
     const right = Math.max(windowSeconds, sampleExtent(targetPoints).max);
