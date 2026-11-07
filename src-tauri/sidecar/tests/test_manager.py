@@ -407,6 +407,7 @@ class TestReadTemperatures:
         assert reading["timestamp"] == 11.0
         assert reading["sensor_clock"].startswith(f"{manager._sensor_clock_id}:")
         assert reading["processing"] == {
+            "read_units": {},
             "algorithm_version": config.MEASUREMENT_ALGORITHM_VERSION,
             "temperature_unit": "C",
             "ror_unit": "C/min",

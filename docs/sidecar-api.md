@@ -335,6 +335,8 @@ Notes:
 
 ### GET /temperatures
 
+`processing.read_units`의 키는 실제 피드백 채널 존재를 뜻한다. 값은 `%` / `Pa` / `Hz` / `RPM`, 단위가 명시되지 않은 채널은 `""`이다. 키가 없으면 해당 채널은 없으며, 측정된 `0`과 구분한다. 쓰기 맵은 물리 채널의 존재나 단위를 대신하지 않는다.
+
 현재 연결된 로스터 adapter에서 live reading을 읽고, sidecar가 RoR 값을 계산해 반환한다.
 
 Request body: 없음

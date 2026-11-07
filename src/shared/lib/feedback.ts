@@ -17,4 +17,4 @@ export const feedbackValue = (
     (units !== undefined && units[role] === undefined) || value == null || !Number.isFinite(value) ? null : value;
 
 export const formatFeedback = (value: number, role: FeedbackRole, units?: ReadUnits): string =>
-    `${Number(value.toFixed(2))} ${feedbackUnit(role, units)}`;
+    `${Number(value.toFixed(2))}${feedbackUnit(role, units) ? ` ${feedbackUnit(role, units)}` : ''}`;

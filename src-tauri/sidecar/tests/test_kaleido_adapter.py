@@ -192,7 +192,7 @@ class TestKaleidoReadDisconnect:
         await adapter.connect()
         reading = await adapter.read()
 
-        assert reading.heater == -1.0
+        assert reading.heater is None
         assert reading.fan == 30.0
 
     async def test_reported_zero_hp_stays_zero(self):
@@ -210,8 +210,8 @@ class TestKaleidoReadDisconnect:
         await adapter.connect()
         reading = await adapter.read()
 
-        assert reading.fan == -1.0
-        assert reading.drum == -1.0
+        assert reading.fan is None
+        assert reading.drum is None
 
     async def test_disconnect_shuts_down_once(self):
         link = _make_link(_READY)

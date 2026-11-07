@@ -27,7 +27,7 @@ export const buildPrintControls = (
     const inRange = (index: number) => source.xs[index] >= xMin && source.xs[index] <= xMax;
     const hasGas = source.heatSet?.some((value, index) => value != null && Number.isFinite(value) && inRange(index));
     const unitFor = (role: 'heater' | 'fan' | 'drum') =>
-        source.readUnits?.find((units, index) => inRange(index) && units?.[role])?.[role];
+        source.readUnits?.find((units, index) => inRange(index) && units?.[role] !== undefined)?.[role];
     const channels = [
         {
             role: 'heater' as const,

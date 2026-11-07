@@ -171,7 +171,7 @@ def test_changed_flat_fan_address_does_not_infer_units_for_custom_decoding(decod
 
 
 @pytest.mark.parametrize("key", ["giesen_w1", "giesen_w45a_w60a"])
-@pytest.mark.parametrize("offset,unit", [(52, "Pa"), (54, "%"), (98, None)])
+@pytest.mark.parametrize("offset,unit", [(52, "Pa"), (54, "%"), (98, "")])
 async def test_http_flat_fan_overrides_publish_matching_feedback_units(client, key, offset, unit):
     with patch("manager.make_adapter", return_value=FakeAdapter(readings=[make_reading()] * 2)):
         result = await client.post("/connect", json={"roaster": key, "fan_db": 2, "fan_offset": offset})

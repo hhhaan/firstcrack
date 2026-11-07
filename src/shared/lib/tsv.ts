@@ -5,9 +5,9 @@ import { z } from 'zod';
 const processingSchema: z.ZodType<TemperatureProcessing> = z.object({
     read_units: z
         .object({
-            heater: z.enum(['%', 'Pa', 'Hz', 'RPM']).optional(),
-            fan: z.enum(['%', 'Pa', 'Hz', 'RPM']).optional(),
-            drum: z.enum(['%', 'Pa', 'Hz', 'RPM']).optional(),
+            heater: z.enum(['', '%', 'Pa', 'Hz', 'RPM']).optional(),
+            fan: z.enum(['', '%', 'Pa', 'Hz', 'RPM']).optional(),
+            drum: z.enum(['', '%', 'Pa', 'Hz', 'RPM']).optional(),
         })
         .optional(),
     algorithm_version: z.string().min(1),

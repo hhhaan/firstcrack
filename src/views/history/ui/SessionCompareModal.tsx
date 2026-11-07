@@ -107,7 +107,8 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     points: points.map((point, index) => ({
                         ...point,
                         heaterSet: heatSet ? heatSet[index] : (point.heaterSet ?? null),
-                        heaterUnit,
+                        heaterUnit: point.processing?.read_units?.heater ?? heaterUnit,
+                        heaterSetUnit: heaterUnit,
                         fanUnit: point.processing?.read_units?.fan,
                         drumUnit: point.processing?.read_units?.drum,
                     })),

@@ -7,7 +7,7 @@ import {
     compareBatchColor,
     compareChartRightMargin,
 } from './compare';
-import { compareChannels } from './compare-channels';
+import { compareChannels, compareChannelValue } from './compare-channels';
 
 const series: CompareChartSeries[] = [
     {
@@ -256,6 +256,48 @@ describe('buildCompareChartOption display unit', () => {
             expect(option.yAxis).toMatchObject([{ name: unit, ...(unit === '%' ? { min: 0, max: 100 } : {}) }]);
             if (unit === 'Pa') expect((option.yAxis as { max?: number }[])[0].max).toBeUndefined();
         }
+    });
+
+    it('keeps unspecified feedback units distinct from legacy percent and RPM defaults', () => {
+        const input: CompareChartSeries[] = [
+            {
+                ...series[0],
+                points: [
+                    {
+                        t: 0,
+                        bt: 180,
+                        et: 190,
+                        ror: 0,
+                        heater: 0,
+                        fan: 115,
+                        drum: 50,
+                        heaterUnit: '',
+                        fanUnit: '',
+                        drumUnit: '',
+                    },
+                ],
+            },
+        ];
+        const channels = compareChannels(input, 'C').filter((channel) => channel.kind === 'other');
+        expect(channels.map((channel) => channel.unit)).toEqual(['', '', '']);
+        expect(channels.map((channel) => compareChannelValue(input[0].points[0], channel, 'C'))).toEqual([0, 115, 50]);
+    });
+
+    it('keeps physical heater units separate from percent commands', () => {
+        const input: CompareChartSeries[] = [
+            {
+                ...series[0],
+                points: [
+                    { t: 0, bt: 180, et: 190, ror: 0, heater: 0, heaterSet: 60, heaterUnit: '', heaterSetUnit: '%' },
+                ],
+            },
+        ];
+        const channels = compareChannels(input, 'C').filter((channel) => channel.kind === 'other');
+        expect(channels.map((channel) => [channel.label, channel.unit])).toEqual([
+            ['Heat', ''],
+            ['Gas', '%'],
+        ]);
+        expect(channels.map((channel) => compareChannelValue(input[0].points[0], channel, 'C'))).toEqual([0, 60]);
     });
 
     it('aligns a percent-and-rpm control chart with the temperature plot', () => {

@@ -12,7 +12,8 @@ export const buildReferenceLog = (
     storedHeatPlan: unknown = null,
 ): LogEntry[] => {
     const heaterUnit =
-        points.find((point) => point.processing?.read_units?.heater)?.processing?.read_units?.heater ?? '';
+        points.find((point) => point.processing?.read_units?.heater !== undefined)?.processing?.read_units?.heater ??
+        '';
     let recorded = events;
     if (!events.some((event) => event.type === 'Heater')) {
         const changes: StoredRoastEvent[] = [];

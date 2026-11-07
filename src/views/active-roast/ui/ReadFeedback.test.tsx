@@ -83,3 +83,20 @@ it('explains the Loring auto bit instead of showing auto_status', () => {
     expect(container.textContent).toContain('machines.loringAuto.on');
     expect(container.textContent).not.toContain('auto_status');
 });
+
+it('shows every mapped channel with an unspecified unit without inventing a unit', () => {
+    if (!state.liveData?.processing) throw new Error('Missing fixture');
+    state.liveData.processing.read_units = { heater: '', fan: '', drum: '' };
+    render();
+    expect([...container.querySelectorAll('dd')].map((node) => node.textContent)).toEqual(['0', '1234.56', '31.25']);
+});
+
+it('does not infer physical feedback from legacy placeholder zeroes without metadata', () => {
+    if (!state.liveData) throw new Error('Missing fixture');
+    state.liveData.processing = undefined;
+    state.liveData.heater = null;
+    state.liveData.fan = 0;
+    state.liveData.drum = 0;
+    render();
+    expect(container.querySelector('dl')).toBeNull();
+});

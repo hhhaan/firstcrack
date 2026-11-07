@@ -246,6 +246,14 @@ it('retains changing physical feedback units through TSV serialization and reloa
     expect(result[0]).toMatchObject({ heater: 42.25, fan: 1234.56, drum: 31.25, processing });
     expect(result[1].processing?.read_units).toEqual({ fan: '%', drum: 'RPM' });
     expect(result[1].heater).toBeNull();
+    const unspecified: TemperatureProcessing = { ...processing, read_units: { heater: '', fan: 'Pa' } };
+    const unknownUnitPoint = { ...points[0], heater: 0, processing: unspecified };
+    expect(parseTsv(TSV_HEADER + formatTsvRows([unknownUnitPoint], formatRoastTsvRow))[0]).toMatchObject({
+        heater: 0,
+        fan: 1234.56,
+        drum: null,
+        processing: unspecified,
+    });
     const emptyPoint = { ...points[0], heater: 0, fan: 0, drum: 0, processing: { ...processing, read_units: {} } };
     const emptyRow = formatRoastTsvRow(emptyPoint);
     expect(emptyRow.split('\t').slice(4, 7)).toEqual(['', '', '']);

@@ -33,7 +33,8 @@ export interface RoasterDef {
 
 export type RoastersResponse = Record<string, RoasterDef>;
 
-export type ReadUnits = Partial<Record<'heater' | 'fan' | 'drum', '%' | 'Pa' | 'Hz' | 'RPM'>>;
+/** Key presence declares feedback; an empty string means its physical unit is unspecified. */
+export type ReadUnits = Partial<Record<'heater' | 'fan' | 'drum', '' | '%' | 'Pa' | 'Hz' | 'RPM'>>;
 
 export type DoorProbeAction =
     | 'read'

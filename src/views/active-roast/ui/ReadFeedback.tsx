@@ -9,7 +9,7 @@ export function ReadFeedback() {
     const live = useRoastingStore((state) => state.liveData);
     const connected = useRoastingStore((state) => state.sidecarConnected);
     const units: ReadUnits = live?.processing?.read_units ?? {};
-    const roles = (['heater', 'fan', 'drum'] as const).filter((role) => units[role]);
+    const roles = (['heater', 'fan', 'drum'] as const).filter((role) => units[role] !== undefined);
     if (!connected || !live || (roles.length === 0 && !live.extra_readings?.length)) return null;
     const autoStatus = live.extra_readings?.find((reading) => reading.id === 'auto_status');
     return (

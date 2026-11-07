@@ -106,6 +106,27 @@ describe('useRoastingStore observation vs display', () => {
         expect(useRoastingStore.getState().liveData).toBe(first);
     });
 
+    it('refreshes feedback availability and units when measured values are unchanged', () => {
+        useRoastingStore.getState().updateLiveData(live);
+        const first = useRoastingStore.getState().liveData;
+        const processing = {
+            algorithm_version: 'test',
+            temperature_unit: 'C',
+            ror_unit: 'C/min',
+            timestamp_clock: 'sidecar-monotonic-seconds',
+            display_ema_alpha: 1,
+            ror_ema_alpha: 1,
+            ror_window_sec: 30,
+            ror_warmup_reads: 0,
+            read_units: { heater: '' },
+        } satisfies import('@shared/types/sidecar').TemperatureProcessing;
+        useRoastingStore.getState().updateLiveData({ ...live, processing });
+        expect(useRoastingStore.getState().liveData).not.toBe(first);
+        expect(useRoastingStore.getState().liveData?.processing?.read_units).toEqual({ heater: '' });
+        useRoastingStore.getState().updateLiveData({ ...live, processing: { ...processing, read_units: {} } });
+        expect(useRoastingStore.getState().liveData?.processing?.read_units).toEqual({});
+    });
+
     it('stores quality independently so display dedupe does not drop it', () => {
         const observation = reduceSensorObservation(null, sample(1_000));
         useRoastingStore.getState().updateLiveData(live);

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import time
 from typing import Any
 
@@ -14,10 +15,11 @@ _CONNECT_POLL = 0.1
 _TEARDOWN_TIMEOUT = 2.0
 
 
-def _percent(state: dict[str, Any], key: str) -> float:
+def _percent(state: dict[str, Any], key: str) -> float | None:
     if key not in state or state[key] is None:
-        return -1.0
-    return float(state[key])
+        return None
+    value = float(state[key])
+    return value if math.isfinite(value) and value >= 0 else None
 
 
 class KaleidoAdapter:
@@ -127,7 +129,7 @@ class KaleidoAdapter:
             raise ConnectionError("Kaleido 드라이버가 연결돼 있지 않습니다.")
         bt, et = await link.read_temperatures()
         state = link.snapshot()
-        # 아직 안 들어온 채널은 -1이다. 측정된 0과 구분된다.
+        # 아직 안 들어온 채널은 None이다. 측정된 0과 구분된다.
         return Reading(
             bt=bt,
             et=et,

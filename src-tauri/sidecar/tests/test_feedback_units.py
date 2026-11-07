@@ -61,3 +61,43 @@ async def test_non_finite_feedback_uses_stale_path(role, invalid):
     assert (result["heater"], result["fan"], result["drum"]) == (42.25, 1234.56, 31.25)
     json.dumps(result, allow_nan=False)
     await manager.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("key,params,expected", [
+    ("custom_s7", {"channels": [{"role": "heater", "db": 2, "offset": 48}]}, {"heater": ""}),
+    ("custom_modbus", {"modbus_registers": {"fan": {"register": 1}}}, {"fan": ""}),
+    ("custom_probat_ws", {"channel_nodes": {"BT": "bean", "heater": "burner"}}, {"heater": ""}),
+    ("custom_kaleido", {}, {"heater": "%", "fan": "%", "drum": "%"}),
+    ("virtual", {}, {"heater": "%", "fan": "%", "drum": "%"}),
+    ("virtual_readonly", {}, {}),
+    ("custom_phidget", {}, {}),
+])
+async def test_available_feedback_is_published_without_inventing_channels_or_units(key, params, expected):
+    manager = RoasterManager()
+    reading = Reading(bt=190, et=210, heater=0, fan=0, drum=0, timestamp=10)
+    with patch("manager.make_adapter", return_value=FakeAdapter(readings=[reading])):
+        await manager.connect(key, params)
+    assert manager.status()["read_units"] == expected
+    result = await manager.read_temperatures()
+    assert result["processing"]["read_units"] == expected
+    for role in ("heater", "fan", "drum"):
+        assert result[role] == (0 if role in expected else None)
+    await manager.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("data", [{}, {"fan": "bad", "drum": float("nan")}, {"fan": 0, "drum": 0}])
+async def test_probat_missing_feedback_is_not_reported_as_measured_zero(data):
+    import json
+    from unittest.mock import AsyncMock
+    from adapters.probat_ws import ProbatWSAdapter
+
+    adapter = ProbatWSAdapter(channel_nodes={"BT": "bean", "fan": "fan", "drum": "drum"})
+    adapter._ws = AsyncMock()
+    adapter._ws.recv.return_value = json.dumps({"id": 1, "data": {"bean": 190, **data}})
+    with patch("adapters.probat_ws.random.randint", return_value=1):
+        reading = await adapter.read()
+    expected = 0 if data.get("fan") == 0 else None
+    assert reading.fan == expected
+    assert reading.drum == expected

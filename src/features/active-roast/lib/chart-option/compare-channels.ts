@@ -12,6 +12,7 @@ export type ComparePoint = {
     heater?: number | null;
     heaterSet?: number | null;
     heaterUnit?: string;
+    heaterSetUnit?: string;
     fan?: number | null;
     fanUnit?: string;
     drum?: number | null;
@@ -75,7 +76,7 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
     const seen = new Set<string>();
     for (const point of points) {
         if (finite(point.heater)) {
-            const unit = point.heaterUnit?.trim() || '%';
+            const unit = point.heaterUnit?.trim() ?? '%';
             const key = JSON.stringify(['heat', unit]);
             if (!seen.has(key)) {
                 seen.add(key);
@@ -83,7 +84,7 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
             }
         }
         if (finite(point.heaterSet)) {
-            const unit = point.heaterUnit?.trim() || '%';
+            const unit = point.heaterSetUnit?.trim() ?? point.heaterUnit?.trim() ?? '%';
             const key = JSON.stringify(['gas', unit]);
             if (!seen.has(key)) {
                 seen.add(key);
@@ -91,7 +92,7 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
             }
         }
         if (finite(point.fan)) {
-            const unit = point.fanUnit?.trim() || '%';
+            const unit = point.fanUnit?.trim() ?? '%';
             const key = JSON.stringify(['fan', unit]);
             if (!seen.has(key)) {
                 seen.add(key);
@@ -99,7 +100,7 @@ export const compareChannels = (series: { points: ComparePoint[] }[], unit: Temp
             }
         }
         if (finite(point.drum)) {
-            const unit = point.drumUnit?.trim() || 'RPM';
+            const unit = point.drumUnit?.trim() ?? 'RPM';
             const key = JSON.stringify(['drum', unit]);
             if (!seen.has(key)) {
                 seen.add(key);
@@ -140,19 +141,19 @@ export const compareChannelValue = (
                       normalizeExtraUnit(s.unit) === channel.sensorUnit,
               )?.value
             : channel.source === 'heater'
-              ? (point.heaterUnit?.trim() || '%') === channel.unit
+              ? (point.heaterUnit?.trim() ?? '%') === channel.unit
                   ? point.heater
                   : null
               : channel.source === 'heaterSet'
-                ? (point.heaterUnit?.trim() || '%') === channel.unit
+                ? (point.heaterSetUnit?.trim() ?? point.heaterUnit?.trim() ?? '%') === channel.unit
                     ? point.heaterSet
                     : null
                 : channel.source === 'fan'
-                  ? (point.fanUnit?.trim() || '%') === channel.unit
+                  ? (point.fanUnit?.trim() ?? '%') === channel.unit
                       ? point.fan
                       : null
                   : channel.source === 'drum'
-                    ? (point.drumUnit?.trim() || 'RPM') === channel.unit
+                    ? (point.drumUnit?.trim() ?? 'RPM') === channel.unit
                         ? point.drum
                         : null
                     : point[channel.source];

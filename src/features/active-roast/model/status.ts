@@ -202,7 +202,10 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
             current.heater === data.heater &&
             current.fan === data.fan &&
             current.drum === data.drum &&
-            current.extra_readings === data.extra_readings
+            current.extra_readings === data.extra_readings &&
+            current.processing?.read_units?.heater === data.processing?.read_units?.heater &&
+            current.processing?.read_units?.fan === data.processing?.read_units?.fan &&
+            current.processing?.read_units?.drum === data.processing?.read_units?.drum
         )
             return;
         set({ liveData: data });

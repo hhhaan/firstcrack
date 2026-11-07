@@ -872,9 +872,6 @@ class RoasterManager:
         et_raw = reading.et if math.isfinite(reading.et) else None
         et_display = self._et_display_ema if self._et_display_ema is not None else et_raw
         read_units = self.read_units()
-        record_read_units = bool(read_units) or (
-            self._roaster_key in {"custom_modbus", "custom_s7"} and not self.read_channels()
-        )
         payload = {
             "bt_raw": reading.bt,
             "bt": round(self._bt_display_ema if self._bt_display_ema is not None else reading.bt, 1),
@@ -890,7 +887,7 @@ class RoasterManager:
             "timestamp": reading.timestamp,
             "sensor_clock": f"{self._sensor_clock_id}:{self._connection_epoch}",
             "processing": {
-                **({"read_units": read_units} if record_read_units else {}),
+                "read_units": read_units,
                 "algorithm_version": config.MEASUREMENT_ALGORITHM_VERSION,
                 "temperature_unit": "C",
                 "ror_unit": "C/min",
@@ -913,8 +910,8 @@ class RoasterManager:
         return payload
 
     def _feedback_control(self, role: str, value: float | None, read_units: dict[str, str]) -> float | None:
-        """A filled 0 on a channel this machine does not read or write is not a measurement."""
-        if value is None or (not self.read_channels() and role not in self.write_limits()):
+        """A filled 0 on a channel this machine does not read is not a measurement."""
+        if value is None or role not in self.read_channels():
             return None
         if role in read_units:
             return value
@@ -933,7 +930,20 @@ class RoasterManager:
         return value
 
     def read_channels(self) -> dict[str, dict[str, Any]]:
-        """Discover feedback from actual read maps, not control write permissions."""
+        """Discover feedback independently of command write permissions."""
+        if self._protocol == "probat_ws":
+            return {
+                role: {"node": node}
+                for role, node in (self._merged_params.get("channel_nodes") or {}).items()
+                if role in {"heater", "fan", "drum"} and isinstance(node, str) and node
+            }
+        if self._protocol == "kaleido":
+            return {role: {"unit": "%"} for role in ("heater", "fan", "drum")}
+        if self._protocol == "virtual":
+            return {} if self._roaster_key == "virtual_readonly" else {
+                role: spec for role, spec in self.write_limits().items()
+                if role in {"heater", "fan", "drum"} and isinstance(spec, dict)
+            }
         if self._protocol == "modbus":
             channels = self._merged_params.get("modbus_registers") or {}
         elif self._protocol == "s7":
@@ -947,10 +957,10 @@ class RoasterManager:
         }
 
     def read_units(self) -> dict[str, str]:
-        """Read-map units never grant write capability or supply write limits."""
+        """A present key declares feedback; an empty unit leaves its scale unspecified."""
         return {
-            role: channel["unit"] for role, channel in self.read_channels().items()
-            if channel.get("unit") in ("%", "Pa", "Hz", "RPM")
+            role: channel["unit"] if channel.get("unit") in ("%", "Pa", "Hz", "RPM") else ""
+            for role, channel in self.read_channels().items()
         }
 
     def last_applied(self) -> dict[str, float]:

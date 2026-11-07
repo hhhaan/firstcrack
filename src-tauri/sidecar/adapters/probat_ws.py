@@ -1,5 +1,6 @@
 import asyncio
 import json
+import math
 import random
 import socket
 import time
@@ -141,7 +142,8 @@ class ProbatWSAdapter:
                 node = nodes.get(role)
                 if node and node in data:
                     try:
-                        return round(float(data[node]), 1)
+                        value = float(data[node])
+                        return round(value, 1) if math.isfinite(value) else default
                     except (TypeError, ValueError):
                         _log.warning("Probat WS unparsable value for node=%s: %r", node, data[node])
                         pass
@@ -151,8 +153,8 @@ class ProbatWSAdapter:
                 bt=_get("BT", -1.0),
                 et=_get("ET", -1.0),
                 heater=_get("heater", None),  # burner 노드 미매핑 = 채널 없음
-                fan=_get("fan", 0.0),
-                drum=_get("drum", 0.0),
+                fan=_get("fan", None),
+                drum=_get("drum", None),
                 timestamp=time.monotonic(),
             )
 
