@@ -27,10 +27,10 @@ import {
     profileExtraSensorValue,
     profileToCsv,
 } from '../lib/export-profile-csv';
-import { useProfileTableRows } from '../model/useProfileTableRows';
 import { ConsistencyCard } from './ConsistencyCard';
 import { ProfileReferenceBatches } from './ProfileReferenceBatches';
 import { ProfileRoastChart } from './ProfileRoastChart';
+import { ProfileRoastSummary } from './ProfileRoastSummary';
 import { ProfileStartButton } from './ProfileStartButton';
 
 interface ProfileDetailProps {
@@ -68,7 +68,6 @@ export const ProfileDetail = ({
     const [moreOpen, setMoreOpen] = useState(false);
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
     const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
-    const TABLE_ROWS = useProfileTableRows('profiles.detail.totalDuration');
     const exportFile = useCsvFileExport();
     const unit = useRoastSettings().temperatureUnit;
     const machines = useMachines((s) => s.machines);
@@ -244,18 +243,7 @@ export const ProfileDetail = ({
                 </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3 mb-5">
-                {TABLE_ROWS.map(({ label, getValue }) => (
-                    <div key={label} className="bg-surface dark:bg-surface-elevated rounded-lg px-3.5 py-3 ">
-                        <div className="text-[11px] font-medium text-muted tracking-[0.5px] uppercase mb-1">
-                            {label}
-                        </div>
-                        <div className="text-sm font-semibold text-primary font-mono tracking-[-0.2px]">
-                            {getValue(selected)}
-                        </div>
-                    </div>
-                ))}
-            </div>
+            <ProfileRoastSummary profile={selected} />
 
             <ConsistencyCard profileId={selected.id} />
 

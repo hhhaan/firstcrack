@@ -76,10 +76,15 @@ const ProfileDetailSkeleton = () => (
                 <Skeleton width="100%" height={160} borderRadius="8px" />
             </div>
         </div>
-        <div className="mb-5 grid grid-cols-3 gap-3">
-            {Array.from({ length: 6 }, (_, i) => (
-                <Skeleton key={i} width="100%" height={58} borderRadius="8px" />
-            ))}
+        <div className="@container mb-6">
+            <div className="grid gap-4 @[560px]:grid-cols-[1fr_1.7fr_1.3fr] @[560px]:gap-6">
+                {Array.from({ length: 3 }, (_, i) => (
+                    <div key={i} className="flex items-center justify-between gap-4 @[560px]:block">
+                        <Skeleton width={80} height={12} borderRadius="4px" />
+                        <Skeleton className="@[560px]:mt-3" width={112} height={28} borderRadius="4px" />
+                    </div>
+                ))}
+            </div>
         </div>
         <div className="flex gap-2.5">
             <Skeleton className="flex-1" height={40} borderRadius="9999px" />
