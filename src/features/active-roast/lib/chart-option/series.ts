@@ -422,7 +422,13 @@ export const buildControlSeries = (params: ControlSeriesParams): object[] => {
 };
 
 /** BT 축 위에 이벤트 라벨. 한 번에 배치해서 박스가 겹치면 위/아래로 밀어낸다. */
-export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgroundColor?: string, font?: string) => ({
+export const buildCurveLabelSeries = (
+    items: CurveLabelItem[],
+    scale = 1,
+    dotColor?: string,
+    backgroundColor?: string,
+    font?: string,
+) => ({
     id: 'event-curve-labels',
     name: 'Event curve labels',
     type: 'custom' as const,
@@ -454,8 +460,13 @@ export const buildCurveLabelSeries = (items: CurveLabelItem[], scale = 1, backgr
             if (box.showDot && box.anchorY >= plotY && box.anchorY <= plotY + plotHeight) {
                 children.push({
                     type: 'circle',
-                    shape: { cx: box.anchorX, cy: box.anchorY, r: scale === 1 ? 2.5 : scaleChartPx(3, scale) },
-                    style: { fill: box.color, stroke: box.color, lineWidth: 1, opacity: box.opacity },
+                    shape: { cx: box.anchorX, cy: box.anchorY, r: scaleChartPx(1.5, scale) },
+                    style: {
+                        fill: dotColor ?? box.color,
+                        stroke: dotColor ?? box.color,
+                        lineWidth: 1,
+                        opacity: box.opacity,
+                    },
                 });
             }
             children.push({

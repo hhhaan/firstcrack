@@ -268,7 +268,9 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         : [];
     // Always present so a zoom that culls every label still updates this series.
     // Omitting it on merge leaves the previous frame's text on the canvas.
-    const curveLabelSeries = print ? buildPrintEventLabels(curveLabels) : buildCurveLabelSeries(curveLabels, fontScale);
+    const curveLabelSeries = print
+        ? buildPrintEventLabels(curveLabels)
+        : buildCurveLabelSeries(curveLabels, fontScale, curves.bt.current.color);
 
     if (print && controlData) {
         const controls = buildPrintControls({

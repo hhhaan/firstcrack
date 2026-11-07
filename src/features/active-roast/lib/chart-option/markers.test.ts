@@ -120,7 +120,7 @@ it('paints an opaque background behind printed event text so curves cannot cross
         eventMarkerStyle: 'point',
         eventMarkers: [{ timeSec: 540, event: 'Drop', color: '', timeStr: '', temp: '202°C' }],
     });
-    const rendered = buildCurveLabelSeries(curveLabels, 1, '#ffffff').renderItem(
+    const rendered = buildCurveLabelSeries(curveLabels, 1, undefined, '#ffffff').renderItem(
         { dataIndex: 0, coordSys: { x: 0, y: 0, width: 700, height: 300 } },
         { coord: () => [120, 100], getWidth: () => 800 },
     );
