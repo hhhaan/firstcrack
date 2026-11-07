@@ -29,12 +29,11 @@ describe('RecurringDeleteScopeModal', () => {
         container.remove();
     });
 
-    const render = (open = true, isFirstInstance = false) => {
+    const render = (open = true) => {
         act(() => {
             root.render(
                 createElement(RecurringDeleteScopeModal, {
                     open,
-                    isFirstInstance,
                     onClose,
                     onConfirm,
                     batchLabel: 'Ethiopia / 25kg',
@@ -62,12 +61,14 @@ describe('RecurringDeleteScopeModal', () => {
         expect(onConfirm).toHaveBeenCalledExactlyOnceWith('all');
     });
 
-    it('offers only valid scopes for the first occurrence', () => {
-        render(true, true);
-        expect(document.querySelector('input[value="single"]')).toBeNull();
-        expect(document.querySelector<HTMLInputElement>('input[value="from_this"]')?.checked).toBe(true);
+    it('keeps this occurrence available and selected', () => {
+        render();
+        expect(document.querySelector('input[value="single"]')).not.toBeNull();
+        expect(document.querySelector('input[value="from_this"]')).not.toBeNull();
+        expect(document.querySelector('input[value="all"]')).not.toBeNull();
+        expect(document.querySelector<HTMLInputElement>('input[value="single"]')?.checked).toBe(true);
         act(() => button('common.delete').click());
-        expect(onConfirm).toHaveBeenCalledExactlyOnceWith('from_this');
+        expect(onConfirm).toHaveBeenCalledExactlyOnceWith('single');
     });
 
     it('cancels and closes without submitting a scope', () => {

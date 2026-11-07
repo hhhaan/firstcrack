@@ -14,8 +14,6 @@ interface RecurringDeleteScopeModalProps {
     batchLabel: string;
     /** The recurrence pattern description (e.g., "매주 화요일") */
     recurrenceLabel: string;
-    /** True if this batch is the first occurrence */
-    isFirstInstance?: boolean;
 }
 
 export const RecurringDeleteScopeModal = (props: RecurringDeleteScopeModalProps) =>
@@ -26,11 +24,10 @@ const RecurringDeleteScopeDialog = ({
     onConfirm,
     batchLabel,
     recurrenceLabel,
-    isFirstInstance = false,
 }: RecurringDeleteScopeModalProps) => {
     const { t } = useTranslation();
     const scopeGroup = useId();
-    const [selectedScope, setSelectedScope] = useState<EditScope>(isFirstInstance ? 'from_this' : 'single');
+    const [selectedScope, setSelectedScope] = useState<EditScope>('single');
 
     const SCOPE_OPTIONS: {
         scope: EditScope;
@@ -53,8 +50,6 @@ const RecurringDeleteScopeDialog = ({
             description: t('schedule.recurringDeleteScope.all.description'),
         },
     ];
-
-    const options = isFirstInstance ? SCOPE_OPTIONS.filter((o) => o.scope !== 'single') : SCOPE_OPTIONS;
 
     return (
         <ModalShell
@@ -80,7 +75,7 @@ const RecurringDeleteScopeDialog = ({
             <fieldset className="m-0 min-w-0 border-none p-0">
                 <legend className="sr-only">{t('schedule.recurringDeleteScope.title')}</legend>
                 <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                    {options.map(({ scope, title, description }) => (
+                    {SCOPE_OPTIONS.map(({ scope, title, description }) => (
                         <label
                             key={scope}
                             className={cn(

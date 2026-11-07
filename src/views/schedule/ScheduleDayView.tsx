@@ -8,7 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { BatchCard } from './BatchCard';
 import { BatchCardSkeleton } from './BatchCardSkeleton';
 import { useScheduleDayView } from './hooks/useScheduleDayView';
-import { batchStatus, getRecurrenceLabel, toDateKey } from './lib';
+import { getRecurrenceLabel, toDateKey } from './lib';
 
 export const ScheduleDayView = ({
     selectedDate,
@@ -28,10 +28,6 @@ export const ScheduleDayView = ({
         : '';
     const scopeRecurrenceKey = hooks.scopeBatch ? getRecurrenceLabel(hooks.scopeBatch.rrule) || 'repeat' : '';
     const scopeRecurrenceLabel = scopeRecurrenceKey ? t(`schedule.recurrence.${scopeRecurrenceKey}`) : '';
-    const scopeIsFirstInstance =
-        !!hooks.scopeBatch &&
-        batchStatus(hooks.scopeBatch) === 'pending' &&
-        hooks.batches.indexOf(hooks.scopeBatch) === 0;
 
     return (
         <>
@@ -123,7 +119,6 @@ export const ScheduleDayView = ({
                         onConfirm={hooks.handleEditScopeConfirm}
                         batchLabel={scopeBatchLabel}
                         recurrenceLabel={scopeRecurrenceLabel}
-                        isFirstInstance={scopeIsFirstInstance}
                     />
                     <RecurringDeleteScopeModal
                         open={hooks.isDeleteScopeModalOpen}
@@ -131,7 +126,6 @@ export const ScheduleDayView = ({
                         onConfirm={(scope) => hooks.scopeBatch && hooks.handleScopeDelete(scope, hooks.scopeBatch)}
                         batchLabel={scopeBatchLabel}
                         recurrenceLabel={scopeRecurrenceLabel}
-                        isFirstInstance={scopeIsFirstInstance}
                     />
                 </>
             )}

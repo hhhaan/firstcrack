@@ -20,8 +20,6 @@ interface RecurringEditScopeModalProps {
     batchLabel: string;
     /** The recurrence pattern description (e.g., "매주 화요일") */
     recurrenceLabel: string;
-    /** True if this batch is the first occurrence */
-    isFirstInstance?: boolean;
 }
 
 export const RecurringEditScopeModal = ({
@@ -30,7 +28,6 @@ export const RecurringEditScopeModal = ({
     onConfirm,
     batchLabel,
     recurrenceLabel,
-    isFirstInstance = false,
 }: RecurringEditScopeModalProps) => {
     const { t } = useTranslation();
     if (!open) return null;
@@ -61,9 +58,6 @@ export const RecurringEditScopeModal = ({
         },
     ];
 
-    // If this is the first instance, single and from_this are equivalent — simplify options
-    const options = isFirstInstance ? SCOPE_OPTIONS.filter((o) => o.scope !== 'single') : SCOPE_OPTIONS;
-
     return (
         <ModalShell
             onClose={onClose}
@@ -92,7 +86,7 @@ export const RecurringEditScopeModal = ({
 
             {/* Scope options */}
             <div className="flex flex-col gap-2 mb-4">
-                {options.map(({ scope, icon, title, description }) => (
+                {SCOPE_OPTIONS.map(({ scope, icon, title, description }) => (
                     <div
                         key={scope}
                         className="flex items-start gap-3 px-3.5 py-3 rounded-xl bg-surface dark:bg-surface-elevated hover:bg-surface-raised cursor-pointer transition-colors border border-transparent dark:border-border hover:border-border"
