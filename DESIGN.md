@@ -20,6 +20,10 @@
 - **tw utility > style prop** — 예외는 동적 계산값만
 - **테마 색 hex 하드코딩 금지** — `text-primary`, `bg-surface`, `border-border` 등 시맨틱 클래스 우선
 
+## Frame
+
+데스크톱 메인 창은 가로가 세로보다 길다. 기본 1260×810, 최소 1024×680 (`src-tauri/tauri.conf.json`). Windows는 1260:810 비율을 유지한다 (`src-tauri/src/window_chrome.rs`). 화면은 이 가로 프레임용 레이아웃 하나로 잡는다. 로스팅 모니터 창(248×248)은 별도다.
+
 ---
 
 ## Token layers (App.css)

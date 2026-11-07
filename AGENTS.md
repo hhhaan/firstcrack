@@ -107,6 +107,7 @@ A new function on `sentry.ts` or `sentry_config.py` only for a non-exception fin
 
 ## Design
 - values/vars: `DESIGN.md` (SSoT)
+- Frame: desktop main window is landscape — width > height (1260×810, min 1024×680). One layout for that frame. See `DESIGN.md`
 - NO emoji → Lucide | tw utility > style prop
 
 ## State
