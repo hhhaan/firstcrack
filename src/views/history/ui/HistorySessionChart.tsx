@@ -17,6 +17,7 @@ import {
     referenceHasControls,
     toDisplayReferenceCurve,
 } from '@features/active-roast/lib/reference-curve';
+import { savedChartControls } from '@features/active-roast/lib/saved-chart-controls';
 import { savedChartPresentation, savedControlsVisible } from '@features/active-roast/lib/saved-chart-presentation';
 import {
     parseStoredRoastEvents,
@@ -49,7 +50,6 @@ import { useRoastRecordSave } from '../hooks/useRoastRecordSave';
 import { sessionDropTime } from '../lib/record-heat';
 import {
     curveStatusKey,
-    historyControls,
     historyPrintTempBounds,
     historyTargetVisible,
     historyXView,
@@ -257,7 +257,7 @@ export function HistorySessionChart({
             points.map((p) => p.heaterSet ?? null),
         [points, session],
     );
-    const { controlData } = historyControls({
+    const { controlData } = savedChartControls({
         changes: [
             ...storedEventsToControlChanges(storedEvents),
             ...(recordVirtualControls && virtualControlLinesAllowed(session.machine_roaster_key)

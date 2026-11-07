@@ -1,5 +1,6 @@
+import { savedChartControls } from '@features/active-roast/lib/saved-chart-controls';
 import { expect, it } from 'vitest';
-import { historyControls, historyPrintTempBounds } from './session-chart-view';
+import { historyPrintTempBounds } from './session-chart-view';
 
 it('retains recorded gas commands even when the machine did not record feedback', () => {
     const input = {
@@ -9,14 +10,14 @@ it('retains recorded gas commands even when the machine did not record feedback'
         referenceControls: false,
         displayedTarget: { xs: [], drum: [], heater: [], fan: [] },
     };
-    expect(historyControls(input)).toMatchObject({
+    expect(savedChartControls(input)).toMatchObject({
         hasControls: false,
         controlData: { heatSet: [0], heatSetUnit: '%' },
     });
-    expect(historyControls({ ...input, heatSet: [null] })).toEqual({ hasControls: false, controlData: undefined });
-    expect(historyControls({ ...input, heatSet: [null], changes: [{ timeSec: 0, values: { fan: 0 } }] })).toMatchObject(
-        { hasControls: false, controlData: { changes: [{ timeSec: 0, values: { fan: 0 } }] } },
-    );
+    expect(savedChartControls({ ...input, heatSet: [null] })).toEqual({ hasControls: false, controlData: undefined });
+    expect(
+        savedChartControls({ ...input, heatSet: [null], changes: [{ timeSec: 0, values: { fan: 0 } }] }),
+    ).toMatchObject({ hasControls: false, controlData: { changes: [{ timeSec: 0, values: { fan: 0 } }] } });
 });
 
 it('retains the historical PDF temperature fit including enabled reference samples', () => {
