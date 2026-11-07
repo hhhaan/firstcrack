@@ -1,12 +1,8 @@
 import { useBbpCurve } from '@entities/roast';
 import { type RoastProfileWithSource, resolveSourceSession } from '@entities/roast-profile';
-import { computePhaseSegments, toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
+import { toDisplayRoR, toDisplayTemp, useRoastSettings } from '@features/active-roast';
 import { savedChartPresentation } from '@features/active-roast/lib/saved-chart-presentation';
-import {
-    parseStoredRoastEvents,
-    storedEventsToLogEntries,
-    storedEventsToMarkers,
-} from '@features/active-roast/lib/serialize-roast-events';
+import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { SavedCurveLegend } from '@features/active-roast/ui/SavedCurveLegend';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
@@ -54,10 +50,6 @@ export function ProfileRoastChart({
         [storedEvents, unit],
     );
     const duration = source?.duration_seconds ?? profile.duration_sec ?? 0;
-    const phases = useMemo(
-        () => computePhaseSegments(storedEventsToLogEntries(storedEvents, unit), duration, true),
-        [storedEvents, unit, duration],
-    );
     const status = isLoading
         ? 'history.expanded.chartLoading'
         : isError
@@ -99,7 +91,6 @@ export function ProfileRoastChart({
                     xViewMin={actual.bbpRange?.start ?? 0}
                     xViewMax={Math.max(1, duration, points[points.length - 1]?.t ?? 0)}
                     bbpRange={actual.bbpRange}
-                    phaseSegments={settings.showPhaseBar ? phases : []}
                     height={360}
                 />
             )}

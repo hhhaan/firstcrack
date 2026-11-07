@@ -21,13 +21,13 @@ vi.mock('@entities/roast', () => ({
 }));
 vi.mock('@features/active-roast', async () => ({
     ...(await vi.importActual('@features/active-roast/lib/temperature')),
-    ...(await vi.importActual('@features/active-roast/lib/phases')),
     useRoastSettings: () => ({
         ...getRoastSettings(),
         temperatureUnit: 'F',
         showET: true,
         showRoRChart: true,
         showRoRET: true,
+        showPhaseBar: true,
         showControlChart: true,
         showControlHeat: true,
         bbpJoinCharge: true,
@@ -146,7 +146,7 @@ it('joins only the saved source BBP and renders its recorded milestones', () => 
     });
 });
 
-it('keeps only the temperature plot and phase marks when the source includes heat and machine controls', () => {
+it('keeps temperature curves and phase marks without a phase bar or machine controls', () => {
     render({
         profile: {
             ...profile,
@@ -193,7 +193,7 @@ it('keeps only the temperature plot and phase marks when the source includes hea
         expect(marker).not.toHaveProperty('drum');
         expect(marker).not.toHaveProperty('virtual');
     }
-    expect(props?.phaseSegments?.map((phase) => phase.name)).toEqual(['Drying', 'Maillard', 'Development']);
+    expect(props).not.toHaveProperty('phaseSegments');
     expect(props?.btActual).toEqual([toDisplayTemp(150, 'F')]);
     expect(props?.etActual).toEqual([toDisplayTemp(180, 'F')]);
     expect(props?.rorActual).toEqual([toDisplayRoR(4, 'F')]);
