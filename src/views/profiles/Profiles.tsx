@@ -77,14 +77,18 @@ const ProfileDetailSkeleton = () => (
             </div>
         </div>
         <div className="@container mb-6">
-            <div className="grid gap-4 @[560px]:grid-cols-[1fr_1.7fr_1.3fr] @[560px]:gap-6">
-                {Array.from({ length: 3 }, (_, i) => (
-                    <div key={i} className="flex items-center justify-between gap-4 @[560px]:block">
-                        <Skeleton width={80} height={12} borderRadius="4px" />
-                        <Skeleton className="@[560px]:mt-3" width={112} height={28} borderRadius="4px" />
-                    </div>
-                ))}
+            <div className="grid gap-6 pb-6 @[556px]:grid-cols-[minmax(140px,0.78fr)_minmax(0,2fr)] @[556px]:gap-8">
+                <div className="flex items-center justify-between gap-4 self-center @[556px]:block">
+                    <Skeleton width={80} height={12} borderRadius="4px" />
+                    <Skeleton className="@[556px]:mt-3" width={120} height={48} borderRadius="4px" />
+                </div>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-7 py-1">
+                    {Array.from({ length: 4 }, (_, i) => (
+                        <Skeleton key={i} width="100%" height={28} borderRadius="4px" />
+                    ))}
+                </div>
             </div>
+            <div className="h-9 border-t border-border" />
         </div>
         <div className="flex gap-2.5">
             <Skeleton className="flex-1" height={40} borderRadius="9999px" />

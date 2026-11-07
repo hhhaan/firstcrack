@@ -7,7 +7,7 @@ import { ProfileRoastSummary } from './ProfileRoastSummary';
 
 const settings = vi.hoisted<{ temperatureUnit: 'C' | 'F' }>(() => ({ temperatureUnit: 'C' }));
 vi.mock('@features/active-roast', async () => ({
-    formatTemp: (await import('@features/active-roast/lib/temperature')).formatTemp,
+    ...(await import('@features/active-roast/lib/temperature')),
     useRoastSettings: () => settings,
 }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
@@ -37,14 +37,16 @@ describe('ProfileRoastSummary', () => {
     });
 
     it.each([
-        { unit: 'C', temperatures: '180.0°C→200.0°C' },
-        { unit: 'F', temperatures: '356.0°F→392.0°F' },
-    ] as const)('keeps all measurements and metadata in $unit', ({ unit, temperatures }) => {
+        { unit: 'C', charge: '180.0°C', drop: '200.0°C' },
+        { unit: 'F', charge: '356.0°F', drop: '392.0°F' },
+    ] as const)('keeps each measurement labelled independently in $unit', ({ unit, charge, drop }) => {
         settings.temperatureUnit = unit;
         expect(definitions(profile)).toEqual([
             { term: 'profiles.detail.totalDuration', value: '10:00' },
-            { term: 'profiles.detail.chargeTemp→profiles.detail.dropTemp', value: temperatures },
-            { term: 'profiles.detail.devTime/profiles.detail.devPct', value: '2:00/20.0%' },
+            { term: 'profiles.detail.chargeTemp', value: charge },
+            { term: 'profiles.detail.dropTemp', value: drop },
+            { term: 'profiles.detail.devTime', value: '2:00' },
+            { term: 'profiles.detail.devPct', value: '20.0%' },
             { term: 'profiles.detail.targetLevel', value: 'Medium' },
             { term: 'profiles.detail.machine', value: profile.machine_name },
         ]);
@@ -61,6 +63,6 @@ describe('ProfileRoastSummary', () => {
                 target_level: null,
                 machine_name: null,
             }).map(({ value }) => value),
-        ).toEqual(['—', '0.0°C→—', '0:00/0.0%', '—', '—']);
+        ).toEqual(['—', '0.0°C', '—', '0:00', '0.0%', '—', '—']);
     });
 });
