@@ -20,7 +20,7 @@
         "check:tauri-versions": "node scripts/check-tauri-versions.mjs",
         "check:tauri-csp": "node scripts/check-tauri-csp.mjs",
         "check:plan-caps": "node scripts/check-plan-caps.mjs",
-        "check:harness": "node scripts/check-migration-rls.mjs && node --test scripts/harness.test.mjs scripts/ci-changed-areas.test.mjs scripts/check-tauri-versions.test.mjs scripts/check-tauri-csp.test.mjs scripts/verify.test.mjs",
+        "check:harness": "node scripts/check-migration-rls.mjs && node --test scripts/harness.test.mjs scripts/ci-changed-areas.test.mjs scripts/check-tauri-versions.test.mjs scripts/check-tauri-csp.test.mjs scripts/check-plan-caps.test.mjs scripts/verify.test.mjs",
         "check:actions": "node scripts/check-actions.mjs",
         "check:zizmor": "node scripts/check-zizmor.mjs",
         "check:architecture": "depcruise --config .dependency-cruiser.cjs src",

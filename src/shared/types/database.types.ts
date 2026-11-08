@@ -35,6 +35,7 @@ export type Database = {
         Tables: {
             trial_event_grants: {
                 Row: {
+                    batch_cap: number;
                     user_id: string;
                     started_at: string;
                     ends_at: string;
@@ -42,6 +43,7 @@ export type Database = {
                     reserved_batches: number;
                 };
                 Insert: {
+                    batch_cap?: number;
                     user_id: string;
                     started_at: string;
                     ends_at: string;
@@ -49,6 +51,7 @@ export type Database = {
                     reserved_batches?: number;
                 };
                 Update: {
+                    batch_cap?: number;
                     user_id?: string;
                     started_at?: string;
                     ends_at?: string;
@@ -2311,6 +2314,10 @@ export type Database = {
             };
         };
         Functions: {
+            admin_set_trial_event_batch_cap: {
+                Args: { p_user_id: string; p_batch_cap: number };
+                Returns: Json;
+            };
             get_roast_charge_usage: { Args: { p_user_id: string }; Returns: Json };
             reserve_roast_charge: { Args: { p_user_id: string; p_session_id: string }; Returns: string };
             release_roast_charge: { Args: { p_user_id: string; p_session_id: string }; Returns: undefined };
