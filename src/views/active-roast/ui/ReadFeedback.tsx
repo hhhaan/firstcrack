@@ -3,7 +3,7 @@ import { feedbackLabel, feedbackValue, formatFeedback } from '@shared/lib/feedba
 import type { ExtraSensorReading, ReadUnits } from '@shared/types/sidecar';
 import { useTranslation } from 'react-i18next';
 
-const readingCell = 'flex min-w-0 flex-col items-center break-words';
+const readingCell = 'flex min-w-0 flex-col items-start break-words';
 const readingLabel = 'flex-1 text-left text-[11px] font-medium leading-none text-muted';
 const readingValue = 'm-0 mt-1 font-inconsolata text-[15px] font-medium tabular-nums leading-none text-primary';
 
@@ -25,7 +25,7 @@ export function ReadFeedback() {
     };
     return (
         <div className="min-w-0">
-            <dl className="m-0 grid grid-cols-3 gap-x-2 gap-y-2 text-center text-[11px]">
+            <dl className="m-0 grid grid-cols-3 gap-x-2 gap-y-2 text-left text-[11px]">
                 {roles.map((role) => {
                     const value = live.stale ? null : feedbackValue(live[role], role, units);
                     return (
