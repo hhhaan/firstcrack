@@ -24,7 +24,7 @@ export type DropCurvePoint = {
     extraReadings?: ExtraSensorReading[];
 };
 
-export type DropOnset = { timeSec: number; bt: number };
+export type DropOnset = { timeSec: number; bt: number | null };
 
 export type DropSummary = {
     totalTime: string;
@@ -163,7 +163,7 @@ export const planDropTransition = (input: DropTransitionInput): DropTransitionRe
     if (input.droppedSessionId === sessionId) return null;
 
     const dropTimeSec = Math.max(0, onset?.timeSec ?? elapsed);
-    const dropBt = onset?.bt ?? rawBT;
+    const dropBt = onset ? onset.bt : rawBT;
     const note = onset ? 'Bean drop detected' : 'Coffee dropped';
     const nextLogs = ensureDropLog(logEntries, dropTimeSec, dropBt, unit, note);
     const summary = buildDropSummary(nextLogs, dropTimeSec, dropBt, unit, sessionId);

@@ -57,10 +57,12 @@ export const DoorCommandProbe = ({
     roaster,
     disabled,
     hidden = false,
+    sendCommand = sidecar.doorProbe,
 }: {
     roaster: string | null;
     disabled: boolean;
     hidden?: boolean;
+    sendCommand?: (action: Command) => Promise<unknown>;
 }) => {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
@@ -74,7 +76,7 @@ export const DoorCommandProbe = ({
         inFlight.current = true;
         setPending(action);
         try {
-            await sidecar.doorProbe(action);
+            await sendCommand(action);
             setReceipts((current) => ({ ...current, [id]: { label, error: null, sent: action } }));
         } catch (caught) {
             const error = isSidecarHttpError(caught) ? caught.message : t('machines.doorProbe.failed');

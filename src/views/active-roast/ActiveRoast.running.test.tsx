@@ -593,6 +593,116 @@ describe('ActiveRoast running clock (#627)', () => {
         }
     });
 
+    it.each(['standby', 'preheating'] as const)(
+        'records command-time Charge from %s through admission once',
+        async (phase) => {
+            workspace.owner = 'owner';
+            workspace.ready = true;
+            seed({ phase, sessionId: null, roastStartMs: 0, elapsed: 0 });
+            const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+            const unmount = mount((client) => client.setQueryData(profileKeys.detail(''), { plan: 'tester' }));
+            try {
+                await flushMicrotasks();
+                const prepare = composition.mock.calls[composition.mock.calls.length - 1]?.[0].prepareDoorOpen;
+                const requestedAtMs = Date.now();
+                const mark = prepare?.('fill_open');
+                expect(mark).toBeTypeOf('function');
+                await advance(1000);
+                act(() => {
+                    mark?.();
+                    mark?.();
+                });
+                const state = useRoastingStore.getState();
+                expect(state.phase).toBe('roasting');
+                expect(state.roastStartMs).toBe(requestedAtMs);
+                expect(state.sessionOwnerId).toBe('owner');
+                expect(state.logState.entries.filter((entry) => entry.event === 'Charge')).toHaveLength(1);
+            } finally {
+                unmount();
+                composition.mockRestore();
+            }
+        },
+    );
+
+    it('keeps command Charge subject to the existing admission gate', async () => {
+        seed({ phase: 'standby', sessionId: null, roastStartMs: 0, elapsed: 0 });
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            act(() =>
+                composition.mock.calls[composition.mock.calls.length - 1]?.[0].prepareDoorOpen?.('fill_open')?.(),
+            );
+            expect(useRoastingStore.getState().phase).toBe('standby');
+            expect(useRoastingStore.getState().sessionId).toBeNull();
+        } finally {
+            unmount();
+            composition.mockRestore();
+        }
+    });
+
+    it('finishes Drop at command time once and retains the cancel snapshot and heat-off signal', async () => {
+        workspace.owner = 'owner';
+        workspace.ready = true;
+        seed({ roastStartMs: Date.now() - 30_000, elapsed: 30 });
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            const mark =
+                composition.mock.calls[composition.mock.calls.length - 1]?.[0].prepareDoorOpen?.('discharge_open');
+            await advance(1000);
+            act(() => {
+                mark?.();
+                mark?.();
+            });
+            const state = useRoastingStore.getState();
+            expect(state.phase).toBe('standby');
+            expect(state.heatHoldAfterDrop).toBe(true);
+            expect(state.completed?.restore?.sessionId).toBe('sess-remount');
+            expect(state.completed?.snapshot.logEntries.filter((entry) => entry.event === 'Drop')).toHaveLength(1);
+            expect(state.completed?.snapshot.logEntries.find((entry) => entry.event === 'Drop')?.timeSec).toBe(30);
+        } finally {
+            unmount();
+            composition.mockRestore();
+        }
+    });
+
+    it.each(['new-batch', 'drop-undo', 'workspace'] as const)(
+        'rejects old command completion after %s',
+        async (boundary) => {
+            workspace.owner = 'owner';
+            workspace.ready = true;
+            seed({ roastStartMs: Date.now() - 30_000, elapsed: 30 });
+            const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+            const unmount = mount();
+            try {
+                await flushMicrotasks();
+                const mark =
+                    composition.mock.calls[composition.mock.calls.length - 1]?.[0].prepareDoorOpen?.('discharge_open');
+                if (boundary === 'new-batch') act(() => useRoastingStore.setState({ sessionId: 'new-batch' }));
+                if (boundary === 'drop-undo') {
+                    act(() => {
+                        useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+                    });
+                    act(() => {
+                        useRoastingStore.getState().cancelDrop('sess-remount');
+                    });
+                }
+                if (boundary === 'workspace') {
+                    workspace.owner = 'another-owner';
+                    act(() => useRoastingStore.setState({ elapsed: 31 }));
+                }
+                act(() => mark?.());
+                expect(useRoastingStore.getState().phase).toBe('roasting');
+                expect(useRoastingStore.getState().completed).toBeNull();
+            } finally {
+                unmount();
+                composition.mockRestore();
+            }
+        },
+    );
+
     it('passes raw BT to Replay and never substitutes the display EMA', async () => {
         const original = machineControlFeature.useMachineControlComposition;
         const composition = vi

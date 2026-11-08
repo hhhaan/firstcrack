@@ -13,7 +13,7 @@ The temperature and RoR curve presented to the operator after the selected proce
 _Avoid_: Raw curve when the series has been smoothed.
 
 **Drop mark**:
-A record of the batch's discharge boundary, marked by the operator or estimated by automatic detection. A temperature-derived mark is an estimate of discharge and does not directly observe the discharge door.
+A record of the batch's discharge boundary, marked by the operator, by an acknowledged application discharge-open command, or estimated by automatic detection. A command-derived mark records the application's command time, not confirmed physical door movement. A temperature-derived mark is an estimate of discharge and does not directly observe the discharge door.
 _Avoid_: Detection callback time as a synonym for discharge time.
 
 **Heat feedback**:
@@ -147,7 +147,7 @@ _Avoid_: Recorded heat set. A target temperature curve.
 _Avoid_: Recorded time and BT as simultaneous requirements. Elapsed time from TP as a synonym for elapsed time from Charge.
 
 **Discharge-open action**:
-배출문 열기. One physical command attempt after confirmed actual TP and a valid BT reaching the threshold. It is terminal in the replay plan and attempted at most once per live Charge session, including view remount, reconnect, OFF/ON and Drop undo. A failed or uncertain delivery is never automatically retried. Command delivery does not confirm physical opening and does not create a Drop mark; Replay remains armed for the existing heat-off policy at actual Drop. A replacement connection stops Replay and requires explicit rearming before any unattempted action.
+배출문 열기. One physical command attempt after confirmed actual TP and a valid BT reaching the threshold. It is terminal in the replay plan and attempted at most once per live Charge session, including view remount, reconnect, OFF/ON and Drop undo. A failed or uncertain delivery is never automatically retried. Acknowledged delivery marks Drop through the normal batch lifecycle at command time and applies the existing heat-off policy; it does not confirm physical opening. A replacement connection stops Replay and requires explicit rearming before any unattempted action.
 _Avoid_: Automatic Drop detection. Confirmed door movement. A heater setpoint.
 
 **Replay assist**:

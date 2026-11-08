@@ -105,6 +105,7 @@ export const MachineControlPanel = ({
                     hidden={collapsed}
                     roaster={machine.connectionStatus?.roaster ?? null}
                     disabled={commandsLocked || !writable}
+                    sendCommand={model.sendDoorCommand}
                 />
                 <MachineControlChannels
                     limits={limits}
