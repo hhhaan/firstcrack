@@ -60,11 +60,11 @@ export function ProfileRoastChart({
 
     return (
         <section
-            className="mb-5 min-w-0 overflow-hidden rounded-xl border border-border-subtle bg-(--color-roast-bg) px-5 pt-5 pb-4"
+            className="mb-5 min-w-0 overflow-hidden rounded-xl border border-border-subtle bg-(--color-roast-bg) px-5 pt-3 pb-2"
             aria-label={t('profiles.detail.profileCurve')}
             aria-busy={isLoading}
         >
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
                 <h3 className="text-xs font-medium text-muted">{t('profiles.detail.profileCurve')}</h3>
                 <SavedCurveLegend points={points} settings={settings} />
             </div>
@@ -94,6 +94,7 @@ export function ProfileRoastChart({
                     bbpRange={actual.bbpRange}
                     fontScale={11 / 12}
                     height={360}
+                    gridBottom={32}
                 />
             )}
             {source?.bbp_tsv_path && (bbp.isLoading || bbp.isError) && (

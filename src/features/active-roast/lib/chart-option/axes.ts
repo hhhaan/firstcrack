@@ -485,6 +485,8 @@ export interface SingleGridAxesParams {
     leftMargin: number;
     rightMargin: number;
     topMargin: number;
+    /** Space under the plot for the time labels. */
+    bottom?: number;
     xMin: number;
     xMax: number;
     tempYMin: number;
@@ -504,6 +506,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
         leftMargin,
         rightMargin,
         topMargin,
+        bottom = SINGLE_GRID_BOTTOM,
         xMin,
         xMax,
         tempYMin,
@@ -523,7 +526,7 @@ export const buildSingleGridLayout = (params: SingleGridAxesParams) => {
             left: leftMargin,
             right: rightMargin,
             top: topMargin,
-            bottom: SINGLE_GRID_BOTTOM,
+            bottom,
         },
     ];
 

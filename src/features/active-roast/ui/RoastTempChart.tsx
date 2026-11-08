@@ -117,6 +117,8 @@ interface Props {
     height: number;
     /** Optional chart-local label scale; omitted follows the roast font setting. */
     fontScale?: number;
+    /** Single-grid space under the plot. Omitted keeps the live-chart bottom. */
+    gridBottom?: number;
     onCursorIdx?: (idx: number | null) => void;
     onEventMarkerDrag?: (logId: string, newTimeSec: number) => void;
     onEventMarkerEdit?: (logId: string, patch: EventMarkerPatch) => void;
@@ -325,6 +327,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         temperatureUnit = 'C',
         height,
         fontScale: fontScaleOverride,
+        gridBottom,
         onCursorIdx,
         onEventMarkerDrag,
         onEventMarkerEdit,
@@ -521,6 +524,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 rorYMax,
                 xViewMin,
                 xViewMax,
+                gridBottom,
                 bbpRange,
                 hideChargeLabel,
                 showControlTailLabels,
@@ -581,6 +585,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             rorYMax,
             xViewMin,
             xViewMax,
+            gridBottom,
             bbpRange,
             hideChargeLabel,
             showControlTailLabels,

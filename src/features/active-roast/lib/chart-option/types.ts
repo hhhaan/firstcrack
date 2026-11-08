@@ -110,6 +110,8 @@ export interface ChartOptionParams {
     rorYMax: number;
     xViewMin?: number;
     xViewMax?: number;
+    /** Single-grid space under the plot. The live chart keeps SINGLE_GRID_BOTTOM. */
+    gridBottom?: number;
     /** Gray interval on the shared temperature/control timeline. */
     bbpRange?: { start: number; end: number; label?: string };
     /** Live chart: omit Charge curve label (t=0 clips it). History keeps it. */

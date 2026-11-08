@@ -430,6 +430,7 @@ export const buildRoastChartOption = (params: ChartOptionParams): EChartsOption 
         leftMargin,
         rightMargin,
         topMargin,
+        bottom: params.gridBottom,
         xMin,
         xMax,
         tempYMin,

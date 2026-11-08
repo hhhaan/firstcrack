@@ -181,6 +181,7 @@ it('keeps temperature curves and phase marks without a phase bar or machine cont
     expect(props?.showTooltip).toBe(false);
     expect(props?.height).toBe(360);
     expect(props?.fontScale).toBe(11 / 12);
+    expect(props?.gridBottom).toBe(32);
     expect(props?.eventMarkers.map((marker) => marker.event)).toEqual([
         'Charge',
         'Note',
