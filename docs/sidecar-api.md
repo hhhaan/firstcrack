@@ -376,6 +376,11 @@ Notes:
 - BT가 `config.BT_VALID_MIN_C` 이하이거나 `config.BT_VALID_MAX_C` 이상, 또는 NaN/Inf면 **예외 없이 반환됐더라도 읽기 실패로 승격**한다. 어댑터가 실패를 `-1.0` 같은 센티넬로 인코딩하는 경우(Phidget 분리, Kaleido 핸드셰이크 유실, Probat 노드 누락)를 잡기 위한 것이다.
 - ET는 검증하지 않는다. ET 미장착 머신에서 `-1.0`은 정상적인 "채널 없음" 값이다.
 - 실패가 `STALE_TOLERANCE_READS`회 이하이고 직전 성공 값이 있으면 그 값을 `stale=true`로 반환한다. 초과하면 `connected=false` + 재연결 루프로 전환하고 `bt=null`을 반환한다.
+- Sentry hardware grouping is `[hardware, event, protocol, failure_stage, failure_reason]`. BT validation (`validate_bt` / `invalid_bt`), TCP probe, PLC read, lock timeout, and CPU-state failures are distinct observed failures, not a diagnosis of the physical cause. Only bounded categories enter the fingerprint; device addresses and incident IDs do not.
+- A disconnected read starts a `connection_incident`. Error events and the eventual `event:connection_recovered` info event share its `incident_id` in context. `duration_ms` starts when the manager declares the connection lost, after any tolerated stale reads. Context includes cumulative reconnect attempts/failures and the latest successful handshake time (`transport_restored_ms`).
+- Recovery is recorded once, only after a fresh validated temperature read from the current connection epoch. A successful handshake, cached value, or late result from an old epoch does not qualify. This confirms the reading stream, not heater-control safety or physical machine state. Manual disconnect cancels the incident without a recovery event.
+- Repeated failures with the same event/protocol/stage/reason are breadcrumbs until a valid read closes the incident; changed causes get their own event. Transient stale reads that recover without disconnect remain breadcrumbs. Recovery does not send a Slack hardware-error notification. Existing historical Sentry issues are not regrouped by this change.
+
 - read await 도중 `/disconnect` 등으로 어댑터가 교체되면 그 응답(성공/실패 모두)은 버리고 null payload를 반환한다 — 사라진 머신의 값이 `stale`로 새어나오지 않게 한다.
 
 Adapter별 원천:
