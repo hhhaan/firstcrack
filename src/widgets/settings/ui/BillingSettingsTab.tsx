@@ -71,7 +71,8 @@ export function BillingSettingsTab() {
     const endsAt = usage?.period_end ? new Date(usage.period_end).getTime() : 0;
     const nowMs = useExpiryClock(endsAt ? new Date(endsAt).toISOString() : null);
     const daysLeft = profile ? Math.max(0, Math.ceil((endsAt - nowMs) / 86_400_000)) : 0;
-    const batchesLeft = Math.max(0, (isEvent ? TRIAL_EVENT_BATCH_CAP : TRIAL_BATCH_CAP) - (usage?.used_batches ?? 0));
+    const batchCap = usage?.batch_cap ?? (isEvent ? TRIAL_EVENT_BATCH_CAP : TRIAL_BATCH_CAP);
+    const batchesLeft = Math.max(0, batchCap - (usage?.used_batches ?? 0));
     const trialActive = !!profile && isTrial && !!usage && daysLeft > 0 && batchesLeft > 0;
     const planName = isEvent
         ? t('settings.tabs.billing.trialEvent')
