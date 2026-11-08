@@ -1,4 +1,5 @@
 import type { PidRuntime } from '@entities/machine';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
@@ -78,6 +79,7 @@ export const useMachineControlComposition = ({
     onApplied,
     diagnostics,
 }: MachineControlCompositionInput) => {
+    const replayEntitled = useFeature(FEATURE.machineReplay);
     const gasOffDiagnostics = useMemo(() => createGasOffDiagnostics(), []);
     const heaterUnitRef = useRef('%');
     const handleCommitted = useCallback(
@@ -165,9 +167,9 @@ export const useMachineControlComposition = ({
         liveBt,
         elapsed,
         roasting,
-        armOnCharge: replayOnCharge,
+        armOnCharge: replayEntitled && replayOnCharge,
         confirmedTurningPoint,
-        heaterWritable: machine.writable && machine.limits.heater != null,
+        heaterWritable: replayEntitled && machine.writable && machine.limits.heater != null,
         // fault included — heater ownership stays with PID until it is off
         pidEngaged: pidActive,
         roastFinished,

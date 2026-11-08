@@ -15,25 +15,23 @@ import {
 } from './plan-matrix';
 import { resolveFeature } from './resolve';
 
-describe('planHasFeature machineControl', () => {
-    it('Pro+ 이상만 머신 쓰기 제어를 쓸 수 있다', () => {
-        expect(planHasFeature('pro_plus', FEATURE.machineControl)).toBe(true);
-        expect(planHasFeature('enterprise', FEATURE.machineControl)).toBe(true);
-        expect(planHasFeature('team', FEATURE.machineControl)).toBe(true);
-        expect(planHasFeature('tester', FEATURE.machineControl)).toBe(true);
+describe('machine control and Replay plans', () => {
+    it.each(['trial', 'pro'])('%s can use manual machine controls but cannot Replay', (plan) => {
+        expect(planHasFeature(plan, FEATURE.machineControl)).toBe(true);
+        expect(planHasFeature(plan, FEATURE.machineReplay)).toBe(false);
     });
 
-    it('Pro 이하는 막힌다 — trial도 포함', () => {
-        expect(planHasFeature('pro', FEATURE.machineControl)).toBe(false);
-        expect(planHasFeature('trial', FEATURE.machineControl)).toBe(false);
-        expect(planHasFeature('free', FEATURE.machineControl)).toBe(false);
-        expect(planHasFeature('read_only', FEATURE.machineControl)).toBe(false);
-        expect(planHasFeature('', FEATURE.machineControl)).toBe(false);
-    });
+    it.each(['pro_plus', 'enterprise', 'team', 'tester', 'trial-event'])(
+        '%s can use manual controls and Replay',
+        (plan) => {
+            expect(planHasFeature(plan, FEATURE.machineControl)).toBe(true);
+            expect(planHasFeature(plan, FEATURE.machineReplay)).toBe(true);
+        },
+    );
 
-    it('cupping/fastPolling(Pro 코어)보다 상위 등급이다', () => {
-        expect(planHasFeature('pro', FEATURE.cupping)).toBe(true);
-        expect(planHasFeature('pro', FEATURE.machineControl)).toBe(false);
+    it.each(['free', 'read_only', '', 'unknown'])('%s cannot use either control feature', (plan) => {
+        expect(planHasFeature(plan, FEATURE.machineControl)).toBe(false);
+        expect(planHasFeature(plan, FEATURE.machineReplay)).toBe(false);
     });
 });
 
@@ -91,7 +89,8 @@ describe('plan state helpers', () => {
             productStock: false,
             team: false,
             fastPolling: true,
-            machineControl: false,
+            machineControl: true,
+            machineReplay: false,
             customMachineControl: false,
             simulator: false,
         };

@@ -828,7 +828,7 @@ describe('ActiveRoast running clock (#627)', () => {
                 quality: 'valid',
             },
         });
-        const unmount = mount();
+        const unmount = mount((client) => client.setQueryData(profileKeys.detail(''), { plan: 'pro_plus' }));
         const latest = () => {
             const result = composition.mock.results[composition.mock.results.length - 1];
             if (result.type !== 'return') throw new Error('Machine control composition did not render');

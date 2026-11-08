@@ -11,6 +11,14 @@ import { act, createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('@shared/lib/features', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/features')>();
+    return {
+        ...actual,
+        useFeature: (key: Parameters<typeof actual.useFeature>[0]) => actual.planHasFeature('pro_plus', key),
+    };
+});
+
 vi.mock('@shared/lib/sidecar', () => ({
     subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {

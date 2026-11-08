@@ -6,6 +6,7 @@ import {
     useBbpStore,
     useRoastSettings,
 } from '@features/active-roast';
+import { FEATURE, useFeature } from '@shared/lib/features';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@shared/ui/select/Select';
 import { useTranslation } from 'react-i18next';
 import {
@@ -34,6 +35,7 @@ import { NumberInput } from './RoastSettingsFields';
 export const AutomationSettingsSections = () => {
     const { t } = useTranslation();
     const roastSettings = useRoastSettings();
+    const canReplay = useFeature(FEATURE.machineReplay);
     const tk = (key: string) => t(`settings.tabs.roast.${key}`);
     const unit = roastSettings.temperatureUnit;
     const tempSuffix = `°${unit}`;
@@ -146,17 +148,19 @@ export const AutomationSettingsSections = () => {
 </SettingsSection>
 */}
 
-            <SettingsSection group="automation">
-                <SettingsSection.Header title={tk('replay')} description={tk('replayDescription')} />
-                <SettingsSection.Body>
-                    <SettingsCheckRow
-                        checked={roastSettings.replayOnCharge}
-                        label={tk('replayOnCharge')}
-                        description={tk('replayOnChargeDescription')}
-                        onChange={() => updateRoastSettings({ replayOnCharge: !roastSettings.replayOnCharge })}
-                    />
-                </SettingsSection.Body>
-            </SettingsSection>
+            {canReplay && (
+                <SettingsSection group="automation">
+                    <SettingsSection.Header title={tk('replay')} description={tk('replayDescription')} />
+                    <SettingsSection.Body>
+                        <SettingsCheckRow
+                            checked={roastSettings.replayOnCharge}
+                            label={tk('replayOnCharge')}
+                            description={tk('replayOnChargeDescription')}
+                            onChange={() => updateRoastSettings({ replayOnCharge: !roastSettings.replayOnCharge })}
+                        />
+                    </SettingsSection.Body>
+                </SettingsSection>
+            )}
 
             <SettingsSection group="bbp">
                 <SettingsSection.Header title={tk('bbp')} description={tk('bbpDescription')} />

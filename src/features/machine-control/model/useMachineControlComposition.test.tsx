@@ -3,6 +3,15 @@ import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+const features = vi.hoisted(() => ({ plan: 'pro_plus' }));
+vi.mock('@shared/lib/features', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/features')>();
+    return {
+        ...actual,
+        useFeature: (key: Parameters<typeof actual.useFeature>[0]) => actual.planHasFeature(features.plan, key),
+    };
+});
+
 vi.mock('@shared/lib/sidecar', () => ({
     subscribeSidecarSettings: vi.fn(() => () => {}),
     sidecar: {
@@ -77,6 +86,7 @@ const renderComposition = async (initial: MachineControlCompositionInput) => {
 describe('useMachineControlComposition', () => {
     beforeEach(() => {
         vi.useFakeTimers();
+        features.plan = 'pro_plus';
         getStatus.mockReset();
         setControl.mockReset();
         pidOff.mockReset();
@@ -87,6 +97,54 @@ describe('useMachineControlComposition', () => {
     });
     afterEach(() => {
         vi.useRealTimers();
+    });
+
+    it('allows Pro manual controls while blocking Replay toggle and saved Charge auto-start', async () => {
+        features.plan = 'pro';
+        getStatus.mockResolvedValue(giesenStatus);
+        const input = { ...base(), roasting: false, elapsed: 0, replayOnCharge: true };
+        const hook = await renderComposition(input);
+        expect(hook.get().replay.available).toBe(false);
+        await act(async () => hook.get().replay.toggle());
+        expect(hook.get().replay.active).toBe(false);
+        await hook.rerender({ ...input, roasting: true });
+        await act(async () => vi.advanceTimersByTimeAsync(2000));
+        expect(hook.get().replay.active).toBe(false);
+        expect(setControl).not.toHaveBeenCalled();
+
+        for (const [role, target] of [
+            ['heater', 30],
+            ['fan', 120],
+            ['drum', 50],
+        ] as const) {
+            await act(async () => {
+                hook.get().changeManual(role, target);
+                hook.get().commitManual();
+            });
+        }
+        expect(setControl.mock.calls).toEqual([[{ heater: 30 }], [{ fan: 120 }], [{ drum: 50 }]]);
+        await hook.unmount();
+    });
+
+    it('stops Replay and cancels its pending retry when the plan changes to Pro', async () => {
+        getStatus.mockResolvedValue(giesenStatus);
+        setControl.mockRejectedValueOnce(new Error('write acknowledgement lost'));
+        const input = { ...base(), elapsed: 0 };
+        const hook = await renderComposition(input);
+        await act(async () => hook.get().replay.toggle());
+        expect(hook.get().replay.active).toBe(true);
+        expect(setControl).toHaveBeenCalledTimes(1);
+        features.plan = 'pro';
+        await hook.rerender(input);
+        await act(async () => vi.advanceTimersByTimeAsync(2000));
+        expect(hook.get().replay.active).toBe(false);
+        expect(hook.get().replay.available).toBe(false);
+        expect(setControl).toHaveBeenCalledTimes(1);
+        features.plan = 'pro_plus';
+        await hook.rerender(input);
+        expect(hook.get().replay.available).toBe(true);
+        expect(hook.get().replay.active).toBe(false);
+        await hook.unmount();
     });
 
     it('starts Replay on Charge only while the setting is on', async () => {

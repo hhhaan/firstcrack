@@ -13,12 +13,16 @@ import {
 } from '../model/useMachineControlComposition.fixtures';
 import { MachineControlPanel } from './MachineControlPanel';
 
-const flags = vi.hoisted(() => ({ entitled: true }));
+const flags = vi.hoisted(() => ({ entitled: true, plan: 'pro_plus' }));
 
-vi.mock('@shared/lib/features', () => ({
-    FEATURE: { machineControl: 'machineControl' },
-    useFeature: () => flags.entitled,
-}));
+vi.mock('@shared/lib/features', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@shared/lib/features')>();
+    return {
+        ...actual,
+        useFeature: (key: Parameters<typeof actual.useFeature>[0]) =>
+            flags.entitled && actual.planHasFeature(flags.plan, key),
+    };
+});
 
 vi.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key }),
@@ -160,6 +164,26 @@ describe('isMachineControlPanelShown', () => {
 describe('MachineControlPanel display', () => {
     beforeEach(() => {
         flags.entitled = true;
+        flags.plan = 'pro_plus';
+    });
+
+    it('shows manual control on Pro and reserves Replay controls for Pro+', () => {
+        flags.plan = 'pro';
+        const changeManual = vi.fn();
+        const commitManual = vi.fn();
+        const pro = renderPanel(panelModel({ fan: true, changeManual, commitManual }));
+        const plus = pro.host.querySelector('[aria-label="Heater plus 5"]') as HTMLButtonElement;
+        expect(plus.disabled).toBe(false);
+        press(plus);
+        expect(changeManual).toHaveBeenCalledExactlyOnceWith('heater', 45);
+        expect(commitManual).toHaveBeenCalledTimes(1);
+        expect(pro.host.textContent).not.toContain('activeRoast.replay.label');
+        pro.unmount();
+
+        flags.plan = 'pro_plus';
+        const proPlus = renderPanel(panelModel());
+        expect(proPlus.host.textContent).toContain('activeRoast.replay.label');
+        proPlus.unmount();
     });
 
     it('toggles the visible panel with T only while roast shortcuts are enabled', () => {
@@ -342,6 +366,7 @@ describe('MachineControlPanel fold keeps the control hook', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         flags.entitled = true;
+        flags.plan = 'pro_plus';
         getStatus.mockReset();
         setControl.mockReset();
         pidOff.mockReset();
