@@ -26,7 +26,7 @@ export function ReadFeedback() {
     };
     return (
         <div className="min-w-0">
-            <dl className="m-0 grid grid-cols-3 gap-x-2 gap-y-2 text-left text-[11px] @min-[232px]/readings:gap-x-3 @min-[232px]/readings:text-right">
+            <dl className="m-0 grid grid-cols-[auto_auto_auto] justify-between gap-x-2 gap-y-2 text-left text-[11px] @min-[232px]/readings:grid-cols-3 @min-[232px]/readings:justify-normal @min-[232px]/readings:gap-x-3 @min-[232px]/readings:text-right">
                 {roles.map((role) => {
                     const value = live.stale ? null : feedbackValue(live[role], role, units);
                     return (
