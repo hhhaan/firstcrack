@@ -4,7 +4,7 @@ import type { ExtraSensorReading, ReadUnits } from '@shared/types/sidecar';
 import { useTranslation } from 'react-i18next';
 
 const readingCell = 'flex min-w-0 flex-col items-center break-words';
-const readingLabel = 'flex-1 text-[11px] font-medium leading-none text-muted';
+const readingLabel = 'flex-1 text-left text-[11px] font-medium leading-none text-muted';
 const readingValue = 'm-0 mt-1 font-inconsolata text-[15px] font-medium tabular-nums leading-none text-primary';
 
 /** Measured channels stay visible on read-only machines, without setpoint controls. */
