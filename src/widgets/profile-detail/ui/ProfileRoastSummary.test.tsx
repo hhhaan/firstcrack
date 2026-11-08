@@ -60,9 +60,9 @@ describe('ProfileRoastSummary', () => {
                 drop_temp_celsius: null,
                 dev_time_sec: 0,
                 dev_pct: 0,
-                target_level: null,
+                target_level: 'Medium',
                 machine_name: null,
             }).map(({ value }) => value),
-        ).toEqual(['—', '0.0°C', '—', '0:00', '0.0%', '—', '—']);
+        ).toEqual(['—', '0.0°C', '—', '0:00', '0.0%', 'Medium', '—']);
     });
 });

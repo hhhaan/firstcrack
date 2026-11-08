@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { MARKER_LABEL_LEADER_Y_PX, MARKER_LABEL_STACK_PX, scaleChartPx } from '@features/active-roast/lib/chart-config';
 import type { ControlData } from '@features/active-roast/lib/chart-option';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { roastPdfLayout } from '@shared/lib/roast-pdf-layout';
@@ -358,17 +359,25 @@ describe('RoastTempChart interactions', () => {
                     child.type === 'text' && child.style?.text?.startsWith('50%'),
             );
             const scale = fontScalePct / 100;
+            const referenceAnchorY = option.yAxis[0].max - 180;
+            const referenceLineHeight = scaleChartPx(MARKER_LABEL_STACK_PX, scale);
+            const referenceAboveCurve = referenceAnchorY - scaleChartPx(MARKER_LABEL_LEADER_Y_PX, scale);
             expect(label.style.text).toBe('Yellow|00:05|185.0°C');
             expect(label.style.font).toBe(`600 ${12 * scale}px Inconsolata`);
             expect(label.x).toBe(50 + 16 * scale);
-            expect(reference.y).toBe(8 * scale);
-            const leader = rendered.children.find((child: { type: string }) => child.type === 'line');
-            expect(leader.shape).toMatchObject({ x1: 50, y1: 65 });
-            expect(label.y).toBeGreaterThanOrEqual(reference.y + 17 * scale + 2 * scale);
-            expect(label.y).toBeLessThan(150);
-            expect(ref.current?.hitTestMarker({ clientX: label.x + 100 * scale, clientY: reference.y + 1 })).toBe(
-                false,
+            expect(reference.y).toBe(Math.max(referenceLineHeight, Math.min(referenceAboveCurve, 200)));
+            const leader = rendered.children.find(
+                (child: { type: string; shape?: { x1?: number } }) => child.type === 'line' && child.shape?.x1 === 50,
             );
+            expect(leader.shape).toMatchObject({ x1: 50, y1: 65 });
+            expect(label.y).toBeGreaterThanOrEqual(reference.y + 19 * scale - 1e-6);
+            expect(label.y).toBeLessThan(150);
+            expect(
+                ref.current?.hitTestMarker({
+                    clientX: label.x + label.style.width + 24,
+                    clientY: label.y - 1,
+                }),
+            ).toBe(false);
             const point = {
                 clientX: label.x + label.style.text.length * 8 * scale - 1,
                 clientY: label.y - 1,

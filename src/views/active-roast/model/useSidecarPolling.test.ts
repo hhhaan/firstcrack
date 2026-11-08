@@ -1553,7 +1553,8 @@ it('records the next sample after a discarded late status', async () => {
         await act(async () => vi.advanceTimersByTimeAsync(1000));
         expect(useRoastingStore.getState().reconnecting).toBe(false);
         expect(useRoastingStore.getState().livePoints.length).toBeGreaterThan(points);
-        expect(useRoastingStore.getState().livePoints.at(-1)?.bt).toBe(201);
+        const pointsAfter = useRoastingStore.getState().livePoints;
+        expect(pointsAfter[pointsAfter.length - 1]?.bt).toBe(201);
     } finally {
         act(() => root.unmount());
     }

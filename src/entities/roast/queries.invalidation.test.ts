@@ -40,7 +40,7 @@ describe('roast session mutation invalidation', () => {
     it('keeps refetch failures non-throwing for existing mutation callers', async () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
         const queryFn = vi
-            .fn(async () => {
+            .fn(async (): Promise<unknown[]> => {
                 throw new Error('refetch failed');
             })
             .mockResolvedValueOnce([]);
