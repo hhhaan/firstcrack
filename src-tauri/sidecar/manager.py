@@ -860,6 +860,10 @@ class RoasterManager:
             self._add_to_ror_window(reading.timestamp, reading.bt)
         if math.isfinite(reading.et) and reading.et > 0:
             self._add_to_et_ror_window(reading.timestamp, reading.et)
+        else:
+            self._et_ror_window.clear()
+            self._et_ema = None
+            self._et_display_ema = None
 
         if self._ror_warmup > 0:
             self._ror_warmup -= 1
@@ -871,7 +875,7 @@ class RoasterManager:
 
         # -1.0은 프로브 없음이라 남긴다. NaN/Inf만 JSON을 깨뜨리므로 그 샘플의 원본은 뺀다.
         et_raw = reading.et if math.isfinite(reading.et) else None
-        et_display = self._et_display_ema if self._et_display_ema is not None else et_raw
+        et_display = self._et_display_ema
         read_units = self.read_units()
         payload = {
             "bt_raw": reading.bt,

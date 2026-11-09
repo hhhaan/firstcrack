@@ -1,5 +1,10 @@
 import type { RoasterDef } from '@entities/machine';
-import { buildTypedConnectionParams, invalidSupportedAddressField, validateRoasterFormFields } from '@entities/machine';
+import {
+    buildTypedConnectionParams,
+    invalidPhidgetField,
+    invalidSupportedAddressField,
+    validateRoasterFormFields,
+} from '@entities/machine';
 
 /** Drop write_map unless the same plan gate that would show the form is on. */
 export const persistConnectionParams = (
@@ -20,6 +25,11 @@ export const assembleConnectionParams = (
     includeWriteMap: boolean,
     existing?: Record<string, unknown>,
 ): { ok: true; typed: Record<string, unknown> } | { ok: false; missing?: string; invalid?: string } => {
+    if (selectedDef.protocol === 'phidget') {
+        const invalid = invalidPhidgetField(params);
+        if (invalid) return { ok: false, invalid };
+        return { ok: true, typed: buildTypedConnectionParams(selectedDef, params) };
+    }
     const missing = validateRoasterFormFields(selectedDef, params, {
         includeAddressMap: showAddressMap,
     });

@@ -90,7 +90,7 @@ interface TemperatureReading {
 | ----------- | -------------------------------------------------------------------------------- |
 | `bt`        | Bean Temperature, 표시용 EMA 원두 온도. 섭씨.                                               |
 | `bt_raw`    | 평활화 전 원시 BT (°C). Charge 감지용. `stale` 또는 연결 해제 응답에서는 null이다. 이전 사이드카의 필드 누락 시 자동 Charge를 중단하고 수동 투입을 안내한다. |
-| `et`        | Environment Temperature, 표시용 EMA. 섭씨. 차트·기록의 환경/배기 온도는 이 값이다. |
+| `et`        | Exhaust Temperature, 표시용 EMA. 섭씨. 차트·기록의 배기 온도는 이 값이다. ET 미사용·읽기 오류·유효하지 않은 값은 `null`이며 직전 값으로 채우지 않는다. |
 | `et_raw`    | 평활화 전 원시 ET (°C). 보관·이후 검증용이며 차트와 자동 감지에는 쓰지 않는다. `stale`, 연결 해제, `NaN`/`Inf`에서는 null이다. 프로브가 없으면 -1.0이 그대로 남는다. |
 | `ror`       | BT 기준 Rate of Rise. 최근 30초 BT window의 선형 최소제곱 기울기. 단위 `°C/min`. |
 | `ror_et`    | ET 기준 Rate of Rise. 최근 30초 ET window의 선형 최소제곱 기울기. 단위 `°C/min`. |
@@ -221,6 +221,20 @@ Notes:
 Request body: 없음
 
 Response: `SidecarStatus`
+
+Phidget connection parameters (`phidget_tmp1101`, `phidget_tmp1200`, `phidget_tmp1202`, `phidget_1048`, `custom_phidget`):
+
+| Parameter | Values / default |
+| --- | --- |
+| `channel_bt`, `channel_et` | Integer 0–3 for TMP1101/1048; 0 for TMP1200/TMP1202. `channel_et: null` explicitly disables ET. |
+| `bt_device_type`, `et_device_type` | `TMP1101`, `1048`, `TMP1200`, `TMP1202`; fall back to legacy `device_type`. TMP1202 has one RTD input. |
+| `bt_serial_number`, `et_serial_number` | Integer 1–2147483647 or `null` (automatic). VINT uses the hub serial. Omission inherits legacy `serial_number`; explicit `null` overrides it. |
+| `bt_hub_port`, `et_hub_port` | Integer 0–5 or `null` (automatic). Do not set a hub port for USB 1048. |
+| `bt_thermocouple_type`, `et_thermocouple_type` | `K` (default), `J`, `E`, `T`; applied to TMP1101/1048. |
+| `bt_rtd_type`, `et_rtd_type` | `PT100_3850`, `PT100_3920`, `PT1000_3850` (default), `PT1000_3920`; applied to TMP1200/TMP1202. |
+| `bt_rtd_wire_setup`, `et_rtd_wire_setup` | Integer 2, 3, or 4 (default); applied to RTD models. |
+
+The local Phidget Manager collects available channels for one second, then matches the model, channel and optional serial/hub port. Zero matches or multiple matches fail with an actionable error; BT and ET cannot share one physical channel. Discovery is bounded, so an unusually slow hub may need another connection attempt. Each selected channel has a five-second attach limit and up to one second for its first conversion (`UNKNOWNVAL` only). Requested ET attach/configuration failures fail the connection and close all opened handles. Auto-reconnect keeps the resolved physical addresses and reapplies probe settings, including SDK automatic reattachment. Replacing a module requires an explicit new connection. Network Phidgets and control writes are unsupported.
 
 Example response:
 
@@ -374,7 +388,7 @@ Notes:
 
 - `adapter.read()`는 `config.READ_TIMEOUT`(3.0s) 전역 타임아웃 안에서 await한다. 초과하면 읽기 실패로 처리한다. 단, executor 스레드에서 도는 동기 드라이버 자체는 중단되지 않는다 — HTTP 핸들러만 풀려난다.
 - BT가 `config.BT_VALID_MIN_C` 이하이거나 `config.BT_VALID_MAX_C` 이상, 또는 NaN/Inf면 **예외 없이 반환됐더라도 읽기 실패로 승격**한다. 어댑터가 실패를 `-1.0` 같은 센티넬로 인코딩하는 경우(Phidget 분리, Kaleido 핸드셰이크 유실, Probat 노드 누락)를 잡기 위한 것이다.
-- ET는 검증하지 않는다. ET 미장착 머신에서 `-1.0`은 정상적인 "채널 없음" 값이다.
+- ET 부재/오류는 BT 연결을 끊지 않는다. ET가 양의 유한수가 아니면 표시·기록용 `et=null`, `ror_et=0`으로 반환하고 ET EMA/RoR 이력을 비운다. `et_raw`는 기존 계약대로 `-1.0` 센티넬을 보존하고 NaN/Inf만 null로 바꾼다. 복구 후 첫 ET 샘플은 공백 이전 값과 이어서 평활화하거나 RoR을 계산하지 않는다.
 - 실패가 `STALE_TOLERANCE_READS`회 이하이고 직전 성공 값이 있으면 그 값을 `stale=true`로 반환한다. 초과하면 `connected=false` + 재연결 루프로 전환하고 `bt=null`을 반환한다.
 - read await 도중 `/disconnect` 등으로 어댑터가 교체되면 그 응답(성공/실패 모두)은 버리고 null payload를 반환한다 — 사라진 머신의 값이 `stale`로 새어나오지 않게 한다.
 

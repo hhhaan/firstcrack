@@ -1,11 +1,21 @@
 import type { Machine, RoasterFormField } from '@entities/machine';
-import { addressFormFieldsForProtocol, buildProtocolRoasterDef } from '@entities/machine';
+import { addressFormFieldsForProtocol, buildProtocolRoasterDef, isPhidgetRtd } from '@entities/machine';
 import { useTranslation } from 'react-i18next';
 
 const record = (value: unknown): Record<string, unknown> | null =>
     value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
 
-const SUMMARY_KEYS = new Set(['host', 'port', 'comport', 'device_type', 'serial_number']);
+const SUMMARY_KEYS = new Set([
+    'host',
+    'port',
+    'comport',
+    'device_type',
+    'serial_number',
+    'bt_device_type',
+    'bt_serial_number',
+    'et_device_type',
+    'et_serial_number',
+]);
 
 const ConnectionFields = ({
     params,
@@ -48,8 +58,22 @@ export const MachineConnectionDetails = ({ machine }: { machine: Machine }) => {
     const connectionEntries = Object.entries(machine.connectionParams).filter(
         ([, value]) => value !== '' && value != null && typeof value !== 'object',
     );
-    const summaryParams = Object.fromEntries(connectionEntries.filter(([key]) => SUMMARY_KEYS.has(key)));
-    const detailParams = Object.fromEntries(connectionEntries.filter(([key]) => !SUMMARY_KEYS.has(key)));
+    const visibleEntries =
+        machine.protocol !== 'phidget'
+            ? connectionEntries
+            : connectionEntries.filter(([key]) => {
+                  const params = machine.connectionParams;
+                  const role = key.startsWith('et_') || key === 'channel_et' ? 'et' : 'bt';
+                  if (role === 'et' && 'channel_et' in params && params.channel_et == null) return false;
+                  const model = String(params[`${role}_device_type`] ?? params.device_type ?? 'TMP1101');
+                  if (key.endsWith('_hub_port') && model === '1048') return false;
+                  if (key.endsWith('_thermocouple_type') && isPhidgetRtd(model)) return false;
+                  if ((key.endsWith('_rtd_type') || key.endsWith('_rtd_wire_setup')) && !isPhidgetRtd(model))
+                      return false;
+                  return true;
+              });
+    const summaryParams = Object.fromEntries(visibleEntries.filter(([key]) => SUMMARY_KEYS.has(key)));
+    const detailParams = Object.fromEntries(visibleEntries.filter(([key]) => !SUMMARY_KEYS.has(key)));
     const registers = machine.protocol === 'modbus' ? record(machine.connectionParams.modbus_registers) : null;
     const channels = machine.protocol === 's7' ? machine.connectionParams.channels : null;
     const sensors: [string, Record<string, unknown>][] = registers

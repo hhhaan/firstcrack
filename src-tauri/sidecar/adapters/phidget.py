@@ -1,29 +1,25 @@
 import asyncio
-import time
 import logging
+import threading
+import time
 from typing import Any
 
 from adapters.base import Reading
 from control_guard import ControlUnavailable
 
 _log = logging.getLogger(__name__)
+_CHANNEL_MAX = {"TMP1101": 3, "1048": 3, "TMP1200": 0, "TMP1202": 0}
+_RTD_TYPES = {"PT100_3850", "PT100_3920", "PT1000_3850", "PT1000_3920"}
+# Device ID, serial (hub serial for VINT), hub port, temperature channel.
+_Address = tuple[int, int, int, int]
 
 
 class PhidgetAdapter:
-    """
-    Phidget USB 온도 센서 어댑터 (TMP1101, TMP1200, 1048 등).
-    Phidget22 Python SDK 직접 사용.
-
-    주의: pip install Phidget22 외에도 시스템 드라이버 설치 필요.
-      macOS: https://www.phidgets.com/docs/OS_-_macOS
-
-    device_type: "TMP1101" | "TMP1200" | "TMP1202" | "1048"
-    channel_bt:  BT 채널 인덱스 (0-3)
-    channel_et:  ET 채널 인덱스 (0-3), None이면 ET 미사용
-    serial_number: 여러 Phidget 연결 시 특정 장치 지정. None이면 아무거나.
-    """
+    """Local Phidget22 temperature channels; BT is required and ET is optional."""
 
     _ATTACH_TIMEOUT_MS = 5000
+    # shortcut: callbacks arriving after 1s need reconnect; extend discovery if slow hubs require it.
+    _DISCOVERY_SECONDS = 1.0
 
     def __init__(
         self,
@@ -31,27 +27,163 @@ class PhidgetAdapter:
         channel_bt: int = 0,
         channel_et: int | None = 1,
         serial_number: int | None = None,
-        **_: Any,
+        **params: Any,
     ) -> None:
-        self._device_type = device_type
-        self._channel_bt = channel_bt
-        self._channel_et = channel_et
-        self._serial_number = serial_number
+        self._roles: dict[str, dict[str, Any]] = {}
+        for role, channel in (("bt", channel_bt), ("et", channel_et)):
+            if channel is None and role == "et":
+                continue
+            model = params.get(f"{role}_device_type", device_type)
+            if model is None:
+                model = device_type
+            serial = params.get(f"{role}_serial_number", serial_number)
+            hub_port = params.get(f"{role}_hub_port")
+            tc = params.get(f"{role}_thermocouple_type", "K")
+            rtd = params.get(f"{role}_rtd_type", "PT1000_3850")
+            wire = params.get(f"{role}_rtd_wire_setup")
+            if wire is None:
+                wire = 4
+            if not isinstance(model, str) or model not in _CHANNEL_MAX:
+                raise ValueError(f"Phidget {role.upper()}: 지원하지 않는 모델입니다.")
+            if type(channel) is not int or not 0 <= channel <= _CHANNEL_MAX[model]:
+                raise ValueError(f"Phidget {role.upper()}: {model} 채널은 0–{_CHANNEL_MAX[model]} 정수여야 합니다.")
+            if serial is not None and (type(serial) is not int or not 0 < serial <= 2147483647):
+                raise ValueError(f"Phidget {role.upper()}: serial은 양의 정수여야 합니다.")
+            if hub_port is not None and (type(hub_port) is not int or not 0 <= hub_port <= 5):
+                raise ValueError(f"Phidget {role.upper()}: hub port는 0–5 정수여야 합니다.")
+            if model == "1048" and hub_port is not None:
+                raise ValueError(f"Phidget {role.upper()}: USB 1048에는 hub port를 지정하지 않습니다.")
+            if not isinstance(tc, str) or tc not in {"K", "J", "E", "T"} or not isinstance(rtd, str) or rtd not in _RTD_TYPES:
+                raise ValueError(f"Phidget {role.upper()}: 지원하지 않는 프로브 종류입니다.")
+            if type(wire) is not int or wire not in (2, 3, 4):
+                raise ValueError(f"Phidget {role.upper()}: RTD 배선은 2, 3, 4선이어야 합니다.")
+            self._roles[role] = dict(model=model, channel=channel, serial=serial, hub_port=hub_port,
+                                     thermocouple_type=tc, rtd_type=rtd, rtd_wire_setup=wire)
+        self._addresses: dict[str, _Address] = {}
         self._sensor_bt: Any = None
         self._sensor_et: Any = None
-        self._connected: bool = False
-        # 세션 에폭. disconnect마다 +1 — openWaitForAttachment(5s)는 중단 불가라
-        # 취소된 연결 시도가 executor 스레드에서 뒤늦게 완료될 수 있다. 바인딩
-        # 직전 에폭이 다르면 열린 센서를 닫고 버린다 (#208).
-        self._session: int = 0
+        self._connected = False
+        self._session = 0
+        self._state_lock = threading.Lock()
+        self._cancel = threading.Event()
 
-    def _make_sensor(self, channel: int) -> Any:
+    @staticmethod
+    def _address(sensor: Any) -> _Address:
+        return (sensor.getDeviceID(), sensor.getDeviceSerialNumber(), sensor.getHubPort(), sensor.getChannel())
+
+    def _discover(self, cancel: threading.Event) -> set[_Address]:
+        from Phidget22.ChannelClass import ChannelClass  # type: ignore[import]
+        from Phidget22.Devices.Manager import Manager  # type: ignore[import]
+
+        addresses: set[_Address] = set()
+        lock = threading.Lock()
+
+        def attached(_manager: Any, channel: Any) -> None:
+            try:
+                if channel.getChannelClass() == ChannelClass.PHIDCHCLASS_TEMPERATURESENSOR and not channel.getIsRemote():
+                    with lock:
+                        addresses.add(self._address(channel))
+            except Exception:
+                _log.warning("Phidget discovery channel unavailable", exc_info=True)
+
+        def detached(_manager: Any, channel: Any) -> None:
+            try:
+                with lock:
+                    addresses.discard(self._address(channel))
+            except Exception:
+                _log.warning("Phidget discovery detach unavailable", exc_info=True)
+
+        manager = Manager()
+        try:
+            manager.setOnAttachHandler(attached)
+            manager.setOnDetachHandler(detached)
+            manager.open()
+            # Manager emits existing channels asynchronously; collect before selecting.
+            if cancel.wait(self._DISCOVERY_SECONDS):
+                raise ConnectionError("Phidget 연결 시도가 취소되었습니다.")
+            with lock:
+                return addresses.copy()
+        finally:
+            manager.close()
+
+    def _resolve_addresses(self, available: set[_Address]) -> dict[str, _Address]:
+        from Phidget22.DeviceID import DeviceID  # type: ignore[import]
+
+        resolved = {}
+        for role, config in self._roles.items():
+            if role in self._addresses:
+                resolved[role] = self._addresses[role]
+                continue
+            device_id = getattr(DeviceID, f"PHIDID_{config['model']}")
+            matches = {address for address in available
+                       if address[0] == device_id and address[3] == config["channel"]
+                       and (config["serial"] is None or address[1] == config["serial"])
+                       and (config["hub_port"] is None or address[2] == config["hub_port"])}
+            if not matches:
+                raise ConnectionError(f"Phidget {role.upper()} {config['model']} 채널을 찾을 수 없습니다. Control Panel에서 모델·serial·hub port·채널을 확인하세요.")
+            if len(matches) != 1:
+                raise ConnectionError(f"Phidget {role.upper()}에 일치하는 장치가 여러 개입니다. serial과 hub port를 지정하세요.")
+            resolved[role] = matches.pop()
+        if resolved.get("bt") == resolved.get("et"):
+            raise ValueError("Phidget BT와 ET는 서로 다른 센서 채널이어야 합니다.")
+        return resolved
+
+    def _configure_sensor(self, sensor: Any, role: str, address: _Address) -> None:
+        from Phidget22.RTDType import RTDType  # type: ignore[import]
+        from Phidget22.RTDWireSetup import RTDWireSetup  # type: ignore[import]
+        from Phidget22.ThermocoupleType import ThermocoupleType  # type: ignore[import]
+
+        if self._address(sensor) != address:
+            raise ConnectionError(f"Phidget {role.upper()} 장치가 선택한 모델/주소와 다릅니다.")
+        config = self._roles[role]
+        if config["model"] in ("1048", "TMP1101"):
+            sensor.setThermocoupleType(getattr(ThermocoupleType, f"THERMOCOUPLE_TYPE_{config['thermocouple_type']}"))
+        else:
+            sensor.setRTDType(getattr(RTDType, f"RTD_TYPE_{config['rtd_type']}"))
+            sensor.setRTDWireSetup(getattr(RTDWireSetup, f"RTD_WIRE_SETUP_{config['rtd_wire_setup']}WIRE"))
+
+    def _make_sensor(self, role: str, address: _Address) -> Any:
         from Phidget22.Devices.TemperatureSensor import TemperatureSensor  # type: ignore[import]
+
         sensor = TemperatureSensor()
-        sensor.setChannel(channel)
-        if self._serial_number is not None:
-            sensor.setDeviceSerialNumber(self._serial_number)
-        return sensor
+        try:
+            sensor.setDeviceSerialNumber(address[1])
+            if self._roles[role]["model"] != "1048":
+                sensor.setHubPort(address[2])
+            sensor.setChannel(address[3])
+            sensor.setIsLocal(True)
+            sensor.setIsRemote(False)
+            sensor._fc_configuration_error = None
+
+            def attached(channel: Any) -> None:
+                try:
+                    self._configure_sensor(channel, role, address)
+                    channel._fc_configuration_error = None
+                except Exception as exc:
+                    channel._fc_configuration_error = exc
+
+            sensor.setOnAttachHandler(attached)
+            return sensor
+        except BaseException:
+            self._close_quietly(sensor)
+            raise
+
+    @staticmethod
+    def _wait_for_temperature(sensor: Any, cancel: threading.Event) -> None:
+        from Phidget22.ErrorCode import ErrorCode  # type: ignore[import]
+
+        deadline = time.monotonic() + 1.0
+        while True:
+            if cancel.is_set():
+                raise ConnectionError("Phidget 연결 시도가 취소되었습니다.")
+            try:
+                sensor.getTemperature()
+                return
+            except Exception as exc:
+                # Attachment can precede the first conversion; other errors fail immediately.
+                if getattr(exc, "code", None) != ErrorCode.EPHIDGET_UNKNOWNVAL or time.monotonic() >= deadline:
+                    raise
+                cancel.wait(0.05)
 
     @staticmethod
     def _close_quietly(*sensors: Any) -> None:
@@ -61,64 +193,73 @@ class PhidgetAdapter:
                     sensor.close()
                 except Exception:
                     _log.exception("Phidget sensor close failed")
-                    pass
 
     async def connect(self) -> None:
-        session = self._session
+        with self._state_lock:
+            session = self._session
+            cancel = self._cancel
 
-        def _open_sensors() -> None:
-            bt = self._make_sensor(self._channel_bt)
-            bt.openWaitForAttachment(self._ATTACH_TIMEOUT_MS)
-            et = None
-            if self._channel_et is not None:
-                et = self._make_sensor(self._channel_et)
-                et.openWaitForAttachment(self._ATTACH_TIMEOUT_MS)
-            # 에폭 검사와 바인딩은 반드시 이 스레드 안에서 — await 뒤에 두면
-            # 취소된 코루틴이 재개되지 않아 열린 센서 핸들이 그대로 샌다 (#208).
-            if session != self._session:
-                self._close_quietly(bt, et)
-                raise ConnectionError("연결 시도가 취소되었습니다.")
-            self._sensor_bt = bt
-            self._sensor_et = et
-            self._connected = True
+        def open_sensors() -> None:
+            sensors: dict[str, Any] = {}
+            try:
+                addresses = self._resolve_addresses(self._discover(cancel))
+                for role, address in addresses.items():
+                    if cancel.is_set():
+                        raise ConnectionError("Phidget 연결 시도가 취소되었습니다.")
+                    sensor = self._make_sensor(role, address)
+                    sensors[role] = sensor
+                    sensor.openWaitForAttachment(self._ATTACH_TIMEOUT_MS)
+                    self._configure_sensor(sensor, role, address)
+                    self._wait_for_temperature(sensor, cancel)
+                # Bind in the executor: a cancelled await may never resume (#208).
+                with self._state_lock:
+                    if session != self._session or cancel.is_set():
+                        raise ConnectionError("Phidget 연결 시도가 취소되었습니다.")
+                    self._sensor_bt = sensors["bt"]
+                    self._sensor_et = sensors.get("et")
+                    self._addresses = addresses
+                    self._connected = True
+            except BaseException:
+                self._close_quietly(*sensors.values())
+                raise
 
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _open_sensors)
-        _log.info("PhidgetAdapter connected: device=%s BT_ch=%d ET_ch=%s serial=%s",
-                  self._device_type, self._channel_bt, self._channel_et, self._serial_number)
+        try:
+            await asyncio.get_running_loop().run_in_executor(None, open_sensors)
+        except asyncio.CancelledError:
+            await self.disconnect()
+            raise
 
     async def disconnect(self) -> None:
-        # 에폭 +1을 먼저 — 진행 중인 connect가 뒤늦게 완료돼도 바인딩되지 않는다.
-        self._session += 1
-        self._connected = False
-
-        def _close_sensors() -> None:
-            self._close_quietly(self._sensor_bt, self._sensor_et)
+        with self._state_lock:
+            self._session += 1
+            self._cancel.set()
+            self._cancel = threading.Event()
+            self._connected = False
+            sensors = (self._sensor_bt, self._sensor_et)
             self._sensor_bt = None
             self._sensor_et = None
-
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(None, _close_sensors)
-        self._connected = False
+        await asyncio.get_running_loop().run_in_executor(None, self._close_quietly, *sensors)
 
     async def read(self) -> Reading:
-        if self._sensor_bt is None:
+        bt_sensor, et_sensor = self._sensor_bt, self._sensor_et
+        if bt_sensor is None:
             raise ConnectionError("Phidget 센서가 연결되지 않음")
 
-        def _read_temps() -> tuple[float, float]:
-            # BT는 필수 채널 — 예외를 삼키지 않고 그대로 전파해야 manager의
-            # stale/재연결 계약이 작동한다. 삼키면 USB 분리 후에도 직전 EMA가
-            # 정상 온도처럼 계속 표시된다 (H1).
-            bt = round(float(self._sensor_bt.getTemperature()), 1)
+        def temperature(sensor: Any) -> float:
+            error = getattr(sensor, "_fc_configuration_error", None)
+            if isinstance(error, Exception):
+                raise error
+            return round(float(sensor.getTemperature()), 1)
+
+        def read_temps() -> tuple[float, float]:
+            bt = temperature(bt_sensor)
             try:
-                et = round(float(self._sensor_et.getTemperature()), 1) if self._sensor_et else -1.0
+                et = temperature(et_sensor) if et_sensor is not None else -1.0
             except Exception:
-                et = -1.0  # ET는 선택 채널 — soft-fail로 두어 로스팅을 계속한다
+                et = -1.0
             return bt, et
 
-        loop = asyncio.get_running_loop()
-        bt, et = await loop.run_in_executor(None, _read_temps)
-        # 열전대뿐이라 화력·에어·드럼이 없다. 0으로 채우면 기록이 "측정 0"과 구분되지 않는다.
+        bt, et = await asyncio.get_running_loop().run_in_executor(None, read_temps)
         return Reading(bt=bt, et=et, heater=None, fan=None, drum=None, timestamp=time.monotonic())
 
     async def control(self, heater: float | None = None, fan: float | None = None, drum: float | None = None) -> None:

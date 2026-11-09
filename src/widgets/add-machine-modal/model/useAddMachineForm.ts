@@ -8,6 +8,7 @@ import {
     ROASTER_REGISTRY,
     resolveCustomConnectKey,
     supportedAddressFieldsForProtocol,
+    updatePhidgetParam,
     writeMapFormFlags,
 } from '@entities/machine';
 import {
@@ -143,10 +144,15 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         ? Boolean((isEdit || customName.trim()) && (editingIsCustom || customProtocol) && connectKey && selectedDef)
         : Boolean(selectedKey && selectedDef);
 
-    const setParam = useCallback((key: string, value: string) => {
-        setParams((p) => ({ ...p, [key]: value }));
-        setConnectionTest({ status: 'idle' });
-    }, []);
+    const setParam = useCallback(
+        (key: string, value: string) => {
+            setParams((p) =>
+                selectedDef?.protocol === 'phidget' ? updatePhidgetParam(p, key, value) : { ...p, [key]: value },
+            );
+            setConnectionTest({ status: 'idle' });
+        },
+        [selectedDef?.protocol],
+    );
 
     const selectRoaster = useCallback((key: string) => {
         setSelectedKey(key);

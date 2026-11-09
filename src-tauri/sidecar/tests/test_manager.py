@@ -240,6 +240,31 @@ class TestConnect:
 # ---------------------------------------------------------------------------
 
 class TestReadTemperatures:
+    @pytest.mark.parametrize("missing", [-1.0, float("nan"), float("inf")])
+    async def test_et_gap_clears_display_and_ror_history(self, manager, missing):
+        manager._adapter = FakeAdapter(readings=[
+            make_reading(bt=180.0, et=200.0, ts=10.0),
+            make_reading(bt=181.0, et=210.0, ts=11.0),
+            make_reading(bt=182.0, et=missing, ts=12.0),
+            make_reading(bt=183.0, et=240.0, ts=13.0),
+        ])
+        manager._connected = True
+        manager._ror_warmup = 0
+        manager._et_display_alpha = 0.16
+        await manager.read_temperatures()
+        assert (await manager.read_temperatures())["ror_et"] != 0
+        gap = await manager.read_temperatures()
+        assert gap["et"] is None
+        assert gap["ror_et"] == 0
+        assert gap["bt"] == 182.0
+        assert gap["stale"] is False
+        assert manager._et_ema is None
+        assert not manager._et_ror_window
+        recovered = await manager.read_temperatures()
+        assert recovered["et"] == 240.0
+        assert recovered["ror_et"] == 0
+        await manager.disconnect()
+
     @pytest.mark.parametrize("alpha", [0.08, 0.16, 0.32, 1.0])
     async def test_bt_smoothing_changes_display_without_changing_pid_or_ror(self, manager, alpha):
         baseline = RoasterManager()
@@ -451,12 +476,13 @@ class TestReadTemperatures:
         poisoned = await manager.read_temperatures()
         assert poisoned["bt_raw"] == 202.0
         assert poisoned["et_raw"] is None
-        assert poisoned["et"] == 210.0
+        assert poisoned["et"] is None
         assert manager._connected is True
         json.dumps(poisoned, allow_nan=False)
 
         absent = await manager.read_temperatures()
         assert absent["et_raw"] == -1.0
+        assert absent["et"] is None
         json.dumps(absent, allow_nan=False)
 
     async def test_sensor_clock_changes_across_connections_and_sidecar_instances(self, manager):

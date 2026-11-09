@@ -30,6 +30,14 @@ export {
     writeMapFormFlags,
 } from './lib';
 export { isSimulatorMachine, machinesForPicker, useMachines, VIRTUAL_ID, VIRTUAL_READONLY_ID } from './model';
+export {
+    invalidPhidgetField,
+    isPhidgetRtd,
+    PHIDGET_MODELS,
+    PHIDGET_RTDS,
+    PHIDGET_THERMOCOUPLES,
+    updatePhidgetParam,
+} from './phidget';
 export { canConnectRoaster } from './roasterAccess';
 export { PROTOCOL_FORM_FIELDS, ROASTER_REGISTRY } from './roasterRegistry';
 export type {

@@ -7,6 +7,7 @@ import {
     supportedAddressFieldsForProtocol,
     validateAddressMaps,
 } from './addressMap';
+import { buildPhidgetParams, initPhidgetParams, invalidPhidgetField } from './phidget';
 import { PROTOCOL_FORM_FIELDS } from './roasterRegistry';
 import type { Machine, MachineSnapshot, RoasterDef, SidecarStatus } from './types';
 
@@ -68,6 +69,7 @@ export const initRoasterFormParams = (
     existing?: Record<string, unknown>,
     options?: { includeAddressMap?: boolean },
 ): Record<string, string> => {
+    if (def.protocol === 'phidget') return initPhidgetParams(def, existing);
     const initial: Record<string, string> = {};
     for (const field of def.form_fields) {
         const val = existing?.[field.key] ?? def.default_params[field.key];
@@ -93,6 +95,7 @@ export const buildTypedConnectionParams = (
     stringParams: Record<string, string>,
     options?: { includeAddressMap?: boolean },
 ): Record<string, unknown> => {
+    if (def.protocol === 'phidget') return buildPhidgetParams(stringParams);
     const mode = stringParams.mode;
     const result: Record<string, unknown> = {};
     for (const field of def.form_fields) {
@@ -117,6 +120,7 @@ export const validateRoasterFormFields = (
     stringParams: Record<string, string>,
     options?: { includeAddressMap?: boolean },
 ): string | null => {
+    if (def.protocol === 'phidget') return invalidPhidgetField(stringParams);
     const mode = stringParams.mode;
     for (const field of def.form_fields) {
         if (!isRoasterFieldVisible(field.key, mode)) continue;

@@ -165,8 +165,25 @@ export const useMachineFormActions = ({
         try {
             const status = await sidecar.connect(connectKey, assembled.typed, machineId);
             connected = status.connected;
+            testConnectedRef.current = connected;
             if (status.connected) {
                 const temps = await sidecar.getTemperatures().catch(() => null);
+                if (selectedDef.protocol === 'phidget') {
+                    const validBt =
+                        typeof temps?.bt === 'number' && Number.isFinite(temps.bt) && temps.bt > 0 && temps.bt < 400;
+                    const validEt =
+                        assembled.typed.channel_et == null ||
+                        (typeof temps?.et === 'number' &&
+                            Number.isFinite(temps.et) &&
+                            temps.et >= 0 &&
+                            (temps.et_raw === undefined ||
+                                (typeof temps.et_raw === 'number' &&
+                                    Number.isFinite(temps.et_raw) &&
+                                    temps.et_raw >= 0)));
+                    if (!validBt || !validEt || temps?.stale || temps?.reconnecting || status.reconnecting) {
+                        throw new Error(t('addMachine.phidgetReadingFailed'));
+                    }
+                }
                 setConnectionTest({
                     status: 'success',
                     message:
@@ -174,11 +191,15 @@ export const useMachineFormActions = ({
                 });
                 testConnectedRef.current = true;
             } else {
+                if (selectedDef.protocol === 'phidget')
+                    throw new Error(status.error ?? t('addMachine.connectionFailed'));
                 setConnectionTest({ status: 'failed', message: status.error ?? t('addMachine.connectionFailed') });
             }
         } catch (e) {
             // 타임아웃 후에도 사이드카가 핸드셰이크를 쥐고 있으면 다음 시도가 락에 막힌다
-            void sidecar.disconnect().catch(() => null);
+            const disconnected = await sidecar.disconnect().catch(() => null);
+            connected = disconnected?.connected ?? connected;
+            testConnectedRef.current = connected;
             setConnectionTest({
                 status: 'failed',
                 message: e instanceof Error ? e.message : t('addMachine.connectionFailed'),

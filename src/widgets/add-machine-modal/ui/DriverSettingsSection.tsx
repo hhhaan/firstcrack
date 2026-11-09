@@ -7,6 +7,7 @@ import { platform } from '@tauri-apps/plugin-os';
 import { Info, Radio } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from './FormField';
+import { PhidgetSettingsSection } from './PhidgetSettingsSection';
 
 const PRIMARY_ADDRESS_KEYS = new Set([
     'bt_register',
@@ -126,7 +127,10 @@ export const DriverSettingsSection = ({
                 <div className="flex items-start gap-2.5 bg-[rgba(59,130,246,0.07)] dark:bg-blue-500/10 border border-[rgba(59,130,246,0.15)] dark:border-blue-500/20 rounded-xl px-3.5 py-[11px] md:col-span-full">
                     <Info size={14} className="text-blue-500 dark:!text-blue-400 shrink-0 mt-px" />
                     <span className="text-[12px] text-secondary leading-relaxed">
-                        {t('addMachine.phidgetDriverNotice')}{' '}
+                        {t('addMachine.phidgetDriverNotice')} {t('addMachine.phidgetControlPanelHint')}{' '}
+                        {params.bt_device_type === '1048' || params.et_device_type === '1048'
+                            ? t('addMachine.phidgetMacHidHint')
+                            : ''}{' '}
                         <button
                             type="button"
                             onClick={() => {
@@ -140,8 +144,10 @@ export const DriverSettingsSection = ({
                 </div>
             )}
 
+            {selectedDef?.protocol === 'phidget' && <PhidgetSettingsSection params={params} setParam={setParam} />}
+
             {/* Driver settings: connection form fields */}
-            {selectedDef && selectedDef.form_fields.length > 0 && (
+            {selectedDef && selectedDef.protocol !== 'phidget' && selectedDef.form_fields.length > 0 && (
                 <section
                     className="min-w-0 self-start rounded-xl p-4 border border-border bg-surface/40 grid grid-cols-2 gap-3"
                     aria-labelledby="machine-connection-heading"

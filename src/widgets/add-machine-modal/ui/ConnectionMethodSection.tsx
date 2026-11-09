@@ -5,7 +5,7 @@ import { Badge } from '@shared/ui/Badge';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { inputCls, labelCls, selectCls } from '@shared/ui/form-styles';
 import { ChevronDown, Lock } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MachineModalTab } from '../model/types';
 
@@ -39,10 +39,12 @@ const ROASTER_GROUPS = Object.entries(ROASTERS_BY_BRAND)
     .sort((a, b) => brandRank(a.brand) - brandRank(b.brand) || a.brand.localeCompare(b.brand));
 
 function RoasterModelSelect({
+    id,
     isEdit,
     selectedKey,
     selectRoaster,
 }: {
+    id: string;
     isEdit: boolean;
     selectedKey: string;
     selectRoaster: (key: string) => void;
@@ -57,7 +59,14 @@ function RoasterModelSelect({
     const groups = useMemo(() => {
         const needle = query.trim().toLowerCase();
         if (!needle) return ROASTER_GROUPS;
-        return ROASTER_GROUPS.filter(({ brand }) => brand.toLowerCase().includes(needle));
+        return ROASTER_GROUPS.map(({ brand, items }) => ({
+            brand,
+            items: brand.toLowerCase().includes(needle)
+                ? items
+                : items.filter(({ def }) =>
+                      [def.display_name, ...def.models].some((value) => value.toLowerCase().includes(needle)),
+                  ),
+        })).filter(({ items }) => items.length > 0);
     }, [query]);
     const selectedName =
         ROASTER_GROUPS.flatMap((group) => group.items).find((item) => item.key === selectedKey)?.def.display_name ?? '';
@@ -80,6 +89,7 @@ function RoasterModelSelect({
             <div className="relative">
                 {open ? (
                     <input
+                        id={id}
                         ref={searchRef}
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
@@ -93,6 +103,7 @@ function RoasterModelSelect({
                     />
                 ) : (
                     <button
+                        id={id}
                         type="button"
                         className={cn(
                             selectCls,
@@ -224,6 +235,7 @@ export const ConnectionMethodSection = ({
     selectCustomProtocol,
 }: Props) => {
     const { t } = useTranslation();
+    const roasterModelId = useId();
 
     return (
         <>
@@ -247,8 +259,15 @@ export const ConnectionMethodSection = ({
             {/* Connection method: known roaster model */}
             {!isCustom && (
                 <div>
-                    <label className={labelCls}>{t('addMachine.roasterModel')}</label>
-                    <RoasterModelSelect isEdit={isEdit} selectedKey={selectedKey} selectRoaster={selectRoaster} />
+                    <label htmlFor={roasterModelId} className={labelCls}>
+                        {t('addMachine.roasterModel')}
+                    </label>
+                    <RoasterModelSelect
+                        id={roasterModelId}
+                        isEdit={isEdit}
+                        selectedKey={selectedKey}
+                        selectRoaster={selectRoaster}
+                    />
                 </div>
             )}
 
