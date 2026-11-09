@@ -20,6 +20,7 @@ vi.mock('@shared/lib/sidecar', () => ({
         pidOn: vi.fn(),
         pidOff: vi.fn(),
         pidSetSv: vi.fn(),
+        doorProbe: vi.fn(),
     },
 }));
 vi.mock('@shared/lib/logger', () => ({
@@ -45,6 +46,16 @@ import {
 const getStatus = vi.mocked(sidecar.getStatus);
 const setControl = vi.mocked(sidecar.setControl);
 const pidOff = vi.mocked(sidecar.pidOff);
+const doorProbe = vi.mocked(sidecar.doorProbe);
+const doorResult = (action: Awaited<ReturnType<typeof sidecar.doorProbe>>['action'], wrote: number | null) => ({
+    action,
+    wrote,
+    command_before: null,
+    command_after: null,
+    command_held: null,
+    discharge_open_before: null,
+    discharge_open_after: null,
+});
 
 const verifiedHeaterStatus = {
     ...writableHeaterStatus,
@@ -90,6 +101,7 @@ describe('useMachineControlComposition', () => {
         getStatus.mockReset();
         setControl.mockReset();
         pidOff.mockReset();
+        doorProbe.mockReset();
         vi.mocked(logger.capture).mockClear();
         getStatus.mockResolvedValue(writableHeaterStatus);
         setControl.mockImplementation(applyControl);
@@ -97,6 +109,118 @@ describe('useMachineControlComposition', () => {
     });
     afterEach(() => {
         vi.useRealTimers();
+    });
+
+    it.each([
+        ['fill_open', 1],
+        ['discharge_open', 5],
+    ] as const)('marks an acknowledged manual %s only after delivery', async (action, wrote) => {
+        getStatus.mockResolvedValue(giesenStatus);
+        const mark = vi.fn();
+        const prepareDoorOpen = vi.fn(() => mark);
+        const hook = await renderComposition({ ...base(), prepareDoorOpen });
+        let finish!: (result: Awaited<ReturnType<typeof sidecar.doorProbe>>) => void;
+        doorProbe.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        let sent!: ReturnType<typeof sidecar.doorProbe>;
+        act(() => {
+            sent = hook.get().sendDoorCommand(action);
+        });
+        expect(prepareDoorOpen).toHaveBeenCalledExactlyOnceWith(action);
+        expect(mark).not.toHaveBeenCalled();
+        await act(async () => {
+            finish(doorResult(action, wrote));
+            await sent;
+        });
+        expect(mark).toHaveBeenCalledOnce();
+        expect(doorProbe).toHaveBeenCalledExactlyOnceWith(action);
+        await hook.unmount();
+    });
+
+    it.each(['failure', 'uncertain', 'wrong-action', 'close', 'cooling', 'reconnect', 'epoch', 'unmount'] as const)(
+        'does not mark %s delivery',
+        async (boundary) => {
+            getStatus.mockResolvedValue(giesenStatus);
+            const mark = vi.fn();
+            const input = { ...base(), prepareDoorOpen: vi.fn(() => mark) };
+            const hook = await renderComposition(input);
+            let finish!: (result: Awaited<ReturnType<typeof sidecar.doorProbe>>) => void;
+            let fail!: (error: Error) => void;
+            doorProbe.mockImplementationOnce(
+                () =>
+                    new Promise((resolve, reject) => {
+                        finish = resolve;
+                        fail = reject;
+                    }),
+            );
+            const action = boundary === 'close' ? 'fill_close' : boundary === 'cooling' ? 'cooling_on' : 'fill_open';
+            let sent!: Promise<unknown>;
+            act(() => {
+                sent = hook
+                    .get()
+                    .sendDoorCommand(action)
+                    .catch(() => null);
+            });
+            if (boundary === 'reconnect') await hook.rerender({ ...input, reconnecting: true });
+            if (boundary === 'epoch') {
+                getStatus.mockResolvedValue({ ...giesenStatus, connection_epoch: 8 });
+                await act(async () => vi.advanceTimersByTimeAsync(1000));
+            }
+            if (boundary === 'unmount') await hook.unmount();
+            await act(async () => {
+                if (boundary === 'failure') fail(new Error('delivery failed'));
+                else
+                    finish(
+                        doorResult(
+                            boundary === 'wrong-action' ? 'discharge_open' : action,
+                            boundary === 'uncertain' ? null : 1,
+                        ),
+                    );
+                await sent;
+            });
+            expect(mark).not.toHaveBeenCalled();
+            if (boundary === 'close' || boundary === 'cooling') expect(input.prepareDoorOpen).not.toHaveBeenCalled();
+            expect(doorProbe).toHaveBeenCalledOnce();
+            if (boundary !== 'unmount') await hook.unmount();
+        },
+    );
+
+    it('marks Replay discharge once through the shared sender and retains Drop-zero safety', async () => {
+        getStatus.mockResolvedValue(giesenStatus);
+        doorProbe.mockResolvedValue(doorResult('discharge_open', 5));
+        const mark = vi.fn();
+        const input: MachineControlCompositionInput = {
+            ...base(),
+            liveBt: 205,
+            elapsed: 300,
+            confirmedTurningPoint: {},
+            pidDropBehavior: 'zero',
+            diagnostics: { sessionId: 'command-drop-batch', receivedAtMs: null, sample: null },
+            replayHeaterEvents: [{ kind: 'discharge_open', t: 300, bt: 205, trigger: 'bt' }],
+            prepareDoorOpen: () => mark,
+        };
+        const hook = await renderComposition(input);
+        await act(async () => hook.get().replay.toggle());
+        expect(mark).toHaveBeenCalledOnce();
+        expect(doorProbe).toHaveBeenCalledExactlyOnceWith('discharge_open', {
+            connectionEpoch: 7,
+            signal: expect.any(AbortSignal),
+        });
+        await hook.rerender({
+            ...input,
+            roastFinished: true,
+            roasting: false,
+            diagnostics: { sessionId: null, receivedAtMs: null, sample: null },
+        });
+        expect(setControl).toHaveBeenCalledExactlyOnceWith({ heater: 0 });
+        await hook.rerender({ ...input, roastFinished: false });
+        await act(async () => hook.get().replay.toggle());
+        expect(doorProbe).toHaveBeenCalledOnce();
+        await hook.unmount();
     });
 
     it('allows Pro manual controls while blocking Replay toggle and saved Charge auto-start', async () => {

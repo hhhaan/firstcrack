@@ -1,7 +1,8 @@
 import type { PidRuntime } from '@entities/machine';
 import { FEATURE, useFeature } from '@shared/lib/features';
 import { sidecar } from '@shared/lib/sidecar';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { DoorProbeAction } from '@shared/types/sidecar';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
 import { numericHeaterStep } from '../lib/heater-events';
@@ -46,6 +47,8 @@ export interface MachineControlCompositionInput {
     /** Raw applied command. Tests use this; the heater log uses onHeaterCommitted. */
     onCommitted?: (committed: ControlCommand) => void;
     onApplied?: (applied: ControlCommand) => void;
+    /** Capture the owning batch before delivery; apply only after an acknowledged open command. */
+    prepareDoorOpen?: (action: 'fill_open' | 'discharge_open') => (() => void) | undefined;
     diagnostics?: Pick<GasOffDiagnosticContext, 'sessionId' | 'receivedAtMs' | 'sample'>;
 }
 
@@ -77,6 +80,7 @@ export const useMachineControlComposition = ({
     onHeaterCommitted,
     onCommitted,
     onApplied,
+    prepareDoorOpen,
     diagnostics,
 }: MachineControlCompositionInput) => {
     const replayEntitled = useFeature(FEATURE.machineReplay);
@@ -141,13 +145,42 @@ export const useMachineControlComposition = ({
     }, [machine.commitNow]);
     const retryEpoch = machine.connectionStatus?.connection_epoch;
     const dischargeOpenSupported = supportsDischargeOpen(machine.connectionStatus?.roaster);
+    const doorScope = useRef<object | null>(null);
+    useLayoutEffect(() => {
+        doorScope.current = { epoch: retryEpoch, connected: sidecarConnected, reconnecting };
+        return () => {
+            doorScope.current = null;
+        };
+    }, [retryEpoch, sidecarConnected, reconnecting]);
+    const sendDoorCommand = useCallback(
+        async (action: Exclude<DoorProbeAction, 'read'>, signal?: AbortSignal) => {
+            const scope = doorScope.current;
+            const mark = action === 'fill_open' || action === 'discharge_open' ? prepareDoorOpen?.(action) : undefined;
+            const result = await (signal && retryEpoch != null
+                ? sidecar.doorProbe(action, { connectionEpoch: retryEpoch, signal })
+                : sidecar.doorProbe(action));
+            if (
+                scope != null &&
+                doorScope.current === scope &&
+                sidecarConnected &&
+                !reconnecting &&
+                !signal?.aborted &&
+                result.action === action &&
+                ((action === 'fill_open' && result.wrote === 1) || (action === 'discharge_open' && result.wrote === 5))
+            ) {
+                mark?.();
+            }
+            return result;
+        },
+        [retryEpoch, sidecarConnected, reconnecting, prepareDoorOpen],
+    );
     const writeDischargeOpen = useCallback(
         async (signal: AbortSignal) => {
             if (!dischargeOpenSupported || retryEpoch == null || signal.aborted) return false;
-            const result = await sidecar.doorProbe('discharge_open', { connectionEpoch: retryEpoch, signal });
-            return result.wrote === 5;
+            const result = await sendDoorCommand('discharge_open', signal);
+            return result.action === 'discharge_open' && result.wrote === 5;
         },
-        [dischargeOpenSupported, retryEpoch],
+        [dischargeOpenSupported, retryEpoch, sendDoorCommand],
     );
     const retryHeater = useCallback(
         async (value: number) => {
@@ -204,7 +237,7 @@ export const useMachineControlComposition = ({
         [replay.stop, machine.setValue],
     );
 
-    return { machine, pid, replay, pidActive, changeManual, commitManual };
+    return { machine, pid, replay, pidActive, changeManual, commitManual, sendDoorCommand };
 };
 
 export type MachineControlComposition = ReturnType<typeof useMachineControlComposition>;

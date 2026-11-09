@@ -139,6 +139,13 @@ describe('planDropTransition', () => {
         expect(planDropTransition({ ...base, phase: 'standby' })).toBeNull();
     });
 
+    it('retains command-time Drop with unknown BT instead of substituting later feedback', () => {
+        const result = planDropTransition({ ...base, onset: { timeSec: 600, bt: null } });
+        expect(result?.dropTimeSec).toBe(600);
+        expect(result?.dropBt).toBeNull();
+        expect(result?.logEntries.find((entry) => entry.event === 'Drop')?.tempC).toBeNull();
+    });
+
     it('does not duplicate an existing Drop log', () => {
         vi.stubGlobal('crypto', { randomUUID: vi.fn(() => 'new-id') });
         const withDrop = {

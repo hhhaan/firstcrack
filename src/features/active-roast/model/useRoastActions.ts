@@ -6,6 +6,7 @@ import { sidecar } from '@shared/lib/sidecar';
 import { useToastStore } from '@shared/store/toast';
 import type { LogEntry } from '@shared/types/roast';
 import { useCallback } from 'react';
+import type { DropOnset } from '../lib/drop-transition';
 import { logEntryTimeSec } from '../lib/serialize-roast-events';
 import { formatTemp } from '../lib/temperature';
 import type { TurningPoint } from '../lib/turningPoints';
@@ -17,7 +18,7 @@ interface UseRoastActionsParams {
     unit: TemperatureUnit;
     rawBT: number | null;
     setLogEntries: React.Dispatch<React.SetStateAction<LogEntry[]>>;
-    onDrop: (onset?: { timeSec: number; bt: number }) => void;
+    onDrop: (onset?: DropOnset) => void;
     storeStartCharge: (
         originMs?: number,
         ownerId?: string,
@@ -30,7 +31,7 @@ interface UseRoastActionsReturn {
     /** chargeTimeMs: auto-charge 후처리 onset 시각. 없으면 Date.now() (manual). */
     triggerCharge: (btAtCharge?: number | null, chargeTimeMs?: number) => void;
     /** onset: BTbreak 꺾임 점. 없으면 현재 elapsed/BT. */
-    handleAutoDrop: (onset?: { timeSec: number; bt: number }) => void;
+    handleAutoDrop: (onset?: DropOnset) => void;
     handleTurningPoint: (tp: TurningPoint) => void;
 }
 
@@ -54,7 +55,7 @@ export const useRoastActions = ({
             }
             const now = Date.now();
             const origin = chargeTimeMs != null && chargeTimeMs > 0 && chargeTimeMs <= now ? chargeTimeMs : now;
-            const btVal = btAtCharge ?? rawBT;
+            const btVal = btAtCharge === undefined ? rawBT : btAtCharge;
             const sessionId = storeStartCharge(origin, workspaceOwnerId, {
                 bt: btVal,
                 unit,
@@ -70,7 +71,7 @@ export const useRoastActions = ({
     );
 
     const handleAutoDrop = useCallback(
-        (onset?: { timeSec: number; bt: number }) => {
+        (onset?: DropOnset) => {
             // Same Drop→end transition as manual Drop. PID/Replay stop via heatHoldAfterDrop.
             onDrop(onset);
         },

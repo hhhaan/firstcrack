@@ -77,6 +77,17 @@ and deletion guards stay unchanged.
 
 ## Runtime loop (read)
 
+Manual fill-open and manual/Replay discharge-open share the machine-control door sender.
+Before dispatch, Active Roast captures the owning batch, command time and current BT.
+A matching acknowledged write (fill `1`, discharge `5`) invokes the existing Charge
+admission or Drop lifecycle; a missing BT remains unknown. Closing doors and cooling
+commands do not mark phases. Failed/uncertain replies, changed connections, workspace
+changes, completed/changed batches and unmounted views cannot apply late marks.
+Existing phase guards keep manual/command/temperature detection first-wins. Temperature
+detection remains available for machine-panel operations and unacknowledged app commands.
+Command delivery is not confirmation of physical door movement. Drop retains the normal
+summary, checkpoint, BBP, cancellation and PID/Replay heat-off behavior.
+
 1. Sidecar poll (`useSidecarPolling`) → temperatures
 2. Log / auto detection / BBP / phases in feature model+lib
 3. Continuous local TSV under app local data (`session_<uuid>.tsv`, optional `bbp_*.tsv`) — durability before network

@@ -15,6 +15,7 @@ import {
     useRoastSettings,
 } from '@features/active-roast';
 import { makeBbpLogEntry } from '@features/active-roast/lib/bbp-events';
+import type { DropOnset } from '@features/active-roast/lib/drop-transition';
 import { controlValuesWithoutRepeatHeater, isRepeatHeaterCommit } from '@features/active-roast/lib/repeat-heater';
 import { logEntryTimeSec } from '@features/active-roast/lib/serialize-roast-events';
 import { detectTurningPoints } from '@features/active-roast/lib/turningPoints';
@@ -377,7 +378,7 @@ export const ActiveRoast = ({
     }, [summaryRequest, isWorkspaceReady, workspaceOwnerId, saveFlow.flow.reopenSummary, onSummaryRequestHandled]);
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
-    const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
+    const applyDropRef = useRef<(onset?: DropOnset) => void>(() => {});
 
     const {
         triggerCharge: startChargeAction,
@@ -428,7 +429,7 @@ export const ActiveRoast = ({
     });
 
     const applyDrop = useCallback(
-        (onset?: { timeSec: number; bt: number }) => {
+        (onset?: DropOnset) => {
             return lifecycle.finishDrop({
                 livePoints,
                 onset,
@@ -875,6 +876,45 @@ export const ActiveRoast = ({
         [bbpActive, timeline.bbpObservationNow, sessionId, setLogEntries, unit, recordDropWaitEvent],
     );
 
+    const doorMarkScope = useRef<object | null>(null);
+    useLayoutEffect(() => {
+        doorMarkScope.current = { owner: workspaceOwnerId, ready: isWorkspaceReady, phase, sessionId };
+        return () => {
+            doorMarkScope.current = null;
+        };
+    }, [workspaceOwnerId, isWorkspaceReady, phase, sessionId]);
+    const prepareDoorOpen = useCallback(
+        (action: 'fill_open' | 'discharge_open') => {
+            const before = useRoastingStore.getState();
+            const scope = doorMarkScope.current;
+            const requestedAtMs = Date.now();
+            const bt = before.liveData?.bt ?? null;
+            if (action === 'fill_open' && before.phase !== 'preheating' && before.phase !== 'standby') return;
+            if (action === 'discharge_open' && before.phase !== 'roasting') return;
+            return () => {
+                const current = useRoastingStore.getState();
+                if (
+                    scope == null ||
+                    doorMarkScope.current !== scope ||
+                    !isWorkspaceReady ||
+                    !current.sidecarConnected ||
+                    current.reconnecting ||
+                    current.sessionId !== before.sessionId ||
+                    current.roastStartMs !== before.roastStartMs ||
+                    current.completed !== before.completed ||
+                    current.phase !== before.phase
+                )
+                    return;
+                if (action === 'fill_open') {
+                    triggerChargeRef.current(bt, requestedAtMs);
+                } else {
+                    applyDropRef.current({ timeSec: Math.max(0, (requestedAtMs - before.roastStartMs) / 1000), bt });
+                }
+            };
+        },
+        [isWorkspaceReady],
+    );
+
     const machineControl = useMachineControlComposition({
         sidecarConnected,
         reconnecting,
@@ -902,6 +942,7 @@ export const ActiveRoast = ({
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
+        prepareDoorOpen,
         diagnostics: { sessionId: charged ? sessionId : null, receivedAtMs: feedbackReceivedAtMs, sample: liveData },
     });
     useEffect(() => {

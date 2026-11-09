@@ -100,6 +100,18 @@ describe('triggerCharge 이중 발화 가드 (#174 manual↔auto race)', () => {
         }
     });
 
+    it.each([
+        { capturedBt: null, expectedBt: null },
+        { capturedBt: undefined, expectedBt: 200 },
+    ])('keeps captured BT $capturedBt while omitted BT uses live feedback', ({ capturedBt, expectedBt }) => {
+        const h = renderActions();
+        act(() => h.result.triggerCharge(capturedBt, Date.now() - 1000));
+        expect(useRoastingStore.getState().logState.entries.find((entry) => entry.event === 'Charge')?.tempC).toBe(
+            expectedBt,
+        );
+        h.unmount();
+    });
+
     it('startRoast passes SidecarHttpError through so skip rules apply', async () => {
         const { SidecarHttpError } = await import('@shared/lib/sidecar');
         const sentry = await import('@shared/lib/sentry');
