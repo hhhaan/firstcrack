@@ -947,10 +947,10 @@
         "phidgetEnableEt": "ETを使用",
         "phidgetAutomatic": "自動選択",
         "phidgetAddressHint": "一致するデバイスが1つの場合のみアドレスを空欄にできます。VINTのシリアルはHUBの番号です。別々のRTDモジュールには異なるハブポートを指定してください。",
-        "phidgetControlPanelHint": "Phidget Control Panelでモデル・チャンネル・プローブ配線を確認し、テストウィンドウを閉じてから接続してください。",
-        "phidgetMacHidHint": "macOSでは1048など旧型USB HIDデバイスに拡張機能の許可が必要な場合があります。",
-        "phidgetDriverNotice": "このデバイスには Phidget22 システムドライバが別途必要です。",
-        "phidgetDriverLink": "Phidget22ドライバーをダウンロード"
+        "phidgetControlPanelHint": "設定や問題の診断にはPhidget Control Panelでモデル・チャンネル・プローブ配線を確認し、テストウィンドウを閉じてから接続してください。",
+        "phidgetMacHidHint": "macOSで1048を使うには、PhidgetライブラリまたはStandalone Control Panelをインストールし、ドライバ拡張機能を許可してください。",
+        "phidgetDriverNotice": "Phidget22ライブラリはアプリに含まれます。機器とOSによって追加設定が必要な場合があります。",
+        "phidgetDriverLink": "Phidgetのインストール案内"
     },
     "dashboard": {
         "comparedToLastMonth": "前月比",

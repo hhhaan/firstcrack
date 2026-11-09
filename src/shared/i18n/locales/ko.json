@@ -947,10 +947,10 @@
         "phidgetEnableEt": "ET 사용",
         "phidgetAutomatic": "자동 선택",
         "phidgetAddressHint": "일치하는 장치가 하나일 때만 주소를 비워 두세요. VINT 시리얼은 HUB의 시리얼입니다. RTD 모듈이 각각 있으면 서로 다른 허브 포트를 지정하세요.",
-        "phidgetControlPanelHint": "Phidget Control Panel에서 모델·채널·프로브 배선을 확인한 뒤 테스트 창을 닫고 연결하세요.",
-        "phidgetMacHidHint": "macOS에서는 1048 같은 구형 USB HID 장치에 확장 권한이 필요할 수 있습니다.",
-        "phidgetDriverNotice": "이 기기는 Phidget22 시스템 드라이버가 별도로 필요합니다.",
-        "phidgetDriverLink": "Phidget22 드라이버 다운로드"
+        "phidgetControlPanelHint": "설정·문제 진단 시 Phidget Control Panel에서 모델·채널·프로브 배선을 확인한 뒤 테스트 창을 닫고 연결하세요.",
+        "phidgetMacHidHint": "macOS에서 1048을 사용하려면 Phidget 라이브러리 또는 Standalone Control Panel을 설치하고 드라이버 확장을 허용하세요.",
+        "phidgetDriverNotice": "Phidget22 라이브러리는 앱에 포함됩니다. 기기와 OS에 따라 추가 설정이 필요할 수 있습니다.",
+        "phidgetDriverLink": "Phidget 설치 안내"
     },
     "dashboard": {
         "comparedToLastMonth": "전월 대비",

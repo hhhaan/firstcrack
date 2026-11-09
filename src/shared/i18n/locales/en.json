@@ -947,10 +947,10 @@
         "phidgetEnableEt": "Use ET",
         "phidgetAutomatic": "Automatic",
         "phidgetAddressHint": "Leave addresses blank only when one matching device exists. VINT serial is the HUB serial; use different hub ports for separate RTD modules.",
-        "phidgetControlPanelHint": "Verify the model, channel and probe wiring in Phidget Control Panel, then close its test window before connecting.",
-        "phidgetMacHidHint": "On macOS, legacy USB HID devices such as 1048 may also require extension permission.",
-        "phidgetDriverNotice": "This device needs the Phidget22 system driver installed separately.",
-        "phidgetDriverLink": "Download Phidget22 driver"
+        "phidgetControlPanelHint": "For setup or troubleshooting, check the model, channel and probe wiring in Phidget Control Panel, then close its test window before connecting.",
+        "phidgetMacHidHint": "For 1048 on macOS, install the Phidget libraries or Standalone Control Panel and allow the driver extension.",
+        "phidgetDriverNotice": "Phidget22 libraries are included. Extra setup depends on your device and OS.",
+        "phidgetDriverLink": "Phidget setup guide"
     },
     "dashboard": {
         "comparedToLastMonth": "vs. last month",

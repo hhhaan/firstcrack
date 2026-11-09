@@ -24,17 +24,16 @@ const PRIMARY_ADDRESS_KEYS = new Set([
     'et_type',
 ]);
 
-/** Official Phidget22 runtime — same URLs as docs/machines/phidget.md */
-const PHIDGET22_INSTALL: Record<'windows' | 'macos', string> = {
-    windows: 'https://www.phidgets.com/downloads/phidget22/libraries/windows/Phidget22-x64.exe',
-    macos: 'https://www.phidgets.com/downloads/phidget22/libraries/macos/Phidget22.dmg',
+const PHIDGET22_SETUP: Record<'windows' | 'macos', string> = {
+    windows: 'https://www.phidgets.com/docs/OS_-_Windows',
+    macos: 'https://www.phidgets.com/docs/OS_-_macOS',
 };
 
-const phidgetInstallUrl = (): string => {
+const phidgetPlatform = (): 'windows' | 'macos' => {
     try {
-        return platform() === 'windows' ? PHIDGET22_INSTALL.windows : PHIDGET22_INSTALL.macos;
+        return platform() === 'windows' ? 'windows' : 'macos';
     } catch {
-        return PHIDGET22_INSTALL.macos;
+        return 'macos';
     }
 };
 
@@ -68,6 +67,10 @@ export const DriverSettingsSection = ({
     addressFields,
 }: Props) => {
     const { t } = useTranslation();
+    const os = phidgetPlatform();
+    const needsMacHidSetup =
+        os === 'macos' &&
+        (params.bt_device_type === '1048' || (Boolean(params.channel_et?.trim()) && params.et_device_type === '1048'));
     const protocol = selectedDef?.protocol;
     const scanKey = protocol ? networkScanProtocol(protocol) : null;
     const handleScanNetwork = scanKey && onScanNetwork && protocol ? () => onScanNetwork(protocol) : undefined;
@@ -128,13 +131,11 @@ export const DriverSettingsSection = ({
                     <Info size={14} className="text-blue-500 dark:!text-blue-400 shrink-0 mt-px" />
                     <span className="text-[12px] text-secondary leading-relaxed">
                         {t('addMachine.phidgetDriverNotice')} {t('addMachine.phidgetControlPanelHint')}{' '}
-                        {params.bt_device_type === '1048' || params.et_device_type === '1048'
-                            ? t('addMachine.phidgetMacHidHint')
-                            : ''}{' '}
+                        {needsMacHidSetup ? t('addMachine.phidgetMacHidHint') : ''}{' '}
                         <button
                             type="button"
                             onClick={() => {
-                                void openUrl(phidgetInstallUrl());
+                                void openUrl(PHIDGET22_SETUP[os]);
                             }}
                             className="text-blue-500 dark:!text-blue-400 underline cursor-pointer bg-transparent border-none p-0 text-[12px] font-body"
                         >

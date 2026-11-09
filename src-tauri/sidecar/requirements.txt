@@ -17,7 +17,7 @@ pymodbus==3.14.0
 websockets==16.1.1
 
 # Phidget USB 온도 센서 (TMP1101, TMP1200, 1048 등)
-# 시스템 드라이버도 별도 설치 필요: https://www.phidgets.com/docs/OS_-_macOS
+# macOS/Windows wheel에 네이티브 라이브러리 포함; macOS HID(1048)는 별도 설치·확장 권한 필요
 Phidget22==1.25.20260408
 
 # USB HID (aillio_r1.py, aillio_r2.py) — 현재 미사용, 의존성만 유지

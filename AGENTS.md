@@ -103,7 +103,7 @@ A new function on `sentry.ts` or `sentry_config.py` only for a non-exception fin
 - src-tauri/sidecar/: main.py(aiohttp :9999) + manager.py + adapters/ (modbus,phidget,kaleido,probat_ws,s7,virtual)
 - registry dual SSoT (manual sync): `src-tauri/sidecar/roaster_registry.py` (connect + address maps) ↔ `src/entities/machine/roasterRegistry.ts` (UI form/display). Gate: `pnpm check:registry` (in `verify`)
 - API doc: docs/sidecar-api.md
-- Phidget: OS-level libphidget22 필요 → docs/phidget-driver-setup.md
+- Phidget installation or packaging guidance: read `docs/phidget-driver-setup.md` for bundled libraries and macOS HID extension setup.
 
 ## Design
 - values/vars: `DESIGN.md` (SSoT)

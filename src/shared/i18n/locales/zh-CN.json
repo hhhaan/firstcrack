@@ -947,10 +947,10 @@
         "phidgetEnableEt": "使用ET",
         "phidgetAutomatic": "自动选择",
         "phidgetAddressHint": "仅有一个匹配设备时才可留空地址。VINT序列号为HUB的序列号；独立RTD模块应指定不同的集线器端口。",
-        "phidgetControlPanelHint": "请在Phidget Control Panel检查型号、通道和探头接线，关闭测试窗口后再连接。",
-        "phidgetMacHidHint": "在macOS上，1048等旧款USB HID设备可能还需要扩展权限。",
-        "phidgetDriverNotice": "此设备需单独安装 Phidget22 系统驱动。",
-        "phidgetDriverLink": "下载 Phidget22 驱动"
+        "phidgetControlPanelHint": "设置或排查问题时，请在Phidget Control Panel中确认型号、通道和探针接线，再关闭测试窗口后连接。",
+        "phidgetMacHidHint": "在macOS上使用1048时，请安装Phidget库或Standalone Control Panel，并允许驱动扩展。",
+        "phidgetDriverNotice": "应用已包含Phidget22库。是否需要额外设置取决于设备和操作系统。",
+        "phidgetDriverLink": "Phidget安装指南"
     },
     "dashboard": {
         "comparedToLastMonth": "较上月",
