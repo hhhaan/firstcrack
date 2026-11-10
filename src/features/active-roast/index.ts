@@ -67,7 +67,7 @@ export {
     useRoastSettings,
 } from './model/settings';
 export type { RoastingState, RoastPhase } from './model/status';
-export { useRoastingStore } from './model/status';
+export { selectHopperCommandsAllowed, useRoastingStore } from './model/status';
 export { useBbpTimer } from './model/useBbpTimer';
 export { useCurveStyles } from './model/useCurveStyles';
 export type { DeductRoastStockParams } from './model/useDeductRoastStock';

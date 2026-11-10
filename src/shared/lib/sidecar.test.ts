@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -16,11 +17,14 @@ vi.mock('./sentry', async (importOriginal) => {
 });
 
 let { SidecarHttpError, sidecar, subscribeSidecarSettings } = await import('./sidecar');
+let { registerHopperCommandGuard } = await import('./hopperCommandGuard');
 
 describe('sidecar.waitUntilReady', () => {
     beforeEach(async () => {
         vi.resetModules();
         ({ SidecarHttpError, sidecar, subscribeSidecarSettings } = await import('./sidecar'));
+        ({ registerHopperCommandGuard } = await import('./hopperCommandGuard'));
+        registerHopperCommandGuard(() => true);
         vi.useFakeTimers();
         captureSidecar.mockReset();
         captureReady.mockReset();
@@ -218,6 +222,64 @@ describe('sidecar.waitUntilReady', () => {
         );
         await expect(sidecar.doorProbe('fill_open')).rejects.toMatchObject({ status });
         expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
+    it('denies hopper commands before a live roast store registers its guard', async () => {
+        vi.resetModules();
+        const { sidecar: unownedSidecar } = await import('./sidecar');
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        await expect(unownedSidecar.doorProbe('fill_open')).rejects.toMatchObject({ status: 409 });
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each(['fill_open', 'fill_close'] as const)(
+        'blocks %s for every caller before requesting authentication',
+        async (action) => {
+            registerHopperCommandGuard(() => false);
+            const fetchMock = vi.fn();
+            vi.stubGlobal('fetch', fetchMock);
+            const tokenCalls = vi.mocked(invoke).mock.calls.length;
+            await expect(sidecar.doorProbe(action)).rejects.toMatchObject({ status: 409, sentryReported: false });
+            expect(vi.mocked(invoke).mock.calls).toHaveLength(tokenCalls);
+            expect(fetchMock).not.toHaveBeenCalled();
+            expect(captureSidecar).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(['fill_open', 'fill_close'] as const)('rechecks %s after awaiting authentication', async (action) => {
+        let allowed = true;
+        registerHopperCommandGuard(() => allowed);
+        let authenticate!: (token: string) => void;
+        vi.mocked(invoke).mockReturnValueOnce(
+            new Promise<string>((resolve) => {
+                authenticate = resolve;
+            }),
+        );
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const pending = sidecar.doorProbe(action);
+        allowed = false;
+        authenticate('test-token');
+        await expect(pending).rejects.toMatchObject({ status: 409 });
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(captureSidecar).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        'read',
+        'discharge_open',
+        'discharge_close',
+        'cooling_on',
+        'cooling_off',
+        'stirrer_on',
+        'stirrer_off',
+    ] as const)('keeps %s independent of hopper admission', async (action) => {
+        registerHopperCommandGuard(() => false);
+        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ action })));
+        vi.stubGlobal('fetch', fetchMock);
+        await expect(sidecar.doorProbe(action)).resolves.toEqual({ action });
+        expect(fetchMock).toHaveBeenCalledOnce();
     });
 
     it.each([

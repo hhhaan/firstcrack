@@ -7,6 +7,7 @@ import {
     formatTemp,
     isRoastShortcutBaseEnabled,
     rorUnitLabel,
+    selectHopperCommandsAllowed,
     useBbpStore,
     useBbpTimer,
     useEffectivePollIntervalMs,
@@ -177,6 +178,7 @@ export const ActiveRoast = ({
         })),
     );
     const storeActions = useRoastingStore.getState();
+    const hopperCommandsAllowed = useRoastingStore(selectHopperCommandsAllowed);
     const { enterStandby, startCharge: storeStartCharge, setConnected } = storeActions;
 
     const charged = isChargedPhase(phase);
@@ -1197,6 +1199,7 @@ export const ActiveRoast = ({
                         replayPoints={replayPoints}
                         temperatureUnit={unit}
                         commandsLocked={reviewing}
+                        hopperCommandsAllowed={hopperCommandsAllowed}
                         hotkeysEnabled={isRoastShortcutBaseEnabled({
                             isActive,
                             showEndRoastModal: saveFlow.flow.endRoastModal,

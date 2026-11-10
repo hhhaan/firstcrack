@@ -39,8 +39,8 @@ const renderProbe = (roaster: string | null = 'giesen_w45a_w60a') => {
     document.body.append(host);
     const root = createRoot(host);
     roots.push(root);
-    const render = (disabled = false, hidden = false) =>
-        act(() => root.render(createElement(DoorCommandProbe, { roaster, disabled, hidden })));
+    const render = (disabled = false, hidden = false, hopperCommandsAllowed = true) =>
+        act(() => root.render(createElement(DoorCommandProbe, { roaster, disabled, hidden, hopperCommandsAllowed })));
     render();
     const open = async () => {
         await act(async () => buttonNamed('machines.doorProbe.title').click());
@@ -136,6 +136,23 @@ describe('DoorCommandProbe equipment popover', () => {
         render(false);
         await act(async () => command('fillOpen').click());
         expect(doorProbe).toHaveBeenCalledExactlyOnceWith('fill_open');
+    });
+    it('locks both hopper actions when Charge starts with the popup open, keeping other equipment usable', async () => {
+        const { open, render } = renderProbe();
+        await open();
+        render(false, false, false);
+        for (const label of ['fillOpen', 'fillClose']) {
+            expect(command(label).disabled).toBe(true);
+            await act(async () => command(label).click());
+        }
+        expect(doorProbe).not.toHaveBeenCalled();
+        for (const label of ['dischargeOpen', 'dischargeClose', 'coolingOn', 'coolingOff', 'stirrerOn', 'stirrerOff']) {
+            expect(command(label).disabled).toBe(false);
+        }
+        await act(async () => command('dischargeOpen').click());
+        expect(doorProbe).toHaveBeenCalledExactlyOnceWith('discharge_open');
+        render(false, false, true);
+        for (const label of ['fillOpen', 'fillClose']) expect(command(label).disabled).toBe(false);
     });
     it('shows the sidecar error in the affected device, then allows explicit retry', async () => {
         const error = new Error('Machine connection lost');

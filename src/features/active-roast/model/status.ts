@@ -1,4 +1,5 @@
 import type { MachineSnapshot, PidRuntime } from '@entities/machine';
+import { registerHopperCommandGuard } from '@shared/lib/hopperCommandGuard';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 import { create } from 'zustand';
@@ -233,3 +234,8 @@ export const useRoastingStore = create<RoastingState>((set, get) => ({
         set({ ...initialState, ...initialBatchState, sidecarConnected, machineCapabilities });
     },
 }));
+
+export const selectHopperCommandsAllowed = (state: RoastingState) =>
+    state.sidecarConnected && !state.reconnecting && (state.phase === 'preheating' || state.phase === 'standby');
+
+registerHopperCommandGuard(() => selectHopperCommandsAllowed(useRoastingStore.getState()));

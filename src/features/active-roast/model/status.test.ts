@@ -1,3 +1,4 @@
+import { canSendHopperCommand } from '@shared/lib/hopperCommandGuard';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reduceSensorObservation, sensorObservationTick } from '../lib/sensorObservation';
 import { useRoastingStore } from './status';
@@ -17,6 +18,41 @@ const sample = (receivedAtMs: number, over: Parameters<typeof sensorObservationT
 
 afterEach(() => {
     useRoastingStore.getState().reset();
+});
+
+describe('hopper command admission', () => {
+    it.each(['idle', 'preheating', 'standby', 'roasting', 'ended'] as const)(
+        'reads the current %s phase for manual and automatic commands',
+        (phase) => {
+            useRoastingStore.setState({ phase, sidecarConnected: true, reconnecting: false });
+            expect(canSendHopperCommand()).toBe(phase === 'preheating' || phase === 'standby');
+            useRoastingStore.setState({ sidecarConnected: false });
+            expect(canSendHopperCommand()).toBe(false);
+            useRoastingStore.setState({ sidecarConnected: true, reconnecting: true });
+            expect(canSendHopperCommand()).toBe(false);
+        },
+    );
+    it('allows BBP wait, blocks Charge immediately, and does not trust stale wait flags', () => {
+        useRoastingStore.setState({
+            phase: 'standby',
+            sidecarConnected: true,
+            reconnecting: false,
+            awaitingNextCharge: true,
+        });
+        expect(canSendHopperCommand()).toBe(true);
+        useRoastingStore.getState().startCharge();
+        expect(canSendHopperCommand()).toBe(false);
+        useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
+        expect(canSendHopperCommand()).toBe(false);
+        expect(useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false })).not.toBeNull();
+        expect(canSendHopperCommand()).toBe(true);
+        expect(useRoastingStore.getState().cancelDrop()).not.toBeNull();
+        expect(canSendHopperCommand()).toBe(false);
+        useRoastingStore.getState().resetCurrentBatch({ chargeWait: true });
+        expect(canSendHopperCommand()).toBe(true);
+        useRoastingStore.getState().setConnected(false);
+        expect(canSendHopperCommand()).toBe(false);
+    });
 });
 
 describe('startCharge after Drop (#484)', () => {

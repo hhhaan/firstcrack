@@ -872,6 +872,7 @@
             "stirrerOn": "Stirrer on",
             "stirrerOff": "Stirrer off",
             "failed": "Could not send command.",
+            "hopperUnavailable": "The intake door can only be operated while connected and waiting to roast.",
             "doors": "Intake · Discharge",
             "cooling": "Cooling tray",
             "fill": "Intake door",

@@ -872,6 +872,7 @@
             "stirrerOn": "교반기 켜기",
             "stirrerOff": "교반기 끄기",
             "failed": "명령을 전송하지 못했습니다.",
+            "hopperUnavailable": "투입문은 머신이 연결된 예열·투입 대기 중에만 조작할 수 있습니다.",
             "doors": "투입 · 배출",
             "cooling": "냉각 트레이",
             "fill": "투입문",

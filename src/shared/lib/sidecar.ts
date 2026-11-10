@@ -1,3 +1,4 @@
+import { i18n } from '@shared/i18n';
 import type {
     DoorProbeAction,
     DoorProbeResult,
@@ -9,6 +10,7 @@ import type {
 } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
 import { isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
+import { canSendHopperCommand } from './hopperCommandGuard';
 import {
     captureActionable,
     captureSidecarReadinessFailure,
@@ -126,11 +128,13 @@ async function request<T>(
     init?: RequestInit,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     reportErrors = true,
+    beforeDispatch?: () => void,
 ): Promise<T> {
     const route = routeWithoutQuery(path);
     const method = init?.method ?? 'GET';
     try {
         const token = await getSidecarToken();
+        beforeDispatch?.();
         const res = await fetch(`${SIDECAR_BASE}${path}`, {
             // Live BT/status must not be reused from the HTTP cache. A cached 200
             // while /temperatures is blocked looks like a healthy reading and
@@ -270,7 +274,13 @@ export const sidecar = {
      */
     /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
     doorProbe: async (action: DoorProbeAction, options?: { connectionEpoch: number; signal: AbortSignal }) => {
+        const guard = () => {
+            if ((action === 'fill_open' || action === 'fill_close') && !canSendHopperCommand()) {
+                throw new SidecarHttpError('/door-probe', 409, i18n.t('machines.doorProbe.hopperUnavailable'));
+            }
+        };
         try {
+            guard();
             // Python owns completed commands and hardware failures; report only client failures here.
             return await request<DoorProbeResult>(
                 '/door-probe',
@@ -281,6 +291,7 @@ export const sidecar = {
                 },
                 DEFAULT_TIMEOUT_MS,
                 false,
+                guard,
             );
         } catch (error) {
             if (isSidecarHttpError(error)) {

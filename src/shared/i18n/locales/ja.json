@@ -872,6 +872,7 @@
             "stirrerOn": "撹拌オン",
             "stirrerOff": "撹拌オフ",
             "failed": "指令を送信できませんでした。",
+            "hopperUnavailable": "投入ドアは、マシンが接続された予熱・投入待機中のみ操作できます。",
             "doors": "投入・排出",
             "cooling": "冷却トレイ",
             "fill": "投入ドア",
