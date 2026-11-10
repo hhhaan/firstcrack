@@ -211,6 +211,7 @@ export const judgeReplay = (
         // A physical action is a barrier: never coalesce across it or retry it as heat.
         if (e.kind === 'discharge_open') {
             if (heater != null) break;
+            // Threshold eligibility only; the physical caller must confirm sustained fresh observations.
             return { nextIndex: i + 1, heater: null, dischargeOpen: true };
         }
         heater = e.heater;

@@ -64,6 +64,10 @@ export interface ReplayControlInputs {
      * Omit with `nowMs` to skip last-valid age hold in tests.
      */
     lastValidReceivedAtMs?: number | null;
+    /** Sidecar monotonic read-clock seconds. Required for physical discharge continuity. */
+    lastValidDeviceTimestamp?: number | null;
+    /** Expected collection interval. Physical discharge fails closed without it. */
+    pollIntervalMs?: number;
     /** Wall-clock for last-valid age. Omit with lastValid to skip age hold in tests. */
     nowMs?: number | null;
     /** 논리 명령 응답(지원 맵은 설정값 읽기 검증 포함). 요청값 불일치·null은 실패, 실측 확인은 별도. */
@@ -177,6 +181,8 @@ export const useReplayControl = ({
     reconnecting,
     observationQuality,
     lastValidReceivedAtMs,
+    lastValidDeviceTimestamp,
+    pollIntervalMs,
     nowMs,
     writeHeater,
     retryHeater,
@@ -287,6 +293,12 @@ export const useReplayControl = ({
     const [writing, setWriting] = useState(false);
     const [deliveryAttempt, setDeliveryAttempt] = useState(0);
     const deliveryController = useRef<AbortController | null>(null);
+    const dischargeDwell = useRef<{
+        firstDeviceTimestamp: number;
+        lastDeviceTimestamp: number;
+        firstReceivedAtMs: number;
+        lastReceivedAtMs: number;
+    } | null>(null);
     const writeGenRef = useRef(0);
     const [safeOffNonce, setSafeOffNonce] = useState(0);
     const [pendingWrite, setPendingWrite] = useState<{
@@ -302,6 +314,7 @@ export const useReplayControl = ({
     const afterTurningPoint = confirmedTurningPoint != null && !confirmedTurningPoint.fallback;
 
     const invalidateInFlightWrite = useCallback(() => {
+        dischargeDwell.current = null;
         writeGenRef.current += 1;
         deliveryController.current?.abort();
         // 세대만 올리면 늦은 응답은 무시되지만, sender에 남은 Replay heater는 그대로 나간다 (#368 R03).
@@ -313,6 +326,7 @@ export const useReplayControl = ({
     /** 렌더 중 확정된 중단 — 단조 증가만, StrictMode 이중 호출은 fail-closed.
      * 큐 취소도 여기서: effect까지 미루면 in-flight 슬롯이 비며 Replay heater가 먼저 나간다. */
     const bumpWriteGenOnRenderStop = () => {
+        dischargeDwell.current = null;
         writeGenRef.current += 1;
         deliveryController.current?.abort();
         cancelUnsentHeater();
@@ -555,6 +569,21 @@ export const useReplayControl = ({
         (lastValidReceivedAtMs === null || nowMs - lastValidReceivedAtMs > PROPOSED_OBSERVATION_STALE_LIMIT_MS);
     const observationHold = active && (observationQuality !== 'valid' || lastValidAgeHold);
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: each ownership boundary must restart physical confirmation
+    useEffect(() => {
+        dischargeDwell.current = null;
+    }, [
+        rawPlan,
+        active,
+        afterTurningPoint,
+        roasting,
+        reconnecting,
+        stopCause,
+        sessionId,
+        connectionEpoch,
+        pollIntervalMs,
+    ]);
+
     // 매 온도 샘플 판정. elapsed도 deps에 있어 BT가 정체해도 시간 트리거는 진행한다.
     // stopCause 가드: PID·연결 상태는 새 liveBt와 같은 커밋에 바뀔 수 있다 —
     // 위 중지 effect의 setActive(false)는 다음 렌더에나 반영되므로, 같은 커밋의 이
@@ -566,11 +595,76 @@ export const useReplayControl = ({
     // 무효인 채 elapsed만 흘러도 낡은 last-good으로 쓰지 않는다. 정상 복귀 후 이
     // effect가 다시 돌면 기존 Level/순서/catch-up이 최신 정상 샘플로 재평가한다.
     useEffect(() => {
+        let dischargeConfirmed = false;
+        const door = plan?.events.find((event) => event.kind === 'discharge_open');
+        // A render or elapsed tick cannot extend the physical hold; both clocks must advance on a new valid read.
+        const maxObservationGapMs = pollIntervalMs != null ? pollIntervalMs * 1.5 : 0;
+        if (
+            !active ||
+            stopCause != null ||
+            !roasting ||
+            reconnecting ||
+            !afterTurningPoint ||
+            !door ||
+            liveBt == null ||
+            !Number.isFinite(liveBt) ||
+            liveBt < door.bt ||
+            liveBt < 0 ||
+            liveBt > 400 ||
+            observationQuality !== 'valid' ||
+            pollIntervalMs == null ||
+            !Number.isFinite(pollIntervalMs) ||
+            pollIntervalMs <= 0 ||
+            pollIntervalMs > 1_000 ||
+            lastValidReceivedAtMs == null ||
+            !Number.isFinite(lastValidReceivedAtMs) ||
+            lastValidDeviceTimestamp == null ||
+            !Number.isFinite(lastValidDeviceTimestamp) ||
+            nowMs == null ||
+            !Number.isFinite(nowMs) ||
+            nowMs < lastValidReceivedAtMs ||
+            nowMs - lastValidReceivedAtMs > maxObservationGapMs
+        ) {
+            dischargeDwell.current = null;
+        } else {
+            const dwell = dischargeDwell.current;
+            const sameObservation =
+                dwell?.lastDeviceTimestamp === lastValidDeviceTimestamp &&
+                dwell.lastReceivedAtMs === lastValidReceivedAtMs;
+            if (!sameObservation) {
+                if (
+                    dwell &&
+                    (lastValidDeviceTimestamp <= dwell.lastDeviceTimestamp ||
+                        lastValidReceivedAtMs <= dwell.lastReceivedAtMs)
+                ) {
+                    dischargeDwell.current = null;
+                } else if (
+                    !dwell ||
+                    (lastValidDeviceTimestamp - dwell.lastDeviceTimestamp) * 1_000 > maxObservationGapMs ||
+                    lastValidReceivedAtMs - dwell.lastReceivedAtMs > maxObservationGapMs
+                ) {
+                    dischargeDwell.current = {
+                        firstDeviceTimestamp: lastValidDeviceTimestamp,
+                        lastDeviceTimestamp: lastValidDeviceTimestamp,
+                        // A cached valid read cannot backdate confirmation across rearming or a plan/TP reset.
+                        firstReceivedAtMs: nowMs,
+                        lastReceivedAtMs: lastValidReceivedAtMs,
+                    };
+                } else {
+                    dwell.lastDeviceTimestamp = lastValidDeviceTimestamp;
+                    dwell.lastReceivedAtMs = lastValidReceivedAtMs;
+                    dischargeConfirmed =
+                        lastValidDeviceTimestamp - dwell.firstDeviceTimestamp >= 1 &&
+                        lastValidReceivedAtMs - dwell.firstReceivedAtMs >= 1_000;
+                }
+            }
+        }
         if (!active || stopCause != null || !roasting || reconnecting || liveBt == null || plan == null) return;
         if (observationQuality !== 'valid' || lastValidAgeHold) return;
         if (writing) return;
         const result = judgeReplay(plan, index, { bt: liveBt, elapsed, afterTurningPoint });
         if (result.dischargeOpen) {
+            if (!dischargeConfirmed) return;
             if (
                 !dischargeOpenSupported ||
                 !writeDischargeOpen ||
@@ -663,6 +757,10 @@ export const useReplayControl = ({
         writing,
         observationQuality,
         lastValidAgeHold,
+        lastValidReceivedAtMs,
+        lastValidDeviceTimestamp,
+        pollIntervalMs,
+        nowMs,
         writeHeater,
         retryHeater,
         sessionId,

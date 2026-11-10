@@ -40,6 +40,8 @@ export interface MachineControlCompositionInput {
     observationQuality: ObservationQuality | null;
     /** Last-valid observation wall-clock for long-gap stop. null = this generation unknown */
     lastValidReceivedAtMs?: number | null;
+    lastValidDeviceTimestamp?: number | null;
+    pollIntervalMs?: number;
     nowMs?: number | null;
     /** 사용자·Replay가 화력 전송을 확정한 순간의 값 */
     onHeaterCommitted?: (value: number, unit: string) => void;
@@ -73,6 +75,8 @@ export const useMachineControlComposition = ({
     confirmedTurningPoint,
     observationQuality,
     lastValidReceivedAtMs,
+    lastValidDeviceTimestamp,
+    pollIntervalMs,
     nowMs,
     onHeaterCommitted,
     onCommitted,
@@ -179,6 +183,8 @@ export const useMachineControlComposition = ({
         reconnecting,
         observationQuality,
         lastValidReceivedAtMs,
+        lastValidDeviceTimestamp,
+        pollIntervalMs,
         nowMs,
         writeHeater,
         retryHeater: retryEpoch == null ? undefined : retryHeater,

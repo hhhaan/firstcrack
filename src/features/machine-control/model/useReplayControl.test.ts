@@ -93,6 +93,252 @@ describe('BT discharge replay', () => {
         liveBt: 205,
         elapsed: 300,
         confirmedTurningPoint: {},
+        lastValidReceivedAtMs: 10_000,
+        lastValidDeviceTimestamp: 10,
+        nowMs: 10_000,
+        pollIntervalMs: 500,
+    });
+    const sample = (
+        options: Partial<ReplayControlInputs>,
+        receivedAtMs: number,
+        over: Partial<ReplayControlInputs> = {},
+    ): Partial<ReplayControlInputs> => ({
+        ...options,
+        elapsed: 300 + (receivedAtMs - 10_000) / 1_000,
+        lastValidReceivedAtMs: receivedAtMs,
+        lastValidDeviceTimestamp: receivedAtMs / 1_000,
+        nowMs: receivedAtMs,
+        ...over,
+    });
+    const confirm = async (h: Awaited<ReturnType<typeof renderReplay>>, options: Partial<ReplayControlInputs>) => {
+        await h.rerender(sample(options, 10_500));
+        await h.rerender(sample(options, 11_000));
+    };
+
+    it('rejects a single spike and two brief highs separated by a below-target reading', async () => {
+        const options = inputs('door-short-highs');
+        const h = await renderReplay({ ...options, liveBt: 200 });
+        await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 10_500, { liveBt: 206 }));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 11_000, { liveBt: 200 }));
+        await h.rerender(sample(options, 11_500, { liveBt: 206 }));
+        await h.rerender(sample(options, 12_000, { liveBt: 206 }));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 12_500, { liveBt: 200 }));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    it.each([
+        { pollIntervalMs: 500, arrivals: [10_500, 11_000] },
+        { pollIntervalMs: 1_000, arrivals: [11_000] },
+        { pollIntervalMs: 500, arrivals: [10_550, 11_100] },
+        { pollIntervalMs: 1_000, arrivals: [11_200] },
+    ])('opens once after continuous fresh observations at $pollIntervalMs ms, including jitter', async (timing) => {
+        const options = {
+            ...inputs(`door-continuous-${JSON.stringify(timing)}`),
+            pollIntervalMs: timing.pollIntervalMs,
+        };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        for (const [index, arrival] of timing.arrivals.entries()) {
+            await h.rerender(sample(options, arrival));
+            expect(options.writeDischargeOpen).toHaveBeenCalledTimes(index === timing.arrivals.length - 1 ? 1 : 0);
+        }
+        await h.rerender(sample(options, 11_700));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('cannot open from wall time, elapsed ticks or repeated renders of one observation', async () => {
+        const options = inputs('door-render-clock');
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender({ ...options, nowMs: 10_500, elapsed: 300.5 });
+        await h.rerender({ ...options, nowMs: 11_000, elapsed: 301 });
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 11_000));
+        await h.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 12_000));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it.each([
+        { liveBt: 204.9 },
+        { liveBt: null },
+        { liveBt: Number.NaN },
+        { observationQuality: 'spike' as const },
+        { observationQuality: 'null' as const },
+        { observationQuality: 'stale' as const },
+        { observationQuality: 'retransmit' as const },
+        { observationQuality: 'poll_error' as const },
+        { observationQuality: null },
+        { reconnecting: true },
+        { confirmedTurningPoint: null },
+        { confirmedTurningPoint: { fallback: true } },
+        { lastValidDeviceTimestamp: 10.5 },
+        { lastValidDeviceTimestamp: 10.25 },
+        { lastValidReceivedAtMs: 10_500 },
+        { lastValidReceivedAtMs: null },
+        { nowMs: 10_749 },
+    ])('restarts confirmation after an invalid or interrupted observation %j', async (interruption) => {
+        const options = inputs(`door-reset-${crypto.randomUUID()}`);
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 10_500));
+        await h.rerender(sample(options, 10_750, interruption));
+        await h.rerender(sample(options, 11_000));
+        await h.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 12_000));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it.each([500, 1_000])('restarts after a missed observation at %i ms polling', async (pollIntervalMs) => {
+        const options = { ...inputs(`door-gap-${pollIntervalMs}`), pollIntervalMs };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        const afterGap = 10_000 + pollIntervalMs * 1.5 + 1;
+        await h.rerender(sample(options, afterGap));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, afterGap + pollIntervalMs));
+        expect(options.writeDischargeOpen).toHaveBeenCalledTimes(pollIntervalMs === 1_000 ? 1 : 0);
+        if (pollIntervalMs === 500) await h.rerender(sample(options, afterGap + 1_000));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it.each([
+        'off/on',
+        'manual',
+        'pid',
+        'disconnect',
+        'source',
+        'threshold',
+        'session',
+        'connection',
+        'TP',
+        'Drop',
+    ] as const)('cannot backdate confirmation with a cached observation after %s', async (boundary) => {
+        let options = inputs(`door-boundary-${boundary}`);
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        // No new sensor read: the ownership change arrives 700ms after the cached high reading.
+        options = { ...options, nowMs: 10_700 };
+        await h.rerender(options);
+        if (boundary === 'off/on') await act(async () => h.get().toggle());
+        if (boundary === 'manual') await act(async () => h.get().stop());
+        if (boundary === 'pid') await h.rerender({ ...options, pidEngaged: true });
+        if (boundary === 'disconnect') await h.rerender({ ...options, sidecarConnected: false });
+        if (boundary === 'source') {
+            options = { ...options, referenceDropTime: 600 };
+            await h.rerender(options);
+        }
+        if (boundary === 'threshold')
+            await act(async () =>
+                h.get().applyBatchEvents([
+                    { t: 0, bt: 180, heater: 80, trigger: 'time' },
+                    { kind: 'discharge_open', t: 300, bt: 204, trigger: 'bt' },
+                ]),
+            );
+        if (boundary === 'session') {
+            options = { ...options, sessionId: 'door-boundary-new-session' };
+            await h.rerender(options);
+        }
+        if (boundary === 'connection') {
+            options = { ...options, connectionEpoch: 8 };
+            await h.rerender(options);
+        }
+        if (boundary === 'TP') await h.rerender({ ...options, confirmedTurningPoint: null });
+        if (boundary === 'Drop') await h.rerender({ ...options, roastFinished: true });
+        await h.rerender(options);
+        if (!h.get().active) await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 11_000));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 12_000));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('requires a fresh observation after a pending heater acknowledgement even when dwell matured', async () => {
+        let resolve!: (value: number) => void;
+        const writeHeater = vi.fn(
+            () =>
+                new Promise<number>((done) => {
+                    resolve = done;
+                }),
+        );
+        const options = { ...inputs('door-pending-heater'), writeHeater };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await confirm(h, options);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await act(async () => resolve(80));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('discards confirmation across a view remount', async () => {
+        const options = inputs('door-remount-dwell');
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 10_500));
+        h.unmount();
+        const remounted = await renderReplay(sample(options, 11_000));
+        await act(async () => remounted.get().toggle());
+        await remounted.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await remounted.rerender(sample(options, 12_000));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        remounted.unmount();
+    });
+
+    it('resets below-target confirmation while a heater request is pending', async () => {
+        let resolve!: (value: number) => void;
+        const writeHeater = vi.fn(
+            () =>
+                new Promise<number>((done) => {
+                    resolve = done;
+                }),
+        );
+        const options = { ...inputs('door-low-pending-heater'), writeHeater };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 10_500));
+        await h.rerender(sample(options, 10_750, { liveBt: 200 }));
+        await h.rerender(sample(options, 11_000));
+        await act(async () => resolve(80));
+        await h.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        await h.rerender(sample(options, 12_000));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it.each([
+        { lastValidReceivedAtMs: undefined },
+        { lastValidDeviceTimestamp: undefined },
+        { nowMs: undefined },
+        { pollIntervalMs: undefined },
+    ])('fails closed for physical discharge with missing timing %j while preserving heater replay', async (missing) => {
+        const options = inputs(`door-missing-${Object.keys(missing).join()}`);
+        const h = await renderReplay({ ...options, ...missing });
+        await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 10_500, missing));
+        await h.rerender(sample(options, 11_000, missing));
+        expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        h.unmount();
     });
 
     it('delivers heat before the terminal door action, once, and stays armed for actual Drop zero', async () => {
@@ -100,6 +346,7 @@ describe('BT discharge replay', () => {
         const h = await renderReplay({ ...options, dropBehavior: 'zero' });
         await act(async () => h.get().toggle());
         expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
+        await confirm(h, { ...options, dropBehavior: 'zero' });
         expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
         expect(h.get().firedCount).toBe(2);
         expect(h.get().active).toBe(true);
@@ -134,6 +381,7 @@ describe('BT discharge replay', () => {
         );
         const h = await renderReplay(options);
         await act(async () => h.get().toggle());
+        await confirm(h, options);
         expect(h.get().stopReason).toBe('dischargeAttempted');
         expect(h.get().firedCount).toBe(2);
         await act(async () => h.get().toggle());
@@ -162,6 +410,7 @@ describe('BT discharge replay', () => {
         expect(h.get().active).toBe(false);
         expect(options.writeDischargeOpen).not.toHaveBeenCalled();
         await act(async () => h.get().toggle());
+        await confirm(h, { ...options, connectionEpoch: 8 });
         expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
         h.unmount();
     });
@@ -173,6 +422,7 @@ describe('BT discharge replay', () => {
         );
         const h = await renderReplay({ ...options, dropBehavior: 'zero' });
         await act(async () => h.get().toggle());
+        await confirm(h, { ...options, dropBehavior: 'zero' });
         expect(h.get().active).toBe(true);
         await h.rerender({ ...options, dropBehavior: 'zero', roastFinished: true });
         expect(h.writeHeater).toHaveBeenLastCalledWith(0, 'safety');
@@ -184,6 +434,7 @@ describe('BT discharge replay', () => {
         const options = { ...inputs('door-undo-auto-arm'), armOnCharge: true };
         const h = await renderReplay(options);
         await act(async () => h.get().toggle());
+        await confirm(h, options);
         await h.rerender({ ...options, roasting: false, roastFinished: true });
         const count = h.writeHeater.mock.calls.length;
         await h.rerender({ ...options, roasting: true, roastFinished: false });
@@ -260,6 +511,7 @@ describe('BT discharge replay', () => {
             const options = { ...inputs(`door-pending-${stop}`), writeDischargeOpen: write };
             const h = await renderReplay({ ...options, dropBehavior: 'zero' });
             await act(async () => h.get().toggle());
+            await confirm(h, { ...options, dropBehavior: 'zero' });
             expect(write).toHaveBeenCalledOnce();
             if (stop === 'off') await act(async () => h.get().toggle());
             if (stop === 'observation')

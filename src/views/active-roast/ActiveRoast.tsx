@@ -157,6 +157,7 @@ export const ActiveRoast = ({
         replayBt,
         observationQuality,
         lastValidReceivedAtMs,
+        lastValidDeviceTimestamp,
         feedbackReceivedAtMs,
     } = useRoastingStore(
         useShallow((s) => ({
@@ -171,6 +172,7 @@ export const ActiveRoast = ({
             replayBt: s.rawTemperature?.bt ?? null,
             observationQuality: s.observation?.quality ?? null,
             lastValidReceivedAtMs: s.observation?.lastValidReceivedAtMs ?? null,
+            lastValidDeviceTimestamp: s.observation?.lastValidDeviceTimestamp ?? null,
             feedbackReceivedAtMs: s.displayObservation?.receivedAtMs ?? null,
         })),
     );
@@ -898,6 +900,8 @@ export const ActiveRoast = ({
         confirmedTurningPoint: confirmedTP,
         observationQuality,
         lastValidReceivedAtMs,
+        lastValidDeviceTimestamp,
+        pollIntervalMs,
         // eslint-disable-next-line react-hooks/purity -- fresh wall-clock must stop stale Replay before this commit's write effects
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
