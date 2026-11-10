@@ -56,12 +56,12 @@ type Receipt = { label: string; error: string | null; sent?: Command };
 export const DoorCommandProbe = ({
     roaster,
     disabled,
-    hopperCommandsAllowed = false,
+    hopperOpenAllowed = false,
     hidden = false,
 }: {
     roaster: string | null;
     disabled: boolean;
-    hopperCommandsAllowed?: boolean;
+    hopperOpenAllowed?: boolean;
     hidden?: boolean;
 }) => {
     const { t } = useTranslation();
@@ -72,7 +72,7 @@ export const DoorCommandProbe = ({
     if (roaster !== 'giesen_w45a_w60a' && roaster !== 'virtual') return null;
 
     const send = async (id: Device['id'], action: Command, label: string) => {
-        if (disabled || hidden || inFlight.current || (id === 'fill' && !hopperCommandsAllowed)) return;
+        if (disabled || hidden || inFlight.current || (action === 'fill_open' && !hopperOpenAllowed)) return;
         inFlight.current = true;
         setPending(action);
         try {
@@ -118,10 +118,7 @@ export const DoorCommandProbe = ({
                             aria-label={t(`machines.doorProbe.${fullLabel}`)}
                             aria-pressed={receipt?.sent === action}
                             disabled={
-                                disabled ||
-                                hidden ||
-                                pending !== null ||
-                                (device.id === 'fill' && !hopperCommandsAllowed)
+                                disabled || hidden || pending !== null || (action === 'fill_open' && !hopperOpenAllowed)
                             }
                             data-primary={receipt?.sent === action ? '' : undefined}
                             onClick={() => void send(device.id, action, label)}

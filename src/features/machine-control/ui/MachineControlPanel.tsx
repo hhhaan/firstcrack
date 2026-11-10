@@ -27,7 +27,7 @@ interface Props {
     hotkeysEnabled?: boolean;
     /** Saved curve is on screen. Sliders, Replay, and the heat editor stay off. */
     commandsLocked?: boolean;
-    hopperCommandsAllowed?: boolean;
+    hopperOpenAllowed?: boolean;
 }
 
 /**
@@ -45,7 +45,7 @@ export const MachineControlPanel = ({
     temperatureUnit,
     hotkeysEnabled = false,
     commandsLocked = false,
-    hopperCommandsAllowed = false,
+    hopperOpenAllowed = false,
 }: Props) => {
     const entitled = useFeature(FEATURE.machineControl);
     const replayEntitled = useFeature(FEATURE.machineReplay);
@@ -107,7 +107,7 @@ export const MachineControlPanel = ({
                     hidden={collapsed}
                     roaster={machine.connectionStatus?.roaster ?? null}
                     disabled={commandsLocked || !writable}
-                    hopperCommandsAllowed={hopperCommandsAllowed}
+                    hopperOpenAllowed={hopperOpenAllowed}
                 />
                 <MachineControlChannels
                     limits={limits}

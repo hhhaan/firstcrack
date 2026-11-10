@@ -872,7 +872,7 @@
             "stirrerOn": "搅拌开",
             "stirrerOff": "搅拌关",
             "failed": "无法发送命令。",
-            "hopperUnavailable": "仅在设备已连接且处于预热或投料等待状态时，才能操作投料门。",
+            "hopperOpenUnavailable": "仅在设备已连接且处于预热或投料等待状态时，才能打开投料门。",
             "doors": "投料·出料",
             "cooling": "冷却盘",
             "fill": "投料门",

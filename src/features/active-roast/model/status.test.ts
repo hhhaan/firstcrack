@@ -1,4 +1,4 @@
-import { canSendHopperCommand } from '@shared/lib/hopperCommandGuard';
+import { canOpenHopper } from '@shared/lib/hopperOpenGuard';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { reduceSensorObservation, sensorObservationTick } from '../lib/sensorObservation';
 import { useRoastingStore } from './status';
@@ -20,16 +20,16 @@ afterEach(() => {
     useRoastingStore.getState().reset();
 });
 
-describe('hopper command admission', () => {
+describe('hopper opening admission', () => {
     it.each(['idle', 'preheating', 'standby', 'roasting', 'ended'] as const)(
         'reads the current %s phase for manual and automatic commands',
         (phase) => {
             useRoastingStore.setState({ phase, sidecarConnected: true, reconnecting: false });
-            expect(canSendHopperCommand()).toBe(phase === 'preheating' || phase === 'standby');
+            expect(canOpenHopper()).toBe(phase === 'preheating' || phase === 'standby');
             useRoastingStore.setState({ sidecarConnected: false });
-            expect(canSendHopperCommand()).toBe(false);
+            expect(canOpenHopper()).toBe(false);
             useRoastingStore.setState({ sidecarConnected: true, reconnecting: true });
-            expect(canSendHopperCommand()).toBe(false);
+            expect(canOpenHopper()).toBe(false);
         },
     );
     it('allows BBP wait, blocks Charge immediately, and does not trust stale wait flags', () => {
@@ -39,19 +39,19 @@ describe('hopper command admission', () => {
             reconnecting: false,
             awaitingNextCharge: true,
         });
-        expect(canSendHopperCommand()).toBe(true);
+        expect(canOpenHopper()).toBe(true);
         useRoastingStore.getState().startCharge();
-        expect(canSendHopperCommand()).toBe(false);
+        expect(canOpenHopper()).toBe(false);
         useRoastingStore.setState({ awaitingNextCharge: true, heatHoldAfterDrop: true });
-        expect(canSendHopperCommand()).toBe(false);
+        expect(canOpenHopper()).toBe(false);
         expect(useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false })).not.toBeNull();
-        expect(canSendHopperCommand()).toBe(true);
+        expect(canOpenHopper()).toBe(true);
         expect(useRoastingStore.getState().cancelDrop()).not.toBeNull();
-        expect(canSendHopperCommand()).toBe(false);
+        expect(canOpenHopper()).toBe(false);
         useRoastingStore.getState().resetCurrentBatch({ chargeWait: true });
-        expect(canSendHopperCommand()).toBe(true);
+        expect(canOpenHopper()).toBe(true);
         useRoastingStore.getState().setConnected(false);
-        expect(canSendHopperCommand()).toBe(false);
+        expect(canOpenHopper()).toBe(false);
     });
 });
 

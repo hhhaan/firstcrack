@@ -39,8 +39,8 @@ const renderProbe = (roaster: string | null = 'giesen_w45a_w60a') => {
     document.body.append(host);
     const root = createRoot(host);
     roots.push(root);
-    const render = (disabled = false, hidden = false, hopperCommandsAllowed = true) =>
-        act(() => root.render(createElement(DoorCommandProbe, { roaster, disabled, hidden, hopperCommandsAllowed })));
+    const render = (disabled = false, hidden = false, hopperOpenAllowed = true) =>
+        act(() => root.render(createElement(DoorCommandProbe, { roaster, disabled, hidden, hopperOpenAllowed })));
     render();
     const open = async () => {
         await act(async () => buttonNamed('machines.doorProbe.title').click());
@@ -127,28 +127,40 @@ describe('DoorCommandProbe equipment popover', () => {
         expect(document.querySelector('[aria-busy="true"]')).toBeNull();
         expect(command('dischargeOpen').disabled).toBe(false);
     });
-    it('keeps the read-only lock when it changes while the popup is open', async () => {
+    it.each([
+        ['fillOpen', 'fill_open'],
+        ['fillClose', 'fill_close'],
+    ])('keeps the read-only lock for %s when it changes while the popup is open', async (label, action) => {
         const { open, render } = renderProbe();
         await open();
         render(true);
-        await act(async () => command('fillOpen').click());
+        await act(async () => command(label).click());
         expect(doorProbe).not.toHaveBeenCalled();
         render(false);
-        await act(async () => command('fillOpen').click());
-        expect(doorProbe).toHaveBeenCalledExactlyOnceWith('fill_open');
+        await act(async () => command(label).click());
+        expect(doorProbe).toHaveBeenCalledExactlyOnceWith(action);
     });
-    it('locks both hopper actions when Charge starts with the popup open, keeping other equipment usable', async () => {
+    it('locks hopper opening when Charge starts with the popup open and keeps closing available', async () => {
         const { open, render } = renderProbe();
         await open();
         render(false, false, false);
-        for (const label of ['fillOpen', 'fillClose']) {
-            expect(command(label).disabled).toBe(true);
-            await act(async () => command(label).click());
-        }
+        expect(command('fillOpen').disabled).toBe(true);
+        await act(async () => command('fillOpen').click());
         expect(doorProbe).not.toHaveBeenCalled();
-        for (const label of ['dischargeOpen', 'dischargeClose', 'coolingOn', 'coolingOff', 'stirrerOn', 'stirrerOff']) {
+        for (const label of [
+            'fillClose',
+            'dischargeOpen',
+            'dischargeClose',
+            'coolingOn',
+            'coolingOff',
+            'stirrerOn',
+            'stirrerOff',
+        ]) {
             expect(command(label).disabled).toBe(false);
         }
+        await act(async () => command('fillClose').click());
+        expect(doorProbe).toHaveBeenCalledExactlyOnceWith('fill_close');
+        doorProbe.mockClear();
         await act(async () => command('dischargeOpen').click());
         expect(doorProbe).toHaveBeenCalledExactlyOnceWith('discharge_open');
         render(false, false, true);

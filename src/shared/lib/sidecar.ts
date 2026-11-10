@@ -10,7 +10,7 @@ import type {
 } from '@shared/types/sidecar';
 import { invoke } from '@tauri-apps/api/core';
 import { isOpaqueNetworkError, isSidecarStartingError } from './errorMessage';
-import { canSendHopperCommand } from './hopperCommandGuard';
+import { canOpenHopper } from './hopperOpenGuard';
 import {
     captureActionable,
     captureSidecarReadinessFailure,
@@ -275,8 +275,8 @@ export const sidecar = {
     /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
     doorProbe: async (action: DoorProbeAction, options?: { connectionEpoch: number; signal: AbortSignal }) => {
         const guard = () => {
-            if ((action === 'fill_open' || action === 'fill_close') && !canSendHopperCommand()) {
-                throw new SidecarHttpError('/door-probe', 409, i18n.t('machines.doorProbe.hopperUnavailable'));
+            if (action === 'fill_open' && !canOpenHopper()) {
+                throw new SidecarHttpError('/door-probe', 409, i18n.t('machines.doorProbe.hopperOpenUnavailable'));
             }
         };
         try {

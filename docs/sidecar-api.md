@@ -849,7 +849,7 @@ The metadata records the actual sidecar RoR window, BT RoR EMA, ET RoR EMA, disp
 
 ## POST /door-probe — W60A actuator commands
 
-The application's shared `sidecar.doorProbe` entry point permits `fill_open` and `fill_close` only while the live roast store is connected, not reconnecting, and in preheat or Charge wait (`preheating` / `standby`, including BBP after Drop). Both hopper buttons use the same admission predicate. Manual and future automatic callers are checked again after authentication resolves, immediately before HTTP dispatch. This is an application guard: raw authenticated HTTP requests bypass it, and a command already dispatched to the sidecar/PLC cannot be revoked by a subsequent Charge.
+The application's shared `sidecar.doorProbe` entry point permits `fill_open` only while the live roast store is connected, not reconnecting, and in preheat or Charge wait (`preheating` / `standby`, including BBP after Drop). The hopper Open button uses the same admission predicate; `fill_close` remains available during roasting, subject to the normal connection, read-only and in-flight command gates. Manual and future automatic opening callers are checked again after authentication resolves, immediately before HTTP dispatch. This is an application guard: raw authenticated HTTP requests bypass it, and a command already dispatched to the sidecar/PLC cannot be revoked by a subsequent Charge.
 
 Requires a connected `giesen_w45a_w60a` S7 machine (or the simulator). Body: `{ "action": "fill_open" }`.
 
