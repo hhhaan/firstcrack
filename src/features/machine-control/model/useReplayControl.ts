@@ -1,8 +1,17 @@
+import { isSidecarHttpError } from '@shared/lib/sidecar';
+import type { DoorProbeResult } from '@shared/types/sidecar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
 import { deliverHeaterCommand } from '../lib/heaterDelivery';
 import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import {
+    appendReplayDischargeAudit,
+    type DischargeDwellEvidence,
+    type DischargeObservation,
+    type ReplayDischargeAudit,
+    reportReplayDischargeAuditFailure,
+} from '../lib/replayDischargeAudit';
 import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
@@ -76,8 +85,9 @@ export interface ReplayControlInputs {
     retryHeater?: (value: number) => Promise<number | null>;
     connectionEpoch?: number;
     dischargeOpenSupported?: boolean;
+    roaster?: string | null;
     /** One physical command attempt; no automatic retry or movement confirmation. */
-    writeDischargeOpen?: (signal: AbortSignal) => Promise<boolean>;
+    writeDischargeOpen?: (signal: AbortSignal) => Promise<DoorProbeResult | null>;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
      */
@@ -188,6 +198,7 @@ export const useReplayControl = ({
     retryHeater,
     connectionEpoch,
     dischargeOpenSupported = false,
+    roaster = null,
     writeDischargeOpen,
     cancelUnsentHeater,
     heaterMax,
@@ -293,12 +304,8 @@ export const useReplayControl = ({
     const [writing, setWriting] = useState(false);
     const [deliveryAttempt, setDeliveryAttempt] = useState(0);
     const deliveryController = useRef<AbortController | null>(null);
-    const dischargeDwell = useRef<{
-        firstDeviceTimestamp: number;
-        lastDeviceTimestamp: number;
-        firstReceivedAtMs: number;
-        lastReceivedAtMs: number;
-    } | null>(null);
+    const dischargeDwell = useRef<DischargeDwellEvidence | null>(null);
+    const dischargeObservation = useRef<{ sample: DischargeObservation; monotonicMs: number } | null>(null);
     const writeGenRef = useRef(0);
     const [safeOffNonce, setSafeOffNonce] = useState(0);
     const [pendingWrite, setPendingWrite] = useState<{
@@ -626,7 +633,18 @@ export const useReplayControl = ({
             nowMs - lastValidReceivedAtMs > maxObservationGapMs
         ) {
             dischargeDwell.current = null;
+            dischargeObservation.current = null;
         } else {
+            const observation: DischargeObservation = {
+                rawBt: liveBt,
+                elapsed,
+                deviceTimestamp: lastValidDeviceTimestamp,
+                receivedAtMs: lastValidReceivedAtMs,
+                judgedAtMs: nowMs,
+                ageMs: nowMs - lastValidReceivedAtMs,
+                quality: 'valid',
+            };
+            dischargeObservation.current = { sample: observation, monotonicMs: performance.now() };
             const dwell = dischargeDwell.current;
             const sameObservation =
                 dwell?.lastDeviceTimestamp === lastValidDeviceTimestamp &&
@@ -638,6 +656,7 @@ export const useReplayControl = ({
                         lastValidReceivedAtMs <= dwell.lastReceivedAtMs)
                 ) {
                     dischargeDwell.current = null;
+                    dischargeObservation.current = null;
                 } else if (
                     !dwell ||
                     (lastValidDeviceTimestamp - dwell.lastDeviceTimestamp) * 1_000 > maxObservationGapMs ||
@@ -649,10 +668,29 @@ export const useReplayControl = ({
                         // A cached valid read cannot backdate confirmation across rearming or a plan/TP reset.
                         firstReceivedAtMs: nowMs,
                         lastReceivedAtMs: lastValidReceivedAtMs,
+                        count: 1,
+                        minRawBt: liveBt,
+                        maxRawBt: liveBt,
+                        maxDeviceGapMs: 0,
+                        maxReceiptGapMs: 0,
+                        samples: [observation],
                     };
                 } else {
+                    dwell.maxDeviceGapMs = Math.max(
+                        dwell.maxDeviceGapMs,
+                        (lastValidDeviceTimestamp - dwell.lastDeviceTimestamp) * 1_000,
+                    );
+                    dwell.maxReceiptGapMs = Math.max(
+                        dwell.maxReceiptGapMs,
+                        lastValidReceivedAtMs - dwell.lastReceivedAtMs,
+                    );
                     dwell.lastDeviceTimestamp = lastValidDeviceTimestamp;
                     dwell.lastReceivedAtMs = lastValidReceivedAtMs;
+                    dwell.count += 1;
+                    dwell.minRawBt = Math.min(dwell.minRawBt, liveBt);
+                    dwell.maxRawBt = Math.max(dwell.maxRawBt, liveBt);
+                    dwell.samples.push(observation);
+                    if (dwell.samples.length > 64) dwell.samples.splice(1, 1);
                     dischargeConfirmed =
                         lastValidDeviceTimestamp - dwell.firstDeviceTimestamp >= 1 &&
                         lastValidReceivedAtMs - dwell.firstReceivedAtMs >= 1_000;
@@ -679,6 +717,29 @@ export const useReplayControl = ({
                 setStopReason('dischargeAttempted');
                 return;
             }
+            const dwell = dischargeDwell.current;
+            const observation = dischargeObservation.current;
+            if (!dwell || !observation || !door || pollIntervalMs == null) return;
+            const commandId = crypto.randomUUID();
+            const intent: ReplayDischargeAudit = {
+                kind: 'intent',
+                schemaVersion: 1,
+                commandId,
+                recordedAtMs: Date.now(),
+                appVersion: __APP_VERSION__,
+                sessionId,
+                connectionEpoch,
+                roaster,
+                temperatureUnit: 'celsius',
+                afterTurningPoint: true,
+                stepIndex: index,
+                requested: { action: 'discharge_open', command: 5, targetBt: door.bt, t: door.t, trigger: 'bt' },
+                plan,
+                policy: { requiredDwellMs: 1000, pollIntervalMs, maxObservationGapMs },
+                observation: observation.sample,
+                dwell,
+                physicalDoorState: 'unknown',
+            };
             dischargeAttemptedSessions.add(sessionId);
             setStopReason('dischargeAttempted');
             // Delivery can be ambiguous. Consume this terminal action before sending, keeping real Drop safe-off armed.
@@ -695,18 +756,88 @@ export const useReplayControl = ({
             });
             setDeliveryAttempt(1);
             setWriting(true);
-            void writeDischargeOpen(controller.signal)
-                .catch(() => false)
-                .then((sent) => {
-                    if (gen !== writeGenRef.current) return;
-                    setPendingWrite(null);
-                    setWriting(false);
-                    if (sent) {
-                        return;
-                    } else {
-                        setStopReason('dischargeAttempted');
+            void (async () => {
+                try {
+                    await appendReplayDischargeAudit(intent);
+                } catch (error) {
+                    reportReplayDischargeAuditFailure(error);
+                    if (gen === writeGenRef.current) {
+                        setPendingWrite(null);
+                        setWriting(false);
                     }
-                });
+                    return;
+                }
+                let outcome: Extract<ReplayDischargeAudit, { kind: 'result' }>['outcome'] = 'cancelled_before_dispatch';
+                let dispatchedAtMs: number | null = null;
+                let dispatchObservation: DischargeObservation | null = null;
+                let response: DoorProbeResult | null = null;
+                let error: Extract<ReplayDischargeAudit, { kind: 'result' }>['error'] = null;
+                const latest = dischargeObservation.current;
+                const currentDwell = dischargeDwell.current;
+                // Disk IO can stall while React receives new observations, or while the entire UI is paused.
+                const ageMs = latest
+                    ? latest.sample.ageMs + performance.now() - latest.monotonicMs
+                    : Number.POSITIVE_INFINITY;
+                if (
+                    gen === writeGenRef.current &&
+                    !controller.signal.aborted &&
+                    latest &&
+                    currentDwell === dwell &&
+                    currentDwell.lastDeviceTimestamp - currentDwell.firstDeviceTimestamp >= 1 &&
+                    currentDwell.lastReceivedAtMs - currentDwell.firstReceivedAtMs >= 1_000 &&
+                    ageMs <= maxObservationGapMs
+                ) {
+                    dispatchObservation = {
+                        ...latest.sample,
+                        judgedAtMs: latest.sample.receivedAtMs + ageMs,
+                        ageMs,
+                    };
+                    dispatchedAtMs = Date.now();
+                    try {
+                        response = await writeDischargeOpen(controller.signal);
+                        outcome =
+                            response == null ? 'cancelled_before_dispatch' : response.wrote === 5 ? 'sent' : 'failed';
+                        if (response == null) dispatchedAtMs = null;
+                    } catch (cause) {
+                        // A lost/aborted response cannot establish whether the sidecar sent the command.
+                        outcome = 'unconfirmed';
+                        error = isSidecarHttpError(cause)
+                            ? { kind: 'sidecar', status: cause.status }
+                            : {
+                                  kind:
+                                      (cause instanceof Error || cause instanceof DOMException) &&
+                                      cause.name === 'AbortError'
+                                          ? 'abort'
+                                          : (cause instanceof Error || cause instanceof DOMException) &&
+                                              cause.name === 'TimeoutError'
+                                            ? 'timeout'
+                                            : 'unknown',
+                              };
+                    }
+                }
+                try {
+                    await appendReplayDischargeAudit({
+                        kind: 'result',
+                        schemaVersion: 1,
+                        commandId,
+                        recordedAtMs: Date.now(),
+                        outcome,
+                        dispatchedAtMs,
+                        dispatchObservation,
+                        response,
+                        error,
+                        aborted: controller.signal.aborted,
+                        physicalDoorState: 'unknown',
+                    });
+                } catch (error) {
+                    reportReplayDischargeAuditFailure(error);
+                } finally {
+                    if (gen === writeGenRef.current) {
+                        setPendingWrite(null);
+                        setWriting(false);
+                    }
+                }
+            })();
             return;
         }
         if (result.nextIndex === index || result.heater == null) return;
@@ -767,6 +898,7 @@ export const useReplayControl = ({
         connectionEpoch,
         dischargeOpenSupported,
         writeDischargeOpen,
+        roaster,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;

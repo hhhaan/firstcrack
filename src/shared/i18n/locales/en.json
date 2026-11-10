@@ -860,6 +860,7 @@
         "sidecarStarting": "Preparing to connect...",
         "linkUnstable": "Machine connection is unstable. Check the cable and network.",
         "gasOffUnconfirmed": "Zero heat feedback has not been confirmed after the gas-off command. Check the actual heat and use the machine controls if needed.",
+        "replayDischargeAuditFailed": "The automatic discharge audit record could not be saved. Automatic opening was held if it had not been sent. Check the door and use the machine controls if needed.",
         "doorProbe": {
             "title": "Doors & cooling",
             "fillOpen": "Open intake",

@@ -147,9 +147,8 @@ export const useMachineControlComposition = ({
     const dischargeOpenSupported = supportsDischargeOpen(machine.connectionStatus?.roaster);
     const writeDischargeOpen = useCallback(
         async (signal: AbortSignal) => {
-            if (!dischargeOpenSupported || retryEpoch == null || signal.aborted) return false;
-            const result = await sidecar.doorProbe('discharge_open', { connectionEpoch: retryEpoch, signal });
-            return result.wrote === 5;
+            if (!dischargeOpenSupported || retryEpoch == null || signal.aborted) return null;
+            return sidecar.doorProbe('discharge_open', { connectionEpoch: retryEpoch, signal });
         },
         [dischargeOpenSupported, retryEpoch],
     );
@@ -190,6 +189,7 @@ export const useMachineControlComposition = ({
         retryHeater: retryEpoch == null ? undefined : retryHeater,
         connectionEpoch: retryEpoch,
         dischargeOpenSupported,
+        roaster: machine.connectionStatus?.roaster,
         writeDischargeOpen,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,

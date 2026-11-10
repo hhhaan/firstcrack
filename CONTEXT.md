@@ -154,6 +154,10 @@ _Avoid_: Automatic Drop detection. Confirmed door movement. A heater setpoint.
 기준 로스팅의 Heat set 명령을 시간·온도 조건에 맞춰 적용하는 운전 보조. 명령의 재현은 온도 커브나 향미 결과의 일치를 뜻하지 않는다.
 _Avoid_: A manual gas change.
 
+**Discharge decision audit**:
+A local append-only record of a Replay discharge-open attempt. Before dispatch it records the requested BT threshold and plan, the raw probe BT recognized by the app, collection/receipt clocks and the qualifying dwell observations. A correlated result records transport acknowledgement, failure, uncertainty or cancellation; it never confirms physical door movement. It survives roast save, Drop undo and app restart independently of the roast curve. Missing audit storage blocks the automatic attempt without retrying it.
+_Avoid_: A physical door sensor record. A tamper-proof incident report. A Sentry breadcrumb.
+
 **Event mapping**:
 기록된 화력 명령을 화력 재현 계획의 화력 변경 조건에 연결하는 것.
 _Avoid_: A temperature-curve target as a synonym for a command's replay condition.

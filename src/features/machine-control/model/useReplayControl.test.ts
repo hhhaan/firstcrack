@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 
 import { logger } from '@shared/lib/logger';
+import { SidecarHttpError } from '@shared/lib/sidecar';
+import type { DoorProbeResult } from '@shared/types/sidecar';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +10,14 @@ import { type ControlCommand, createControlSender } from '../lib/controlSender';
 import { createGasOffDiagnostics } from '../lib/gasOffDiagnostics';
 import { HEATER_RETRY_DELAY_MS } from '../lib/heaterDelivery';
 import type { ReplayPoint } from '../lib/replay';
+import { appendReplayDischargeAudit, reportReplayDischargeAuditFailure } from '../lib/replayDischargeAudit';
+
+vi.mock('../lib/replayDischargeAudit', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../lib/replayDischargeAudit')>()),
+    appendReplayDischargeAudit: vi.fn(async () => {}),
+    reportReplayDischargeAuditFailure: vi.fn(),
+}));
+
 import { PROPOSED_OBSERVATION_STALE_LIMIT_MS, type ReplayControlInputs, useReplayControl } from './useReplayControl';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -79,12 +89,29 @@ const renderReplay = async (initial: Partial<ReplayControlInputs> = {}) => {
     };
 };
 
+const doorResponse = (wrote: number | null = 5): DoorProbeResult => ({
+    action: 'discharge_open',
+    wrote,
+    command_before: null,
+    command_after: null,
+    command_held: null,
+    discharge_open_before: null,
+    discharge_open_after: null,
+});
+
 describe('BT discharge replay', () => {
+    beforeEach(() => {
+        vi.mocked(appendReplayDischargeAudit).mockReset().mockResolvedValue();
+        vi.mocked(reportReplayDischargeAuditFailure).mockClear();
+    });
     const plan = [
         { t: 0, bt: 180, heater: 80, trigger: 'time' },
         { kind: 'discharge_open', t: 300, bt: 205, trigger: 'bt' },
     ];
-    const inputs = (sessionId: string, writeDischargeOpen = vi.fn(async () => true)): Partial<ReplayControlInputs> => ({
+    const inputs = (
+        sessionId: string,
+        writeDischargeOpen = vi.fn(async () => doorResponse()),
+    ): Partial<ReplayControlInputs> => ({
         sessionId,
         connectionEpoch: 7,
         dischargeOpenSupported: true,
@@ -114,6 +141,213 @@ describe('BT discharge replay', () => {
         await h.rerender(sample(options, 10_500));
         await h.rerender(sample(options, 11_000));
     };
+
+    it('persists the intended condition and qualifying raw observations before sending, then the delivery response', async () => {
+        let finishIntent!: () => void;
+        vi.mocked(appendReplayDischargeAudit).mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    finishIntent = resolve;
+                }),
+        );
+        const options = { ...inputs('door-audit-payload'), roaster: 'virtual' };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await h.rerender(sample(options, 10_500, { liveBt: 206 }));
+        await h.rerender(sample(options, 11_000, { liveBt: 207 }));
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        expect(appendReplayDischargeAudit).toHaveBeenCalledOnce();
+        const intent = vi.mocked(appendReplayDischargeAudit).mock.calls[0][0];
+        expect(intent).toMatchObject({
+            kind: 'intent',
+            schemaVersion: 1,
+            sessionId: 'door-audit-payload',
+            connectionEpoch: 7,
+            roaster: 'virtual',
+            temperatureUnit: 'celsius',
+            afterTurningPoint: true,
+            stepIndex: 1,
+            requested: { action: 'discharge_open', command: 5, targetBt: 205, t: 300, trigger: 'bt' },
+            policy: { requiredDwellMs: 1000, pollIntervalMs: 500, maxObservationGapMs: 750 },
+            observation: {
+                rawBt: 207,
+                elapsed: 301,
+                deviceTimestamp: 11,
+                receivedAtMs: 11_000,
+                ageMs: 0,
+                quality: 'valid',
+            },
+            dwell: {
+                count: 3,
+                minRawBt: 205,
+                maxRawBt: 207,
+                firstDeviceTimestamp: 10,
+                lastDeviceTimestamp: 11,
+                firstReceivedAtMs: 10_000,
+                lastReceivedAtMs: 11_000,
+                maxDeviceGapMs: 500,
+                maxReceiptGapMs: 500,
+                samples: [{ rawBt: 205 }, { rawBt: 206 }, { rawBt: 207 }],
+            },
+            physicalDoorState: 'unknown',
+        });
+        await act(async () => finishIntent());
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        expect(appendReplayDischargeAudit).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                kind: 'result',
+                commandId: intent.commandId,
+                outcome: 'sent',
+                response: doorResponse(),
+                dispatchObservation: expect.objectContaining({ rawBt: 207 }),
+                physicalDoorState: 'unknown',
+            }),
+        );
+        h.unmount();
+    });
+
+    it('blocks physical dispatch after an audit failure and never retries, including remount', async () => {
+        const error = new Error('disk unavailable');
+        vi.mocked(appendReplayDischargeAudit).mockRejectedValueOnce(error);
+        const options = inputs('door-audit-failure');
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await confirm(h, options);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        expect(reportReplayDischargeAuditFailure).toHaveBeenCalledExactlyOnceWith(error);
+        expect(h.get().deliveryAttempt).toBe(0);
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().toggle());
+        h.unmount();
+        const remounted = await renderReplay(options);
+        await act(async () => remounted.get().toggle());
+        await confirm(remounted, options);
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        expect(appendReplayDischargeAudit).toHaveBeenCalledOnce();
+        remounted.unmount();
+    });
+
+    it.each(['off', 'quality', 'below_threshold', 'connection', 'profile', 'unmount', 'stalled_clock'] as const)(
+        'records cancellation without sending if intent persistence waits across %s',
+        async (boundary) => {
+            let finishIntent!: () => void;
+            vi.mocked(appendReplayDischargeAudit).mockImplementationOnce(
+                () =>
+                    new Promise<void>((resolve) => {
+                        finishIntent = resolve;
+                    }),
+            );
+            const options = inputs(`door-audit-wait-${boundary}`);
+            const h = await renderReplay(options);
+            await act(async () => h.get().toggle());
+            await confirm(h, options);
+            expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+            let clock: ReturnType<typeof vi.spyOn> | undefined;
+            if (boundary === 'off') await act(async () => h.get().toggle());
+            if (boundary === 'quality') await h.rerender(sample(options, 11_250, { observationQuality: 'spike' }));
+            if (boundary === 'below_threshold') {
+                await h.rerender(sample(options, 11_250, { liveBt: 200 }));
+                await h.rerender(sample(options, 11_500));
+                await h.rerender(sample(options, 12_000));
+                await h.rerender(sample(options, 12_500));
+            }
+            if (boundary === 'connection') await h.rerender(sample(options, 11_250, { connectionEpoch: 8 }));
+            if (boundary === 'profile') await h.rerender(sample(options, 11_250, { profileHeaterEvents: null }));
+            if (boundary === 'unmount') h.unmount();
+            if (boundary === 'stalled_clock')
+                clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 1_000);
+            await act(async () => finishIntent());
+            clock?.mockRestore();
+            expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+            expect(appendReplayDischargeAudit).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    kind: 'result',
+                    outcome: 'cancelled_before_dispatch',
+                    dispatchedAtMs: null,
+                    response: null,
+                }),
+            );
+            if (boundary !== 'unmount') h.unmount();
+        },
+    );
+
+    it('revalidates and records a newer valid observation received while intent persistence waits', async () => {
+        let finishIntent!: () => void;
+        vi.mocked(appendReplayDischargeAudit).mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    finishIntent = resolve;
+                }),
+        );
+        const options = inputs('door-audit-new-observation');
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await confirm(h, options);
+        await h.rerender(sample(options, 11_500, { liveBt: 208 }));
+        await act(async () => finishIntent());
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        expect(appendReplayDischargeAudit).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                kind: 'result',
+                outcome: 'sent',
+                dispatchObservation: expect.objectContaining({ rawBt: 208, receivedAtMs: 11_500 }),
+            }),
+        );
+        h.unmount();
+    });
+
+    it.each(['refused', 'timeout', 'abort'] as const)(
+        'retains the terminal %s outcome after unmount',
+        async (failure) => {
+            let reject!: (reason: unknown) => void;
+            const writeDischargeOpen = vi.fn(
+                () =>
+                    new Promise<DoorProbeResult>((_resolve, fail) => {
+                        reject = fail;
+                    }),
+            );
+            const options = { ...inputs(`door-audit-result-${failure}`), writeDischargeOpen };
+            const h = await renderReplay(options);
+            await act(async () => h.get().toggle());
+            await confirm(h, options);
+            h.unmount();
+            const error =
+                failure === 'abort'
+                    ? new DOMException('secret text', 'AbortError')
+                    : new SidecarHttpError('/private-path', failure === 'refused' ? 409 : 'timeout', 'secret text');
+            await act(async () => reject(error));
+            expect(appendReplayDischargeAudit).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    kind: 'result',
+                    outcome: 'unconfirmed',
+                    aborted: true,
+                    error:
+                        failure === 'abort'
+                            ? { kind: 'abort' }
+                            : { kind: 'sidecar', status: failure === 'refused' ? 409 : 'timeout' },
+                }),
+            );
+            expect(JSON.stringify(vi.mocked(appendReplayDischargeAudit).mock.calls)).not.toContain('secret text');
+            expect(JSON.stringify(vi.mocked(appendReplayDischargeAudit).mock.calls)).not.toContain('private-path');
+            expect(writeDischargeOpen).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('isolates a result-persistence failure from physical delivery and cleanup', async () => {
+        vi.mocked(appendReplayDischargeAudit)
+            .mockResolvedValueOnce()
+            .mockRejectedValueOnce(new Error('result IO failed'));
+        const options = inputs('door-audit-result-persistence');
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await confirm(h, options);
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        expect(h.get().deliveryAttempt).toBe(0);
+        expect(reportReplayDischargeAuditFailure).toHaveBeenCalledOnce();
+        await h.rerender(sample(options, 11_500));
+        expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+        h.unmount();
+    });
 
     it('rejects a single spike and two brief highs separated by a below-target reading', async () => {
         const options = inputs('door-short-highs');
@@ -377,7 +611,7 @@ describe('BT discharge replay', () => {
     it('does not retry an ambiguous failure, including OFF/ON, edits, source changes and remount', async () => {
         const options = inputs(
             'door-failed-remount',
-            vi.fn(async () => false),
+            vi.fn(async () => doorResponse(null)),
         );
         const h = await renderReplay(options);
         await act(async () => h.get().toggle());
@@ -418,7 +652,7 @@ describe('BT discharge replay', () => {
     it('keeps actual Drop zero after failure without issuing another physical command', async () => {
         const options = inputs(
             'door-failed-drop',
-            vi.fn(async () => false),
+            vi.fn(async () => doorResponse(null)),
         );
         const h = await renderReplay({ ...options, dropBehavior: 'zero' });
         await act(async () => h.get().toggle());
@@ -501,10 +735,10 @@ describe('BT discharge replay', () => {
     it.each(['off', 'observation', 'connection', 'profile', 'unmount'] as const)(
         'cancels pending delivery on %s and ignores its late completion',
         async (stop) => {
-            let resolve!: (sent: boolean) => void;
+            let resolve!: (sent: DoorProbeResult | null) => void;
             const write = vi.fn(
                 (_signal: AbortSignal) =>
-                    new Promise<boolean>((done) => {
+                    new Promise<DoorProbeResult | null>((done) => {
                         resolve = done;
                     }),
             );
@@ -521,7 +755,7 @@ describe('BT discharge replay', () => {
             if (stop === 'unmount') h.unmount();
             expect(write.mock.calls[0][0].aborted).toBe(true);
             const before = h.get();
-            await act(async () => resolve(false));
+            await act(async () => resolve(doorResponse(null)));
             expect(h.get().stopReason).toBe(before.stopReason);
             expect(h.get().active).toBe(before.active);
             expect(write).toHaveBeenCalledOnce();
