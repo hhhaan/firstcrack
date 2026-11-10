@@ -878,6 +878,9 @@ export const ActiveRoast = ({
     );
 
     const machineControl = useMachineControlComposition({
+        auditOwnerId:
+            isWorkspaceReady && storeActions.sessionOwnerId === workspaceOwnerId ? workspaceOwnerId : undefined,
+        auditActorId: user?.id,
         sidecarConnected,
         reconnecting,
         liveData,

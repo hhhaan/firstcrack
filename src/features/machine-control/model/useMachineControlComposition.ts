@@ -11,6 +11,8 @@ import { usePidControl } from './usePidControl';
 import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
 
 export interface MachineControlCompositionInput {
+    auditOwnerId?: string;
+    auditActorId?: string;
     sidecarConnected: boolean;
     /** 사이드카 재연결 대기 — 실측 동결 중이라 이탈 카운트를 멈춘다 (#307) */
     reconnecting: boolean;
@@ -57,6 +59,8 @@ export interface MachineControlCompositionInput {
  * Replay stop cancels unsent Replay heater writes and does not restart.
  */
 export const useMachineControlComposition = ({
+    auditOwnerId,
+    auditActorId,
     sidecarConnected,
     reconnecting,
     liveData,
@@ -161,6 +165,8 @@ export const useMachineControlComposition = ({
         [retryEpoch, machine.setValue, machine.commitNow],
     );
     const replay = useReplayControl({
+        auditOwnerId,
+        auditActorId,
         sessionId: diagnostics?.sessionId ?? null,
         referencePoints: replayPoints,
         referenceMachineMismatch: replayMachineMismatch,

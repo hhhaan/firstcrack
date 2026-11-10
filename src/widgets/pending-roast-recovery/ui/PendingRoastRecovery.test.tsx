@@ -33,6 +33,7 @@ vi.mock('@entities/plan', () => ({ useDayBatches: () => ({ data: [] }) }));
 vi.mock('@features/upload-roast-profile', () => ({ useUploadRoastProfile: () => ({ mutateAsync: mocks.upload }) }));
 vi.mock('@features/active-roast/model/useSaveRoast', () => ({ useSaveRoast: () => ({ resumeSave: mocks.resume }) }));
 vi.mock('@features/active-roast/model/usePendingRoastCharges', () => ({ usePendingRoastCharges: vi.fn() }));
+vi.mock('@features/machine-control/model/usePendingDischargeAudits', () => ({ usePendingDischargeAudits: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ ask: mocks.ask }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 

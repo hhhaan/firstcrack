@@ -13,6 +13,7 @@ import {
 import { useRoastingStore } from '@features/active-roast/model/status';
 import { usePendingRoastCharges } from '@features/active-roast/model/usePendingRoastCharges';
 import { useSaveRoast } from '@features/active-roast/model/useSaveRoast';
+import { usePendingDischargeAudits } from '@features/machine-control/model/usePendingDischargeAudits';
 import { useUploadRoastProfile } from '@features/upload-roast-profile';
 import { cn } from '@shared/lib/cn';
 import { formatElapsed } from '@shared/lib/format';
@@ -51,6 +52,8 @@ const load = () => {
 export const PendingRoastRecovery = ({ onReview }: { onReview: (ownerId: string, sessionId: string) => void }) => {
     const { t } = useTranslation();
     const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+    const auditActorId = useAuthStore((store) => store.user?.id ?? '');
+    usePendingDischargeAudits(auditActorId, !!auditActorId);
     const completed = useRoastingStore((store) => store.completed);
     usePendingRoastCharges(workspaceOwnerId, isWorkspaceReady);
     const [state, setState] = useState(load);

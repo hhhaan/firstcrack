@@ -1576,6 +1576,45 @@ export type Database = {
                     },
                 ];
             };
+            replay_discharge_audits: {
+                Row: {
+                    actor_id: string;
+                    client_recorded_at_ms: number;
+                    command_id: string;
+                    kind: string;
+                    observed_bt: number | null;
+                    payload: Json;
+                    requested_bt: number | null;
+                    server_received_at: string;
+                    session_id: string;
+                    user_id: string;
+                };
+                Insert: {
+                    actor_id: string;
+                    client_recorded_at_ms: number;
+                    command_id: string;
+                    kind: string;
+                    observed_bt?: number | null;
+                    payload: Json;
+                    requested_bt?: number | null;
+                    server_received_at?: string;
+                    session_id: string;
+                    user_id: string;
+                };
+                Update: {
+                    actor_id?: string;
+                    client_recorded_at_ms?: number;
+                    command_id?: string;
+                    kind?: string;
+                    observed_bt?: number | null;
+                    payload?: Json;
+                    requested_bt?: number | null;
+                    server_received_at?: string;
+                    session_id?: string;
+                    user_id?: string;
+                };
+                Relationships: [];
+            };
             roast_day_plans: {
                 Row: {
                     created_at: string;
@@ -2364,6 +2403,10 @@ export type Database = {
                     bean_id: string;
                     grams: number;
                 }[];
+            };
+            append_replay_discharge_audit: {
+                Args: { p_actor_id: string; p_payload: Json; p_user_id: string };
+                Returns: string;
             };
             apply_polar_subscription_event: {
                 Args: {

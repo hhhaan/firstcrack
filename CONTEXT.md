@@ -155,7 +155,7 @@ _Avoid_: Automatic Drop detection. Confirmed door movement. A heater setpoint.
 _Avoid_: A manual gas change.
 
 **Discharge decision audit**:
-A local append-only record of a Replay discharge-open attempt. Before dispatch it records the requested BT threshold and plan, the raw probe BT recognized by the app, collection/receipt clocks and the qualifying dwell observations. A correlated result records transport acknowledgement, failure, uncertainty or cancellation; it never confirms physical door movement. It survives roast save, Drop undo and app restart independently of the roast curve. Missing audit storage blocks the automatic attempt without retrying it.
+A durable record of a Replay discharge-open attempt, appended locally before dispatch and delivered to an append-only server table. It records the requested BT threshold and plan, raw probe BT recognized by the app, collection/receipt clocks and qualifying dwell observations. A correlated result records transport acknowledgement, failure, uncertainty or cancellation; it never confirms physical door movement. Frozen workspace/actor/session ids bind both events; the server supplies its own receipt time. Offline records remain pending across app restart until that same account/workspace can synchronize; a local record is not proof of server receipt. Only metadata delivery is retried. It survives roast save and Drop undo independently of the roast curve. Missing local audit storage or workspace identity blocks the automatic attempt without retrying it.
 _Avoid_: A physical door sensor record. A tamper-proof incident report. A Sentry breadcrumb.
 
 **Event mapping**:

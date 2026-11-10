@@ -20,6 +20,9 @@ export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'sp
 export interface ReplayControlInputs {
     /** Stable live Charge UUID, preserved by Drop undo. Required for physical actions. */
     sessionId?: string | null;
+    /** Frozen into intent/result. Missing workspace identity blocks automatic discharge. */
+    auditOwnerId?: string;
+    auditActorId?: string;
     /** 타겟 프로파일 커브 (charge 기준 상대 시간) — 없으면 Replay 비활성 */
     referencePoints: ReplayPoint[] | null;
     /**
@@ -172,6 +175,8 @@ const replayProfileEventsKey = (events: unknown): string => JSON.stringify(event
  */
 export const useReplayControl = ({
     sessionId,
+    auditOwnerId,
+    auditActorId,
     referencePoints,
     referenceMachineMismatch,
     referenceDropTime,
@@ -262,7 +267,13 @@ export const useReplayControl = ({
     const rawEvents = rawPlan?.events ?? null;
     const hasDischarge = rawEvents?.some((event) => event.kind === 'discharge_open') ?? false;
     const dischargeBlocked =
-        hasDischarge && (!dischargeOpenSupported || !sessionId || connectionEpoch == null || !writeDischargeOpen);
+        hasDischarge &&
+        (!dischargeOpenSupported ||
+            !sessionId ||
+            !auditOwnerId ||
+            !auditActorId ||
+            connectionEpoch == null ||
+            !writeDischargeOpen);
 
     // 안전 중지 — 조건이 하나라도 성립하는 동안 active로 남아 있으면 안 된다
     const stopCause = referenceMachineMismatch
@@ -587,6 +598,8 @@ export const useReplayControl = ({
         reconnecting,
         stopCause,
         sessionId,
+        auditOwnerId,
+        auditActorId,
         connectionEpoch,
         pollIntervalMs,
     ]);
@@ -707,6 +720,8 @@ export const useReplayControl = ({
                 !dischargeOpenSupported ||
                 !writeDischargeOpen ||
                 !sessionId ||
+                !auditOwnerId ||
+                !auditActorId ||
                 connectionEpoch == null ||
                 dischargeAttemptedSessions.has(sessionId) ||
                 !Number.isFinite(liveBt) ||
@@ -723,7 +738,9 @@ export const useReplayControl = ({
             const commandId = crypto.randomUUID();
             const intent: ReplayDischargeAudit = {
                 kind: 'intent',
-                schemaVersion: 1,
+                schemaVersion: 2,
+                ownerId: auditOwnerId,
+                actorId: auditActorId,
                 commandId,
                 recordedAtMs: Date.now(),
                 appVersion: __APP_VERSION__,
@@ -818,7 +835,10 @@ export const useReplayControl = ({
                 try {
                     await appendReplayDischargeAudit({
                         kind: 'result',
-                        schemaVersion: 1,
+                        schemaVersion: 2,
+                        ownerId: intent.ownerId,
+                        actorId: intent.actorId,
+                        sessionId: intent.sessionId,
                         commandId,
                         recordedAtMs: Date.now(),
                         outcome,
@@ -895,6 +915,8 @@ export const useReplayControl = ({
         writeHeater,
         retryHeater,
         sessionId,
+        auditOwnerId,
+        auditActorId,
         connectionEpoch,
         dischargeOpenSupported,
         writeDischargeOpen,

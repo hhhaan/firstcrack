@@ -113,6 +113,8 @@ describe('BT discharge replay', () => {
         writeDischargeOpen = vi.fn(async () => doorResponse()),
     ): Partial<ReplayControlInputs> => ({
         sessionId,
+        auditOwnerId: '10000000-0000-4000-8000-000000000001',
+        auditActorId: '10000000-0000-4000-8000-000000000002',
         connectionEpoch: 7,
         dischargeOpenSupported: true,
         writeDischargeOpen,
@@ -160,7 +162,9 @@ describe('BT discharge replay', () => {
         const intent = vi.mocked(appendReplayDischargeAudit).mock.calls[0][0];
         expect(intent).toMatchObject({
             kind: 'intent',
-            schemaVersion: 1,
+            schemaVersion: 2,
+            ownerId: options.auditOwnerId,
+            actorId: options.auditActorId,
             sessionId: 'door-audit-payload',
             connectionEpoch: 7,
             roaster: 'virtual',
@@ -197,10 +201,41 @@ describe('BT discharge replay', () => {
             expect.objectContaining({
                 kind: 'result',
                 commandId: intent.commandId,
+                ownerId: intent.ownerId,
+                actorId: intent.actorId,
+                sessionId: intent.sessionId,
                 outcome: 'sent',
                 response: doorResponse(),
                 dispatchObservation: expect.objectContaining({ rawBt: 207 }),
                 physicalDoorState: 'unknown',
+            }),
+        );
+        h.unmount();
+    });
+
+    it('cancels a disk-pending discharge on identity change and preserves the original identity in its result', async () => {
+        let finishIntent!: () => void;
+        vi.mocked(appendReplayDischargeAudit).mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    finishIntent = resolve;
+                }),
+        );
+        const options = inputs('door-audit-account-switch');
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        await confirm(h, options);
+        const intent = vi.mocked(appendReplayDischargeAudit).mock.calls[0][0];
+        await h.rerender(sample(options, 11_500, { auditActorId: '10000000-0000-4000-8000-000000000099' }));
+        await act(async () => finishIntent());
+        expect(options.writeDischargeOpen).not.toHaveBeenCalled();
+        expect(appendReplayDischargeAudit).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                kind: 'result',
+                ownerId: intent.ownerId,
+                actorId: intent.actorId,
+                sessionId: intent.sessionId,
+                outcome: 'cancelled_before_dispatch',
             }),
         );
         h.unmount();
@@ -598,6 +633,8 @@ describe('BT discharge replay', () => {
         { referenceMachineMismatch: true },
         { dischargeOpenSupported: false },
         { sessionId: null },
+        { auditOwnerId: undefined },
+        { auditActorId: undefined },
         { connectionEpoch: undefined },
         { liveBt: 204.9 },
     ])('does not open with a failed execution gate %j', async (gate) => {
