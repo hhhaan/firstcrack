@@ -351,7 +351,6 @@ export const useRoastKeyboardShortcuts = ({
             showContinueModal,
             chargeLocked,
         });
-    const returnOnFormTags = returnToChargeWaitKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     useBoundShortcut(
         returnToChargeWaitKeys,
         (e) => {
@@ -361,7 +360,7 @@ export const useRoastKeyboardShortcuts = ({
         },
         {
             enabled: canReturnToChargeWait && Boolean(onDismissReview),
-            enableOnFormTags: returnOnFormTags,
+            enableOnFormTags: false,
             preventDefault: true,
         },
         [canReturnToChargeWait, onDismissReview],

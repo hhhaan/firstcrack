@@ -240,6 +240,46 @@ describe('keyboard shortcuts', () => {
         expect(settingsSet).not.toHaveBeenCalledWith('keyboard.bindings', expect.anything());
     });
 
+    it('keeps a version 2 Drop choice and migrates a free summary chord', async () => {
+        await hydrateStoredBindings(
+            {
+                drop: ['mod+d'],
+                closeRoastSummary: ['mod+6'],
+                returnToChargeWait: ['mod+7'],
+            },
+            2,
+        );
+
+        expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+d']);
+        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual(['mod+shift+6']);
+        expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+shift+7']);
+    });
+
+    it('keeps a customized chord instead of giving it to closeRoastSummary', async () => {
+        await hydrateStoredBindings({ yellow: ['mod+shift+6'], fcStart: ['mod+shift+7'] });
+
+        expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+shift+6']);
+        expect(useShortcutStore.getState().bindings.fcStart).toEqual(['mod+shift+7']);
+        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual([]);
+        expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual([]);
+    });
+
+    it('does not upgrade a stored version 3 map again', async () => {
+        await hydrateStoredBindings(
+            {
+                drop: ['mod+d'],
+                closeRoastSummary: ['mod+6'],
+                returnToChargeWait: ['mod+7'],
+            },
+            3,
+        );
+
+        expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+d']);
+        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual(['mod+6']);
+        expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+7']);
+        expect(settingsSet).not.toHaveBeenCalledWith('keyboard.bindings', expect.anything());
+    });
+
     it('keeps a Drop key the user records again after the upgrade ran', async () => {
         vi.mocked(settingsGet).mockImplementation(async (key) => {
             if (key === 'keyboard.bindings') return { drop: ['mod+d'] };

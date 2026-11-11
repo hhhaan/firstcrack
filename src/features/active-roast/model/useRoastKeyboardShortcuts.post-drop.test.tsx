@@ -212,6 +212,21 @@ describe('post-drop keyboard flow', () => {
         expect(onDismissReview).toHaveBeenCalledTimes(1);
     });
 
+    it('does not return to charge-wait while a text field is focused', () => {
+        const onDismissReview = vi.fn();
+        const input = document.createElement('input');
+        document.body.appendChild(input);
+        input.focus();
+
+        renderShortcuts({ reviewing: true, onDismissReview });
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true)));
+        });
+        expect(onDismissReview).not.toHaveBeenCalled();
+        input.remove();
+    });
+
     it('keeps mod+6 and mod+7 on the custom-event auto-assign pool', () => {
         expect(effectiveCustomShortcuts([{}, {}, {}], defaultTaken())).toEqual(['mod+4', 'mod+5', 'mod+6']);
     });
