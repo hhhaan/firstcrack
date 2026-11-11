@@ -2,7 +2,7 @@
 window.addEventListener(
     'keydown',
     (event) => {
-        const key = event.key.toLowerCase();
+        const key = typeof event.key === 'string' ? event.key.toLowerCase() : '';
         const editable =
             event.target instanceof Element &&
             event.target.closest('input, textarea, [contenteditable]:not([contenteditable="false"])') !== null;
