@@ -214,12 +214,15 @@ export const linkEventDraft = (
     opened?: { time: string; temp: string },
 ): { draft: EventDraft; error: EventDraftError | null } => {
     if (isFixedMark(draft.type)) return { draft, error: null };
-    if (field === 'time' && sameTimeText(value, draft.time)) return { draft, error: null };
-    if (field === 'temp' && opened && sameTimeText(draft.time, opened.time) && sameTempText(value, opened.temp, unit)) {
-        if (!draft.edited && sameTempText(draft.temp, opened.temp, unit)) return { draft, error: null };
+    const backToOpened =
+        opened &&
+        ((field === 'time' && sameTimeText(value, opened.time) && !sameTimeText(value, draft.time)) ||
+            (field === 'temp' && sameTempText(value, opened.temp, unit) && !sameTempText(value, draft.temp, unit)));
+    if (backToOpened && opened) {
         const { edited: _, ...rest } = draft;
         return { draft: { ...rest, time: opened.time, temp: opened.temp }, error: null };
     }
+    if (field === 'time' && sameTimeText(value, draft.time)) return { draft, error: null };
     if (field === 'temp' && sameTempText(value, draft.temp, unit)) return { draft, error: null };
     const next: EventDraft = { ...draft, [field]: value, edited: field };
     if (!curve) return { draft: next, error: null };
@@ -296,6 +299,15 @@ export const applyEventDrafts = (
                     next[d.index] = { ...orig, time_sec: time, temp_c: temp };
                     changed = true;
                 }
+                continue;
+            }
+            // The driver is back to the opened reading. Drop the linked counterpart.
+            if (
+                curve &&
+                ((d.edited === 'time' && sameTimeText(d.time, init.time)) ||
+                    (d.edited === 'temp' && sameTempText(d.temp, init.temp, unit)))
+            ) {
+                times.push({ index: d.index, type: init.type, t: time });
                 continue;
             }
             // Draft type is ignored — an existing mark cannot be renamed.

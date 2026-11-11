@@ -453,6 +453,22 @@ describe('history event edits use the live curve rule', () => {
             temp: '193',
         });
         expect(retyped).toEqual({ draft: padded, error: null });
+        const opened = { time: padded.time, temp: '193' };
+        const cooled = linkEventDraft(padded, 'temp', '192', curve, 'C', opened);
+        expect(cooled.draft.time).not.toBe(padded.time);
+        expect(cooled.draft).toMatchObject({ temp: '192', edited: 'temp' });
+        expect(linkEventDraft(cooled.draft, 'temp', '193', curve, 'C', opened).draft).toEqual(padded);
+        const moved = linkEventDraft(padded, 'time', '7:50', curve, 'C', opened);
+        expect(moved.draft).toMatchObject({ time: '7:50', temp: '190', edited: 'time' });
+        expect(linkEventDraft(moved.draft, 'time', '8:00', curve, 'C', opened).draft).toEqual(padded);
+        expect(
+            applyEventDrafts(
+                typed,
+                [{ index: 0, type: 'FC Start', time: '8:00', temp: '190', edited: 'time' }],
+                'C',
+                curve,
+            ),
+        ).toMatchObject({ ok: true, changed: false });
         expect(
             applyEventDrafts(
                 typed,
