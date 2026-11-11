@@ -8,4 +8,5 @@ export const profileBatchSourceSession = (batch: ProfileReferenceBatch) => ({
     bbp_seconds: batch.bbp_seconds,
     events: null as Json | null,
     ...(batch.heater_events !== undefined && { heater_events: batch.heater_events }),
+    ...(batch.duration_seconds !== undefined && { duration_seconds: batch.duration_seconds }),
 });

@@ -15,6 +15,7 @@ const previewDurationSec = (
     embedded: ReturnType<typeof resolveSourceSession>,
     profile: RoastProfileWithSource,
 ) => {
+    if (typeof batch?.duration_seconds === 'number') return batch.duration_seconds;
     if (batch) return profile.duration_sec;
     if (typeof embedded?.duration_seconds === 'number') return embedded.duration_seconds;
     return profile.duration_sec;

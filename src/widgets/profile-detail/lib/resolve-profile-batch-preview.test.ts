@@ -1,6 +1,6 @@
 import type { ProfileReferenceBatch, RoastProfileWithSource } from '@entities/roast-profile';
 import { describe, expect, it } from 'vitest';
-import { profilePreviewBatches, profilePreviewOrphanSource } from './profile-preview-fixtures';
+import { profilePreviewBatches, profilePreviewOrphanSource, profilePreviewReference } from './profile-preview-fixtures';
 import { resolveProfileBatchPreview } from './resolve-profile-batch-preview';
 
 describe('resolveProfileBatchPreview', () => {
@@ -53,5 +53,17 @@ describe('resolveProfileBatchPreview', () => {
         const resolved = resolveProfileBatchPreview(profile, 'missing', [] as ProfileReferenceBatch[], false);
         expect(resolved.tsvPath).toBeNull();
         expect(resolved.awaitingBatchMeta).toBe(false);
+    });
+
+    it('sizes a selected log to that batch duration and keeps the profile target when the log has none', () => {
+        const withDuration = profilePreviewBatches.map((batch) =>
+            batch.id === 's4' ? { ...batch, duration_seconds: 400 } : batch,
+        );
+        const selected = resolveProfileBatchPreview(profilePreviewReference, 's4', withDuration, false);
+        expect(selected.chartProfile.duration_sec).toBe(400);
+        expect(selected.chartProfile.source_session).toMatchObject({ duration_seconds: 400 });
+
+        const undated = resolveProfileBatchPreview(profilePreviewReference, 's3', profilePreviewBatches, false);
+        expect(undated.chartProfile.duration_sec).toBe(600);
     });
 });
