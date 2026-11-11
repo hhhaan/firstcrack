@@ -399,6 +399,15 @@ describe('RecordEventsEditor', () => {
         await expectNoSave(onSave, onClose);
     });
 
+    it('keeps an independent time edit when temperature is typed back without a curve', async () => {
+        await mount({});
+        await type('FC Start history.edit.time', '7:50');
+        await type('FC Start history.edit.temp', '190');
+        await type('FC Start history.edit.temp', '196');
+        expect(fcInput('time').value).toBe('7:50');
+        expect(fcInput('temp').value).toBe('196');
+    });
+
     it('rejects a temperature the measured curve does not reach', async () => {
         const onSave = vi.fn();
         await mount({ onSave, samples: curveSamples });

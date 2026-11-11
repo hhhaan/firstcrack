@@ -210,7 +210,9 @@ export const linkEventDraft = (
     opened?: { time: string; temp: string },
 ): { draft: EventDraft; error: EventDraftError | null } => {
     if (isFixedMark(draft.type)) return { draft, error: null };
+    // Pair restore is only for a linked curve edit. Without samples the other field is independent.
     const backToOpened =
+        curve &&
         opened &&
         ((field === 'time' && sameTimeText(value, opened.time) && !sameTimeText(value, draft.time)) ||
             (field === 'temp' && sameTempText(value, opened.temp, unit) && !sameTempText(value, draft.temp, unit)));

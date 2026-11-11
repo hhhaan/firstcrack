@@ -494,4 +494,21 @@ describe('history event edits use the live curve rule', () => {
         if (!independent.ok) throw new Error('expected ok');
         expect((independent.events as typeof stored)[3]).toMatchObject({ time_sec: 470, temp_c: 196 });
     });
+
+    it('keeps the other field when one field is typed back without a curve', () => {
+        const opened = { time: '8:00', temp: '193' };
+        const start = { index: 0, type: 'FC Start', time: '8:00', temp: '193' };
+        const timed = linkEventDraft(start, 'time', '7:50', null, 'C', opened);
+        const both = linkEventDraft(timed.draft, 'temp', '190', null, 'C', opened);
+        expect(both.draft).toMatchObject({ time: '7:50', temp: '190' });
+        const restored = linkEventDraft(both.draft, 'temp', '193', null, 'C', opened);
+        expect(restored.draft).toMatchObject({ time: '7:50', temp: '193' });
+        const saved = applyEventDrafts(
+            [{ id: 'f', type: 'FC Start', time_sec: 480, temp_c: 193 }],
+            [restored.draft],
+            'C',
+            null,
+        );
+        expect(saved).toMatchObject({ ok: true, changed: true, events: [{ time_sec: 470, temp_c: 193 }] });
+    });
 });
