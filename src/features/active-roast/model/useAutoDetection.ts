@@ -166,6 +166,7 @@ export const useAutoDetection = ({
     const autoChargedRef = useRef(false);
     const chargeCooldownRef = useRef<{ minBt: number; lastTimestamp: number; recoverySamples: number } | null>(null);
     const autoDroppedRef = useRef(false);
+    const autoDropHeldRef = useRef(false);
     const machineAutoRef = useRef(createMachineAutoDetector());
     const machineNotedRef = useRef<{ sample: RawTemperatureSample | null; decision: MachineAutoDecision } | null>(null);
     // 발화 완료 TP를 그대로 보관 — 폴백→실감지 승격 시 재발화 판정에 identity 비교
@@ -308,6 +309,12 @@ export const useAutoDetection = ({
                 });
                 return;
             }
+            if (autoDropHeldRef.current) {
+                // ponytail: drop the in-flight slope while a discharge command is unanswered.
+                // Failure starts a fresh candidate; an accepted command disables Drop.
+                detector.reset();
+                return;
+            }
             if (
                 !autoDropEnabled ||
                 state.phase !== 'roasting' ||
@@ -426,6 +433,15 @@ export const useAutoDetection = ({
         dropDetectorRef.current?.reset();
     }, []);
 
+    const holdAutoDrop = useCallback(() => {
+        autoDropHeldRef.current = true;
+        dropDetectorRef.current?.reset();
+    }, []);
+
+    const releaseAutoDropHold = useCallback(() => {
+        autoDropHeldRef.current = false;
+    }, []);
+
     const resetAutoDetection = useCallback(() => {
         chargeDetectorRef.current?.reset();
         dropDetectorRef.current?.reset();
@@ -434,6 +450,7 @@ export const useAutoDetection = ({
         autoChargedRef.current = false;
         chargeCooldownRef.current = null;
         autoDroppedRef.current = false;
+        autoDropHeldRef.current = false;
         tpFiredRef.current = null;
         yellowFiredRef.current = false;
         setConfirmedTP(null);
@@ -451,6 +468,8 @@ export const useAutoDetection = ({
         rearmAutoCharge,
         holdAutoChargeUntilRecovery,
         disableAutoDrop,
+        holdAutoDrop,
+        releaseAutoDropHold,
         moveTurningPoint,
         turningPoints,
         confirmedTP,

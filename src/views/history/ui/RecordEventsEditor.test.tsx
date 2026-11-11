@@ -47,6 +47,8 @@ const type = async (label: string, value: string) => {
 };
 
 const button = (text: string) => [...document.querySelectorAll('button')].find((b) => b.textContent === text);
+const fcInput = (field: 'time' | 'temp') =>
+    document.querySelector(`input[aria-label="FC Start history.edit.${field}"]`) as HTMLInputElement;
 
 afterEach(async () => {
     await act(async () => root?.unmount());
@@ -315,5 +317,106 @@ describe('RecordEventsEditor', () => {
         await act(async () => button('history.edit.save')?.click());
         expect(onSave).not.toHaveBeenCalled();
         expect(document.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidOrder');
+    });
+
+    const curveSamples = Object.freeze([
+        Object.freeze({ time: 0, bt: 200 }),
+        Object.freeze({ time: 470, bt: 190 }),
+        Object.freeze({ time: 480, bt: 196 }),
+        Object.freeze({ time: 600, bt: 210 }),
+    ]);
+
+    const mountOffCurve = async () => {
+        const saved = events.map((event) => (event.id === 'f' ? { ...event, temp_c: 193 } : event));
+        const onSave = vi.fn();
+        const onClose = await mount({ events: saved, onSave, samples: curveSamples });
+        return { onSave, onClose };
+    };
+
+    const expectNoSave = async (onSave: ReturnType<typeof vi.fn>, onClose: ReturnType<typeof vi.fn>) => {
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalledOnce();
+    };
+
+    it('updates temperature from the measured curve when time changes', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        await mount({ onSave, samples: curveSamples });
+        await type('FC Start history.edit.time', '7:50');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.temp"]') as HTMLInputElement).value,
+        ).toBe('190');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).toHaveBeenCalledWith([
+            events[0],
+            { id: 'f', type: 'FC Start', time_sec: 470, temp_c: 190 },
+            events[2],
+        ]);
+        expect(curveSamples[1].bt).toBe(190);
+    });
+
+    it('updates time from the measured curve when temperature changes', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        await mount({ onSave, samples: curveSamples });
+        await type('FC Start history.edit.temp', '193');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.time"]') as HTMLInputElement).value,
+        ).toBe('7:55');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).toHaveBeenCalledWith([
+            events[0],
+            { id: 'f', type: 'FC Start', time_sec: 475, temp_c: 193 },
+            events[2],
+        ]);
+    });
+
+    it('does not snap temperature when blur only pads the time', async () => {
+        const { onSave, onClose } = await mountOffCurve();
+        await act(async () => fcInput('time').dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(fcInput('temp').value).toBe('193');
+        await expectNoSave(onSave, onClose);
+    });
+
+    it('does not move time when the temperature text is only reformatted', async () => {
+        const { onSave, onClose } = await mountOffCurve();
+        await type('FC Start history.edit.temp', '193.0');
+        expect(fcInput('time').value).toBe('8:00');
+        expect(fcInput('temp').value).toBe('193');
+        await expectNoSave(onSave, onClose);
+    });
+
+    it('restores the opened pair when a linked edit is typed back', async () => {
+        const { onSave, onClose } = await mountOffCurve();
+        await type('FC Start history.edit.temp', '190');
+        expect(fcInput('time').value).toBe('7:50');
+        await type('FC Start history.edit.temp', '193');
+        expect(fcInput('time').value).toBe('8:00');
+        expect(fcInput('temp').value).toBe('193');
+        await type('FC Start history.edit.time', '7:50');
+        expect(fcInput('temp').value).toBe('190');
+        await type('FC Start history.edit.time', '8:00');
+        expect(fcInput('temp').value).toBe('193');
+        await expectNoSave(onSave, onClose);
+    });
+
+    it('keeps an independent time edit when temperature is typed back without a curve', async () => {
+        await mount({});
+        await type('FC Start history.edit.time', '7:50');
+        await type('FC Start history.edit.temp', '190');
+        await type('FC Start history.edit.temp', '196');
+        expect(fcInput('time').value).toBe('7:50');
+        expect(fcInput('temp').value).toBe('196');
+    });
+
+    it('rejects a temperature the measured curve does not reach', async () => {
+        const onSave = vi.fn();
+        await mount({ onSave, samples: curveSamples });
+        await type('FC Start history.edit.temp', '50');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.time"]') as HTMLInputElement).value,
+        ).toBe('8:00');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidTemp');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).not.toHaveBeenCalled();
     });
 });

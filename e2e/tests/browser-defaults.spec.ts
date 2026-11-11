@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, goNav, test } from '../fixtures/app';
 
 test('blocks browser actions and unapproved right-click handlers without swallowing app input', async ({
@@ -164,4 +165,48 @@ test('allows graph application context menus while blocking native menus and sid
     expect(results.contextmenu).toEqual({ accepted: false, called: true });
     expect(results.back).toEqual({ accepted: false, called: false });
     expect(results.forward).toEqual({ accepted: false, called: false });
+});
+
+test('handles missing or non-string keys without dropping code-based browser guards', async ({ page }) => {
+    await page.setContent('<input id="target" />');
+    await page.addScriptTag({
+        content: readFileSync(new URL('../../src-tauri/src/browser_defaults.js', import.meta.url), 'utf8'),
+    });
+    const result = await page.evaluate(() => {
+        const target = document.querySelector('#target');
+        if (!target) throw new Error('Missing keyboard probe target');
+        const errors: string[] = [];
+        const onError = (event: ErrorEvent) => {
+            errors.push(event.message);
+            event.preventDefault();
+        };
+        window.addEventListener('error', onError);
+        let delivered = 0;
+        target.addEventListener('keydown', () => delivered++);
+        const probe = (key: unknown, modifiers: KeyboardEventInit = {}) => {
+            const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...modifiers });
+            Object.defineProperty(event, 'key', { value: key });
+            return target.dispatchEvent(event);
+        };
+        const generic = target.dispatchEvent(new Event('keydown', { bubbles: true, cancelable: true }));
+        const malformed = [undefined, null, 7, {}].map((key) => probe(key));
+        const reload = probe(undefined, { code: 'KeyR', ctrlKey: true });
+        const print = probe(undefined, { code: 'KeyP', metaKey: true });
+        const inspect = probe(undefined, { code: 'KeyI', ctrlKey: true, shiftKey: true });
+        const altGr = probe(undefined, { code: 'KeyR', ctrlKey: true, altKey: true });
+        const normalReload = probe('R', { ctrlKey: true });
+        window.removeEventListener('error', onError);
+        return { errors, generic, malformed, reload, print, inspect, altGr, normalReload, delivered };
+    });
+    expect(result).toEqual({
+        errors: [],
+        generic: true,
+        malformed: [true, true, true, true],
+        reload: false,
+        print: false,
+        inspect: false,
+        altGr: true,
+        normalReload: false,
+        delivered: 10,
+    });
 });

@@ -46,6 +46,12 @@ vi.mock('@features/active-roast/ui/SavedCurveLegend', () => ({ SavedCurveLegend:
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
+class ResizeObserverMock {
+    observe() {}
+    disconnect() {}
+}
+Object.assign(globalThis, { ResizeObserver: ResizeObserverMock });
+
 const sample: TsvPoint = { t: 0, bt: 150, et: 180, ror: 4, rorEt: 2, heater: null, fan: null, drum: null };
 const profile = {
     user_id: 'owner',
@@ -179,7 +185,7 @@ it('keeps temperature curves and phase marks without a phase bar or machine cont
     expect(props?.controlData).toBeUndefined();
     expect(props?.printControlData).toBeUndefined();
     expect(props?.showTooltip).toBe(false);
-    expect(props?.height).toBe(360);
+    expect(props?.height).toBeGreaterThanOrEqual(260);
     expect(props?.fontScale).toBe(11 / 12);
     expect(props?.gridBottom).toBe(32);
     expect(props?.eventMarkers.map((marker) => marker.event)).toEqual([

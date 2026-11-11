@@ -27,6 +27,8 @@ export const SHORTCUTS = [
     { id: 'fcStart', defaultKeys: ['mod+2'], group: 'roast', editable: true },
     { id: 'fcEnd', defaultKeys: ['mod+3'], group: 'roast', editable: true },
     { id: 'drop', defaultKeys: ['mod+shift+d'], group: 'roast', editable: true },
+    { id: 'closeRoastSummary', defaultKeys: ['mod+shift+6'], group: 'roast', editable: true },
+    { id: 'returnToChargeWait', defaultKeys: ['mod+shift+7'], group: 'roast', editable: true },
     { id: 'toggleControl', defaultKeys: ['t'], group: 'roast', editable: true },
     { id: 'zoomIn', defaultKeys: ['+', '='], group: 'chart', editable: true },
     { id: 'zoomOut', defaultKeys: ['-', '_'], group: 'chart', editable: true },
@@ -46,12 +48,22 @@ export type ShortcutBindings = Record<ShortcutId, string[]>;
 const STORE_KEY = 'keyboard.bindings';
 const DISABLED_STORE_KEY = 'keyboard.disabled';
 const VERSION_STORE_KEY = 'keyboard.bindingsVersion';
-/** 2: Drop moved to `mod+shift+d` and became an OS-level shortcut (#936). */
-const BINDINGS_VERSION = 2;
+/** 2: Drop moved to `mod+shift+d` and became an OS-level shortcut (#936).
+ *  3: Summary / charge-wait shortcuts moved off the custom-event digit pool (#1137). */
+const BINDINGS_VERSION = 3;
 const EMPTY_KEYS: string[] = [];
 const DEFAULT_BINDINGS = Object.fromEntries(
     SHORTCUTS.map(({ id, defaultKeys }) => [id, [...defaultKeys]]),
 ) as ShortcutBindings;
+
+const pressToken = (key: string): string | null => {
+    const press = parseShortcutPress(key);
+    if (!press) return null;
+    return `${conflictKey(press.chord)}\0${press.count}`;
+};
+
+/** Defaults added after users could already bind the same chord. The older binding keeps it. */
+const YIELD_DEFAULT_TO_CUSTOM = new Set<ShortcutId>(['closeRoastSummary', 'returnToChargeWait']);
 
 export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings> {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -73,16 +85,29 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
         const owners = new Map<string, ShortcutId[]>();
         for (const [id, keys] of Object.entries(candidate) as [ShortcutId, string[]][]) {
             for (const key of keys) {
-                const press = parseShortcutPress(key);
-                if (!press) continue;
-                const comparable = `${conflictKey(press.chord)}\0${press.count}`;
-                owners.set(comparable, [...(owners.get(comparable) ?? []), id]);
+                const token = pressToken(key);
+                if (!token) continue;
+                owners.set(token, [...(owners.get(token) ?? []), id]);
             }
         }
-        const conflicts = new Set([...owners.values()].filter((ids) => ids.length > 1).flat());
-        if (!conflicts.size) break;
+        const groups = [...owners.entries()].filter(([, ids]) => ids.length > 1);
+        if (!groups.length) break;
+        let yielded = false;
+        for (const [token, ids] of groups) {
+            const customOwners = ids.filter((id) => customized.has(id));
+            const yielding = ids.filter((id) => !customized.has(id) && YIELD_DEFAULT_TO_CUSTOM.has(id));
+            if (!customOwners.length || !yielding.length) continue;
+            for (const id of yielding) {
+                const kept = candidate[id].filter((key) => pressToken(key) !== token);
+                if (kept.length === candidate[id].length) continue;
+                candidate[id] = kept;
+                customized.add(id);
+                yielded = true;
+            }
+        }
+        if (yielded) continue;
         let resetAny = false;
-        for (const id of conflicts) {
+        for (const id of new Set(groups.flatMap(([, ids]) => ids))) {
             if (!customized.delete(id)) continue;
             candidate[id] = [...DEFAULT_BINDINGS[id]];
             resetAny = true;
@@ -98,20 +123,45 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
  * if the user had chosen them — dropping them lets the current default apply. A stale `mod+d`
  * matters beyond ergonomics: the Drop binding is what gets held globally while roasting.
  */
-const SUPERSEDED_DEFAULTS: Partial<Record<ShortcutId, readonly string[]>> = {
-    drop: ['mod+d'],
+const SUPERSEDED_DEFAULTS: Partial<Record<ShortcutId, { since: number; keys: readonly string[] }>> = {
+    drop: { since: 2, keys: ['mod+d'] },
+    closeRoastSummary: { since: 3, keys: ['mod+6'] },
+    returnToChargeWait: { since: 3, keys: ['mod+7'] },
 };
 
-/** Stored bindings that still equal a superseded default fall back to the current one. */
-export function upgradeShortcutBindings(bindings: ShortcutBindings): {
+/** Stored bindings that still equal a superseded default fall back to the current one.
+ * A stored version at or above `since` already made that choice, including putting the old chord back. */
+export function upgradeShortcutBindings(
+    bindings: ShortcutBindings,
+    storedVersion = 0,
+): {
     bindings: ShortcutBindings;
     changed: boolean;
 } {
     let changed = false;
     const next = { ...bindings };
-    for (const [id, previous] of Object.entries(SUPERSEDED_DEFAULTS) as [ShortcutId, readonly string[]][]) {
-        if (previous.join('|') !== next[id].join('|')) continue;
-        next[id] = [...DEFAULT_BINDINGS[id]];
+    for (const [id, superseded] of Object.entries(SUPERSEDED_DEFAULTS) as [
+        ShortcutId,
+        { since: number; keys: readonly string[] },
+    ][]) {
+        if (storedVersion >= superseded.since) continue;
+        if (superseded.keys.join('|') !== next[id].join('|')) continue;
+        const taken = new Set(
+            Object.entries(next).flatMap(([otherId, keys]) =>
+                otherId === id
+                    ? []
+                    : keys.flatMap((key) => {
+                          const token = pressToken(key);
+                          return token == null ? [] : [token];
+                      }),
+            ),
+        );
+        const replacement = DEFAULT_BINDINGS[id].filter((key) => {
+            const token = pressToken(key);
+            return token == null || !taken.has(token);
+        });
+        if (replacement.join('|') === next[id].join('|')) continue;
+        next[id] = replacement;
         changed = true;
     }
     return { bindings: next, changed };
@@ -200,8 +250,11 @@ export async function hydrateShortcutBindings(): Promise<void> {
 
     const merged = { ...useShortcutStore.getState().bindings, ...parseShortcutBindings(stored) };
     // Bindings persisted by an older app version still carry that version's defaults.
-    const migrated = typeof storedVersion === 'number' && storedVersion >= BINDINGS_VERSION;
-    const { bindings, changed } = migrated ? { bindings: merged, changed: false } : upgradeShortcutBindings(merged);
+    const storedVersionNumber = typeof storedVersion === 'number' && Number.isFinite(storedVersion) ? storedVersion : 0;
+    const migrated = storedVersionNumber >= BINDINGS_VERSION;
+    const { bindings, changed } = migrated
+        ? { bindings: merged, changed: false }
+        : upgradeShortcutBindings(merged, storedVersionNumber);
     if (changed) persistSetting(STORE_KEY, bindings);
     if (!migrated) persistSetting(VERSION_STORE_KEY, BINDINGS_VERSION);
 

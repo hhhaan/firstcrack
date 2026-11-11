@@ -5,42 +5,23 @@ import { useToastStore } from '@shared/store/toast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { profilePreviewBatches } from '../lib/profile-preview-fixtures';
 import { ProfileReferenceBatches } from './ProfileReferenceBatches';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const batches: ProfileReferenceBatch[] = [
-    {
-        id: 's4',
-        roasted_at: '2026-10-22T01:00:00Z',
-        batch_name: 'ZIPPER',
-        bean_label: null,
-        profile_batch_number: 4,
-        total_batch_number: 40,
-        tsv_path: 'curves/s4.tsv',
-        bbp_tsv_path: null,
-        bbp_seconds: null,
-        beans: null,
-        blends: null,
-    },
-    {
-        id: 's3',
-        roasted_at: '2026-10-18T01:00:00Z',
-        batch_name: 'ZIPPER',
-        bean_label: null,
-        profile_batch_number: 3,
-        total_batch_number: 31,
-        tsv_path: 'curves/s3.tsv',
-        bbp_tsv_path: null,
-        bbp_seconds: null,
-        heater_events: [{ heater: 2 }],
-        beans: null,
-        blends: null,
-    },
-];
+const batches: ProfileReferenceBatch[] = profilePreviewBatches.map((batch) =>
+    batch.id === 's3'
+        ? { ...batch, batch_name: 'ZIPPER', heater_events: [{ heater: 2 }] }
+        : { ...batch, batch_name: 'ZIPPER' },
+);
 
 const mutateAsync = vi.fn(() => Promise.resolve());
-const { list } = vi.hoisted(() => ({ list: { current: [] as ProfileReferenceBatch[] } }));
+const onPreviewSession = vi.fn();
+const { list, preview } = vi.hoisted(() => ({
+    list: { current: [] as ProfileReferenceBatch[] },
+    preview: { current: 's3' },
+}));
 
 vi.mock('@entities/organization', () => ({ useActiveWorkspace: () => ({ workspaceOwnerId: 'owner' }) }));
 vi.mock('@entities/roast-profile', () => ({
@@ -58,7 +39,14 @@ describe('ProfileReferenceBatches', () => {
         document.body.appendChild(host);
         root = createRoot(host);
         act(() => {
-            root.render(createElement(ProfileReferenceBatches, { profileId: 'p1', sourceSessionId: 's3' }));
+            root.render(
+                createElement(ProfileReferenceBatches, {
+                    profileId: 'p1',
+                    sourceSessionId: 's3',
+                    previewSessionId: preview.current,
+                    onPreviewSession,
+                }),
+            );
         });
     };
 
@@ -68,6 +56,8 @@ describe('ProfileReferenceBatches', () => {
         list.current = [];
         mutateAsync.mockReset();
         mutateAsync.mockImplementation(() => Promise.resolve());
+        onPreviewSession.mockReset();
+        preview.current = 's3';
         for (const toast of useToastStore.getState().toasts) useToastStore.getState().dismiss(toast.id);
     });
 
@@ -81,7 +71,8 @@ describe('ProfileReferenceBatches', () => {
         expect(rows[0]?.textContent).toContain('profiles.detail.setReference');
         expect(rows[1]?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
 
-        act(() => rows[0]?.click());
+        act(() => rows[0]?.querySelector<HTMLButtonElement>('[data-testid="profile-reference-preview"]')?.click());
+        expect(onPreviewSession).toHaveBeenCalledWith('s4');
         expect(mutateAsync).not.toHaveBeenCalled();
 
         act(() => rows[0]?.querySelector<HTMLButtonElement>('[data-testid="profile-reference-set"]')?.click());
@@ -104,6 +95,8 @@ describe('ProfileReferenceBatches', () => {
                 createElement(ProfileReferenceBatches, {
                     profileId: 'p1',
                     sourceSessionId: 's3',
+                    previewSessionId: 's3',
+                    onPreviewSession,
                     onOpenDetail,
                 }),
             );
@@ -118,7 +111,8 @@ describe('ProfileReferenceBatches', () => {
         list.current = batches;
         render();
         const current = host.querySelector<HTMLLIElement>('[data-current="true"]');
-        act(() => current?.click());
+        act(() => current?.querySelector<HTMLButtonElement>('[data-testid="profile-reference-preview"]')?.click());
+        expect(onPreviewSession).toHaveBeenCalledWith('s3');
         expect(current?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
         expect(mutateAsync).not.toHaveBeenCalled();
     });
@@ -129,7 +123,14 @@ describe('ProfileReferenceBatches', () => {
         document.body.appendChild(host);
         root = createRoot(host);
         act(() => {
-            root.render(createElement(ProfileReferenceBatches, { profileId: 'p1', sourceSessionId: 'missing' }));
+            root.render(
+                createElement(ProfileReferenceBatches, {
+                    profileId: 'p1',
+                    sourceSessionId: 'missing',
+                    previewSessionId: 's4',
+                    onPreviewSession,
+                }),
+            );
         });
         const rows = [...host.querySelectorAll<HTMLLIElement>('[data-testid="profile-reference-row"]')];
         expect(rows.map((row) => row.dataset.current)).toEqual(['true', 'false']);

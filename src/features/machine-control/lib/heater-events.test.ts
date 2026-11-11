@@ -197,6 +197,10 @@ describe('applyTimeEdit', () => {
         expect(typeInto('1299').value).toBe('12:00');
         expect(typeInto('12a34').value).toBe('12:34');
         expect(typeInto('1234\b').value).toBe('12:30');
+        const typed = typeInto('75');
+        expect(applyTimeEdit('7:55', 5, 5, '1', 'insert', typed.suppress, typed.secondsOpen, typed.digits).value).toBe(
+            '7:55',
+        );
         const five = typeInto('0530');
         const erased = applyTimeEdit(
             five.value,

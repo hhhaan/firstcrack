@@ -1,8 +1,17 @@
 import { isChartEventMarker } from '@features/active-roast/lib/chart-config';
+import { applyEventMarkerEdit } from '@features/active-roast/lib/event-marker-drag';
 import { recordSummary } from '@features/active-roast/lib/record-summary';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { describe, expect, it } from 'vitest';
-import { ADDABLE_KEY_EVENTS, applyEventDrafts, nextAddableEvent, toEventDrafts } from './record-edit';
+import {
+    ADDABLE_KEY_EVENTS,
+    applyEventDrafts,
+    type EventDraft,
+    linkEventDraft,
+    measuredCurve,
+    nextAddableEvent,
+    toEventDrafts,
+} from './record-edit';
 
 const stored = [
     { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200.37 },
@@ -300,5 +309,206 @@ describe('applyEventDrafts additions', () => {
         const res = applyEventDrafts(raw, [...rows], 'C');
         expect(res.ok).toBe(false);
         if (!res.ok) expect(res.errors[index]).toBe(code);
+    });
+});
+
+const samples = Object.freeze([
+    Object.freeze({ time: 0, bt: 200 }),
+    Object.freeze({ time: 10, bt: 150 }),
+    Object.freeze({ time: 20, bt: 180 }),
+    Object.freeze({ time: 100, bt: 150 }),
+    Object.freeze({ time: 110, bt: 180 }),
+    Object.freeze({ time: 470, bt: 190.04 }),
+    Object.freeze({ time: 480, bt: 196 }),
+    Object.freeze({ time: 490, bt: 200 }),
+    Object.freeze({ time: 600, bt: 210 }),
+]);
+const curve = measuredCurve(samples);
+if (!curve) throw new Error('curve');
+
+const liveReading = (
+    event: string,
+    timeSec: number,
+    tempC: number | null,
+    patch: { timeSec?: number; tempC?: number },
+    points: readonly { time: number; bt: number }[] = samples,
+) => {
+    const bound = measuredCurve(points);
+    if (!bound) throw new Error('curve');
+    const entry = { id: 'e', time: '0:00', timeSec, event, temp: '', tempC, note: '' };
+    const next = applyEventMarkerEdit([entry], 'e', patch, points, 'C', bound.maxTimeSec);
+    return next[0] === entry ? null : { timeSec: next[0].timeSec ?? null, tempC: next[0].tempC ?? null };
+};
+
+const edited = (type: string, patch: Partial<EventDraft>, rows = stored) =>
+    toEventDrafts(rows, 'C').map((row) => (row.type === type ? { ...row, ...patch } : row));
+
+describe('history event edits use the live curve rule', () => {
+    it('moves temperature to the sample at the edited time and keeps the raw BT', () => {
+        const live = liveReading('FC Start', 480, 196, { timeSec: 470 });
+        const res = applyEventDrafts(stored, edited('FC Start', { time: '7:50', edited: 'time' }), 'C', curve);
+        if (!res.ok) throw new Error('expected ok');
+        const events = res.events as typeof stored;
+        expect(events[3]).toMatchObject({ id: 'f', time_sec: live?.timeSec, temp_c: live?.tempC });
+        expect(events[3].temp_c).toBe(190.04);
+        expect(events[0]).toBe(stored[0]);
+        expect(events[1]).toBe(stored[1]);
+        expect(events[2]).toBe(stored[2]);
+        expect(events[4]).toBe(stored[4]);
+        expect(events[5]).toBe(stored[5]);
+        expect(events[6]).toBe(stored[6]);
+        expect(events[7]).toBe(stored[7]);
+        expect(samples[5].bt).toBe(190.04);
+
+        const opened = toEventDrafts(events, 'C');
+        expect(opened.find((row) => row.type === 'FC Start')).toMatchObject({ time: '7:50', temp: '190' });
+        const again = applyEventDrafts(events, opened, 'C', curve);
+        expect(again).toMatchObject({ ok: true, changed: false });
+
+        expect(events.find((event) => event.type === 'FC Start')).toMatchObject({ time_sec: 470, temp_c: 190.04 });
+        expect(events.find((event) => event.type === 'Yellow')).toMatchObject({ time_sec: 250.4, temp_c: 160 });
+        const summary = recordSummary(
+            { events: stored, duration_seconds: 641, drop_temp_celsius: 210, charge_temp_celsius: 198 },
+            events,
+        );
+        const metrics = deriveRoastMetrics(
+            events.map((event) => ({ type: event.type, time_sec: event.time_sec })),
+            { durationFallback: summary.durationSeconds },
+        );
+        expect(summary.durationSeconds).toBe(641);
+        expect(summary.profileSummary).toMatchObject({ dev_time_sec: 130, dev_pct: 21.7, duration_sec: 600 });
+        expect(metrics.devTimeSec).toBe(130);
+        expect(isChartEventMarker('FC Start')).toBe(true);
+    });
+
+    it('moves time to the closest crossing and rejects a temperature the curve never reaches', () => {
+        const live = liveReading('FC Start', 480, 196, { tempC: 193 });
+        const res = applyEventDrafts(stored, edited('FC Start', { temp: '193', edited: 'temp' }), 'C', curve);
+        if (!res.ok) throw new Error('expected ok');
+        const fc = (res.events as typeof stored)[3];
+        expect(fc).toMatchObject({ time_sec: live?.timeSec, temp_c: 193 });
+        expect(fc.time_sec).toBe(475);
+        expect((res.events as typeof stored)[2]).toBe(stored[2]);
+
+        for (const temp of ['50', '221']) {
+            const rejected = applyEventDrafts(stored, edited('FC Start', { temp, edited: 'temp' }), 'C', curve);
+            expect(rejected.ok).toBe(false);
+            if (!rejected.ok) expect(rejected.errors[3]).toBe('temp');
+        }
+        const gap = Object.freeze([Object.freeze({ time: 0, bt: 100 }), Object.freeze({ time: 100, bt: 150 })]);
+        const gapped = applyEventDrafts(
+            [{ id: 'y', type: 'Yellow', time_sec: 20, temp_c: 120 }],
+            [{ index: 0, type: 'Yellow', time: '0:20', temp: '125', edited: 'temp' }],
+            'C',
+            measuredCurve(gap),
+        );
+        expect(gapped.ok).toBe(false);
+        expect(liveReading('Yellow', 20, 120, { tempC: 125 }, gap)).toBeNull();
+    });
+
+    it('picks the repeated temperature closest to the event and clamps a time past the curve', () => {
+        const yellow = [{ id: 'y', type: 'Yellow', time_sec: 100, temp_c: 160 }];
+        const drafts = [{ index: 0, type: 'Yellow', time: '1:40', temp: '165', edited: 'temp' as const }];
+        const res = applyEventDrafts(yellow, drafts, 'C', curve);
+        if (!res.ok) throw new Error('expected ok');
+        expect(res.events).toEqual([{ id: 'y', type: 'Yellow', time_sec: 105, temp_c: 165 }]);
+        expect(liveReading('Yellow', 100, 160, { tempC: 165 })).toEqual({ timeSec: 105, tempC: 165 });
+
+        const clamped = applyEventDrafts(stored, edited('End', { time: '12:00', edited: 'time' }), 'C', curve);
+        if (!clamped.ok) throw new Error('expected ok');
+        const end = (clamped.events as typeof stored).find((event) => event.type === 'End');
+        expect(end).toMatchObject({ time_sec: 600, temp_c: 210 });
+        expect(liveReading('End', 640, null, { timeSec: 720 })).toEqual({ timeSec: 600, tempC: 210 });
+        expect(
+            recordSummary(
+                { events: stored, duration_seconds: 641, drop_temp_celsius: 210, charge_temp_celsius: 198 },
+                clamped.events,
+            ).durationSeconds,
+        ).toBe(600);
+        expect((clamped.events as typeof stored)[5]).toBe(stored[5]);
+    });
+
+    it('shows the linked field while typing and leaves Charge and Drop fixed', () => {
+        const fc = toEventDrafts(stored, 'C').find((row) => row.type === 'FC Start');
+        if (!fc) throw new Error('missing FC');
+        expect(linkEventDraft(fc, 'time', '7:50', curve, 'C').draft).toMatchObject({
+            time: '7:50',
+            temp: '190',
+            edited: 'time',
+        });
+        expect(linkEventDraft(fc, 'temp', '193', curve, 'C').draft).toMatchObject({ time: '7:55', temp: '193' });
+        expect(linkEventDraft(fc, 'temp', '50', curve, 'C')).toMatchObject({
+            draft: { time: '8:00', temp: '50' },
+            error: 'temp',
+        });
+        expect(linkEventDraft(fc, 'time', '7:5', curve, 'C').draft.temp).toBe('196');
+        const padded = { ...fc, temp: '193' };
+        expect(linkEventDraft(padded, 'time', '08:00', curve, 'C')).toEqual({ draft: padded, error: null });
+        const typed = [{ id: 'f', type: 'FC Start', time_sec: 480, temp_c: 193 }];
+        const unchanged = (draft: EventDraft) =>
+            expect(applyEventDrafts(typed, [draft], 'C', curve)).toMatchObject({ ok: true, changed: false });
+        unchanged({ index: 0, type: 'FC Start', time: '08:00', temp: '193', edited: 'time' });
+        expect(linkEventDraft(padded, 'temp', '193.0', curve, 'C').draft).toBe(padded);
+        const retyped = linkEventDraft({ ...padded, temp: '19', edited: 'temp' }, 'temp', '193', curve, 'C', {
+            time: padded.time,
+            temp: '193',
+        });
+        expect(retyped).toEqual({ draft: padded, error: null });
+        const opened = { time: padded.time, temp: '193' };
+        const cooled = linkEventDraft(padded, 'temp', '192', curve, 'C', opened);
+        expect(cooled.draft.time).not.toBe(padded.time);
+        expect(cooled.draft).toMatchObject({ temp: '192', edited: 'temp' });
+        expect(linkEventDraft(cooled.draft, 'temp', '193', curve, 'C', opened).draft).toEqual(padded);
+        const moved = linkEventDraft(padded, 'time', '7:50', curve, 'C', opened);
+        expect(moved.draft).toMatchObject({ time: '7:50', temp: '190', edited: 'time' });
+        expect(linkEventDraft(moved.draft, 'time', '8:00', curve, 'C', opened).draft).toEqual(padded);
+        unchanged({ index: 0, type: 'FC Start', time: '8:00', temp: '190', edited: 'time' });
+        unchanged({ index: 0, type: 'FC Start', time: '8:00', temp: '193.0', edited: 'temp' });
+        const fixed = applyEventDrafts(
+            stored,
+            edited('Charge', { time: '1:00', temp: '100', edited: 'time' }).map((row) =>
+                row.type === 'Drop' ? { ...row, time: '12:00', temp: '180', edited: 'temp' as const } : row,
+            ),
+            'C',
+            curve,
+        );
+        expect(fixed).toMatchObject({ ok: true, changed: false });
+    });
+
+    it('fills a new mark from the curve and does not link when no samples exist', () => {
+        const missingFc = stored.filter((event) => event.type !== 'FC Start');
+        const res = applyEventDrafts(
+            missingFc,
+            [...toEventDrafts(missingFc, 'C'), { index: -1, type: 'FC Start', time: '7:50', temp: '', edited: 'time' }],
+            'C',
+            curve,
+        );
+        if (!res.ok) throw new Error('expected ok');
+        const fc = (res.events as Array<{ type: string; time_sec: number; temp_c: number | null }>).find(
+            (event) => event.type === 'FC Start',
+        );
+        expect(fc).toMatchObject({ time_sec: 470, temp_c: 190.04 });
+        expect((res.events as typeof stored).find((event) => event.type === 'Note')).toBe(stored[1]);
+
+        const independent = applyEventDrafts(stored, edited('FC Start', { time: '7:50' }), 'C', null);
+        if (!independent.ok) throw new Error('expected ok');
+        expect((independent.events as typeof stored)[3]).toMatchObject({ time_sec: 470, temp_c: 196 });
+    });
+
+    it('keeps the other field when one field is typed back without a curve', () => {
+        const opened = { time: '8:00', temp: '193' };
+        const start = { index: 0, type: 'FC Start', time: '8:00', temp: '193' };
+        const timed = linkEventDraft(start, 'time', '7:50', null, 'C', opened);
+        const both = linkEventDraft(timed.draft, 'temp', '190', null, 'C', opened);
+        expect(both.draft).toMatchObject({ time: '7:50', temp: '190' });
+        const restored = linkEventDraft(both.draft, 'temp', '193', null, 'C', opened);
+        expect(restored.draft).toMatchObject({ time: '7:50', temp: '193' });
+        const saved = applyEventDrafts(
+            [{ id: 'f', type: 'FC Start', time_sec: 480, temp_c: 193 }],
+            [restored.draft],
+            'C',
+            null,
+        );
+        expect(saved).toMatchObject({ ok: true, changed: true, events: [{ time_sec: 470, temp_c: 193 }] });
     });
 });

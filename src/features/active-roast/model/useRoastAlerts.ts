@@ -21,9 +21,13 @@ type UseRoastAlertsParams = {
 };
 
 /**
- * Live threshold + time alarms. Runs while roasting; Drop/End silences threshold and
- * charge/FC/drop-before alarms, but leaves after-drop armed until End roast.
- * Optionally beeps once per batch at TP and on the rising edge of each alarm kind.
+ * Live threshold + time alarms while roasting.
+ * Drop leaves `phase !== 'roasting'` and resets `elapsed`, so the roast clock cannot
+ * reach an after-drop offset. That alarm times itself from the completed Drop
+ * (`roastStartMs + Drop timeSec`) and rings once during the wait, including while
+ * the completion summary is open or closed. Next Charge, Drop cancel, and restart
+ * (store reset) drop the timer. End without a Drop never starts one.
+ * One beep per rising edge. Threshold and charge/FC/drop-before stay quiet after Drop.
  */
 export const useRoastAlerts = ({
     enabled,
@@ -42,7 +46,20 @@ export const useRoastAlerts = ({
     const liveData = useRoastingStore((s) => s.liveData);
     const elapsed = useRoastingStore((s) => s.elapsed);
     const sessionId = useRoastingStore((s) => s.sessionId ?? s.completed?.snapshot.sessionId ?? null);
+    // Stable across Drop: live sessionId clears, the snapshot keeps the same id.
+    // A newer Charge fails the id check, so the previous Drop cannot leak.
+    const postDropKey = useRoastingStore((s) => {
+        if (s.phase === 'roasting') return null;
+        const snap = s.completed?.snapshot;
+        if (!snap || !(snap.roastStartMs > 0)) return null;
+        if (s.sessionId != null && s.sessionId !== snap.sessionId) return null;
+        const drop = snap.logEntries.find((entry) => entry.event === 'Drop');
+        const dropSec = drop ? logEntryTimeSec(drop) : null;
+        if (dropSec == null || !Number.isFinite(dropSec)) return null;
+        return `${snap.sessionId}|${snap.roastStartMs}|${dropSec}`;
+    });
     const [active, setActive] = useState<RoastAlertKind[]>([]);
+    const [afterDropDueKey, setAfterDropDueKey] = useState<string | null>(null);
     const activeRef = useRef<RoastAlertKind[]>([]);
     const sessionRef = useRef(sessionId);
     const tpSeenRef = useRef(false);
@@ -50,12 +67,37 @@ export const useRoastAlerts = ({
 
     const dropEntry = logEntries.find((e) => e.event === 'Drop');
     const dropped = dropEntry != null || logEntries.some((e) => e.event === 'End');
-    const armed = enabled && phase === 'roasting';
+    const roasting = enabled && phase === 'roasting';
+    const afterDropMin = timeAlerts.afterDropMin;
+    const afterDropDue = afterDropMin != null && postDropKey != null && afterDropDueKey === postDropKey;
 
     // Charge is a click, so the context is created on a user gesture and is running by the first alarm.
     useEffect(() => {
-        if (armed && soundEnabled) primeAlertAudio();
-    }, [armed, soundEnabled]);
+        if (soundEnabled && (roasting || (enabled && postDropKey != null && afterDropMin != null))) primeAlertAudio();
+    }, [roasting, soundEnabled, enabled, postDropKey, afterDropMin]);
+
+    useEffect(() => {
+        if (!enabled || afterDropMin == null || postDropKey == null) {
+            setAfterDropDueKey(null);
+            return;
+        }
+        const [, startRaw, dropRaw] = postDropKey.split('|');
+        const startMs = Number(startRaw);
+        const dropSec = Number(dropRaw);
+        const dueAt = startMs + (dropSec + afterDropMin * 60) * 1000;
+        const delay = dueAt - Date.now();
+        if (!(startMs > 0) || !Number.isFinite(dropSec) || !Number.isFinite(delay)) {
+            setAfterDropDueKey(null);
+            return;
+        }
+        if (delay <= 0) {
+            setAfterDropDueKey(postDropKey);
+            return;
+        }
+        setAfterDropDueKey(null);
+        const id = setTimeout(() => setAfterDropDueKey(postDropKey), delay);
+        return () => clearTimeout(id);
+    }, [enabled, afterDropMin, postDropKey]);
 
     useEffect(() => {
         if (sessionRef.current !== sessionId) {
@@ -69,37 +111,36 @@ export const useRoastAlerts = ({
         const newTp = tpDetected && !tpSeenRef.current;
         if (tpDetected) tpSeenRef.current = true;
         // Display RoR can still be negative when raw BT confirms TP. A crash needs a prior rise.
-        if (armed && !dropped && tpDetected && liveData?.ror != null && liveData.ror > 0) {
+        if (roasting && !dropped && tpDetected && liveData?.ror != null && liveData.ror > 0) {
             rorReadyRef.current = true;
         }
-        if (!armed) {
-            activeRef.current = [];
-            setActive((previous) => (previous.length ? [] : previous));
-            return;
-        }
 
-        const threshold = dropped
-            ? []
-            : evaluateRoastAlerts(
+        const threshold =
+            roasting && !dropped
+                ? evaluateRoastAlerts(
+                      {
+                          ror: liveData?.ror ?? null,
+                          bt: liveData?.bt ?? null,
+                          afterTurningPoint: tpDetected && rorReadyRef.current,
+                      },
+                      { rorCrashBelowCPerMin: rorCrashCPerMin, btMaxC },
+                      activeRef.current,
+                  )
+                : [];
+        const timed = roasting
+            ? evaluateTimeAlerts(
                   {
-                      ror: liveData?.ror ?? null,
-                      bt: liveData?.bt ?? null,
-                      afterTurningPoint: tpDetected && rorReadyRef.current,
+                      elapsedSec: elapsed,
+                      dropped,
+                      referenceFcStartSec,
+                      referenceDropSec,
+                      sessionDropSec: dropEntry ? logEntryTimeSec(dropEntry) : null,
                   },
-                  { rorCrashBelowCPerMin: rorCrashCPerMin, btMaxC },
-                  activeRef.current,
-              );
-        const timed = evaluateTimeAlerts(
-            {
-                elapsedSec: elapsed,
-                dropped,
-                referenceFcStartSec,
-                referenceDropSec,
-                sessionDropSec: dropEntry ? logEntryTimeSec(dropEntry) : null,
-            },
-            timeAlerts,
-        );
+                  timeAlerts,
+              )
+            : [];
         const next: RoastAlertKind[] = [...threshold, ...timed];
+        if (afterDropDue && !next.includes('after-drop')) next.push('after-drop');
 
         const rising = next.filter((k) => !activeRef.current.includes(k));
         const changed =
@@ -110,9 +151,11 @@ export const useRoastAlerts = ({
             activeRef.current = next;
             setActive(next);
         }
-        if (soundEnabled && (rising.length > 0 || (tpEnabled && newTp && !dropped))) playAlertSound(soundKind);
+        if (soundEnabled && (rising.length > 0 || (roasting && tpEnabled && newTp && !dropped)))
+            playAlertSound(soundKind);
     }, [
-        armed,
+        roasting,
+        afterDropDue,
         soundEnabled,
         soundKind,
         tpEnabled,

@@ -217,3 +217,27 @@ export function applyEventMarkerEdit(
         })
         .sort((a, b) => (logEntryTimeSec(a) ?? 0) - (logEntryTimeSec(b) ?? 0));
 }
+
+/** The time and BT `applyEventMarkerEdit` would store. Null when that edit is rejected. */
+export function linkedEventReading(
+    event: { event: string; timeSec: number; tempC: number | null },
+    patch: { timeSec?: number; tempC?: number },
+    points: ReadonlyArray<MarkerDragLivePoint>,
+    unit: TemperatureUnit,
+    maxTimeSec: number,
+): { timeSec: number; tempC: number | null } | null {
+    const entry: LogEntry = {
+        id: 'linked',
+        time: '0:00',
+        timeSec: event.timeSec,
+        event: event.event,
+        temp: '',
+        tempC: event.tempC,
+        note: '',
+    };
+    const next = applyEventMarkerEdit([entry], entry.id, patch, points, unit, maxTimeSec);
+    if (next[0] === entry) return null;
+    const timeSec = next[0].timeSec;
+    if (timeSec == null) return null;
+    return { timeSec, tempC: next[0].tempC ?? null };
+}
