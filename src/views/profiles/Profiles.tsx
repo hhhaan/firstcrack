@@ -162,11 +162,7 @@ export const Profiles = ({ onNavigate, onOpenHistoryBatch, initialSelectedId = n
         generateProfileCurve(p.drop_temp_celsius ?? 200, p.duration_sec ?? 720);
 
     const selectedTsvPath = selected ? (resolveSourceSession(selected.source_session)?.tsv_path ?? null) : null;
-    const {
-        data: selectedRealCurve = [],
-        isLoading: curveLoading,
-        isError: curveError,
-    } = useRoastProfileCurve(selectedTsvPath);
+    const { data: selectedRealCurve = [] } = useRoastProfileCurve(selectedTsvPath);
     const selectedHasReal = selectedRealCurve.length > 0;
 
     const setDefault = (id: string | null) => {
@@ -255,13 +251,12 @@ export const Profiles = ({ onNavigate, onOpenHistoryBatch, initialSelectedId = n
         if (!selected) return null;
         return (
             <ProfileDetail
+                key={selected.id}
                 selected={selected}
                 batchNumber={batchCounters ? (batchCounters[selected.id] ?? 0) : undefined}
                 selectedRealCurve={selectedRealCurve}
                 selectedHasReal={selectedHasReal}
                 defaultId={defaultId}
-                curveLoading={curveLoading}
-                curveError={curveError}
                 onSetDefault={setDefault}
                 onEdit={() => setProfileModal('edit')}
                 onDuplicate={(profile) => void handleDuplicate(profile)}

@@ -19,6 +19,7 @@ export type ProfileReferenceBatch = {
     tsv_path: string | null;
     bbp_tsv_path: string | null;
     bbp_seconds: number | null;
+    duration_seconds?: number | null;
     heater_events?: Json | null;
     beans: { name: string } | null;
     blends: { name: string } | null;
@@ -63,9 +64,9 @@ export const roastProfileCopyInsert = (profile: RoastProfileWithSource, name: st
 };
 
 const REFERENCE_BATCHS_WITH_HEATER =
-    'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, heater_events, beans(name), blends(name)';
+    'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, heater_events, duration_seconds, beans(name), blends(name)';
 const REFERENCE_BATCHS_WITHOUT_HEATER =
-    'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, beans(name), blends(name)';
+    'id, roasted_at, batch_name, bean_label, profile_batch_number, total_batch_number, tsv_path, bbp_tsv_path, bbp_seconds, duration_seconds, beans(name), blends(name)';
 
 const SELECT_WITH_SESSION_HEATER =
     '*, sources:roast_profile_sources(bean_id,blend_id), source_session:roast_sessions!source_session_id(tsv_path,bbp_tsv_path,bbp_seconds,events,heater_events,duration_seconds,machine_id,machine_roaster_key), default_bean:beans!default_bean_id(id,name), default_blend:blends!default_blend_id(id,name)';
