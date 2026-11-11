@@ -355,6 +355,20 @@ describe('RecordEventsEditor', () => {
         ]);
     });
 
+    it('does not snap temperature when blur only pads the time', async () => {
+        const saved = events.map((event) => (event.id === 'f' ? { ...event, temp_c: 193 } : event));
+        const onSave = vi.fn();
+        const onClose = await mount({ events: saved, onSave, samples: curveSamples });
+        const time = document.querySelector('input[aria-label="FC Start history.edit.time"]') as HTMLInputElement;
+        await act(async () => time.dispatchEvent(new FocusEvent('focusout', { bubbles: true })));
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.temp"]') as HTMLInputElement).value,
+        ).toBe('193');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
     it('rejects a temperature the measured curve does not reach', async () => {
         const onSave = vi.fn();
         await mount({ onSave, samples: curveSamples });

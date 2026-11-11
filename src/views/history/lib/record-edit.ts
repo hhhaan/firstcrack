@@ -115,6 +115,12 @@ const parseTime = (value: string): number | null => {
     return m ? Number(m[1]) * 60 + Number(m[2]) : null;
 };
 
+/** `8:00` and `08:00` are one instant. Incomplete text does not match. */
+const sameTimeText = (left: string, right: string) => {
+    const parsed = parseTime(left);
+    return parsed != null && parsed === parseTime(right);
+};
+
 /** Time order, then phase order. Empty times stay put relative to each other. */
 export const compareEventDrafts = (a: EventDraft, b: EventDraft): number => {
     const left = parseTime(a.time);
@@ -143,9 +149,11 @@ const draftSource = (
     curve: MeasuredCurve | null,
 ): 'time' | 'temp' | null => {
     if (!curve) return null;
+    // Blur pads `8:00` to `08:00`. That is not a time edit, so it must not snap BT.
+    if (draft.edited === 'time' && previous && sameTimeText(draft.time, previous.time)) return null;
     if (draft.edited) return draft.edited;
     if (!previous) return null;
-    const timeChanged = draft.time.trim() !== previous.time;
+    const timeChanged = draft.time.trim() !== previous.time && !sameTimeText(draft.time, previous.time);
     const tempChanged = draft.temp.trim() !== previous.temp;
     if (timeChanged && !tempChanged) return 'time';
     if (tempChanged && !timeChanged) return 'temp';
@@ -197,6 +205,7 @@ export const linkEventDraft = (
     unit: TemperatureUnit,
 ): { draft: EventDraft; error: EventDraftError | null } => {
     if (isFixedMark(draft.type)) return { draft, error: null };
+    if (field === 'time' && sameTimeText(value, draft.time)) return { draft, error: null };
     const next: EventDraft = { ...draft, [field]: value, edited: field };
     if (!curve) return { draft: next, error: null };
     if (field === 'time' && parseTime(value) == null) return { draft: next, error: null };
@@ -281,8 +290,10 @@ export const applyEventDrafts = (
                     errors[d.index] = 'time';
                     continue;
                 }
-                time = parsed;
-                rowChanged = true;
+                if (!sameTimeText(d.time, init.time)) {
+                    time = parsed;
+                    rowChanged = true;
+                }
             }
             if (!isFixedMark(init.type) && d.temp.trim() !== init.temp) {
                 const parsed = parseTempC(d.temp, unit);
