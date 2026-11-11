@@ -137,6 +137,7 @@ it('keeps section groups in order and commits the font slider only after the ges
             'automation',
             'automation',
             'automation',
+            'automation',
             'bbp',
             'automation',
             'automation',
