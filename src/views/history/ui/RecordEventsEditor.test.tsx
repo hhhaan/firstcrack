@@ -316,4 +316,54 @@ describe('RecordEventsEditor', () => {
         expect(onSave).not.toHaveBeenCalled();
         expect(document.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidOrder');
     });
+
+    const curveSamples = Object.freeze([
+        Object.freeze({ time: 0, bt: 200 }),
+        Object.freeze({ time: 470, bt: 190 }),
+        Object.freeze({ time: 480, bt: 196 }),
+        Object.freeze({ time: 600, bt: 210 }),
+    ]);
+
+    it('updates temperature from the measured curve when time changes', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        await mount({ onSave, samples: curveSamples });
+        await type('FC Start history.edit.time', '7:50');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.temp"]') as HTMLInputElement).value,
+        ).toBe('190');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).toHaveBeenCalledWith([
+            events[0],
+            { id: 'f', type: 'FC Start', time_sec: 470, temp_c: 190 },
+            events[2],
+        ]);
+        expect(curveSamples[1].bt).toBe(190);
+    });
+
+    it('updates time from the measured curve when temperature changes', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        await mount({ onSave, samples: curveSamples });
+        await type('FC Start history.edit.temp', '193');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.time"]') as HTMLInputElement).value,
+        ).toBe('7:55');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).toHaveBeenCalledWith([
+            events[0],
+            { id: 'f', type: 'FC Start', time_sec: 475, temp_c: 193 },
+            events[2],
+        ]);
+    });
+
+    it('rejects a temperature the measured curve does not reach', async () => {
+        const onSave = vi.fn();
+        await mount({ onSave, samples: curveSamples });
+        await type('FC Start history.edit.temp', '50');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.time"]') as HTMLInputElement).value,
+        ).toBe('8:00');
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidTemp');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).not.toHaveBeenCalled();
+    });
 });

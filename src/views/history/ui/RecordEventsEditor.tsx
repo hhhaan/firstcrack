@@ -10,7 +10,7 @@ import { ModalHeader } from '@shared/ui/modal-shell/ModalHeader';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Plus, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     ADDABLE_KEY_EVENTS,
@@ -18,6 +18,8 @@ import {
     compareEventDrafts,
     type EventDraft,
     type EventDraftError,
+    linkEventDraft,
+    measuredCurve,
     nextAddableEvent,
     toEventDrafts,
 } from '../lib/record-edit';
@@ -27,25 +29,41 @@ const freshIndex = (rows: EventDraft[]) => Math.min(0, ...rows.map((d) => d.inde
 type Props = {
     events: Json;
     unit: TemperatureUnit;
+    /** Measured BT samples, charge-relative seconds. Empty keeps time and temperature independent. */
+    samples?: readonly { time: number; bt: number }[];
     onSave: (events: Json) => Promise<void>;
     errorText: (error: unknown) => string;
     onClose: () => void;
 };
 
 /** Key mark time/temp of a saved record. Missing TP/Yellow/FC marks can be added. Charge and Drop stay as saved. */
-export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }: Props) => {
+export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, onClose }: Props) => {
     const { t } = useTranslation();
     const [drafts, setDrafts] = useState<EventDraft[]>(() => toEventDrafts(events, unit));
     const [errors, setErrors] = useState<Partial<Record<number, EventDraftError>>>({});
     const [saveError, setSaveError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const inFlight = useRef(false);
+    const draftsRef = useRef(drafts);
+    useEffect(() => {
+        draftsRef.current = drafts;
+    }, [drafts]);
+    const curve = useMemo(() => measuredCurve(samples ?? []), [samples]);
 
-    const setTimeRoot = useTimeEditRoot((key, value) => {
-        const index = Number(key);
-        setDrafts((prev) => prev.map((row) => (row.index === index ? { ...row, time: value } : row)));
-        setErrors(({ [index]: _, ...rest }) => rest);
+    const editField = (index: number, field: 'time' | 'temp', value: string) => {
+        const row = draftsRef.current.find((d) => d.index === index);
+        if (!row || row.type === 'Charge' || row.type === 'Drop') return;
+        const linked = linkEventDraft(row, field, value, curve, unit);
+        const next = draftsRef.current.map((d) => (d.index === index ? linked.draft : d));
+        const sorted = linked.draft.time !== row.time ? [...next].sort(compareEventDrafts) : next;
+        draftsRef.current = sorted;
+        setDrafts(sorted);
+        setErrors(({ [index]: _, ...rest }) => (linked.error ? { ...rest, [index]: linked.error } : rest));
         setSaveError(null);
+    };
+    const setTimeRoot = useTimeEditRoot((key, value) => {
+        if (!isPartialTime(value)) return;
+        editField(Number(key), 'time', value);
     });
     const close = () => {
         if (!inFlight.current) onClose();
@@ -107,7 +125,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
         e.preventDefault();
         // State lags a same-tick double submit; the ref blocks the second write.
         if (inFlight.current) return;
-        const res = applyEventDrafts(events, drafts, unit);
+        const res = applyEventDrafts(events, drafts, unit, curve);
         if (!res.ok) {
             setErrors(res.errors);
             return;
@@ -225,7 +243,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                                             e.target.value = d.time;
                                                             return;
                                                         }
-                                                        update(d.index, { time: e.target.value });
+                                                        editField(d.index, 'time', e.target.value);
                                                     }}
                                                     maxLength={6}
                                                     className={`${inputCls} px-2 py-1.5 font-mono text-xs read-only:opacity-60 ${error === 'time' || error === 'order' ? 'border-red-500' : ''}`}
@@ -246,7 +264,7 @@ export const RecordEventsEditor = ({ events, unit, onSave, errorText, onClose }:
                                                             e.target.value = d.temp;
                                                             return;
                                                         }
-                                                        update(d.index, { temp: e.target.value });
+                                                        editField(d.index, 'temp', e.target.value);
                                                     }}
                                                     maxLength={5}
                                                     className={`${inputCls} px-2 py-1.5 font-mono text-xs read-only:opacity-60 ${error === 'temp' ? 'border-red-500' : ''}`}

@@ -97,8 +97,11 @@ const showKept = (slots: string, at: number): TimeEdit => {
     return { ...shown, caret: caretFor(Math.min(at, slots.length)) };
 };
 
+const sameClock = (shown: string, value: string) => value === shown || value === shown.replace(/^0(\d:)/, '$1');
+
+/** Owned digits win only while they still match the field. A linked edit can replace the value. */
 const filledSlots = (value: string, digits: string, owned: boolean): string => {
-    if (owned) return digits;
+    if (owned && sameClock(showSlots(digits).value, value)) return digits;
     if (value.trim() === '') return '';
     return slotsOf(value) ?? '';
 };

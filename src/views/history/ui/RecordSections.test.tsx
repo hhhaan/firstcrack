@@ -9,6 +9,7 @@ import { RecordSections } from './RecordSections';
 const mocks = vi.hoisted(() => ({
     update: vi.fn<typeof roastSessionApi.updateRecord>(),
     owner: 'owner',
+    points: [] as { t: number; bt: number }[],
 }));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: mocks.owner, isWorkspaceReady: true }),
@@ -16,7 +17,7 @@ vi.mock('@entities/organization', () => ({
 vi.mock('@shared/lib/features', () => ({ useWriteAccess: () => true }));
 vi.mock('@entities/roast', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@entities/roast')>()),
-    useHistoryChart: () => ({ points: [], isLoading: false }),
+    useHistoryChart: () => ({ points: mocks.points, isLoading: false }),
     useUpdateRoastRecord: () => ({ mutateAsync: mocks.update, isPending: false }),
 }));
 vi.mock('@features/active-roast', async () => ({
@@ -106,6 +107,7 @@ describe('History record editor baseline', () => {
 
     beforeEach(() => {
         mocks.owner = 'owner';
+        mocks.points = [];
         server = session();
         mocks.update.mockReset();
         mocks.update.mockImplementation(async (payload) => {
@@ -193,5 +195,39 @@ describe('History record editor baseline', () => {
         await render({ ...server, id: 'other-record' });
         expect(document.querySelector('[data-testid="record-events-editor"]')).toBeNull();
         expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps a linked event time and temperature after save and reopen', async () => {
+        mocks.points = [
+            { t: 0, bt: 200 },
+            { t: 470, bt: 190 },
+            { t: 480, bt: 196 },
+            { t: 600, bt: 210 },
+        ];
+        await render(server);
+        await click('[data-testid="history-edit-events"]');
+        await type('FC Start history.edit.time', '7:50');
+        expect(document.querySelector<HTMLInputElement>('input[aria-label="FC Start history.edit.temp"]')?.value).toBe(
+            '190',
+        );
+        await save('history.edit.save');
+        const saved = server.events as Array<{ id: string; time_sec: number; temp_c: number }>;
+        expect(saved.map((event) => [event.id, event.time_sec, event.temp_c])).toEqual([
+            ['charge', 0, 200],
+            ['fc', 470, 190],
+            ['drop', 600, 210],
+        ]);
+        await render(server);
+        expect(document.querySelector('[data-testid="history-section-events"]')?.textContent).toContain('7:50');
+        expect(document.querySelector('[data-testid="history-section-events"]')?.textContent).toContain('190');
+        expect(document.querySelector('[data-testid="history-section-events"]')?.textContent).toContain('10:00');
+        await click('[data-testid="history-edit-events"]');
+        expect(document.querySelector<HTMLInputElement>('input[aria-label="FC Start history.edit.time"]')?.value).toBe(
+            '7:50',
+        );
+        expect(document.querySelector<HTMLInputElement>('input[aria-label="FC Start history.edit.temp"]')?.value).toBe(
+            '190',
+        );
+        expect(mocks.points[1].bt).toBe(190);
     });
 });
