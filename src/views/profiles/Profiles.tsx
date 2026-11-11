@@ -251,6 +251,7 @@ export const Profiles = ({ onNavigate, onOpenHistoryBatch, initialSelectedId = n
         if (!selected) return null;
         return (
             <ProfileDetail
+                key={selected.id}
                 selected={selected}
                 batchNumber={batchCounters ? (batchCounters[selected.id] ?? 0) : undefined}
                 selectedRealCurve={selectedRealCurve}

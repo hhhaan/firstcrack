@@ -13,6 +13,7 @@ import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Check, ChevronRight } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { previewBatchRowClass } from '../lib/resolve-profile-batch-preview';
 import { profileBatchSourceSession } from '../lib/source-session';
 
 export const ProfileReferenceBatches = ({
@@ -87,17 +88,15 @@ export const ProfileReferenceBatches = ({
                                 data-testid="profile-reference-row"
                                 data-current={current ? 'true' : 'false'}
                                 data-preview={preview ? 'true' : 'false'}
-                                aria-current={preview ? 'true' : undefined}
-                                onClick={() => onPreviewSession(batch.id)}
-                                className={`flex cursor-pointer flex-col gap-3 px-4 py-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-strong-border @lg:flex-row @lg:items-center @lg:justify-between ${
-                                    current
-                                        ? 'bg-emerald-50/80 dark:bg-emerald-950/35'
-                                        : preview
-                                          ? 'bg-surface-elevated'
-                                          : 'hover:bg-surface-elevated'
-                                }`}
+                                className={`flex flex-col gap-3 px-4 py-3 transition-colors @lg:flex-row @lg:items-center @lg:justify-between ${previewBatchRowClass(current, preview)}`}
                             >
-                                <div className="min-w-0 flex-1">
+                                <button
+                                    type="button"
+                                    data-testid="profile-reference-preview"
+                                    aria-current={preview ? 'true' : undefined}
+                                    onClick={() => onPreviewSession(batch.id)}
+                                    className="min-w-0 flex-1 cursor-pointer rounded-md border-none bg-transparent p-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-strong-border"
+                                >
                                     <p className="break-words text-sm font-medium leading-5 text-primary">{title}</p>
                                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                                         <time dateTime={batch.roasted_at ?? undefined}>
@@ -108,7 +107,7 @@ export const ProfileReferenceBatches = ({
                                             {sessionBatchNumberLabel(batch, totalBatchPrefix) ?? '—'}
                                         </span>
                                     </div>
-                                </div>
+                                </button>
                                 <div className="flex shrink-0 items-center justify-end gap-2">
                                     {onOpenDetail && (
                                         <SurfaceButton

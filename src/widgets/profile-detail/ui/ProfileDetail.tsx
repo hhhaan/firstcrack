@@ -65,8 +65,8 @@ export const ProfileDetail = ({
     const { t } = useTranslation();
     const [moreOpen, setMoreOpen] = useState(false);
     const [previewSessionId, setPreviewSessionId] = useState(selected.source_session_id);
-    const { data: batches = [] } = useProfileReferenceBatches(selected.id);
-    const batchPreview = useProfileBatchPreview(selected, previewSessionId, batches);
+    const { data: batches = [], isLoading: batchesLoading } = useProfileReferenceBatches(selected.id);
+    const batchPreview = useProfileBatchPreview(selected, previewSessionId, batches, batchesLoading);
     useEffect(() => {
         setPreviewSessionId(selected.source_session_id);
     }, [selected.source_session_id]);

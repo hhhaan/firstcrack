@@ -5,39 +5,16 @@ import { useToastStore } from '@shared/store/toast';
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { profilePreviewBatches } from '../lib/profile-preview-fixtures';
 import { ProfileReferenceBatches } from './ProfileReferenceBatches';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
-const batches: ProfileReferenceBatch[] = [
-    {
-        id: 's4',
-        roasted_at: '2026-10-22T01:00:00Z',
-        batch_name: 'ZIPPER',
-        bean_label: null,
-        profile_batch_number: 4,
-        total_batch_number: 40,
-        tsv_path: 'curves/s4.tsv',
-        bbp_tsv_path: null,
-        bbp_seconds: null,
-        beans: null,
-        blends: null,
-    },
-    {
-        id: 's3',
-        roasted_at: '2026-10-18T01:00:00Z',
-        batch_name: 'ZIPPER',
-        bean_label: null,
-        profile_batch_number: 3,
-        total_batch_number: 31,
-        tsv_path: 'curves/s3.tsv',
-        bbp_tsv_path: null,
-        bbp_seconds: null,
-        heater_events: [{ heater: 2 }],
-        beans: null,
-        blends: null,
-    },
-];
+const batches: ProfileReferenceBatch[] = profilePreviewBatches.map((batch) =>
+    batch.id === 's3'
+        ? { ...batch, batch_name: 'ZIPPER', heater_events: [{ heater: 2 }] }
+        : { ...batch, batch_name: 'ZIPPER' },
+);
 
 const mutateAsync = vi.fn(() => Promise.resolve());
 const onPreviewSession = vi.fn();
@@ -94,7 +71,7 @@ describe('ProfileReferenceBatches', () => {
         expect(rows[0]?.textContent).toContain('profiles.detail.setReference');
         expect(rows[1]?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
 
-        act(() => rows[0]?.click());
+        act(() => rows[0]?.querySelector<HTMLButtonElement>('[data-testid="profile-reference-preview"]')?.click());
         expect(onPreviewSession).toHaveBeenCalledWith('s4');
         expect(mutateAsync).not.toHaveBeenCalled();
 
@@ -134,7 +111,7 @@ describe('ProfileReferenceBatches', () => {
         list.current = batches;
         render();
         const current = host.querySelector<HTMLLIElement>('[data-current="true"]');
-        act(() => current?.click());
+        act(() => current?.querySelector<HTMLButtonElement>('[data-testid="profile-reference-preview"]')?.click());
         expect(onPreviewSession).toHaveBeenCalledWith('s3');
         expect(current?.querySelector('[data-testid="profile-reference-set"]')).toBeNull();
         expect(mutateAsync).not.toHaveBeenCalled();

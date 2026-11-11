@@ -34,7 +34,10 @@ export function ProfileRoastChart({
         if (!section) return;
         const apply = (width: number) => setChartHeight(width < 520 ? 260 : 360);
         apply(section.clientWidth);
-        const observer = new ResizeObserver(([entry]) => apply(entry.contentRect.width));
+        const observer = new ResizeObserver((entries) => {
+            const width = entries[0]?.contentRect.width;
+            if (width) apply(width);
+        });
         observer.observe(section);
         return () => observer.disconnect();
     }, []);
