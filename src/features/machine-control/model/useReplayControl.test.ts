@@ -779,10 +779,10 @@ describe('BT discharge replay', () => {
     });
 
     it('reports the issuing sample after acknowledgement and ignores a later clock', async () => {
-        let resolve!: (sent: DoorProbeResult | null) => void;
+        let resolve!: (sent: DoorProbeResult) => void;
         const write = vi.fn(
             () =>
-                new Promise<DoorProbeResult | null>((done) => {
+                new Promise<DoorProbeResult>((done) => {
                     resolve = done;
                 }),
         );
@@ -825,10 +825,10 @@ describe('BT discharge replay', () => {
     });
 
     it('does not accept a discharge aborted before the reply', async () => {
-        let resolve!: (sent: DoorProbeResult | null) => void;
+        let resolve!: (sent: DoorProbeResult) => void;
         const write = vi.fn(
             () =>
-                new Promise<DoorProbeResult | null>((done) => {
+                new Promise<DoorProbeResult>((done) => {
                     resolve = done;
                 }),
         );
