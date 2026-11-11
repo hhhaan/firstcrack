@@ -4,7 +4,7 @@ import { tempUnitLabel, useRoastSettings } from '@features/active-roast';
 import { formatEditTime, profileHeaterBounds } from '@features/machine-control/lib/heater-events';
 import { roastEventLabel } from '@shared/i18n/roast-event-label';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
-import { type ReactNode, useRef, useState } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRoastRecordSave } from '../hooks/useRoastRecordSave';
 import { toEventDrafts } from '../lib/record-edit';
@@ -38,6 +38,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
     const machines = useMachines((s) => s.machines);
     const heaterUnit = profileHeaterBounds(session, machines, ROASTER_REGISTRY).unit;
     const curve = useHistoryChart(session.tsv_path ?? null);
+    const samples = useMemo(() => curve.points.map((point) => ({ time: point.t, bt: point.bt })), [curve.points]);
     const [open, setOpen] = useState<{
         section: 'events' | 'heat';
         session: RoastSessionWithRelations;
@@ -67,7 +68,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                         type="button"
                         data-testid="history-edit-events"
                         className={editCls}
-                        disabled={!record.canWrite || record.isPending || marks.length === 0}
+                        disabled={!record.canWrite || record.isPending || marks.length === 0 || curve.isLoading}
                         title={readOnlyTitle}
                         onClick={() => setOpen({ section: 'events', session })}
                     >
@@ -147,6 +148,7 @@ export const RecordSections = ({ session }: { session: RoastSessionWithRelations
                 <RecordEventsEditor
                     events={open.session.events}
                     unit={unit}
+                    samples={samples}
                     onSave={record.saveEvents}
                     errorText={record.errorText}
                     onClose={close}
