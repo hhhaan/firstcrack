@@ -445,8 +445,9 @@ describe('history event edits use the live curve rule', () => {
         const padded = { ...fc, temp: '193' };
         expect(linkEventDraft(padded, 'time', '08:00', curve, 'C')).toEqual({ draft: padded, error: null });
         const typed = [{ id: 'f', type: 'FC Start', time_sec: 480, temp_c: 193 }];
-        const paddedDraft = [{ index: 0, type: 'FC Start', time: '08:00', temp: '193', edited: 'time' as const }];
-        expect(applyEventDrafts(typed, paddedDraft, 'C', curve)).toMatchObject({ ok: true, changed: false });
+        const unchanged = (draft: EventDraft) =>
+            expect(applyEventDrafts(typed, [draft], 'C', curve)).toMatchObject({ ok: true, changed: false });
+        unchanged({ index: 0, type: 'FC Start', time: '08:00', temp: '193', edited: 'time' });
         expect(linkEventDraft(padded, 'temp', '193.0', curve, 'C').draft).toBe(padded);
         const retyped = linkEventDraft({ ...padded, temp: '19', edited: 'temp' }, 'temp', '193', curve, 'C', {
             time: padded.time,
@@ -461,22 +462,8 @@ describe('history event edits use the live curve rule', () => {
         const moved = linkEventDraft(padded, 'time', '7:50', curve, 'C', opened);
         expect(moved.draft).toMatchObject({ time: '7:50', temp: '190', edited: 'time' });
         expect(linkEventDraft(moved.draft, 'time', '8:00', curve, 'C', opened).draft).toEqual(padded);
-        expect(
-            applyEventDrafts(
-                typed,
-                [{ index: 0, type: 'FC Start', time: '8:00', temp: '190', edited: 'time' }],
-                'C',
-                curve,
-            ),
-        ).toMatchObject({ ok: true, changed: false });
-        expect(
-            applyEventDrafts(
-                typed,
-                [{ index: 0, type: 'FC Start', time: '8:00', temp: '193.0', edited: 'temp' }],
-                'C',
-                curve,
-            ),
-        ).toMatchObject({ ok: true, changed: false });
+        unchanged({ index: 0, type: 'FC Start', time: '8:00', temp: '190', edited: 'time' });
+        unchanged({ index: 0, type: 'FC Start', time: '8:00', temp: '193.0', edited: 'temp' });
         const fixed = applyEventDrafts(
             stored,
             edited('Charge', { time: '1:00', temp: '100', edited: 'time' }).map((row) =>

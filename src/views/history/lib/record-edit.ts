@@ -143,6 +143,15 @@ const sameTempText = (left: string, right: string, unit: TemperatureUnit) => {
     return parsed != null && parsed === parseTempC(right, unit);
 };
 
+/** The field that drove the edit still says the opened reading. */
+const driverStillOpened = (
+    draft: { edited?: 'time' | 'temp'; time: string; temp: string },
+    opened: { time: string; temp: string },
+    unit: TemperatureUnit,
+) =>
+    (draft.edited === 'time' && sameTimeText(draft.time, opened.time)) ||
+    (draft.edited === 'temp' && sameTempText(draft.temp, opened.temp, unit));
+
 type ResolvedReading = { timeSec: number; tempC: number | null };
 
 /**
@@ -157,8 +166,7 @@ const draftSource = (
 ): 'time' | 'temp' | null => {
     if (!curve) return null;
     // Padding `8:00` or `193.0` is not an edit, so it must not move the other field.
-    if (draft.edited === 'time' && previous && sameTimeText(draft.time, previous.time)) return null;
-    if (draft.edited === 'temp' && previous && sameTempText(draft.temp, previous.temp, unit)) return null;
+    if (previous && driverStillOpened(draft, previous, unit)) return null;
     if (draft.edited) return draft.edited;
     if (!previous) return null;
     const timeChanged = draft.time.trim() !== previous.time && !sameTimeText(draft.time, previous.time);
@@ -177,30 +185,18 @@ const resolveDraft = (
     curve: MeasuredCurve,
     unit: TemperatureUnit,
 ): ResolvedReading | 'time' | 'temp' => {
-    if (source === 'time') {
-        const parsed = parseTime(draft.time);
-        if (parsed == null) return 'time';
-        return (
-            linkedEventReading(
-                { event: type, timeSec: anchorTime, tempC: anchorTemp },
-                { timeSec: parsed },
-                curve.points,
-                unit,
-                curve.maxTimeSec,
-            ) ?? 'time'
-        );
-    }
-    const parsed = parseTempC(draft.temp, unit);
-    if (parsed == null) return 'temp';
-    const near = parseTime(draft.time) ?? anchorTime;
+    const parsedTime = parseTime(draft.time);
+    const parsedTemp = parseTempC(draft.temp, unit);
+    if (source === 'time' && parsedTime == null) return 'time';
+    if (source === 'temp' && parsedTemp == null) return 'temp';
     return (
         linkedEventReading(
-            { event: type, timeSec: near, tempC: anchorTemp },
-            { tempC: parsed },
+            { event: type, timeSec: source === 'temp' ? (parsedTime ?? anchorTime) : anchorTime, tempC: anchorTemp },
+            source === 'time' ? { timeSec: parsedTime ?? undefined } : { tempC: parsedTemp ?? undefined },
             curve.points,
             unit,
             curve.maxTimeSec,
-        ) ?? 'temp'
+        ) ?? source
     );
 };
 
@@ -302,11 +298,7 @@ export const applyEventDrafts = (
                 continue;
             }
             // The driver is back to the opened reading. Drop the linked counterpart.
-            if (
-                curve &&
-                ((d.edited === 'time' && sameTimeText(d.time, init.time)) ||
-                    (d.edited === 'temp' && sameTempText(d.temp, init.temp, unit)))
-            ) {
+            if (curve && driverStillOpened(d, init, unit)) {
                 times.push({ index: d.index, type: init.type, t: time });
                 continue;
             }
