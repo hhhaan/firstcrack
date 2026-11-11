@@ -125,6 +125,15 @@ export type RoastSettings = {
     /** When on, Charge starts Replay and Drop stops it. The next Charge starts it again. */
     replayOnCharge: boolean;
     /**
+     * W60A and virtual discharge assist.
+     * Off skips both the lead outputs and the later close. The seconds stay stored.
+     */
+    dischargeAssistEnabled: boolean;
+    /** Seconds before the reference discharge time. 0 uses that time. Integer 0–120. */
+    dischargeAssistLeadSec: number;
+    /** Seconds after an acknowledged discharge open. Integer 0–120. */
+    dischargeAssistCloseSec: number;
+    /**
      * Minutes after Charge before auto Drop may fire.
      * The detector fires only once elapsed exceeds this value (`elapsed > minutes * 60`).
      */

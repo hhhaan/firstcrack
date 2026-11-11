@@ -52,6 +52,7 @@ export {
     btSmoothingToAlpha,
     chartSpanSec,
     coercePollIntervalForPlan,
+    DISCHARGE_ASSIST_SEC_MAX,
     FONT_SLIDER_MAX,
     FONT_SLIDER_MIN,
     fontScaleToSlider,

@@ -47,6 +47,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater' | 'cancelUnsentHeater'> = {
     dropBehavior: 'hold',
     reconnecting: false,
     observationQuality: 'valid',
+    dischargeAssist: { enabled: true, leadSec: 10, closeSec: 10 },
 };
 
 /** repo 표준 패턴 — 실제 훅을 렌더해 반환값을 노출한다 */
@@ -608,6 +609,173 @@ describe('BT discharge replay', () => {
         expect(h.writeHeater).toHaveBeenCalledExactlyOnceWith(80);
         expect(options.writeDischargeOpen).not.toHaveBeenCalled();
         h.unmount();
+    });
+
+    it('turns the stirrer and cooler on once, 10s before the reference discharge time', async () => {
+        const writePreDropOutputs = vi.fn(async () => undefined);
+        const options = {
+            ...inputs('pre-drop-lead'),
+            dischargeAssist: { enabled: true, leadSec: 10, closeSec: 10 },
+            dischargeOpenSupported: true,
+            writePreDropOutputs,
+        };
+        const h = await renderReplay({ ...options, elapsed: 289 });
+        await act(async () => h.get().toggle());
+        expect(writePreDropOutputs).not.toHaveBeenCalled();
+        await h.rerender({ ...options, elapsed: 290 });
+        expect(writePreDropOutputs).toHaveBeenCalledOnce();
+        await h.rerender({ ...options, elapsed: 295 });
+        expect(writePreDropOutputs).toHaveBeenCalledOnce();
+        h.unmount();
+    });
+
+    it('does not turn the stirrer and cooler on when discharge assist is off', async () => {
+        const writePreDropOutputs = vi.fn(async () => undefined);
+        const options = {
+            ...inputs('pre-drop-lead-off'),
+            dischargeAssist: { enabled: false, leadSec: 10, closeSec: 10 },
+            dischargeOpenSupported: true,
+            writePreDropOutputs,
+        };
+        const h = await renderReplay({ ...options, elapsed: 289 });
+        await act(async () => h.get().toggle());
+        await h.rerender({ ...options, elapsed: 290 });
+        expect(writePreDropOutputs).not.toHaveBeenCalled();
+        h.unmount();
+    });
+
+    describe('discharge close timer', () => {
+        beforeEach(() => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        });
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        const assist = { enabled: true, leadSec: 10, closeSec: 10 };
+
+        it('closes once, 10s after an acknowledged discharge', async () => {
+            const writeDischargeClose = vi.fn(async () => undefined);
+            const options = {
+                ...inputs('assist-close'),
+                dischargeAssist: assist,
+                writeDischargeClose,
+            };
+            const h = await renderReplay(options);
+            await act(async () => h.get().toggle());
+            await confirm(h, options);
+            await act(async () => {
+                await Promise.resolve();
+            });
+            expect(options.writeDischargeOpen).toHaveBeenCalledOnce();
+            expect(writeDischargeClose).not.toHaveBeenCalled();
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(writeDischargeClose).toHaveBeenCalledOnce();
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(writeDischargeClose).toHaveBeenCalledOnce();
+            h.unmount();
+        });
+
+        it('does not close when assist is off or the discharge write is rejected', async () => {
+            const writeDischargeClose = vi.fn(async () => undefined);
+            const off = {
+                ...inputs('assist-close-off'),
+                dischargeAssist: { ...assist, enabled: false },
+                writeDischargeClose,
+            };
+            const offHook = await renderReplay(off);
+            await act(async () => offHook.get().toggle());
+            await confirm(offHook, off);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(off.writeDischargeOpen).toHaveBeenCalledOnce();
+            expect(writeDischargeClose).not.toHaveBeenCalled();
+            offHook.unmount();
+
+            const rejectedClose = vi.fn(async () => undefined);
+            const rejected = {
+                ...inputs(
+                    'assist-close-rejected',
+                    vi.fn(async () => doorResponse(0)),
+                ),
+                dischargeAssist: assist,
+                writeDischargeClose: rejectedClose,
+            };
+            const rejectedHook = await renderReplay(rejected);
+            await act(async () => rejectedHook.get().toggle());
+            await confirm(rejectedHook, rejected);
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(rejected.writeDischargeOpen).toHaveBeenCalledOnce();
+            expect(rejectedClose).not.toHaveBeenCalled();
+            rejectedHook.unmount();
+        });
+
+        it('does not close if assist turns off, the session changes, or the view unmounts during the wait', async () => {
+            const writeDischargeClose = vi.fn(async () => undefined);
+            const off = {
+                ...inputs('assist-close-turn-off'),
+                dischargeAssist: assist,
+                writeDischargeClose,
+            };
+            const offHook = await renderReplay(off);
+            await act(async () => offHook.get().toggle());
+            await confirm(offHook, off);
+            await act(async () => {
+                await Promise.resolve();
+            });
+            await offHook.rerender({ ...off, dischargeAssist: { ...assist, enabled: false } });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(off.writeDischargeOpen).toHaveBeenCalledOnce();
+            expect(writeDischargeClose).not.toHaveBeenCalled();
+            offHook.unmount();
+
+            const sessionClose = vi.fn(async () => undefined);
+            const session = {
+                ...inputs('assist-close-session'),
+                dischargeAssist: assist,
+                writeDischargeClose: sessionClose,
+            };
+            const sessionHook = await renderReplay(session);
+            await act(async () => sessionHook.get().toggle());
+            await confirm(sessionHook, session);
+            await act(async () => {
+                await Promise.resolve();
+            });
+            await sessionHook.rerender({ ...session, sessionId: 'assist-close-next' });
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(sessionClose).not.toHaveBeenCalled();
+            sessionHook.unmount();
+
+            const unmountClose = vi.fn(async () => undefined);
+            const leaving = {
+                ...inputs('assist-close-unmount'),
+                dischargeAssist: assist,
+                writeDischargeClose: unmountClose,
+            };
+            const leavingHook = await renderReplay(leaving);
+            await act(async () => leavingHook.get().toggle());
+            await confirm(leavingHook, leaving);
+            await act(async () => {
+                await Promise.resolve();
+            });
+            expect(unmountClose).not.toHaveBeenCalled();
+            await leavingHook.unmount();
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(10_000);
+            });
+            expect(unmountClose).not.toHaveBeenCalled();
+        });
     });
 
     it('reports the issuing sample after acknowledgement and ignores a later clock', async () => {

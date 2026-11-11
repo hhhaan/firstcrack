@@ -41,6 +41,7 @@ export const NumberInput = ({
     ariaLabel,
     integer = false,
     step = 1,
+    disabled = false,
 }: {
     id?: string;
     value: number;
@@ -51,6 +52,7 @@ export const NumberInput = ({
     ariaLabel?: string;
     integer?: boolean;
     step?: number;
+    disabled?: boolean;
 }) => {
     const [local, setLocal] = useState(() => String(value));
 
@@ -65,7 +67,7 @@ export const NumberInput = ({
     };
 
     return (
-        <div className={numberInputWrapCls}>
+        <div className={`${numberInputWrapCls}${disabled ? ' opacity-40' : ''}`}>
             <NumericFormat
                 id={id}
                 aria-label={ariaLabel}
@@ -73,12 +75,15 @@ export const NumberInput = ({
                 valueIsNumericString
                 allowNegative
                 decimalScale={integer ? 0 : undefined}
+                disabled={disabled}
                 onValueChange={(values) => {
+                    if (disabled) return;
                     setLocal(values.value);
                     if (integer || values.floatValue === undefined) return;
                     onChange(clamp(values.floatValue));
                 }}
                 onBlur={(event) => {
+                    if (disabled) return;
                     const typed = event.currentTarget.value;
                     if (!integer) {
                         if (typed === '') {

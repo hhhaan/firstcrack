@@ -691,6 +691,34 @@ describe('FEATURE.fastPolling plan matrix', () => {
     });
 });
 
+describe('normalize — discharge assist', () => {
+    it('defaults missing fields to on, 10s before discharge, and 10s after the acknowledged open', () => {
+        expect(normalizeRoastSettings({})).toMatchObject({
+            dischargeAssistEnabled: true,
+            dischargeAssistLeadSec: 10,
+            dischargeAssistCloseSec: 10,
+        });
+    });
+
+    it('keeps a stored off switch and clamps a stored 999 to 120', () => {
+        expect(normalizeRoastSettings({ dischargeAssistEnabled: false })).toMatchObject({
+            dischargeAssistEnabled: false,
+            dischargeAssistLeadSec: 10,
+            dischargeAssistCloseSec: 10,
+        });
+        expect(
+            normalizeRoastSettings({
+                dischargeAssistLeadSec: 999,
+                dischargeAssistCloseSec: 999,
+            }),
+        ).toMatchObject({
+            dischargeAssistEnabled: true,
+            dischargeAssistLeadSec: 120,
+            dischargeAssistCloseSec: 120,
+        });
+    });
+});
+
 describe('normalize — auto drop start minute', () => {
     it('reads a missing field as 7 minutes', () => {
         expect(normalizeRoastSettings({}).autoDropStartMin).toBe(AUTO_DROP_START_MIN_DEFAULT);

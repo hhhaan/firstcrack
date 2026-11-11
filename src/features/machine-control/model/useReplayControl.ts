@@ -4,7 +4,15 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
 import { deliverHeaterCommand } from '../lib/heaterDelivery';
-import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayEvent, type ReplayPoint } from '../lib/replay';
+import {
+    type DischargeAssist,
+    eventTrigger,
+    extractReplayEvents,
+    judgeReplay,
+    preDropLeadDue,
+    type ReplayEvent,
+    type ReplayPoint,
+} from '../lib/replay';
 import {
     appendReplayDischargeAudit,
     type DischargeDwellEvidence,
@@ -101,6 +109,12 @@ export interface ReplayControlInputs {
     roaster?: string | null;
     /** One physical command attempt; no automatic retry or movement confirmation. */
     writeDischargeOpen?: (signal: AbortSignal) => Promise<DoorProbeResult | null>;
+    /** Stirrer and cooler before the reference discharge. Runs only while assist is on. */
+    writePreDropOutputs?: (signal: AbortSignal) => Promise<void>;
+    /** One discharge-close after an acknowledged open. No connection epoch. No retry. */
+    writeDischargeClose?: (signal: AbortSignal) => Promise<void>;
+    /** Lead and close share this record. Off runs neither. */
+    dischargeAssist: DischargeAssist;
     /**
      * 미전송 Replay heater만 선택 취소. fan/drum·수동 commit·DROP zero(safety)는 남긴다.
      */
@@ -216,6 +230,9 @@ export const useReplayControl = ({
     dischargeOpenSupported = false,
     roaster = null,
     writeDischargeOpen,
+    writePreDropOutputs,
+    writeDischargeClose,
+    dischargeAssist,
     cancelUnsentHeater,
     heaterMax,
     heaterMin,
@@ -334,6 +351,53 @@ export const useReplayControl = ({
         onDischargeDeliveryRef.current = onDischargeDelivery;
     }, [onDischargeDelivery]);
     const dischargeFlight = useRef<{ timeSec: number; bt: number } | null>(null);
+    const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const closeAbortRef = useRef<AbortController | null>(null);
+    const dischargeAssistRef = useRef(dischargeAssist);
+    const writeDischargeCloseRef = useRef(writeDischargeClose);
+    const sessionIdRef = useRef(sessionId);
+    useLayoutEffect(() => {
+        dischargeAssistRef.current = dischargeAssist;
+        writeDischargeCloseRef.current = writeDischargeClose;
+        sessionIdRef.current = sessionId;
+    }, [dischargeAssist, writeDischargeClose, sessionId]);
+    const clearDischargeClose = useCallback(() => {
+        if (closeTimerRef.current != null) {
+            clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = null;
+        }
+        closeAbortRef.current?.abort();
+        closeAbortRef.current = null;
+    }, []);
+    const armDischargeClose = useCallback(
+        (forSession: string) => {
+            const assist = dischargeAssistRef.current;
+            const writeClose = writeDischargeCloseRef.current;
+            if (!assist.enabled || writeClose == null || sessionIdRef.current !== forSession) return;
+            clearDischargeClose();
+            const controller = new AbortController();
+            closeAbortRef.current = controller;
+            closeTimerRef.current = setTimeout(() => {
+                closeTimerRef.current = null;
+                if (
+                    controller.signal.aborted ||
+                    !dischargeAssistRef.current.enabled ||
+                    sessionIdRef.current !== forSession
+                ) {
+                    return;
+                }
+                void writeClose(controller.signal).catch(() => undefined);
+            }, assist.closeSec * 1000);
+        },
+        [clearDischargeClose],
+    );
+    useEffect(() => {
+        if (!dischargeAssist.enabled) clearDischargeClose();
+    }, [dischargeAssist.enabled, clearDischargeClose]);
+    useEffect(() => {
+        if (sessionId == null) clearDischargeClose();
+        return clearDischargeClose;
+    }, [sessionId, clearDischargeClose]);
     const settleDischarge = useCallback((accepted: boolean) => {
         const flight = dischargeFlight.current;
         if (!flight) return;
@@ -481,6 +545,35 @@ export const useReplayControl = ({
         () => (rawPlan && labeledEvents ? { events: labeledEvents, tpTime: rawPlan.tpTime } : rawPlan),
         [rawPlan, labeledEvents],
     );
+    const dropAtSec = plan?.events.find((event) => event.kind === 'discharge_open')?.t;
+    const preDropSession = useRef<string | null>(null);
+    useEffect(() => {
+        if (
+            !dischargeAssist.enabled ||
+            !active ||
+            !roasting ||
+            !sessionId ||
+            !dischargeOpenSupported ||
+            !writePreDropOutputs
+        ) {
+            return;
+        }
+        if (dropAtSec == null || !preDropLeadDue(dropAtSec, elapsed, dischargeAssist.leadSec)) return;
+        if (preDropSession.current === sessionId || dischargeAttemptedSessions.has(sessionId)) return;
+        preDropSession.current = sessionId;
+        const controller = new AbortController();
+        void writePreDropOutputs(controller.signal);
+    }, [
+        dischargeAssist.enabled,
+        dischargeAssist.leadSec,
+        active,
+        roasting,
+        sessionId,
+        dischargeOpenSupported,
+        writePreDropOutputs,
+        dropAtSec,
+        elapsed,
+    ]);
 
     // 배치 경계(roasting 양쪽 에지)에서 인덱스를 되돌린다 — 남은 인덱스는 이전 배치
     // 것이라, 상승 에지만 리셋하면 차지 전(standby/preheat)에 토글을 켰을 때 stale
@@ -866,6 +959,7 @@ export const useReplayControl = ({
                               };
                     }
                 }
+                if (outcome === 'sent' && sessionId) armDischargeClose(sessionId);
                 try {
                     await appendReplayDischargeAudit({
                         kind: 'result',
@@ -958,6 +1052,7 @@ export const useReplayControl = ({
         writeDischargeOpen,
         roaster,
         settleDischarge,
+        armDischargeClose,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;

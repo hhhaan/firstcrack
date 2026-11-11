@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { ControlCommand, ControlOrigin, ControlRole } from '../lib/controlSender';
 import { createGasOffDiagnostics, type GasOffDiagnosticContext } from '../lib/gasOffDiagnostics';
 import { numericHeaterStep } from '../lib/heater-events';
-import { type ReplayPoint, supportsDischargeOpen } from '../lib/replay';
+import { type DischargeAssist, type ReplayPoint, supportsDischargeOpen } from '../lib/replay';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
 import {
@@ -41,6 +41,8 @@ export interface MachineControlCompositionInput {
     roasting: boolean;
     /** Settings: start Replay when Charge begins. Off leaves the panel checkbox as the only start. */
     replayOnCharge?: boolean;
+    /** Assembled at this boundary from flat roast settings. Off runs neither lead nor close. */
+    dischargeAssist: DischargeAssist;
     /** 실기 TP 사실 — 게이트·대기 UI는 Replay 모듈이 파생 (#314, R08) */
     confirmedTurningPoint: { fallback?: boolean } | null;
     /** R04 제어용 관측 품질. null = 현재 generation 관측 없음 */
@@ -83,6 +85,7 @@ export const useMachineControlComposition = ({
     elapsed,
     roasting,
     replayOnCharge,
+    dischargeAssist,
     confirmedTurningPoint,
     observationQuality,
     lastValidReceivedAtMs,
@@ -164,6 +167,24 @@ export const useMachineControlComposition = ({
         },
         [dischargeOpenSupported, retryEpoch],
     );
+    const writePreDropOutputs = useCallback(
+        async (signal: AbortSignal) => {
+            if (!dischargeOpenSupported || signal.aborted) return;
+            await Promise.all(
+                (['stirrer_on', 'cooling_on'] as const).map((action) =>
+                    sidecar.doorProbe(action, { signal }).catch(() => undefined),
+                ),
+            );
+        },
+        [dischargeOpenSupported],
+    );
+    const writeDischargeClose = useCallback(
+        async (signal: AbortSignal) => {
+            if (!dischargeOpenSupported || signal.aborted) return;
+            await sidecar.doorProbe('discharge_close', { signal });
+        },
+        [dischargeOpenSupported],
+    );
     const retryHeater = useCallback(
         async (value: number) => {
             if (retryEpoch == null) return null;
@@ -205,6 +226,9 @@ export const useMachineControlComposition = ({
         dischargeOpenSupported,
         roaster: machine.connectionStatus?.roaster,
         writeDischargeOpen,
+        writePreDropOutputs: dischargeOpenSupported ? writePreDropOutputs : undefined,
+        writeDischargeClose: dischargeOpenSupported ? writeDischargeClose : undefined,
+        dischargeAssist,
         onDischargeDelivery,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,

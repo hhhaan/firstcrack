@@ -34,6 +34,7 @@ const BASE: Omit<ReplayControlInputs, 'writeHeater' | 'cancelUnsentHeater'> = {
     observationQuality: 'valid',
     lastValidReceivedAtMs: 1_000,
     nowMs: 1_500,
+    dischargeAssist: { enabled: true, leadSec: 10, closeSec: 10 },
 };
 
 const mount = (probe: ReactElement) => {

@@ -273,7 +273,7 @@ export const sidecar = {
      * 409 = 미연결/쓰기 미지원, 400 = 형식 오류.
      */
     /** W60A Artisan commands. Successful delivery does not confirm physical movement. */
-    doorProbe: async (action: DoorProbeAction, options?: { connectionEpoch: number; signal: AbortSignal }) => {
+    doorProbe: async (action: DoorProbeAction, options?: { connectionEpoch?: number; signal?: AbortSignal }) => {
         const guard = () => {
             if (action === 'fill_open' && !canOpenHopper()) {
                 throw new SidecarHttpError('/door-probe', 409, i18n.t('machines.doorProbe.hopperOpenUnavailable'));
@@ -286,7 +286,10 @@ export const sidecar = {
                 '/door-probe',
                 {
                     method: 'POST',
-                    body: JSON.stringify({ action, ...(options ? { connection_epoch: options.connectionEpoch } : {}) }),
+                    body: JSON.stringify({
+                        action,
+                        ...(options?.connectionEpoch != null ? { connection_epoch: options.connectionEpoch } : {}),
+                    }),
                     signal: options?.signal,
                 },
                 DEFAULT_TIMEOUT_MS,

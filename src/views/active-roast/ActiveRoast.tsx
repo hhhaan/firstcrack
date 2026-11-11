@@ -927,6 +927,11 @@ export const ActiveRoast = ({
         elapsed,
         roasting: phase === 'roasting',
         replayOnCharge: roastSettings.replayOnCharge,
+        dischargeAssist: {
+            enabled: roastSettings.dischargeAssistEnabled,
+            leadSec: roastSettings.dischargeAssistLeadSec,
+            closeSec: roastSettings.dischargeAssistCloseSec,
+        },
         confirmedTurningPoint: confirmedTP,
         observationQuality,
         lastValidReceivedAtMs,

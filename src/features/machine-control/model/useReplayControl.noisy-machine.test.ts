@@ -106,6 +106,7 @@ const renderRig = async (
             liveBt: inputs.liveBt,
             elapsed: inputs.elapsed,
             roasting: inputs.roasting,
+            dischargeAssist: { enabled: true, leadSec: 10, closeSec: 10 },
             confirmedTurningPoint: inputs.confirmedTurningPoint,
             observationQuality: 'valid',
             onCommitted: committed,

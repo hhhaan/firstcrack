@@ -1,5 +1,6 @@
 import {
     AUTO_DROP_START_MIN_MAX,
+    DISCHARGE_ASSIST_SEC_MAX,
     fromDisplayTemp,
     toDisplayTemp,
     updateRoastSettings,
@@ -125,6 +126,49 @@ export const AutomationSettingsSections = () => {
                                 <SelectItem value="sensitive">{tk('autoChargeSensitive')}</SelectItem>
                             </SelectContent>
                         </Select>
+                    </SettingsOptionRow>
+                </SettingsSection.Body>
+            </SettingsSection>
+
+            <SettingsSection group="automation">
+                <SettingsSection.Header title={tk('dischargeAssist')} description={tk('dischargeAssistDescription')} />
+                <SettingsSection.Body className="grid gap-3">
+                    <SettingsCheckRow
+                        checked={roastSettings.dischargeAssistEnabled}
+                        label={tk('dischargeAssistEnabled')}
+                        onChange={() =>
+                            updateRoastSettings({ dischargeAssistEnabled: !roastSettings.dischargeAssistEnabled })
+                        }
+                    />
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('dischargeAssistLead')}</div>
+                            <div className={settingsOptionDescCls}>{tk('dischargeAssistLeadDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.dischargeAssistLeadSec}
+                            onChange={(v) => updateRoastSettings({ dischargeAssistLeadSec: v })}
+                            min={0}
+                            max={DISCHARGE_ASSIST_SEC_MAX}
+                            integer
+                            suffix={tk('dischargeAssistSecUnit')}
+                            disabled={!roastSettings.dischargeAssistEnabled}
+                        />
+                    </SettingsOptionRow>
+                    <SettingsOptionRow justify="between">
+                        <div>
+                            <div className={settingsOptionLabelCls}>{tk('dischargeAssistClose')}</div>
+                            <div className={settingsOptionDescCls}>{tk('dischargeAssistCloseDescription')}</div>
+                        </div>
+                        <NumberInput
+                            value={roastSettings.dischargeAssistCloseSec}
+                            onChange={(v) => updateRoastSettings({ dischargeAssistCloseSec: v })}
+                            min={0}
+                            max={DISCHARGE_ASSIST_SEC_MAX}
+                            integer
+                            suffix={tk('dischargeAssistSecUnit')}
+                            disabled={!roastSettings.dischargeAssistEnabled}
+                        />
                     </SettingsOptionRow>
                 </SettingsSection.Body>
             </SettingsSection>

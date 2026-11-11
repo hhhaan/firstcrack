@@ -51,6 +51,19 @@ export const isHeaterReplayEvent = (event: ReplayEvent): event is HeaterReplayEv
 export const supportsDischargeOpen = (roaster: string | null | undefined): boolean =>
     roaster === 'giesen_w45a_w60a' || roaster === 'virtual';
 
+/** One assist. Off skips both the lead outputs and the later close. */
+export type DischargeAssist = {
+    enabled: boolean;
+    leadSec: number;
+    closeSec: number;
+};
+
+export const preDropLeadDue = (dropTimeSec: number, elapsedSec: number, leadSec: number): boolean =>
+    Number.isFinite(dropTimeSec) &&
+    Number.isFinite(elapsedSec) &&
+    Number.isFinite(leadSec) &&
+    elapsedSec >= dropTimeSec - leadSec;
+
 export interface ReplayPlan<Event extends ReplayEvent = ReplayEvent> {
     events: Event[];
     /** 기준 기록의 TP 시각 — 이전·동일 시각 이벤트는 시간축으로 재생한다 */

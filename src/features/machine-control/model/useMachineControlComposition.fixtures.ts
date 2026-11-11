@@ -53,6 +53,7 @@ export const baseMachineControlInput = (): MachineControlCompositionInput => ({
     liveBt: 180,
     elapsed: 30,
     roasting: true,
+    dischargeAssist: { enabled: true, leadSec: 10, closeSec: 10 },
     confirmedTurningPoint: null,
     observationQuality: 'valid',
 });

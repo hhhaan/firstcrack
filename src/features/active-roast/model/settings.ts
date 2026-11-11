@@ -89,6 +89,7 @@ export const AUTO_DROP_START_MIN_DEFAULT = 7;
  * Those inputs have no step; values are clamped into [1, 30].
  */
 export const AUTO_DROP_START_MIN_MAX = 30;
+export const DISCHARGE_ASSIST_SEC_MAX = 120;
 const AUTO_DROP_START_MIN_MIN = 1;
 
 const isPidDropBehavior = (v: unknown): v is PidDropBehavior => v === 'hold' || v === 'zero';
@@ -165,6 +166,9 @@ const DEFAULT_SETTINGS: RoastSettings = {
     autoDropEnabled: true,
     autoDropMode: 'standard',
     replayOnCharge: false,
+    dischargeAssistEnabled: true,
+    dischargeAssistLeadSec: 10,
+    dischargeAssistCloseSec: 10,
     autoDropStartMin: AUTO_DROP_START_MIN_DEFAULT,
     preChargeDisplaySec: 60,
     alertsEnabled: true,
@@ -199,6 +203,11 @@ const normalizeDeltaInterval = (value: unknown, unit: TemperatureUnit, fallback:
 };
 
 const asBool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback);
+
+const coerceDischargeAssistSec = (value: unknown, fallback: number): number => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+    return Math.min(DISCHARGE_ASSIST_SEC_MAX, Math.max(0, Math.round(value)));
+};
 
 const pickPreset = (value: unknown, allowed: readonly number[], fallback: number): number =>
     typeof value === 'number' && allowed.includes(value) ? value : fallback;
@@ -449,6 +458,15 @@ export const normalizeRoastSettings = (
         autoDropEnabled: asBool(merged.autoDropEnabled, DEFAULT_SETTINGS.autoDropEnabled),
         autoDropMode: merged.autoDropMode === 'sensitive' ? 'sensitive' : 'standard',
         replayOnCharge: asBool(merged.replayOnCharge, DEFAULT_SETTINGS.replayOnCharge),
+        dischargeAssistEnabled: asBool(merged.dischargeAssistEnabled, DEFAULT_SETTINGS.dischargeAssistEnabled),
+        dischargeAssistLeadSec: coerceDischargeAssistSec(
+            merged.dischargeAssistLeadSec,
+            DEFAULT_SETTINGS.dischargeAssistLeadSec,
+        ),
+        dischargeAssistCloseSec: coerceDischargeAssistSec(
+            merged.dischargeAssistCloseSec,
+            DEFAULT_SETTINGS.dischargeAssistCloseSec,
+        ),
         autoDropStartMin: coerceAutoDropStartMin(
             merged.autoDropStartMin,
             previous?.autoDropStartMin ?? AUTO_DROP_START_MIN_DEFAULT,
