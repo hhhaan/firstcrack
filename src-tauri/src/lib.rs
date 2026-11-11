@@ -184,6 +184,49 @@ fn relaunch_for_update(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// macOS: running .app이 `/Applications` 아래(실경로, symlink 정규화)인지. 업데이트 EROFS 안내용.
+#[cfg(all(desktop, target_os = "macos"))]
+#[tauri::command]
+fn macos_app_is_in_applications() -> bool {
+    use std::fs;
+    use std::path::Path;
+
+    let Ok(exe) = std::env::current_exe() else {
+        return true;
+    };
+    let mut cursor = exe.as_path();
+    let mut bundle: Option<std::path::PathBuf> = None;
+    loop {
+        if let Some(name) = cursor.file_name().and_then(|n| n.to_str()) {
+            if name.ends_with(".app") {
+                bundle = Some(cursor.to_path_buf());
+                break;
+            }
+        }
+        match cursor.parent() {
+            Some(p) if p != cursor => cursor = p,
+            _ => break,
+        }
+    }
+    let Some(bundle) = bundle else {
+        return true;
+    };
+    let Ok(canonical_bundle) = fs::canonicalize(&bundle) else {
+        return true;
+    };
+    let applications = Path::new("/Applications");
+    let Ok(canonical_apps) = fs::canonicalize(applications) else {
+        return true;
+    };
+    canonical_bundle.starts_with(&canonical_apps)
+}
+
+#[cfg(all(desktop, not(target_os = "macos")))]
+#[tauri::command]
+fn macos_app_is_in_applications() -> bool {
+    true
+}
+
 
 /// 포트 9999를 점유한 프로세스가 우리 사이드카 바이너리인지 확인 후 kill.
 /// 정상 twin이 없다고 single-instance 플러그인이 이미 보장한 상태에서만 호출된다.
@@ -578,6 +621,7 @@ pub fn run() {
         .on_window_event(roast_monitor::on_window_event)
         .invoke_handler(tauri::generate_handler![
             relaunch_for_update,
+            macos_app_is_in_applications,
             sidecar_token,
             roast_monitor::sync_roast_monitor,
             roast_monitor::show_roast_main,

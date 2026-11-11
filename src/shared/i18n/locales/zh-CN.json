@@ -141,6 +141,7 @@
         "applying": "正在重新启动…",
         "checkError": "检查更新时出错。",
         "relaunchError": "重启失败。",
+        "notInApplications": "无法从当前位置安装更新（只读）。请退出应用，将 First Crack 移到“应用程序”文件夹，从该位置重新打开后再试。",
         "loopGuardError": "更新未生效。请用安装包重新安装或下载最新版本。",
         "sidecarDead": "硬件连接服务无响应。",
         "sidecarDeadRestart": "请重新启动应用。"

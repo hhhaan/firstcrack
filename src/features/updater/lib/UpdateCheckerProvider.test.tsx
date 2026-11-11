@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { captureActionable } from '@shared/lib/sentry';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -9,13 +10,16 @@ import type { UseUpdateCheckerReturn } from './useUpdateChecker';
 const native = vi.hoisted(() => ({
     check: vi.fn(),
     platform: vi.fn(() => 'macos'),
-    invoke: vi.fn().mockResolvedValue(undefined),
+    invoke: vi.fn((cmd: string) =>
+        cmd === 'macos_app_is_in_applications' ? Promise.resolve(true) : Promise.resolve(undefined),
+    ),
 }));
 
 vi.mock('@tauri-apps/plugin-updater', () => ({ check: native.check }));
 vi.mock('@tauri-apps/plugin-os', () => ({ platform: native.platform }));
 vi.mock('@tauri-apps/api/core', () => ({ invoke: native.invoke }));
 vi.mock('@shared/lib/logger', () => ({ logger: { capture: vi.fn() } }));
+vi.mock('@shared/lib/sentry', () => ({ captureActionable: vi.fn() }));
 vi.mock('@sentry/react', () => ({ captureMessage: vi.fn(), captureException: vi.fn() }));
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -57,6 +61,9 @@ describe('UpdateCheckerProvider', () => {
         vi.useFakeTimers();
         vi.stubEnv('DEV', false);
         vi.clearAllMocks();
+        native.invoke.mockImplementation((cmd: string) =>
+            cmd === 'macos_app_is_in_applications' ? Promise.resolve(true) : Promise.resolve(undefined),
+        );
         native.platform.mockReturnValue('macos');
         native.check.mockResolvedValue(null);
         localStorage.clear();
@@ -161,7 +168,31 @@ describe('UpdateCheckerProvider', () => {
         await act(async () => api().checkAndDownload());
         await act(async () => api().applyAndRelaunch());
         expect(api().state).toMatchObject({ status: 'error', error: 'Installation failed' });
-        expect(native.invoke).not.toHaveBeenCalled();
+        expect(native.invoke).toHaveBeenCalledWith('macos_app_is_in_applications');
+        expect(native.invoke).not.toHaveBeenCalledWith('relaunch_for_update');
+    });
+
+    it('maps EROFS outside Applications to updater.notInApplications', async () => {
+        const available = update();
+        available.install.mockRejectedValue(new Error('Read-only file system (os error 30)'));
+        native.check.mockResolvedValue(available);
+        native.invoke.mockImplementation((cmd: string) =>
+            cmd === 'macos_app_is_in_applications' ? Promise.resolve(false) : Promise.resolve(undefined),
+        );
+        await act(async () => api().checkAndDownload());
+        await act(async () => api().applyAndRelaunch());
+        expect(api().state).toMatchObject({ status: 'error', error: 'updater.notInApplications' });
+        expect(captureActionable).toHaveBeenCalled();
+        const [err, opts] = vi.mocked(captureActionable).mock.calls.at(-1) ?? [];
+        expect(err).toBeInstanceOf(Error);
+        expect(opts).toMatchObject({
+            tags: { feature: 'updater', 'updater.hint': 'not_in_applications' },
+            extra: expect.objectContaining({
+                context: 'relaunch_for_update',
+                macos_app_in_applications: false,
+                not_in_applications_hint: true,
+            }),
+        });
     });
 
     it('reports the installed version as current when no update exists', async () => {

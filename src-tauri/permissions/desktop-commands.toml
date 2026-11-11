@@ -3,6 +3,7 @@ identifier = "desktop-commands"
 description = "Allow native desktop commands from the main application window."
 commands.allow = [
     "relaunch_for_update",
+    "macos_app_is_in_applications",
     "sidecar_token",
     "sync_roast_monitor",
     "show_roast_main",
