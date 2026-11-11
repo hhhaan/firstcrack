@@ -11,9 +11,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+type ShortcutHostProps = Parameters<typeof useRoastKeyboardShortcuts>[0];
+
 const defaultTaken = () => SHORTCUTS.flatMap(({ defaultKeys }) => [...defaultKeys]);
 
-const closeSummaryKey = (ctrlKey: boolean) => ({
+const closeSummaryKey = (ctrlKey: boolean, init: KeyboardEventInit = {}) => ({
     key: '6',
     code: 'Digit6',
     ctrlKey,
@@ -21,9 +23,10 @@ const closeSummaryKey = (ctrlKey: boolean) => ({
     shiftKey: true,
     bubbles: true,
     cancelable: true,
+    ...init,
 });
 
-const returnToWaitKey = (ctrlKey: boolean) => ({
+const returnToWaitKey = (ctrlKey: boolean, init: KeyboardEventInit = {}) => ({
     key: '7',
     code: 'Digit7',
     ctrlKey,
@@ -31,6 +34,7 @@ const returnToWaitKey = (ctrlKey: boolean) => ({
     shiftKey: true,
     bubbles: true,
     cancelable: true,
+    ...init,
 });
 
 const chargeKey = (ctrlKey: boolean) => ({
@@ -42,19 +46,27 @@ const chargeKey = (ctrlKey: boolean) => ({
     cancelable: true,
 });
 
-type ShortcutHostProps = Parameters<typeof useRoastKeyboardShortcuts>[0];
+const roastShortcutBase = (override: Partial<ShortcutHostProps> = {}): ShortcutHostProps => ({
+    isActive: true,
+    isFullscreen: false,
+    showEndRoastModal: false,
+    showSummaryModal: false,
+    showContinueModal: false,
+    phase: 'standby',
+    awaitingNextCharge: true,
+    onToggleFullscreen: vi.fn(),
+    onExitFullscreen: vi.fn(),
+    onEnterStandby: vi.fn(),
+    onManualCharge: vi.fn(),
+    onMarkEvent: vi.fn(),
+    onMarkDrop: vi.fn(),
+    ...override,
+});
 
 describe('post-drop keyboard flow', () => {
     let root: Root;
     const host = document.createElement('div');
-
-    const renderShortcuts = (props: ShortcutHostProps) => {
-        const View = () => {
-            useRoastKeyboardShortcuts(props);
-            return null;
-        };
-        act(() => root.render(createElement(View)));
-    };
+    let renderShortcuts: (override: Partial<ShortcutHostProps>) => void;
 
     beforeEach(async () => {
         localStorage.clear();
@@ -62,12 +74,25 @@ describe('post-drop keyboard flow', () => {
         await hydrateShortcutBindings();
         document.body.appendChild(host);
         root = createRoot(host);
+        renderShortcuts = (override) => {
+            const View = () => {
+                useRoastKeyboardShortcuts(roastShortcutBase(override));
+                return null;
+            };
+            act(() => root.render(createElement(View)));
+        };
     });
 
     afterEach(() => {
         act(() => root.unmount());
         host.remove();
     });
+
+    const pressClose = (target?: EventTarget) =>
+        act(() => {
+            const node = target ?? document;
+            node.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
+        });
 
     it('closes the summary popup then allows Charge for the next batch', () => {
         const onCloseRoastSummary = vi.fn();
@@ -76,17 +101,8 @@ describe('post-drop keyboard flow', () => {
         let showSummaryModal = true;
 
         renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
             showSummaryModal,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
             onManualCharge,
-            onMarkEvent: vi.fn(),
             onMarkDrop,
             onCloseRoastSummary: () => {
                 showSummaryModal = false;
@@ -94,27 +110,11 @@ describe('post-drop keyboard flow', () => {
             },
         });
 
-        act(() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
-        });
+        pressClose();
         expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
         expect(onMarkDrop).not.toHaveBeenCalled();
 
-        renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
-            showSummaryModal,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge,
-            onMarkEvent: vi.fn(),
-            onMarkDrop,
-            onCloseRoastSummary,
-        });
+        renderShortcuts({ showSummaryModal, onManualCharge, onMarkDrop, onCloseRoastSummary });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', chargeKey(true)));
@@ -128,27 +128,9 @@ describe('post-drop keyboard flow', () => {
         document.body.appendChild(input);
         input.focus();
 
-        renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
-            showSummaryModal: true,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge: vi.fn(),
-            onMarkEvent: vi.fn(),
-            onMarkDrop: vi.fn(),
-            onCloseRoastSummary,
-        });
+        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary });
 
-        act(() => {
-            input.dispatchEvent(
-                new KeyboardEvent('keydown', { ...closeSummaryKey(true), target: input } as KeyboardEventInit),
-            );
-        });
+        pressClose(input);
         expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
 
         onCloseRoastSummary.mockClear();
@@ -170,52 +152,19 @@ describe('post-drop keyboard flow', () => {
         const onCloseRoastSummary = vi.fn();
         const onDismissReview = vi.fn();
 
-        renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
-            showSummaryModal: true,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge: vi.fn(),
-            onMarkEvent: vi.fn(),
-            onMarkDrop: vi.fn(),
-            onCloseRoastSummary,
-        });
+        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
-            document.dispatchEvent(
-                new KeyboardEvent('keydown', { ...closeSummaryKey(true), repeat: true } as KeyboardEventInit),
-            );
+            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true, { repeat: true })));
         });
         expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
 
-        renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
-            showSummaryModal: false,
-            reviewing: true,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge: vi.fn(),
-            onMarkEvent: vi.fn(),
-            onMarkDrop: vi.fn(),
-            onDismissReview,
-        });
+        renderShortcuts({ reviewing: true, onDismissReview });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true)));
-            document.dispatchEvent(
-                new KeyboardEvent('keydown', { ...returnToWaitKey(true), repeat: true } as KeyboardEventInit),
-            );
+            document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true, { repeat: true })));
         });
         expect(onDismissReview).toHaveBeenCalledTimes(1);
     });
@@ -231,26 +180,9 @@ describe('post-drop keyboard flow', () => {
             }),
         ).toBe(false);
 
-        renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
-            showSummaryModal: true,
-            roastSummarySaving: true,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge: vi.fn(),
-            onMarkEvent: vi.fn(),
-            onMarkDrop: vi.fn(),
-            onCloseRoastSummary,
-        });
+        renderShortcuts({ showSummaryModal: true, roastSummarySaving: true, onCloseRoastSummary });
 
-        act(() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
-        });
+        pressClose();
         expect(onCloseRoastSummary).not.toHaveBeenCalled();
     });
 
@@ -259,49 +191,20 @@ describe('post-drop keyboard flow', () => {
         const onCancelRoastSummary = vi.fn();
 
         renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
             showSummaryModal: true,
             canCancelRoastSummary: true,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge: vi.fn(),
-            onMarkEvent: vi.fn(),
-            onMarkDrop: vi.fn(),
             onCloseRoastSummary,
             onCancelRoastSummary,
         });
 
-        act(() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
-        });
+        pressClose();
         expect(onCancelRoastSummary).toHaveBeenCalledTimes(1);
         expect(onCloseRoastSummary).not.toHaveBeenCalled();
     });
 
     it('dismisses saved-curve review back to the charge-wait chart', () => {
         const onDismissReview = vi.fn();
-
-        renderShortcuts({
-            isActive: true,
-            isFullscreen: false,
-            showEndRoastModal: false,
-            showSummaryModal: false,
-            reviewing: true,
-            phase: 'standby',
-            awaitingNextCharge: true,
-            onToggleFullscreen: vi.fn(),
-            onExitFullscreen: vi.fn(),
-            onEnterStandby: vi.fn(),
-            onManualCharge: vi.fn(),
-            onMarkEvent: vi.fn(),
-            onMarkDrop: vi.fn(),
-            onDismissReview,
-        });
+        renderShortcuts({ reviewing: true, onDismissReview });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true)));
