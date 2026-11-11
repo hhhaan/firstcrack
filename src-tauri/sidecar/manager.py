@@ -12,6 +12,7 @@ import sentry_sdk
 
 import config
 from adapters import WRITABLE_PROTOCOLS, make_adapter
+from adapters.modbus import is_modbus_write_spec
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
@@ -987,16 +988,8 @@ class RoasterManager:
                 if isinstance(spec, dict) and isinstance(spec.get("node"), str) and spec["node"]
             }
         if self._protocol == "modbus":
-            # min/max만 있는 클라이언트 맵은 주소가 아니다. Artisan writeWord는 float32.
-            return {
-                role: spec
-                for role, spec in raw.items()
-                if isinstance(spec, dict)
-                and spec.get("float") is True
-                and isinstance(spec.get("register"), int)
-                and not isinstance(spec.get("register"), bool)
-                and 0 <= spec["register"] <= 65534
-            }
+            # min/max만 있는 클라이언트 맵은 주소가 아니다.
+            return {role: spec for role, spec in raw.items() if is_modbus_write_spec(spec)}
         return raw
 
     def _control_writable(self) -> bool:

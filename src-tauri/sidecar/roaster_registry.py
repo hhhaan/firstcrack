@@ -265,6 +265,27 @@ _GIESEN_W6A_PRO_WRITE_MAP: dict[str, dict[str, Any]] = {
 }
 
 
+# Diedrich CR/DR. Artisan writeSingle, holding, unit 1, INT16 0–100.
+# 화력 register 6, 배기 register 7. 읽기도 같은 셀.
+_DIEDRICH_PERCENT_READ: dict[str, Any] = {
+    "register": 6,
+    "func": 3,
+    "unit_id": 1,
+    "float": False,
+    "div": 0,
+    "mode": "",
+    "unit": "%",
+}
+_DIEDRICH_PERCENT_WRITE: dict[str, Any] = {
+    "register": 6,
+    "unit_id": 1,
+    "single": True,
+    "min": 0,
+    "max": 100,
+    "unit": "%",
+}
+
+
 # ---------------------------------------------------------------------------
 # 로스터 레지스트리
 # ---------------------------------------------------------------------------
@@ -1091,8 +1112,13 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
     },
     # -----------------------------------------------------------------------
     # Diedrich — MODBUS (CR/DR) + Phidget (Data Logging)
-    # 출처: Diedrich/*.aset
-    # PID: 없음
+    # 출처: Artisan Diedrich/CR.aset, DR.aset (master 4ff0cb7). 둘은 host만 다르다.
+    # PID: 없음. 배출·호퍼·드럼 쓰기는 aset에 없다.
+    # 슬라이더가 기준이다. 추가 곡선 제목 {0}/Air 는 레지스터 6, {3}/Burner 는
+    # 레지스터 7이라 제목과 주소가 어긋나 있다.
+    #   화력 slidercommands writeSingle(1,6), quantifier source = reg 6
+    #   배기 slidercommands writeSingle(1,7), quantifier source = reg 7
+    #   둘 다 INT16 0–100, offset 0. 4/6 Sensor Phidget 프리셋은 쓰기 없음.
     # -----------------------------------------------------------------------
     # CR — TCP port=8010(비표준), RTU 115200
     # BT: register=0, ET: register=4, func=3(Holding), float=True(32-bit IEEE), unit_id=1
@@ -1129,10 +1155,16 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                     "mode": "F",
                 },
+                "heater": dict(_DIEDRICH_PERCENT_READ),
+                "fan": {**_DIEDRICH_PERCENT_READ, "register": 7},
+            },
+            "write_map": {
+                "heater": dict(_DIEDRICH_PERCENT_WRITE),
+                "fan": {**_DIEDRICH_PERCENT_WRITE, "register": 7},
             },
         },
         "pid": None,
-        "capabilities": [],
+        "capabilities": ["heater", "fan"],
     },
     # DR — CR과 레지스터 동일, default host만 다름
     "diedrich_dr": {
@@ -1167,12 +1199,18 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
                     "div": 0,
                     "mode": "F",
                 },
+                "heater": dict(_DIEDRICH_PERCENT_READ),
+                "fan": {**_DIEDRICH_PERCENT_READ, "register": 7},
+            },
+            "write_map": {
+                "heater": dict(_DIEDRICH_PERCENT_WRITE),
+                "fan": {**_DIEDRICH_PERCENT_WRITE, "register": 7},
             },
         },
         "pid": None,
-        "capabilities": [],
+        "capabilities": ["heater", "fan"],
     },
-    # 4/6 Sensor Data Logging — id=34, Phidget 1048 사용
+    # 4/6 Sensor Data Logging — id=34, Phidget 1048 사용. 쓰기 없음.
     "diedrich_phidget_4ch": {
         "display_name": "Diedrich 4-Sensor Data Logging",
         "brand": "Diedrich",

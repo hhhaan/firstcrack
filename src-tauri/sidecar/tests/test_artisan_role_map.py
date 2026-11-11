@@ -189,6 +189,44 @@ _LORING_READ = {
 }
 
 
+def test_diedrich_cr_dr_write_burner_and_air() -> None:
+    """CR.aset/DR.aset: burner writeSingle(1,6), air writeSingle(1,7), INT16 0–100.
+
+    추가 곡선 제목은 레지스터와 반대다. 슬라이더와 quantifier가 주소의 기준이다.
+    4/6 Sensor Phidget 프리셋에는 slidercommands가 없다.
+    """
+    for key, host in (("diedrich_cr", "125.135.119.211"), ("diedrich_dr", "192.168.251.202")):
+        entry = ROASTER_REGISTRY[key]
+        params = entry["default_params"]
+        regs = params["modbus_registers"]
+        assert entry["capabilities"] == ["heater", "fan"]
+        assert params["host"] == host
+        assert params["port"] == 8010
+        assert regs["BT"]["register"] == 0 and regs["BT"]["float"] is True and regs["BT"]["mode"] == "F"
+        assert regs["ET"]["register"] == 4 and regs["ET"]["float"] is True
+        for role, register in (("heater", 6), ("fan", 7)):
+            assert regs[role]["register"] == register
+            assert regs[role]["float"] is False
+            assert regs[role]["func"] == 3
+            assert regs[role]["unit_id"] == 1
+            assert regs[role]["mode"] == ""
+            assert regs[role]["unit"] == "%"
+            write = params["write_map"][role]
+            assert write == {
+                "register": register,
+                "unit_id": 1,
+                "single": True,
+                "min": 0,
+                "max": 100,
+                "unit": "%",
+            }
+        assert "drum" not in params["write_map"]
+    for key in ("diedrich_phidget_4ch", "diedrich_phidget_6ch"):
+        entry = ROASTER_REGISTRY[key]
+        assert entry["capabilities"] == []
+        assert "write_map" not in entry["default_params"]
+
+
 def test_loring_registers_match_artisan_aset() -> None:
     """Smart_Roast.aset / Smart_Roast_Auto.aset 읽기 맵. 778은 Burner, 쓰기는 없다."""
     for key in ("loring_smart_roast", "loring_smart_roast_auto"):

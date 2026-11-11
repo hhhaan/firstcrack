@@ -14,6 +14,25 @@ import config
 _log = logging.getLogger(__name__)
 
 
+def is_modbus_write_spec(spec: Any) -> bool:
+    """주소가 있는 Modbus 쓰기인지.
+
+    float 는 Artisan writeWord(FC16 FLOAT32, 레지스터 2개).
+    single 은 Artisan writeSingle(FC6 INT16, 레지스터 1개).
+    min/max만 있는 맵과 두 플래그가 같이 있는 맵은 주소가 아니다.
+    """
+    if not isinstance(spec, dict):
+        return False
+    register = spec.get("register")
+    if isinstance(register, bool) or not isinstance(register, int):
+        return False
+    single = spec.get("single") is True
+    floating = spec.get("float") is True
+    if single == floating:
+        return False
+    return 0 <= register <= (65535 if single else 65534)
+
+
 def _bcd_decode(raw: int) -> int:
     """BCD 인코딩된 정수를 10진수로 변환. 예: 0x0212 → 212."""
     result = 0
@@ -441,21 +460,40 @@ class ModbusAdapter:
             raise IOError(f"MODBUS 쓰기 오류: role={role} register={register} → {result}")
         TRACE.record("rx", "modbus", f"write_registers register={register} role={role}")
 
+    async def _write_single(self, role: str, spec: dict[str, Any], value: float) -> None:
+        """Artisan writeSingle: function 6, one holding register, rounded INT16."""
+        register = spec["register"]
+        unit_id = spec.get("unit_id", 1)
+        lo = spec.get("min")
+        hi = spec.get("max")
+        if lo is not None:
+            value = max(float(lo), value)
+        if hi is not None:
+            value = min(float(hi), value)
+        payload = int(round(value))
+        if not 0 <= payload <= 65535:
+            raise ValueError(f"INT16 쓰기 범위 밖: role={role} value={payload}")
+        TRACE.record(
+            "tx", "modbus",
+            f"write_register register={register} unit={unit_id} role={role} value={payload}",
+        )
+        result = await self._client.write_register(register, payload, device_id=unit_id)
+        if result.isError():
+            raise IOError(f"MODBUS 쓰기 오류: role={role} register={register} → {result}")
+        TRACE.record("rx", "modbus", f"write_register register={register} role={role}")
+
     async def control(
         self,
         heater: float | None = None,
         fan: float | None = None,
         drum: float | None = None,
     ) -> None:
-        """write_map에 register+float가 있는 role만 쓴다. 없으면 성공으로 빠지지 않는다."""
+        """write_map에 주소가 있는 role만 쓴다. 없으면 성공으로 빠지지 않는다."""
         requested = {"heater": heater, "fan": fan, "drum": drum}
         targets = [
             (role, self._write_map[role], float(value))
             for role, value in requested.items()
-            if value is not None
-            and isinstance(self._write_map.get(role), dict)
-            and self._write_map[role].get("float") is True
-            and isinstance(self._write_map[role].get("register"), int)
+            if value is not None and is_modbus_write_spec(self._write_map.get(role))
         ]
         if not targets:
             raise ControlUnavailable("이 머신은 제어 쓰기를 지원하지 않습니다.")
@@ -464,7 +502,10 @@ class ModbusAdapter:
         for role, spec, value in targets:
             if not math.isfinite(value):
                 raise ValueError(f"쓰기 값이 유한하지 않음: role={role} value={value}")
-            await self._write_float(role, spec, value)
+            if spec.get("single") is True:
+                await self._write_single(role, spec, value)
+            else:
+                await self._write_float(role, spec, value)
 
     @property
     def connected(self) -> bool:

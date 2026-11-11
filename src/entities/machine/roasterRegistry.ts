@@ -487,7 +487,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         brand: 'Diedrich',
         models: ['CR'],
         protocol: 'modbus',
-        capabilities: [],
+        capabilities: ['heater', 'fan'],
         pid: null,
         default_params: {
             mode: 'tcp',
@@ -506,7 +506,7 @@ const REGISTRY: Record<string, RegistryEntry> = {
         brand: 'Diedrich',
         models: ['DR'],
         protocol: 'modbus',
-        capabilities: [],
+        capabilities: ['heater', 'fan'],
         pid: null,
         default_params: {
             mode: 'tcp',

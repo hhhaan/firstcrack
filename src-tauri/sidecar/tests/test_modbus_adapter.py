@@ -646,3 +646,26 @@ class TestControl:
         assert heater.kwargs["device_id"] == 1
         assert list(heater.args[1]) == list(struct.unpack(">HH", struct.pack(">f", 200.0)))
         assert list(fan.args[1]) == list(struct.unpack(">HH", struct.pack(">f", 80.0)))
+
+    async def test_diedrich_write_single_is_function_6(self):
+        """Artisan writeSingle(1,6) / writeSingle(1,7). 0은 그대로, 범위 밖은 클램프."""
+        from roaster_registry import ROASTER_REGISTRY
+
+        params = ROASTER_REGISTRY["diedrich_cr"]["default_params"]
+        adapter = ModbusAdapter(mode="tcp", write_map=params["write_map"])
+        client = AsyncMock()
+        client.connected = True
+        client.write_register.return_value = MagicMock(isError=lambda: False)
+        adapter._client = client
+
+        await adapter.control(heater=40.4, fan=10)
+        await adapter.control(heater=150, fan=-3)
+
+        assert client.write_registers.await_count == 0
+        assert client.write_register.await_count == 4
+        first, second, high, low = client.write_register.await_args_list
+        assert first.args == (6, 40)
+        assert second.args == (7, 10)
+        assert high.args == (6, 100)
+        assert low.args == (7, 0)
+        assert first.kwargs["device_id"] == 1

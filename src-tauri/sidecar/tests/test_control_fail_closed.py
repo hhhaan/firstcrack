@@ -159,6 +159,32 @@ class TestProbatWsWriteMap:
         assert adapter.connected is False
 
 
+def test_diedrich_cr_control_is_writable(manager):
+    reg = ROASTER_REGISTRY["diedrich_cr"]
+    manager._connected = True
+    manager._protocol = "modbus"
+    manager._roaster_key = "diedrich_cr"
+    manager._merged_params = dict(reg["default_params"])
+    limits = manager.write_limits()
+    assert limits["heater"]["register"] == 6
+    assert limits["heater"]["single"] is True
+    assert limits["fan"]["register"] == 7
+    assert "float" not in limits["heater"]
+    assert manager.status()["control"]["writable"] is True
+
+
+def test_modbus_write_spec_rejects_ambiguous_flags(manager):
+    manager._connected = True
+    manager._protocol = "modbus"
+    manager._merged_params = {
+        "write_map": {
+            "heater": {"register": 6, "float": True, "single": True, "min": 0, "max": 100},
+            "fan": {"register": 7, "min": 0, "max": 100},
+        }
+    }
+    assert manager.write_limits() == {}
+
+
 def test_imf_control_is_writable(manager):
     reg = ROASTER_REGISTRY["imf_rm_control"]
     manager._connected = True
