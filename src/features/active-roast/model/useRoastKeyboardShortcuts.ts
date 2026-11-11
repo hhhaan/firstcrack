@@ -37,6 +37,15 @@ interface UseRoastKeyboardShortcutsParams {
     /** When set, mod+2 uses dual-mark cycle instead of toggle FC Start. */
     onCycleFc?: () => void;
     onMarkDrop: () => void;
+    onCloseRoastSummary?: () => void;
+    /** Matches the summary close button: cancel Drop while undo is still allowed. */
+    onCancelRoastSummary?: () => void;
+    canCancelRoastSummary?: boolean;
+    reviewing?: boolean;
+    chargeLocked?: boolean;
+    onDismissReview?: () => void;
+    /** Matches summary modal `isSaving` (includes save preparation). */
+    roastSummarySaving?: boolean;
     /** Saved-curve review keeps Yellow / FC / custom hotkeys. Drop stays live-only. */
     markWhileReviewing?: boolean;
 }
@@ -90,6 +99,36 @@ export function isRoastMarkShortcutEnabled(p: {
     return isRoastShortcutBaseEnabled(p) && isRoastEventMarkEnabled(p.phase);
 }
 
+/** Summary popup only — closes without starting the next batch. */
+export function isRoastSummaryCloseShortcutEnabled(p: {
+    isActive: boolean;
+    showSummaryModal: boolean;
+    showEndRoastModal: boolean;
+    showContinueModal?: boolean;
+    roastSummarySaving?: boolean;
+}): boolean {
+    return p.isActive && p.showSummaryModal && !p.showEndRoastModal && !p.showContinueModal && !p.roastSummarySaving;
+}
+
+/** Saved-curve overlay after a successful save — same slot as “Return to charge wait”. */
+export function isRoastReturnToChargeWaitShortcutEnabled(p: {
+    isActive: boolean;
+    reviewing: boolean;
+    showEndRoastModal: boolean;
+    showSummaryModal: boolean;
+    showContinueModal?: boolean;
+    chargeLocked?: boolean;
+}): boolean {
+    return (
+        p.isActive &&
+        p.reviewing &&
+        !p.showEndRoastModal &&
+        !p.showSummaryModal &&
+        !p.showContinueModal &&
+        !p.chargeLocked
+    );
+}
+
 export const useRoastKeyboardShortcuts = ({
     isActive,
     isFullscreen,
@@ -105,6 +144,13 @@ export const useRoastKeyboardShortcuts = ({
     onMarkEvent,
     onCycleFc,
     onMarkDrop,
+    onCloseRoastSummary,
+    onCancelRoastSummary,
+    canCancelRoastSummary = false,
+    reviewing = false,
+    chargeLocked = false,
+    onDismissReview,
+    roastSummarySaving = false,
     markWhileReviewing = false,
 }: UseRoastKeyboardShortcutsParams) => {
     const recording = useShortcutStore((state) => state.recording);
@@ -116,8 +162,11 @@ export const useRoastKeyboardShortcuts = ({
     const fcStartKeys = useShortcutKeys('fcStart');
     const fcEndKeys = useShortcutKeys('fcEnd');
     const dropKeys = useShortcutKeys('drop');
+    const closeSummaryKeys = useShortcutKeys('closeRoastSummary');
+    const returnToChargeWaitKeys = useShortcutKeys('returnToChargeWait');
     const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const dropEnabledOnFormTags = dropKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const closeSummaryOnFormTags = closeSummaryKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const onMarkDropRef = useRef(onMarkDrop);
     const lastDropShortcutAt = useRef(0);
     useEffect(() => {
@@ -265,6 +314,56 @@ export const useRoastKeyboardShortcuts = ({
         },
         { enabled: canMark, enableOnFormTags: dropEnabledOnFormTags, preventDefault: true },
         [canMark, markDropFromShortcut],
+    );
+
+    const canCloseSummary =
+        shortcutsEnabled &&
+        isRoastSummaryCloseShortcutEnabled({
+            isActive,
+            showSummaryModal,
+            showEndRoastModal,
+            showContinueModal,
+            roastSummarySaving,
+        });
+    useBoundShortcut(
+        closeSummaryKeys,
+        (e) => {
+            e.preventDefault();
+            if (e.repeat) return;
+            if (canCancelRoastSummary) onCancelRoastSummary?.();
+            else onCloseRoastSummary?.();
+        },
+        {
+            enabled: canCloseSummary && Boolean(onCloseRoastSummary || onCancelRoastSummary),
+            enableOnFormTags: closeSummaryOnFormTags,
+            preventDefault: true,
+        },
+        [canCloseSummary, canCancelRoastSummary, onCloseRoastSummary, onCancelRoastSummary],
+    );
+
+    const canReturnToChargeWait =
+        shortcutsEnabled &&
+        isRoastReturnToChargeWaitShortcutEnabled({
+            isActive,
+            reviewing,
+            showEndRoastModal,
+            showSummaryModal,
+            showContinueModal,
+            chargeLocked,
+        });
+    useBoundShortcut(
+        returnToChargeWaitKeys,
+        (e) => {
+            e.preventDefault();
+            if (e.repeat) return;
+            onDismissReview?.();
+        },
+        {
+            enabled: canReturnToChargeWait && Boolean(onDismissReview),
+            enableOnFormTags: false,
+            preventDefault: true,
+        },
+        [canReturnToChargeWait, onDismissReview],
     );
 
     const customEvents = useRoastSettings().eventButtons.custom;
