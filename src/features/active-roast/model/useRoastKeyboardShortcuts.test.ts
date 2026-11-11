@@ -110,6 +110,17 @@ describe('isRoastSummaryCloseShortcutEnabled', () => {
             false,
         );
     });
+
+    it('stays off while the summary save path is busy', () => {
+        expect(
+            isRoastSummaryCloseShortcutEnabled({
+                isActive: true,
+                showSummaryModal: true,
+                showEndRoastModal: false,
+                roastSummarySaving: true,
+            }),
+        ).toBe(false);
+    });
 });
 
 describe('isRoastReturnToChargeWaitShortcutEnabled', () => {

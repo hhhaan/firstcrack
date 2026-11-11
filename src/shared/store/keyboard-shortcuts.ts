@@ -27,8 +27,8 @@ export const SHORTCUTS = [
     { id: 'fcStart', defaultKeys: ['mod+2'], group: 'roast', editable: true },
     { id: 'fcEnd', defaultKeys: ['mod+3'], group: 'roast', editable: true },
     { id: 'drop', defaultKeys: ['mod+shift+d'], group: 'roast', editable: true },
-    { id: 'closeRoastSummary', defaultKeys: ['mod+6'], group: 'roast', editable: true },
-    { id: 'returnToChargeWait', defaultKeys: ['mod+7'], group: 'roast', editable: true },
+    { id: 'closeRoastSummary', defaultKeys: ['mod+shift+6'], group: 'roast', editable: true },
+    { id: 'returnToChargeWait', defaultKeys: ['mod+shift+7'], group: 'roast', editable: true },
     { id: 'toggleControl', defaultKeys: ['t'], group: 'roast', editable: true },
     { id: 'zoomIn', defaultKeys: ['+', '='], group: 'chart', editable: true },
     { id: 'zoomOut', defaultKeys: ['-', '_'], group: 'chart', editable: true },
@@ -48,8 +48,9 @@ export type ShortcutBindings = Record<ShortcutId, string[]>;
 const STORE_KEY = 'keyboard.bindings';
 const DISABLED_STORE_KEY = 'keyboard.disabled';
 const VERSION_STORE_KEY = 'keyboard.bindingsVersion';
-/** 2: Drop moved to `mod+shift+d` and became an OS-level shortcut (#936). */
-const BINDINGS_VERSION = 2;
+/** 2: Drop moved to `mod+shift+d` and became an OS-level shortcut (#936).
+ *  3: Summary / charge-wait shortcuts moved off the custom-event digit pool (#1137). */
+const BINDINGS_VERSION = 3;
 const EMPTY_KEYS: string[] = [];
 const DEFAULT_BINDINGS = Object.fromEntries(
     SHORTCUTS.map(({ id, defaultKeys }) => [id, [...defaultKeys]]),
@@ -102,6 +103,8 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
  */
 const SUPERSEDED_DEFAULTS: Partial<Record<ShortcutId, readonly string[]>> = {
     drop: ['mod+d'],
+    closeRoastSummary: ['mod+6'],
+    returnToChargeWait: ['mod+7'],
 };
 
 /** Stored bindings that still equal a superseded default fall back to the current one. */

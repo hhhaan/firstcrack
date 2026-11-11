@@ -44,6 +44,8 @@ interface UseRoastKeyboardShortcutsParams {
     reviewing?: boolean;
     chargeLocked?: boolean;
     onDismissReview?: () => void;
+    /** Matches summary modal `isSaving` (includes save preparation). */
+    roastSummarySaving?: boolean;
     /** Saved-curve review keeps Yellow / FC / custom hotkeys. Drop stays live-only. */
     markWhileReviewing?: boolean;
 }
@@ -103,8 +105,9 @@ export function isRoastSummaryCloseShortcutEnabled(p: {
     showSummaryModal: boolean;
     showEndRoastModal: boolean;
     showContinueModal?: boolean;
+    roastSummarySaving?: boolean;
 }): boolean {
-    return p.isActive && p.showSummaryModal && !p.showEndRoastModal && !p.showContinueModal;
+    return p.isActive && p.showSummaryModal && !p.showEndRoastModal && !p.showContinueModal && !p.roastSummarySaving;
 }
 
 /** Saved-curve overlay after a successful save — same slot as “Return to charge wait”. */
@@ -147,6 +150,7 @@ export const useRoastKeyboardShortcuts = ({
     reviewing = false,
     chargeLocked = false,
     onDismissReview,
+    roastSummarySaving = false,
     markWhileReviewing = false,
 }: UseRoastKeyboardShortcutsParams) => {
     const recording = useShortcutStore((state) => state.recording);
@@ -319,6 +323,7 @@ export const useRoastKeyboardShortcuts = ({
             showSummaryModal,
             showEndRoastModal,
             showContinueModal,
+            roastSummarySaving,
         });
     useBoundShortcut(
         closeSummaryKeys,

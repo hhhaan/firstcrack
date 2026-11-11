@@ -198,13 +198,27 @@ describe('keyboard shortcuts', () => {
             'keyboard.bindings',
             expect.objectContaining({ drop: ['mod+shift+d'] }),
         );
-        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 2);
+        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 3);
+    });
+
+    it('moves superseded summary defaults off the custom-event digit pool', async () => {
+        vi.mocked(settingsGet).mockImplementation(async (key) =>
+            key === 'keyboard.bindings'
+                ? { closeRoastSummary: ['mod+6'], returnToChargeWait: ['mod+7'], yellow: ['mod+5'] }
+                : undefined,
+        );
+        await hydrateShortcutBindings();
+
+        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual(['mod+shift+6']);
+        expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+shift+7']);
+        expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+5']);
+        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 3);
     });
 
     it('keeps a Drop key the user records again after the upgrade ran', async () => {
         vi.mocked(settingsGet).mockImplementation(async (key) => {
             if (key === 'keyboard.bindings') return { drop: ['mod+d'] };
-            if (key === 'keyboard.bindingsVersion') return 2;
+            if (key === 'keyboard.bindingsVersion') return 3;
             return undefined;
         });
         await hydrateShortcutBindings();
@@ -220,7 +234,7 @@ describe('keyboard shortcuts', () => {
         await hydrateShortcutBindings();
 
         expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+shift+e']);
-        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 2);
+        expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 3);
     });
 
     it('ignores malformed saved toggle state', async () => {

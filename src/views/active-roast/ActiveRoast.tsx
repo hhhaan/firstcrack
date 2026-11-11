@@ -723,6 +723,7 @@ export const ActiveRoast = ({
         reviewing,
         chargeLocked: chargeLock.locked,
         onDismissReview: dismissReview,
+        roastSummarySaving: saveFlow.isSaving,
     });
 
     useChartKeyboard({
