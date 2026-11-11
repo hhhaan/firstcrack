@@ -4,7 +4,9 @@ import {
     isRoastEventMarkEnabled,
     isRoastMarkShortcutEnabled,
     isRoastRefreshBlocked,
+    isRoastReturnToChargeWaitShortcutEnabled,
     isRoastShortcutBaseEnabled,
+    isRoastSummaryCloseShortcutEnabled,
 } from './useRoastKeyboardShortcuts';
 import shortcutsSrc from './useRoastKeyboardShortcuts.ts?raw';
 
@@ -92,6 +94,39 @@ describe('isRoastEventMarkEnabled', () => {
         expect(isRoastEventMarkEnabled('preheating')).toBe(false);
         expect(isRoastEventMarkEnabled('standby')).toBe(false);
         expect(isRoastEventMarkEnabled('ended')).toBe(false);
+    });
+});
+
+describe('isRoastSummaryCloseShortcutEnabled', () => {
+    it('is enabled only while the summary popup is open', () => {
+        const base = {
+            isActive: true,
+            showEndRoastModal: false,
+            showContinueModal: false,
+        };
+        expect(isRoastSummaryCloseShortcutEnabled({ ...base, showSummaryModal: true })).toBe(true);
+        expect(isRoastSummaryCloseShortcutEnabled({ ...base, showSummaryModal: false })).toBe(false);
+        expect(isRoastSummaryCloseShortcutEnabled({ ...base, showSummaryModal: true, showEndRoastModal: true })).toBe(
+            false,
+        );
+    });
+});
+
+describe('isRoastReturnToChargeWaitShortcutEnabled', () => {
+    it('fires only during saved-curve review without blocking modals or charge lock', () => {
+        const base = {
+            isActive: true,
+            showEndRoastModal: false,
+            showSummaryModal: false,
+            showContinueModal: false,
+            chargeLocked: false,
+        };
+        expect(isRoastReturnToChargeWaitShortcutEnabled({ ...base, reviewing: true })).toBe(true);
+        expect(isRoastReturnToChargeWaitShortcutEnabled({ ...base, reviewing: false })).toBe(false);
+        expect(isRoastReturnToChargeWaitShortcutEnabled({ ...base, reviewing: true, showSummaryModal: true })).toBe(
+            false,
+        );
+        expect(isRoastReturnToChargeWaitShortcutEnabled({ ...base, reviewing: true, chargeLocked: true })).toBe(false);
     });
 });
 

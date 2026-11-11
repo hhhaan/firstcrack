@@ -378,6 +378,7 @@ export const ActiveRoast = ({
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
+    const handleCancelDropRef = useRef<() => void>(() => {});
 
     const {
         triggerCharge: startChargeAction,
@@ -716,6 +717,12 @@ export const ActiveRoast = ({
         onMarkEvent: markEvent,
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
+        onCloseRoastSummary: saveFlow.flow.closeSummary,
+        onCancelRoastSummary: () => handleCancelDropRef.current(),
+        canCancelRoastSummary: dropCancelable,
+        reviewing,
+        chargeLocked: chargeLock.locked,
+        onDismissReview: dismissReview,
     });
 
     useChartKeyboard({
@@ -941,6 +948,9 @@ export const ActiveRoast = ({
         machineControl.replay.restore(restore?.replayActive ?? false);
         saveFlow.flow.closeSummary();
     }, [lifecycle, machineControl.replay, saveFlow.flow]);
+    useLayoutEffect(() => {
+        handleCancelDropRef.current = handleCancelDrop;
+    }, [handleCancelDrop]);
 
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {

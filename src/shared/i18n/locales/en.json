@@ -33,6 +33,8 @@
             "fcStart": "Mark FC Start / Rolling",
             "fcEnd": "Mark FC End",
             "drop": "Mark Drop",
+            "closeRoastSummary": "Close roast summary",
+            "returnToChargeWait": "Return to charge wait",
             "toggleControl": "Toggle machine control",
             "zoomIn": "Zoom in chart",
             "zoomOut": "Zoom out chart",
