@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ControlOrigin } from '../lib/controlSender';
 import { carryReplayEventIds, remapReplayIndex, resolveReplayPlan } from '../lib/heater-events';
 import { deliverHeaterCommand } from '../lib/heaterDelivery';
@@ -7,6 +7,10 @@ import { useReplayStopDiagnostics } from './useReplayStopDiagnostics';
 
 /** Matches R04 `ObservationQuality`. Duplicated so this slice does not import another feature. */
 export type ObservationQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
+
+export type DischargeDelivery =
+    | { phase: 'started'; timeSec: number; bt: number }
+    | { phase: 'settled'; accepted: boolean; timeSec: number; bt: number };
 
 export interface ReplayControlInputs {
     /** Stable live Charge UUID, preserved by Drop undo. Required for physical actions. */
@@ -66,6 +70,12 @@ export interface ReplayControlInputs {
     lastValidReceivedAtMs?: number | null;
     /** Wall-clock for last-valid age. Omit with lastValid to skip age hold in tests. */
     nowMs?: number | null;
+    /**
+     * Issued sample for one Replay discharge-open attempt.
+     * `started` is synchronous with the send. `settled` follows an acknowledged write,
+     * or a failed, timed-out, or aborted attempt. An abort can settle during render.
+     */
+    onDischargeDelivery?: (event: DischargeDelivery) => void;
     /** 논리 명령 응답(지원 맵은 설정값 읽기 검증 포함). 요청값 불일치·null은 실패, 실측 확인은 별도. */
     writeHeater: (value: number, origin?: ControlOrigin) => Promise<number | null>;
     /** Guarded retry: confirm the command first where supported, then resend only if needed. */
@@ -178,6 +188,7 @@ export const useReplayControl = ({
     observationQuality,
     lastValidReceivedAtMs,
     nowMs,
+    onDischargeDelivery,
     writeHeater,
     retryHeater,
     connectionEpoch,
@@ -288,6 +299,22 @@ export const useReplayControl = ({
     const [deliveryAttempt, setDeliveryAttempt] = useState(0);
     const deliveryController = useRef<AbortController | null>(null);
     const writeGenRef = useRef(0);
+    const onDischargeDeliveryRef = useRef(onDischargeDelivery);
+    useLayoutEffect(() => {
+        onDischargeDeliveryRef.current = onDischargeDelivery;
+    }, [onDischargeDelivery]);
+    const dischargeFlight = useRef<{ timeSec: number; bt: number } | null>(null);
+    const settleDischarge = useCallback((accepted: boolean) => {
+        const flight = dischargeFlight.current;
+        if (!flight) return;
+        dischargeFlight.current = null;
+        onDischargeDeliveryRef.current?.({
+            phase: 'settled',
+            accepted,
+            timeSec: flight.timeSec,
+            bt: flight.bt,
+        });
+    }, []);
     const [safeOffNonce, setSafeOffNonce] = useState(0);
     const [pendingWrite, setPendingWrite] = useState<{
         heater: number | undefined;
@@ -308,7 +335,8 @@ export const useReplayControl = ({
         cancelUnsentHeater();
         setPendingWrite(null);
         setWriting(false);
-    }, [cancelUnsentHeater]);
+        settleDischarge(false);
+    }, [cancelUnsentHeater, settleDischarge]);
 
     /** 렌더 중 확정된 중단 — 단조 증가만, StrictMode 이중 호출은 fail-closed.
      * 큐 취소도 여기서: effect까지 미루면 in-flight 슬롯이 비며 Replay heater가 먼저 나간다. */
@@ -317,6 +345,7 @@ export const useReplayControl = ({
         deliveryController.current?.abort();
         cancelUnsentHeater();
         if (pendingWrite != null) setPendingWrite(null);
+        settleDischarge(false);
     };
 
     useEffect(
@@ -324,8 +353,9 @@ export const useReplayControl = ({
             writeGenRef.current += 1;
             deliveryController.current?.abort();
             cancelUnsentHeater();
+            settleDischarge(false);
         },
-        [cancelUnsentHeater],
+        [cancelUnsentHeater, settleDischarge],
     );
 
     const [previousConnectionEpoch, setPreviousConnectionEpoch] = useState(connectionEpoch);
@@ -593,6 +623,9 @@ export const useReplayControl = ({
             const gen = writeGenRef.current;
             const controller = new AbortController();
             deliveryController.current = controller;
+            const issued = { timeSec: elapsed, bt: liveBt };
+            dischargeFlight.current = issued;
+            onDischargeDeliveryRef.current?.({ phase: 'started', ...issued });
             setPendingWrite({
                 heater: undefined,
                 nextIndex: result.nextIndex,
@@ -607,11 +640,9 @@ export const useReplayControl = ({
                     if (gen !== writeGenRef.current) return;
                     setPendingWrite(null);
                     setWriting(false);
-                    if (sent) {
-                        return;
-                    } else {
-                        setStopReason('dischargeAttempted');
-                    }
+                    // Accepted delivery ends the roast at the issuing sample. Failure, timeout, and abort do not.
+                    settleDischarge(sent === true);
+                    if (!sent) setStopReason('dischargeAttempted');
                 });
             return;
         }
@@ -669,6 +700,7 @@ export const useReplayControl = ({
         connectionEpoch,
         dischargeOpenSupported,
         writeDischargeOpen,
+        settleDischarge,
     ]);
 
     const nextEvent: ReplayEvent | null = active && plan ? (plan.events[index] ?? null) : null;

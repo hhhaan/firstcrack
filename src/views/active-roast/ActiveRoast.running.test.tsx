@@ -1223,4 +1223,94 @@ describe('ActiveRoast running clock (#627)', () => {
             unmount();
         }
     });
+
+    it('ends the roast at the discharge command sample and ignores a later detection', async () => {
+        workspace.owner = 'owner';
+        workspace.ready = true;
+        const started = Date.now() - 600_000;
+        seed({
+            roastStartMs: started,
+            elapsed: 600,
+            sessionOwnerId: 'owner',
+            logState: {
+                unwind: false,
+                entries: [
+                    { id: 'charge', time: '0:00', timeSec: 0, event: 'Charge', temp: '200.0°C', tempC: 200, note: '' },
+                    {
+                        id: 'fc',
+                        time: '8:00',
+                        timeSec: 480,
+                        event: 'FC Start',
+                        temp: '196.0°C',
+                        tempC: 196,
+                        note: '',
+                    },
+                ],
+            },
+        });
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            const calls = composition.mock.calls;
+            const deliver = calls[calls.length - 1]?.[0].onDischargeDelivery;
+            expect(deliver).toBeTypeOf('function');
+            act(() => deliver?.({ phase: 'started', timeSec: 600, bt: 205 }));
+            const origin = started;
+            for (let i = 0; i <= 16; i++) {
+                act(() =>
+                    useRoastingStore.getState().updateRawTemperature({
+                        bt: 200 - Math.max(0, i - 10),
+                        timestamp: i,
+                        receivedAtMs: origin + i * 1000,
+                    }),
+                );
+            }
+            expect(useRoastingStore.getState().phase).toBe('roasting');
+            expect(useRoastingStore.getState().completed).toBeNull();
+            act(() => {
+                deliver?.({ phase: 'settled', accepted: true, timeSec: 600, bt: 205 });
+                deliver?.({ phase: 'settled', accepted: true, timeSec: 640, bt: 190 });
+            });
+            const completed = useRoastingStore.getState().completed;
+            const drop = completed?.snapshot.logEntries.find((entry) => entry.event === 'Drop');
+            expect(drop).toMatchObject({ timeSec: 600, tempC: 205 });
+            expect(completed?.summary).toMatchObject({
+                totalTime: '10:00',
+                development: '2:00 (20%)',
+                finalBt: '205.0°C',
+                elapsedSec: 600,
+            });
+            expect(useRoastingStore.getState().phase).toBe('standby');
+            expect(useRoastingStore.getState().heatHoldAfterDrop).toBe(true);
+            expect(document.body.textContent).toContain('activeRoast.summary.totalTime');
+            expect(document.body.textContent).toContain('10:00');
+            expect(document.body.textContent).toContain('2:00 (20%)');
+            expect(document.body.textContent).toContain('205.0°C');
+        } finally {
+            unmount();
+            composition.mockRestore();
+        }
+    });
+
+    it('does not end the roast when the discharge command fails', async () => {
+        workspace.owner = 'owner';
+        workspace.ready = true;
+        seed({ roastStartMs: Date.now() - 600_000, elapsed: 600, sessionOwnerId: 'owner' });
+        const composition = vi.spyOn(machineControlFeature, 'useMachineControlComposition');
+        const unmount = mount();
+        try {
+            await flushMicrotasks();
+            const calls = composition.mock.calls;
+            const deliver = calls[calls.length - 1]?.[0].onDischargeDelivery;
+            act(() => deliver?.({ phase: 'started', timeSec: 600, bt: 205 }));
+            act(() => deliver?.({ phase: 'settled', accepted: false, timeSec: 600, bt: 205 }));
+            expect(useRoastingStore.getState().phase).toBe('roasting');
+            expect(useRoastingStore.getState().completed).toBeNull();
+            expect(document.body.textContent).not.toContain('activeRoast.summary.title');
+        } finally {
+            unmount();
+            composition.mockRestore();
+        }
+    });
 });

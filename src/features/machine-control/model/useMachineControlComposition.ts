@@ -8,7 +8,12 @@ import { numericHeaterStep } from '../lib/heater-events';
 import { type ReplayPoint, supportsDischargeOpen } from '../lib/replay';
 import { type MachineFeedback, useMachineControl } from './useMachineControl';
 import { usePidControl } from './usePidControl';
-import { type ObservationQuality, type ReplayStopReason, useReplayControl } from './useReplayControl';
+import {
+    type DischargeDelivery,
+    type ObservationQuality,
+    type ReplayStopReason,
+    useReplayControl,
+} from './useReplayControl';
 
 export interface MachineControlCompositionInput {
     sidecarConnected: boolean;
@@ -46,6 +51,8 @@ export interface MachineControlCompositionInput {
     /** Raw applied command. Tests use this; the heater log uses onHeaterCommitted. */
     onCommitted?: (committed: ControlCommand) => void;
     onApplied?: (applied: ControlCommand) => void;
+    /** Replay discharge-open only. The view turns an accepted issuing sample into Drop. */
+    onDischargeDelivery?: (event: DischargeDelivery) => void;
     diagnostics?: Pick<GasOffDiagnosticContext, 'sessionId' | 'receivedAtMs' | 'sample'>;
 }
 
@@ -77,6 +84,7 @@ export const useMachineControlComposition = ({
     onHeaterCommitted,
     onCommitted,
     onApplied,
+    onDischargeDelivery,
     diagnostics,
 }: MachineControlCompositionInput) => {
     const replayEntitled = useFeature(FEATURE.machineReplay);
@@ -185,6 +193,7 @@ export const useMachineControlComposition = ({
         connectionEpoch: retryEpoch,
         dischargeOpenSupported,
         writeDischargeOpen,
+        onDischargeDelivery,
         cancelUnsentHeater: machine.cancelUnsentReplayHeater,
         heaterMax: machine.limits.heater?.max,
         heaterMin: machine.limits.heater?.min,

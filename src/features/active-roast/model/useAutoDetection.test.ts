@@ -611,6 +611,16 @@ describe('useAutoDetection — raw BT slope breaks (#448)', () => {
         expect(h.onAutoDrop).not.toHaveBeenCalled();
     });
 
+    it('ignores a temperature Drop while a discharge command is in flight, then detects again after release', () => {
+        const h = setup('roasting', 430);
+        act(() => h.result.holdAutoDrop());
+        fallingDrop();
+        expect(h.onAutoDrop).not.toHaveBeenCalled();
+        act(() => h.result.releaseAutoDropHold());
+        fallingDrop(30);
+        expect(h.onAutoDrop).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
         [7 * 60 - 1, false],
         [7 * 60, false],

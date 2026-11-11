@@ -77,6 +77,8 @@ and deletion guards stay unchanged.
 
 ## Runtime loop (read)
 
+An acknowledged Replay discharge-open command ends the batch through the same Drop lifecycle as a manual Drop. Saved Drop time, Drop temperature, duration, and development time come from the roast clock and raw BT of the sample that issued the command. The summary opens from that same snapshot. Acknowledgement only decides whether the boundary is committed; it does not move the clock. A failed, timed-out, or aborted command leaves the roast running, so temperature detection and manual Drop still apply. A Drop that is already confirmed is not rewritten.
+
 1. Sidecar poll (`useSidecarPolling`) → temperatures
 2. Log / auto detection / BBP / phases in feature model+lib
 3. Continuous local TSV under app local data (`session_<uuid>.tsv`, optional `bbp_*.tsv`) — durability before network
