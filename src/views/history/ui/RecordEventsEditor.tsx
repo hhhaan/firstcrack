@@ -45,6 +45,7 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
     const [busy, setBusy] = useState(false);
     const inFlight = useRef(false);
     const draftsRef = useRef(drafts);
+    const openedRef = useRef(drafts);
     useEffect(() => {
         draftsRef.current = drafts;
     }, [drafts]);
@@ -53,7 +54,8 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
     const editField = (index: number, field: 'time' | 'temp', value: string) => {
         const row = draftsRef.current.find((d) => d.index === index);
         if (!row || row.type === 'Charge' || row.type === 'Drop') return;
-        const linked = linkEventDraft(row, field, value, curve, unit);
+        const opened = openedRef.current.find((d) => d.index === index);
+        const linked = linkEventDraft(row, field, value, curve, unit, opened);
         const next = draftsRef.current.map((d) => (d.index === index ? linked.draft : d));
         const sorted = linked.draft.time !== row.time ? [...next].sort(compareEventDrafts) : next;
         draftsRef.current = sorted;

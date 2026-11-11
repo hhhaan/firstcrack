@@ -369,6 +369,22 @@ describe('RecordEventsEditor', () => {
         expect(onClose).toHaveBeenCalledOnce();
     });
 
+    it('does not move time when the temperature text is only reformatted', async () => {
+        const saved = events.map((event) => (event.id === 'f' ? { ...event, temp_c: 193 } : event));
+        const onSave = vi.fn();
+        const onClose = await mount({ events: saved, onSave, samples: curveSamples });
+        await type('FC Start history.edit.temp', '193.0');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.time"]') as HTMLInputElement).value,
+        ).toBe('8:00');
+        expect(
+            (document.querySelector('input[aria-label="FC Start history.edit.temp"]') as HTMLInputElement).value,
+        ).toBe('193');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).not.toHaveBeenCalled();
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
     it('rejects a temperature the measured curve does not reach', async () => {
         const onSave = vi.fn();
         await mount({ onSave, samples: curveSamples });

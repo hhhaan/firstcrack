@@ -447,6 +447,20 @@ describe('history event edits use the live curve rule', () => {
         const typed = [{ id: 'f', type: 'FC Start', time_sec: 480, temp_c: 193 }];
         const paddedDraft = [{ index: 0, type: 'FC Start', time: '08:00', temp: '193', edited: 'time' as const }];
         expect(applyEventDrafts(typed, paddedDraft, 'C', curve)).toMatchObject({ ok: true, changed: false });
+        expect(linkEventDraft(padded, 'temp', '193.0', curve, 'C').draft).toBe(padded);
+        const retyped = linkEventDraft({ ...padded, temp: '19', edited: 'temp' }, 'temp', '193', curve, 'C', {
+            time: padded.time,
+            temp: '193',
+        });
+        expect(retyped).toEqual({ draft: padded, error: null });
+        expect(
+            applyEventDrafts(
+                typed,
+                [{ index: 0, type: 'FC Start', time: '8:00', temp: '193.0', edited: 'temp' }],
+                'C',
+                curve,
+            ),
+        ).toMatchObject({ ok: true, changed: false });
         const fixed = applyEventDrafts(
             stored,
             edited('Charge', { time: '1:00', temp: '100', edited: 'time' }).map((row) =>

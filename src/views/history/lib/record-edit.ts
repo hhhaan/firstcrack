@@ -137,6 +137,12 @@ const parseTempC = (value: string, unit: TemperatureUnit): number | null => {
     return Math.round(c * 10) / 10;
 };
 
+/** `193` and `193.0` are one reading. Incomplete text does not match. */
+const sameTempText = (left: string, right: string, unit: TemperatureUnit) => {
+    const parsed = parseTempC(left, unit);
+    return parsed != null && parsed === parseTempC(right, unit);
+};
+
 type ResolvedReading = { timeSec: number; tempC: number | null };
 
 /**
@@ -147,14 +153,16 @@ const draftSource = (
     draft: EventDraft,
     previous: { time: string; temp: string } | null,
     curve: MeasuredCurve | null,
+    unit: TemperatureUnit,
 ): 'time' | 'temp' | null => {
     if (!curve) return null;
-    // Blur pads `8:00` to `08:00`. That is not a time edit, so it must not snap BT.
+    // Padding `8:00` or `193.0` is not an edit, so it must not move the other field.
     if (draft.edited === 'time' && previous && sameTimeText(draft.time, previous.time)) return null;
+    if (draft.edited === 'temp' && previous && sameTempText(draft.temp, previous.temp, unit)) return null;
     if (draft.edited) return draft.edited;
     if (!previous) return null;
     const timeChanged = draft.time.trim() !== previous.time && !sameTimeText(draft.time, previous.time);
-    const tempChanged = draft.temp.trim() !== previous.temp;
+    const tempChanged = draft.temp.trim() !== previous.temp && !sameTempText(draft.temp, previous.temp, unit);
     if (timeChanged && !tempChanged) return 'time';
     if (tempChanged && !timeChanged) return 'temp';
     return null;
@@ -203,9 +211,16 @@ export const linkEventDraft = (
     value: string,
     curve: MeasuredCurve | null,
     unit: TemperatureUnit,
+    opened?: { time: string; temp: string },
 ): { draft: EventDraft; error: EventDraftError | null } => {
     if (isFixedMark(draft.type)) return { draft, error: null };
     if (field === 'time' && sameTimeText(value, draft.time)) return { draft, error: null };
+    if (field === 'temp' && opened && sameTimeText(draft.time, opened.time) && sameTempText(value, opened.temp, unit)) {
+        if (!draft.edited && sameTempText(draft.temp, opened.temp, unit)) return { draft, error: null };
+        const { edited: _, ...rest } = draft;
+        return { draft: { ...rest, time: opened.time, temp: opened.temp }, error: null };
+    }
+    if (field === 'temp' && sameTempText(value, draft.temp, unit)) return { draft, error: null };
     const next: EventDraft = { ...draft, [field]: value, edited: field };
     if (!curve) return { draft: next, error: null };
     if (field === 'time' && parseTime(value) == null) return { draft: next, error: null };
@@ -265,7 +280,7 @@ export const applyEventDrafts = (
             let time = orig.time_sec as number;
             let temp = orig.temp_c;
             let rowChanged = false;
-            const source = isFixedMark(init.type) ? null : draftSource(d, init, curve);
+            const source = isFixedMark(init.type) ? null : draftSource(d, init, curve, unit);
             if (curve && source) {
                 const anchorTemp = typeof temp === 'number' && Number.isFinite(temp) ? temp : null;
                 const resolved = resolveDraft(init.type, time, anchorTemp, d, source, curve, unit);
@@ -301,8 +316,10 @@ export const applyEventDrafts = (
                     errors[d.index] = 'temp';
                     continue;
                 }
-                temp = parsed;
-                rowChanged = true;
+                if (!sameTempText(d.temp, init.temp, unit)) {
+                    temp = parsed;
+                    rowChanged = true;
+                }
             }
             times.push({ index: d.index, type: init.type, t: time });
             if (rowChanged) {
@@ -326,7 +343,7 @@ export const applyEventDrafts = (
             errors[d.index] = 'time';
             continue;
         }
-        const source = draftSource(d, null, curve);
+        const source = draftSource(d, null, curve, unit);
         if (curve && source) {
             const resolved = resolveDraft(d.type, parsedTime, null, d, source, curve, unit);
             if (resolved === 'time' || resolved === 'temp') {
