@@ -583,7 +583,7 @@
                 "alertBeforeDrop": "Before drop",
                 "alertBeforeDropDescription": "Remind this many minutes before the target profile's Drop. Needs a target profile with a Drop mark.",
                 "alertAfterDrop": "After drop",
-                "alertAfterDropDescription": "Remind this many minutes after Drop. The timer keeps running until End roast.",
+                "alertAfterDropDescription": "Remind this many minutes after Drop. Still rings during the wait after the roast ends, and stops on the next Charge, Drop cancel, or restart.",
                 "curveStyles": "Curve Styles",
                 "curveStylesDescription": "Color, width, and line style per channel. Target curves use the channel color or gray, both faded. Applies to Active Roast and History.",
                 "targetCurveTone": "Target curve",

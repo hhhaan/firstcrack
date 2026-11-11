@@ -184,3 +184,233 @@ describe('roast alert lifecycle', () => {
         expect(playAlertSound).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('after-drop during the BBP wait (#1130)', () => {
+    let root: Root;
+    let alerts: ReturnType<typeof useRoastAlerts>;
+    const Probe = (props: Props) => {
+        alerts = useRoastAlerts(props);
+        return null;
+    };
+    const render = (patch: Partial<Props> = {}) => {
+        act(() => root.render(createElement(Probe, { ...defaults, ...patch, logEntries: patch.logEntries ?? [] })));
+    };
+    const chargeAndDrop = (onset?: { timeSec: number; bt: number }) => {
+        const origin = Date.now() - 600_000;
+        useRoastingStore.getState().startCharge(origin, 'owner', { bt: 180, unit: 'C' });
+        return useRoastingStore.getState().drop({
+            rawBT: 200,
+            unit: 'C',
+            replayActive: false,
+            ...(onset ? { onset } : {}),
+        });
+    };
+    const waitConfig = { ...off, afterDropMin: 1 as number | null };
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.clearAllMocks();
+        useRoastingStore.getState().reset();
+        useRoastingStore.setState({ sidecarConnected: true, phase: 'standby', completed: null, sessionId: null });
+        root = createRoot(document.createElement('div'));
+    });
+    afterEach(() => {
+        act(() => root.unmount());
+        vi.useRealTimers();
+    });
+
+    it.each([
+        ['manual Drop', undefined],
+        ['temperature detection', { timeSec: 600, bt: 201 }],
+        ['machine drop command', { timeSec: 600, bt: 202 }],
+    ] as const)('fires once at the offset after %s, while the roast clock is stopped', (_path, onset) => {
+        render({ timeAlerts: waitConfig });
+        act(() => {
+            chargeAndDrop(onset);
+        });
+        expect(useRoastingStore.getState().phase).not.toBe('roasting');
+        expect(useRoastingStore.getState().elapsed).toBe(0);
+        expect(playAlertSound).not.toHaveBeenCalled();
+        act(() => {
+            vi.advanceTimersByTime(59_999);
+        });
+        expect(playAlertSound).not.toHaveBeenCalled();
+        expect(alerts).toEqual([]);
+        act(() => {
+            vi.advanceTimersByTime(1);
+        });
+        expect(alerts).toEqual(['after-drop']);
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        act(() => {
+            vi.advanceTimersByTime(5 * 60_000);
+        });
+        render({ timeAlerts: waitConfig });
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        expect(alerts).toEqual(['after-drop']);
+    });
+
+    it('does not fire when after-drop is OFF', () => {
+        render({ timeAlerts: off });
+        act(() => {
+            chargeAndDrop();
+        });
+        act(() => {
+            vi.advanceTimersByTime(10 * 60_000);
+        });
+        expect(alerts).toEqual([]);
+        expect(playAlertSound).not.toHaveBeenCalled();
+    });
+
+    it('keeps charge, FC, drop-before and threshold alarms quiet after Drop', () => {
+        render({
+            tpEnabled: false,
+            afterTurningPoint: true,
+            timeAlerts: { afterChargeMin: 1, beforeFcMin: 1, beforeDropMin: 1, afterDropMin: 1 },
+        });
+        act(() => {
+            useRoastingStore.getState().startCharge(Date.now(), 'owner', { bt: 180, unit: 'C' });
+            useRoastingStore.setState({
+                liveData: { bt: 100, et: 120, ror: 5, ror_et: 1, heater: 70, fan: 40, drum: 50 },
+            });
+        });
+        expect(playAlertSound).not.toHaveBeenCalled();
+        act(() => {
+            useRoastingStore.getState().drop({ rawBT: 200, unit: 'C', replayActive: false });
+            useRoastingStore.setState({
+                elapsed: 9_999,
+                liveData: { bt: 260, et: 210, ror: -5, ror_et: 1, heater: 0, fan: 40, drum: 50 },
+            });
+        });
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+        expect(alerts).toEqual(['after-drop']);
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+    });
+
+    it('is not cancelled by roast end or by opening and closing the completion summary', () => {
+        render({ timeAlerts: waitConfig });
+        let sessionId: string | null = null;
+        act(() => {
+            const dropped = chargeAndDrop();
+            sessionId = dropped?.sessionId ?? null;
+            const summary = dropped?.summary;
+            if (summary) useRoastingStore.getState().captureSummary(summary, 'owner', 200);
+            useRoastingStore.getState().endRoast();
+            useRoastingStore.getState().discardSummary('owner', sessionId);
+        });
+        expect(useRoastingStore.getState().phase).toBe('ended');
+        expect(useRoastingStore.getState().completed?.summary).toBeNull();
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+        expect(alerts).toEqual(['after-drop']);
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        act(() => {
+            useRoastingStore.getState().saveSucceeded('owner', sessionId);
+        });
+        expect(alerts).toEqual(['after-drop']);
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+    });
+
+    it('ends the previous alarm on the next Charge and does not leak into that batch', () => {
+        render({ timeAlerts: waitConfig });
+        act(() => {
+            chargeAndDrop();
+        });
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        act(() => {
+            useRoastingStore.getState().startCharge(Date.now(), 'owner', { bt: 170, unit: 'C' });
+        });
+        expect(alerts).toEqual([]);
+        act(() => {
+            vi.advanceTimersByTime(10 * 60_000);
+        });
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        expect(alerts).toEqual([]);
+        act(() => {
+            // The roast clock is what Drop records. Advance it to "now" so this batch's
+            // offset is not already due from the ten minutes spent roasting.
+            useRoastingStore.getState().tick();
+            useRoastingStore.getState().drop({ rawBT: 205, unit: 'C', replayActive: false });
+        });
+        act(() => {
+            vi.advanceTimersByTime(59_999);
+        });
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        act(() => {
+            vi.advanceTimersByTime(1);
+        });
+        expect(playAlertSound).toHaveBeenCalledTimes(2);
+        expect(alerts).toEqual(['after-drop']);
+    });
+
+    it('discards the clock on Drop cancel, then arms a new one from the next Drop', () => {
+        render({ timeAlerts: waitConfig });
+        act(() => {
+            chargeAndDrop();
+        });
+        act(() => {
+            vi.advanceTimersByTime(30_000);
+        });
+        act(() => {
+            expect(useRoastingStore.getState().cancelDrop()).not.toBeNull();
+        });
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+        expect(playAlertSound).not.toHaveBeenCalled();
+        expect(alerts).toEqual([]);
+        act(() => {
+            useRoastingStore.getState().drop({ rawBT: 198, unit: 'C', replayActive: false });
+        });
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        expect(alerts).toEqual(['after-drop']);
+    });
+
+    it('ends the alarm on restart and does not revive it from a leftover wait', () => {
+        render({ timeAlerts: waitConfig });
+        act(() => {
+            chargeAndDrop();
+        });
+        act(() => {
+            vi.advanceTimersByTime(30_000);
+        });
+        act(() => {
+            useRoastingStore.getState().reset();
+        });
+        act(() => {
+            vi.advanceTimersByTime(10 * 60_000);
+        });
+        expect(playAlertSound).not.toHaveBeenCalled();
+        expect(alerts).toEqual([]);
+        act(() => {
+            useRoastingStore.setState({ sidecarConnected: true, phase: 'standby' });
+            chargeAndDrop();
+        });
+        act(() => {
+            vi.advanceTimersByTime(60_000);
+        });
+        expect(playAlertSound).toHaveBeenCalledTimes(1);
+        expect(alerts).toEqual(['after-drop']);
+    });
+
+    it('does not invent an after-drop alarm for End without a Drop', () => {
+        render({ timeAlerts: waitConfig });
+        act(() => {
+            useRoastingStore.getState().startCharge(Date.now() - 600_000, 'owner', { bt: 180, unit: 'C' });
+            useRoastingStore.getState().abortRoast(190, 'C');
+        });
+        act(() => {
+            vi.advanceTimersByTime(10 * 60_000);
+        });
+        expect(alerts).toEqual([]);
+        expect(playAlertSound).not.toHaveBeenCalled();
+    });
+});

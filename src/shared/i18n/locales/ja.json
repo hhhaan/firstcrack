@@ -583,7 +583,7 @@
                 "alertBeforeDrop": "排出前",
                 "alertBeforeDropDescription": "ターゲットプロファイルの Drop のこの分数前に知らせます。Drop マークがあるターゲットプロファイルが必要です。",
                 "alertAfterDrop": "排出後",
-                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。タイマーは焙煎終了まで動き続けます。",
+                "alertAfterDropDescription": "Drop からこの分数が経ったら知らせます。焙煎終了後の待機中も鳴り、次の投入・排出取消・再起動で止まります。",
                 "curveStyles": "カーブスタイル",
                 "curveStylesDescription": "チャンネルごとの色・太さ・線種。ターゲットカーブはチャンネル色かグレーで薄く表示。ロースト画面と履歴チャートに適用。",
                 "targetCurveTone": "ターゲットカーブ",
