@@ -264,7 +264,7 @@ class VirtualMachineAdapter:
                 self._cmd[role] = float(value)
 
     def _fit_write_range(self, reading: Reading) -> Reading:
-        """A scripted percent sits outside W1A Pa/Hz limits. Show a value inside the map."""
+        """A scripted percent sits outside a Giesen virtual Pa/Hz map. Show a value inside the map."""
         return dataclasses.replace(
             reading,
             heater=self._in_write_range("heater", reading.heater),

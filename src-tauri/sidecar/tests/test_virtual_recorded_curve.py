@@ -113,18 +113,23 @@ async def test_charge_during_the_drop_does_not_restart_it(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_giesen_w1_virtual_uses_w1a_limits():
-    spec = ROASTER_REGISTRY["virtual_giesen_w1"]["default_params"]["write_map"]
-    w1 = ROASTER_REGISTRY["giesen_w1"]["default_params"]["write_map"]
+@pytest.mark.parametrize(
+    ("key", "source"),
+    [("virtual_giesen_w1", "giesen_w1"), ("virtual_giesen_w45a_w60a", "giesen_w45a_w60a")],
+)
+async def test_giesen_virtual_uses_source_limits(key: str, source: str):
+    spec = ROASTER_REGISTRY[key]["default_params"]["write_map"]
+    live = ROASTER_REGISTRY[source]["default_params"]["write_map"]
     for role in ("heater", "fan", "drum"):
-        assert spec[role] == {key: w1[role][key] for key in ("min", "max", "unit")}
+        assert spec[role] == {field: live[role][field] for field in ("min", "max", "unit")}
+        assert "db" not in spec[role]
 
     manager = RoasterManager()
-    await manager.connect("virtual_giesen_w1", {})
+    await manager.connect(key, {})
     assert manager.read_units() == {"heater": "%", "fan": "Pa", "drum": "Hz"}
-    assert manager.status()["control"]["limits"]["fan"]["min"] == 80
+    assert manager.status()["control"]["limits"]["fan"] == spec["fan"]
     assert manager.status()["control"]["limits"]["drum"]["unit"] == "Hz"
     sample = await manager.read_temperatures()
-    assert 80 <= sample["fan"] <= 150
-    assert 35 <= sample["drum"] <= 60
+    assert spec["fan"]["min"] <= sample["fan"] <= spec["fan"]["max"]
+    assert spec["drum"]["min"] <= sample["drum"] <= spec["drum"]["max"]
     assert manager.read_units() != RoasterManager().read_units()

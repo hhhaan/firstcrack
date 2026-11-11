@@ -2230,21 +2230,33 @@ for _key, _pressure, _drum in (
         ROASTER_REGISTRY[_key]["default_params"], pressure=_pressure, drum=_drum,
     )
 
-# Screen stand-in for Giesen W1A. Same logical limits, no PLC address.
-_w1_write = ROASTER_REGISTRY["giesen_w1"]["default_params"]["write_map"]
-ROASTER_REGISTRY["virtual_giesen_w1"] = {
-    "display_name": "가상 머신 (Giesen W1A)",
-    "brand": "Internal",
-    "models": ["W1A"],
-    "protocol": "virtual",
-    "default_params": {
-        "mode": "C",
-        "write_map": {
-            role: {"min": spec["min"], "max": spec["max"], "unit": spec["unit"]}
-            for role, spec in _w1_write.items()
-            if role in {"heater", "fan", "drum"}
+def _virtual_giesen(source_key: str, *, display_name: str, models: list[str]) -> dict[str, Any]:
+    """Screen stand-in. Same logical limits as the Giesen key, no PLC address."""
+    source = ROASTER_REGISTRY[source_key]
+    write = source["default_params"]["write_map"]
+    return {
+        "display_name": display_name,
+        "brand": "Internal",
+        "models": models,
+        "protocol": "virtual",
+        "default_params": {
+            "mode": "C",
+            "write_map": {
+                role: {"min": spec["min"], "max": spec["max"], "unit": spec["unit"]}
+                for role, spec in write.items()
+                if role in {"heater", "fan", "drum"}
+            },
         },
-    },
-    "pid": dict(ROASTER_REGISTRY["giesen_w1"]["pid"]),
-    "capabilities": ["heater", "fan", "drum"],
-}
+        "pid": dict(source["pid"]),
+        "capabilities": ["heater", "fan", "drum"],
+    }
+
+
+ROASTER_REGISTRY["virtual_giesen_w1"] = _virtual_giesen(
+    "giesen_w1", display_name="가상 머신 (Giesen W1A)", models=["W1A"],
+)
+ROASTER_REGISTRY["virtual_giesen_w45a_w60a"] = _virtual_giesen(
+    "giesen_w45a_w60a",
+    display_name="가상 머신 (Giesen W45A / W60A)",
+    models=["W45A", "W60A"],
+)

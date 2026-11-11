@@ -8,8 +8,9 @@ const uid = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 7
 export const VIRTUAL_ID = '__virtual__';
 export const VIRTUAL_READONLY_ID = '__virtual_readonly__';
 const VIRTUAL_GIESEN_W1_ID = '__virtual_giesen_w1__';
+const VIRTUAL_GIESEN_W45_ID = '__virtual_giesen_w45a_w60a__';
 
-const SIMULATOR_IDS = new Set([VIRTUAL_ID, VIRTUAL_READONLY_ID, VIRTUAL_GIESEN_W1_ID]);
+const SIMULATOR_IDS = new Set([VIRTUAL_ID, VIRTUAL_READONLY_ID, VIRTUAL_GIESEN_W1_ID, VIRTUAL_GIESEN_W45_ID]);
 
 /** Seeded by the app. Shown only when profiles.simulator_enabled is on. */
 export const isSimulatorMachine = (id: string): boolean => SIMULATOR_IDS.has(id);
@@ -62,7 +63,26 @@ const VIRTUAL_GIESEN_W1_MACHINE: Machine = {
     createdAt: '2024-01-01T00:00:00.000Z',
 };
 
-const SEEDED_SIMULATORS = [VIRTUAL_MACHINE, VIRTUAL_READONLY_MACHINE, VIRTUAL_GIESEN_W1_MACHINE];
+const VIRTUAL_GIESEN_W45_MACHINE: Machine = {
+    id: VIRTUAL_GIESEN_W45_ID,
+    name: 'Giesen W45A / W60A (가상)',
+    roasterKey: 'virtual_giesen_w45a_w60a',
+    displayName: '가상 머신 (Giesen W45A / W60A)',
+    brand: 'Internal',
+    models: ['W45A', 'W60A'],
+    protocol: 'virtual',
+    connectionParams: {},
+    capabilities: ['heater', 'fan', 'drum'],
+    pid: { Kp: 20, Ki: 0.01, Kd: 3 },
+    createdAt: '2024-01-01T00:00:00.000Z',
+};
+
+const SEEDED_SIMULATORS = [
+    VIRTUAL_MACHINE,
+    VIRTUAL_READONLY_MACHINE,
+    VIRTUAL_GIESEN_W1_MACHINE,
+    VIRTUAL_GIESEN_W45_MACHINE,
+];
 
 interface MachinesState {
     machines: Machine[];

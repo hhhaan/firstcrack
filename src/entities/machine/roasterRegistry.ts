@@ -155,6 +155,15 @@ const REGISTRY: Record<string, RegistryEntry> = {
         pid: { Kp: 20, Ki: 0.01, Kd: 3 },
         default_params: { mode: 'C' },
     },
+    virtual_giesen_w45a_w60a: {
+        display_name: '가상 머신 (Giesen W45A / W60A)',
+        brand: 'Internal',
+        models: ['W45A', 'W60A'],
+        protocol: 'virtual',
+        capabilities: ['heater', 'fan', 'drum'],
+        pid: { Kp: 20, Ki: 0.01, Kd: 3 },
+        default_params: { mode: 'C' },
+    },
     // ── Custom (address maps supplied by client connectionParams) ─────────────
     custom_modbus: {
         display_name: 'Custom Modbus',

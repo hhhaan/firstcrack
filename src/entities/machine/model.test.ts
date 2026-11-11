@@ -67,6 +67,9 @@ describe('saved machine migration', () => {
         expect(machinesForPicker(seeded, true).some((machine) => machine.roasterKey === 'virtual_giesen_w1')).toBe(
             true,
         );
+        expect(
+            machinesForPicker(seeded, true).some((machine) => machine.roasterKey === 'virtual_giesen_w45a_w60a'),
+        ).toBe(true);
 
         vi.resetModules();
         const { useMachines: restarted } = await import('./model');
@@ -159,6 +162,7 @@ describe('machine imports', () => {
             'Virtual Machine',
             'Virtual Machine (read only)',
             'Giesen W1A (가상)',
+            'Giesen W45A / W60A (가상)',
             'Imported',
             'Second',
         ]);
