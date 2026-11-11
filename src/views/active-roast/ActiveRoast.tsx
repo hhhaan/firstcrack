@@ -32,7 +32,7 @@ import { useRoastChargeAdmission } from '@features/active-roast/model/useRoastCh
 import { useRoastLog } from '@features/active-roast/model/useRoastLog';
 import { useRoastMonitorBridge } from '@features/active-roast/model/useRoastMonitorBridge';
 import { ActiveRoastOnboarding } from '@features/active-roast/ui/ActiveRoastOnboarding';
-import { MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
+import { type DischargeDelivery, MachineControlPanel, useMachineControlComposition } from '@features/machine-control';
 import { editedHeatSet } from '@features/machine-control/lib/heater-events';
 import type { ReplayStopReason } from '@features/machine-control/model/useReplayControl';
 import { useWeather } from '@shared/api/weather';
@@ -409,6 +409,8 @@ export const ActiveRoast = ({
         rearmAutoCharge,
         holdAutoChargeUntilRecovery,
         disableAutoDrop,
+        holdAutoDrop,
+        releaseAutoDropHold,
     } = useAutoDetection({
         livePoints,
         onAutoCharge: triggerCharge,
@@ -875,6 +877,21 @@ export const ActiveRoast = ({
         [bbpActive, timeline.bbpObservationNow, sessionId, setLogEntries, unit, recordDropWaitEvent],
     );
 
+    const holdAutoDropRef = useRef(holdAutoDrop);
+    const releaseAutoDropHoldRef = useRef(releaseAutoDropHold);
+    useLayoutEffect(() => {
+        holdAutoDropRef.current = holdAutoDrop;
+        releaseAutoDropHoldRef.current = releaseAutoDropHold;
+    }, [holdAutoDrop, releaseAutoDropHold]);
+    const onDischargeDelivery = useCallback((event: DischargeDelivery) => {
+        if (event.phase === 'started') {
+            holdAutoDropRef.current();
+            return;
+        }
+        releaseAutoDropHoldRef.current();
+        if (event.accepted) applyDropRef.current({ timeSec: event.timeSec, bt: event.bt });
+    }, []);
+
     const machineControl = useMachineControlComposition({
         sidecarConnected,
         reconnecting,
@@ -902,6 +919,7 @@ export const ActiveRoast = ({
         nowMs: Date.now(),
         onHeaterCommitted: handleHeaterCommitted,
         onApplied: handleControlApplied,
+        onDischargeDelivery,
         diagnostics: { sessionId: charged ? sessionId : null, receivedAtMs: feedbackReceivedAtMs, sample: liveData },
     });
     useEffect(() => {

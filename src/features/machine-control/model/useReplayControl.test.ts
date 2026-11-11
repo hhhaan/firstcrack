@@ -95,6 +95,72 @@ describe('BT discharge replay', () => {
         confirmedTurningPoint: {},
     });
 
+    it('reports the issuing sample after acknowledgement and ignores a later clock', async () => {
+        let resolve!: (sent: boolean) => void;
+        const write = vi.fn(
+            () =>
+                new Promise<boolean>((done) => {
+                    resolve = done;
+                }),
+        );
+        const onDischargeDelivery = vi.fn();
+        const options = { ...inputs('door-command-boundary', write), onDischargeDelivery };
+        const h = await renderReplay(options);
+        await act(async () => h.get().toggle());
+        expect(onDischargeDelivery).toHaveBeenCalledExactlyOnceWith({ phase: 'started', timeSec: 300, bt: 205 });
+        await h.rerender({ ...options, elapsed: 312, liveBt: 198 });
+        await act(async () => resolve(true));
+        expect(onDischargeDelivery).toHaveBeenLastCalledWith({
+            phase: 'settled',
+            accepted: true,
+            timeSec: 300,
+            bt: 205,
+        });
+        expect(onDischargeDelivery).toHaveBeenCalledTimes(2);
+        h.unmount();
+    });
+
+    it.each(['rejected', 'thrown'] as const)('does not treat a %s discharge as a completed drop', async (kind) => {
+        const write = vi.fn(async () => {
+            if (kind === 'thrown') throw new Error('timeout');
+            return false;
+        });
+        const onDischargeDelivery = vi.fn();
+        const h = await renderReplay({ ...inputs(`door-${kind}`, write), onDischargeDelivery });
+        await act(async () => h.get().toggle());
+        expect(onDischargeDelivery).toHaveBeenCalledWith({
+            phase: 'settled',
+            accepted: false,
+            timeSec: 300,
+            bt: 205,
+        });
+        expect(onDischargeDelivery.mock.calls.some((call) => call[0].accepted === true)).toBe(false);
+        h.unmount();
+    });
+
+    it('does not accept a discharge aborted before the reply', async () => {
+        let resolve!: (sent: boolean) => void;
+        const write = vi.fn(
+            () =>
+                new Promise<boolean>((done) => {
+                    resolve = done;
+                }),
+        );
+        const onDischargeDelivery = vi.fn();
+        const h = await renderReplay({ ...inputs('door-aborted-boundary', write), onDischargeDelivery });
+        await act(async () => h.get().toggle());
+        await act(async () => h.get().toggle());
+        expect(onDischargeDelivery).toHaveBeenCalledWith({
+            phase: 'settled',
+            accepted: false,
+            timeSec: 300,
+            bt: 205,
+        });
+        await act(async () => resolve(true));
+        expect(onDischargeDelivery.mock.calls.some((call) => call[0].accepted === true)).toBe(false);
+        h.unmount();
+    });
+
     it('delivers heat before the terminal door action, once, and stays armed for actual Drop zero', async () => {
         const options = inputs('door-success');
         const h = await renderReplay({ ...options, dropBehavior: 'zero' });
