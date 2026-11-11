@@ -4,6 +4,7 @@ import {
     ProfileDefaultBadge,
     resolveSourceSession,
     useProfileBeanHistory,
+    useProfileReferenceBatches,
     useSourceSessionEvents,
 } from '@entities/roast-profile';
 import { useRoastSettings } from '@features/active-roast';
@@ -19,7 +20,7 @@ import type { View } from '@shared/types/view';
 import { Badge } from '@shared/ui/Badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@shared/ui/popover/Popover';
 import { Copy, Download, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
     profileExportBasename,
@@ -27,6 +28,7 @@ import {
     profileExtraSensorValue,
     profileToCsv,
 } from '../lib/export-profile-csv';
+import { useProfileBatchPreview } from '../model/useProfileBatchPreview';
 import { ConsistencyCard } from './ConsistencyCard';
 import { ProfileReferenceBatches } from './ProfileReferenceBatches';
 import { ProfileRoastChart } from './ProfileRoastChart';
@@ -39,8 +41,6 @@ interface ProfileDetailProps {
     selectedRealCurve: TsvPoint[];
     selectedHasReal: boolean;
     defaultId: string | null;
-    curveLoading: boolean;
-    curveError: boolean;
     onSetDefault: (id: string | null) => void;
     onEdit: () => void;
     onDuplicate: (profile: RoastProfileWithSource) => void;
@@ -55,8 +55,6 @@ export const ProfileDetail = ({
     selectedRealCurve,
     selectedHasReal,
     defaultId,
-    curveLoading,
-    curveError,
     onSetDefault,
     onEdit,
     onDuplicate,
@@ -66,6 +64,12 @@ export const ProfileDetail = ({
 }: ProfileDetailProps) => {
     const { t } = useTranslation();
     const [moreOpen, setMoreOpen] = useState(false);
+    const [previewSessionId, setPreviewSessionId] = useState(selected.source_session_id);
+    const { data: batches = [] } = useProfileReferenceBatches(selected.id);
+    const batchPreview = useProfileBatchPreview(selected, previewSessionId, batches);
+    useEffect(() => {
+        setPreviewSessionId(selected.source_session_id);
+    }, [selected.source_session_id]);
     const { data: beanHistory = [] } = useProfileBeanHistory(selected.id ?? '');
     const { data: sourceEvents = null } = useSourceSessionEvents(selected.source_session_id);
     const exportFile = useCsvFileExport();
@@ -194,17 +198,20 @@ export const ProfileDetail = ({
             </div>
 
             <ProfileRoastChart
-                key={`${selected.id}:${selected.source_session_id}`}
-                profile={selected}
-                points={selectedRealCurve}
-                events={sourceEvents}
-                isLoading={curveLoading}
-                isError={curveError}
+                key={`${selected.id}:${previewSessionId}`}
+                profile={batchPreview.chartProfile}
+                points={batchPreview.points}
+                events={batchPreview.events}
+                isLoading={batchPreview.isLoading}
+                isError={batchPreview.isError}
+                sessionTitle={batchPreview.batchTitle}
             />
 
             <ProfileReferenceBatches
                 profileId={selected.id}
                 sourceSessionId={selected.source_session_id}
+                previewSessionId={previewSessionId}
+                onPreviewSession={setPreviewSessionId}
                 onOpenDetail={
                     onOpenHistoryBatch ? (sessionId) => onOpenHistoryBatch(sessionId, selected.id) : undefined
                 }

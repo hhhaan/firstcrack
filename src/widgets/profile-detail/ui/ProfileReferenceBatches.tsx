@@ -13,22 +13,19 @@ import { SurfaceButton } from '@shared/ui/SurfaceButton';
 import { Check, ChevronRight } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-
-const sourceSessionOf = (batch: ProfileReferenceBatch) => ({
-    tsv_path: batch.tsv_path,
-    bbp_tsv_path: batch.bbp_tsv_path,
-    bbp_seconds: batch.bbp_seconds,
-    events: null,
-    ...(batch.heater_events !== undefined && { heater_events: batch.heater_events }),
-});
+import { profileBatchSourceSession } from '../lib/source-session';
 
 export const ProfileReferenceBatches = ({
     profileId,
     sourceSessionId,
+    previewSessionId,
+    onPreviewSession,
     onOpenDetail,
 }: {
     profileId: string;
     sourceSessionId: string;
+    previewSessionId: string;
+    onPreviewSession: (sessionId: string) => void;
     onOpenDetail?: (sessionId: string) => void;
 }) => {
     const { t } = useTranslation();
@@ -50,7 +47,7 @@ export const ProfileReferenceBatches = ({
         void mutateAsync({
             id: profileId,
             sourceSessionId: batch.id,
-            sourceSession: sourceSessionOf(batch),
+            sourceSession: profileBatchSourceSession(batch),
         }).catch(() => {
             useToastStore.getState().show(t('profiles.detail.referenceFailed'));
         });
@@ -63,7 +60,7 @@ export const ProfileReferenceBatches = ({
         void mutateAsync({
             id: profileId,
             sourceSessionId: batch.id,
-            sourceSession: sourceSessionOf(batch),
+            sourceSession: profileBatchSourceSession(batch),
         }).catch(() => {
             useToastStore.getState().show(t('profiles.detail.referenceFailed'));
         });
@@ -82,14 +79,23 @@ export const ProfileReferenceBatches = ({
                 <ul className="divide-y divide-border" aria-label={t('profiles.detail.batches')}>
                     {batches.map((batch) => {
                         const current = batch.id === resolvedId;
+                        const preview = batch.id === previewSessionId;
                         const title = sessionRoastTitle(batch) ?? t('profiles.detail.untitledBatch');
                         return (
                             <li
                                 key={batch.id}
                                 data-testid="profile-reference-row"
                                 data-current={current ? 'true' : 'false'}
-                                aria-current={current ? 'true' : undefined}
-                                className={`flex flex-col gap-3 px-4 py-3 transition-colors @lg:flex-row @lg:items-center @lg:justify-between ${current ? 'bg-emerald-50/80 dark:bg-emerald-950/35' : 'hover:bg-surface-elevated'}`}
+                                data-preview={preview ? 'true' : 'false'}
+                                aria-current={preview ? 'true' : undefined}
+                                onClick={() => onPreviewSession(batch.id)}
+                                className={`flex cursor-pointer flex-col gap-3 px-4 py-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-strong-border @lg:flex-row @lg:items-center @lg:justify-between ${
+                                    current
+                                        ? 'bg-emerald-50/80 dark:bg-emerald-950/35'
+                                        : preview
+                                          ? 'bg-surface-elevated'
+                                          : 'hover:bg-surface-elevated'
+                                }`}
                             >
                                 <div className="min-w-0 flex-1">
                                     <p className="break-words text-sm font-medium leading-5 text-primary">{title}</p>
@@ -108,7 +114,10 @@ export const ProfileReferenceBatches = ({
                                         <SurfaceButton
                                             data-testid="profile-reference-detail"
                                             className="border-transparent bg-transparent px-2 text-muted hover:bg-transparent hover:text-primary dark:border-transparent"
-                                            onClick={() => onOpenDetail(batch.id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onOpenDetail(batch.id);
+                                            }}
                                         >
                                             {t('history.expanded.show')}
                                             <ChevronRight size={13} strokeWidth={1.5} aria-hidden="true" />
@@ -128,7 +137,10 @@ export const ProfileReferenceBatches = ({
                                                 data-testid="profile-reference-set"
                                                 disabled={isPending}
                                                 className="w-full border-border bg-main-bg text-secondary hover:border-strong-border hover:text-primary"
-                                                onClick={() => select(batch)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    select(batch);
+                                                }}
                                             >
                                                 {t('profiles.detail.setReference')}
                                             </SurfaceButton>

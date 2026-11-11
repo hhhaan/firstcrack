@@ -8,7 +8,7 @@ import { SavedCurveLegend } from '@features/active-roast/ui/SavedCurveLegend';
 import { combineBbpCurve } from '@shared/lib/roast-curve';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { ChartNoAxesCombined } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export function ProfileRoastChart({
@@ -17,14 +17,27 @@ export function ProfileRoastChart({
     events,
     isLoading,
     isError,
+    sessionTitle,
 }: {
     profile: Pick<RoastProfileWithSource, 'user_id' | 'source_session_id' | 'source_session' | 'duration_sec'>;
     points: TsvPoint[];
     events: unknown;
     isLoading: boolean;
     isError: boolean;
+    sessionTitle?: string | null;
 }) {
     const { t } = useTranslation();
+    const sectionRef = useRef<HTMLElement>(null);
+    const [chartHeight, setChartHeight] = useState(360);
+    useEffect(() => {
+        const section = sectionRef.current;
+        if (!section) return;
+        const apply = (width: number) => setChartHeight(width < 520 ? 260 : 360);
+        apply(section.clientWidth);
+        const observer = new ResizeObserver(([entry]) => apply(entry.contentRect.width));
+        observer.observe(section);
+        return () => observer.disconnect();
+    }, []);
     const settings = useRoastSettings();
     const unit = settings.temperatureUnit;
     const source = resolveSourceSession(profile.source_session);
@@ -60,12 +73,23 @@ export function ProfileRoastChart({
 
     return (
         <section
-            className="mb-5 min-w-0 overflow-hidden rounded-xl border border-border-subtle bg-(--color-roast-bg) px-5 pt-3 pb-2"
+            ref={sectionRef}
+            className="@container mb-5 min-w-0 overflow-hidden rounded-xl border border-border-subtle bg-(--color-roast-bg) px-4 pt-3 pb-2 @xl:px-5"
             aria-label={t('profiles.detail.profileCurve')}
             aria-busy={isLoading}
         >
-            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
-                <h3 className="text-xs font-medium text-muted">{t('profiles.detail.profileCurve')}</h3>
+            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+                <div className="min-w-0">
+                    <h3 className="text-xs font-medium text-muted">{t('profiles.detail.profileCurve')}</h3>
+                    {sessionTitle && (
+                        <p
+                            className="truncate text-sm font-medium leading-5 text-primary"
+                            data-testid="profile-curve-session-title"
+                        >
+                            {sessionTitle}
+                        </p>
+                    )}
+                </div>
                 <SavedCurveLegend points={points} settings={settings} />
             </div>
             {status ? (
@@ -93,7 +117,7 @@ export function ProfileRoastChart({
                     xViewMax={Math.max(1, duration, points[points.length - 1]?.t ?? 0)}
                     bbpRange={actual.bbpRange}
                     fontScale={11 / 12}
-                    height={360}
+                    height={chartHeight}
                     gridBottom={32}
                 />
             )}
