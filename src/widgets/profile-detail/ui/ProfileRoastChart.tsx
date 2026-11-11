@@ -121,6 +121,7 @@ export function ProfileRoastChart({
                     bbpRange={actual.bbpRange}
                     fontScale={11 / 12}
                     height={chartHeight}
+                    layoutMinHeight={chartHeight}
                     gridBottom={32}
                 />
             )}

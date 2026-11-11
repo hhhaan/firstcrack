@@ -22,6 +22,28 @@ describe('resolveProfileBatchPreview', () => {
         expect(resolved.awaitingBatchMeta).toBe(true);
     });
 
+    it('stays loading on profile source while batches load when embedded has no tsv', () => {
+        const profile = {
+            ...profilePreviewOrphanSource,
+            source_session_id: 's3',
+            source_session: { tsv_path: null, events: null },
+        } as RoastProfileWithSource;
+        const resolved = resolveProfileBatchPreview(profile, 's3', [], true);
+        expect(resolved.tsvPath).toBeNull();
+        expect(resolved.awaitingBatchMeta).toBe(true);
+    });
+
+    it('uses reference batch tsv once batches load when embedded has no tsv', () => {
+        const profile = {
+            ...profilePreviewOrphanSource,
+            source_session_id: 's3',
+            source_session: { tsv_path: null, events: null },
+        } as RoastProfileWithSource;
+        const resolved = resolveProfileBatchPreview(profile, 's3', profilePreviewBatches, false);
+        expect(resolved.tsvPath).toBe('curves/s3.tsv');
+        expect(resolved.awaitingBatchMeta).toBe(false);
+    });
+
     it('exposes no tsv only after batches finished without a matching row', () => {
         const profile = {
             ...profilePreviewOrphanSource,

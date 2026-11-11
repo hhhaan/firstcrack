@@ -115,6 +115,8 @@ interface Props {
     turningPoints?: TurningPoint[];
     temperatureUnit?: TemperatureUnit;
     height: number;
+    /** Defaults to 300; profile previews pass the chart height so narrow layouts are not clamped. */
+    layoutMinHeight?: number;
     /** Optional chart-local label scale; omitted follows the roast font setting. */
     fontScale?: number;
     /** Single-grid space under the plot. Omitted keeps the live-chart bottom. */
@@ -326,6 +328,7 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         turningPoints = [],
         temperatureUnit = 'C',
         height,
+        layoutMinHeight = 300,
         fontScale: fontScaleOverride,
         gridBottom,
         onCursorIdx,
@@ -1074,7 +1077,12 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         <div
             data-app-context-menu
             data-tour="active-roast-chart"
-            style={{ position: 'relative', width: '100%', height: `${height}px`, minHeight: '300px' }}
+            style={{
+                position: 'relative',
+                width: '100%',
+                height: `${height}px`,
+                minHeight: `${layoutMinHeight}px`,
+            }}
         >
             <div
                 ref={chartRef}

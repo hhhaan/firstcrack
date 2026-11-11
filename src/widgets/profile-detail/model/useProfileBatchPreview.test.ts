@@ -80,6 +80,12 @@ describe('useProfileBatchPreview', () => {
         expect(latest?.points).toEqual([]);
     });
 
+    it('stays loading on profile source until batches supply tsv when embedded is empty', () => {
+        render([{ ...profilePreviewReference, source_session: { tsv_path: null, events: null } }, 's3', [], true]);
+        expect(latest?.isLoading).toBe(true);
+        expect(latest?.points).toEqual([]);
+    });
+
     it('does not surface a slower curve for a session that is no longer selected', () => {
         curveState.path = 'curves/s4.tsv';
         curveState.data = [{ t: 0, bt: 190 }];
