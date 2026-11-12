@@ -1,7 +1,8 @@
 import type { ControlLimit } from '@entities/machine';
 import { cn } from '@shared/lib/cn';
 import { useEffect, useRef, useState } from 'react';
-import { CONVERGE_TOLERANCE, type ControlRole } from '../lib/controlSender';
+import { convergeTolerance } from '../lib/controlScale';
+import type { ControlRole } from '../lib/controlSender';
 import { percentTicks, showLiveFollow, stepPercent } from '../lib/snapPercent';
 import { useHoldRepeat } from '../lib/useHoldRepeat';
 import { channelScaleLabel } from './ChannelChip';
@@ -55,7 +56,7 @@ export const HeaterScale = ({
     const span = max - min || 1;
     const [preview, setPreview] = useState<number | null>(null);
     const shown = preview ?? current;
-    const live = !unsupported && preview == null && showLiveFollow(value, feedback, CONVERGE_TOLERANCE);
+    const live = !unsupported && preview == null && showLiveFollow(value, feedback, convergeTolerance(limit.max));
     const fillPct = Math.min(100, Math.max(0, ((shown - min) / span) * 100));
     const livePct = feedback != null ? Math.min(100, Math.max(0, ((feedback - min) / span) * 100)) : null;
     const selected = Math.round(shown);

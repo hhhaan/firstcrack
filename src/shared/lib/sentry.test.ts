@@ -10,6 +10,7 @@ import {
     captureRoastingImportFailure,
     captureSidecarReadinessFailure,
     captureSidecarRequestFailure,
+    captureUpdaterLoopGuard,
     isActionableError,
     isActionableSidecarHttpStatus,
     isClientRefusal,
@@ -415,6 +416,22 @@ describe('captureSidecarRequestFailure', () => {
                 'http.status': '503',
                 method: 'POST',
             },
+        });
+    });
+});
+
+describe('updater loop guard', () => {
+    it('reports with a stable fingerprint and version extra only', () => {
+        captureUpdaterLoopGuard({
+            currentVersion: '1.0.0',
+            availableVersion: '1.0.1',
+            attempts: 3,
+        });
+        expect(Sentry.captureMessage).toHaveBeenCalledWith('updater loop-guard triggered', {
+            level: 'warning',
+            fingerprint: ['updater', 'loop-guard'],
+            tags: { feature: 'updater' },
+            extra: { current_version: '1.0.0', available_version: '1.0.1', attempts: 3 },
         });
     });
 });
