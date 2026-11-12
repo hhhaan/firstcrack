@@ -13,6 +13,7 @@ import { filterSessions, filterSessionsByDateRange, paginateSessions, sortSessio
 import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import { useToastStore } from '@shared/store/toast';
 import type { RoastProfile } from '@shared/types/database.types';
+import { DangerDeleteConfirmModal } from '@shared/ui/DangerDeleteConfirmModal';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
@@ -24,7 +25,6 @@ import { Download, GitCompare, Search } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useHistoryFilters } from './hooks/useHistoryFilters';
-import { DeleteSessionModal } from './ui/DeleteSessionModal';
 import { ExportCsvModal, type ExportDateRange } from './ui/ExportCsvModal';
 import { HistorySessionDetail } from './ui/HistorySessionDetail';
 import { HistorySkeleton } from './ui/HistorySkeleton';
@@ -460,13 +460,18 @@ export const History = ({
                         onCreated={handleProfileCreated}
                     />
                 )}
-                <DeleteSessionModal
+                <DangerDeleteConfirmModal
                     open={deletingId !== null}
-                    sessionName={
-                        deletingSession
+                    titleId="delete-session-modal-title"
+                    title={t('history.delete.title')}
+                    description={t('history.delete.description', {
+                        name: deletingSession
                             ? `${sessionRoastTitle(deletingSession) ?? ''} (${formatDateTimeShort(deletingSession.roasted_at)})`.trim()
-                            : ''
-                    }
+                            : '',
+                    })}
+                    cancelLabel={t('history.delete.cancel')}
+                    confirmLabel={t('history.delete.confirm')}
+                    pendingLabel={`${t('history.delete.confirm')}…`}
                     isLoading={deleteSession.isPending}
                     error={deleteError}
                     onClose={handleCloseDelete}

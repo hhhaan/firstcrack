@@ -3,11 +3,11 @@ import { type BeanAssetLine, useBeanStockEvents, useBeanStockSummary } from '@en
 import { isOptimisticId } from '@shared/lib/optimistic-id';
 import type { Bean } from '@shared/types/database.types';
 import { Badge } from '@shared/ui/Badge';
+import { DangerDeleteConfirmModal } from '@shared/ui/DangerDeleteConfirmModal';
 import { currencySymbol, formatAmount } from '@widgets/cost-calculator/lib/format';
-import { Edit3, Trash2 } from 'lucide-react';
+import { AlertTriangle, Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DeleteBeanModal } from './DeleteBeanModal';
 
 const EVENT_TYPE_LABEL_KEY: Record<string, string> = {
     purchase: 'beanDetail.stockHistory.purchase',
@@ -100,10 +100,26 @@ export const BeanDetail = ({
 
     return (
         <>
-            <DeleteBeanModal
+            <DangerDeleteConfirmModal
                 open={confirming}
-                beanName={bean.name}
-                affectedBlendNames={affectedBlendNames}
+                titleId="delete-bean-modal-title"
+                title={t('deleteBeanModal.title')}
+                description={t('deleteBeanModal.description', { name: bean.name })}
+                cancelLabel={t('deleteBeanModal.cancel')}
+                confirmLabel={t('deleteBeanModal.confirm')}
+                warning={
+                    affectedBlendNames.length > 0 ? (
+                        <div className="mb-5.5 flex items-start gap-2.5 rounded-xl border border-(--color-phase-danger)/15 bg-(--color-phase-danger-bg) px-4 py-3">
+                            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-(--color-phase-danger)" />
+                            <p className="text-xs leading-[1.6] text-(--color-phase-danger)">
+                                {t('deleteBeanModal.blendWarning', {
+                                    count: affectedBlendNames.length,
+                                    names: affectedBlendNames.join(', '),
+                                })}
+                            </p>
+                        </div>
+                    ) : null
+                }
                 onClose={() => setConfirming(false)}
                 onConfirm={() => {
                     onDelete(bean.id);

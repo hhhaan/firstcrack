@@ -377,7 +377,7 @@ export const HistoryTable = ({
                                                                 event.stopPropagation();
                                                                 onDeleteClick(session.id);
                                                             }}
-                                                            className={`${rowActionCls} hover:bg-[rgba(254,226,226,0.5)] hover:text-[#dc2626]`}
+                                                            className={`${rowActionCls} hover:bg-(--color-phase-danger-bg) hover:text-(--color-phase-danger)`}
                                                             aria-label={t('history.delete.title')}
                                                             title={t('history.delete.title')}
                                                         >

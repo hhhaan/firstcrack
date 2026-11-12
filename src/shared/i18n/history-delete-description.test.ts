@@ -1,6 +1,6 @@
 import i18n from 'i18next';
 import { beforeAll, describe, expect, it } from 'vitest';
-import modalSrc from '../../views/history/ui/DeleteSessionModal.tsx?raw';
+import historySrc from '../../views/history/History.tsx?raw';
 import en from './locales/en.json';
 import ja from './locales/ja.json';
 import ko from './locales/ko.json';
@@ -54,8 +54,8 @@ describe('history.delete.description', () => {
         }
     });
 
-    it('DeleteSessionModal passes name into t (no outer sessionName + suffix compose)', () => {
-        expect(modalSrc).toMatch(/t\(\s*['"]history\.delete\.description['"]\s*,\s*\{\s*name:\s*sessionName\s*\}\s*\)/);
-        expect(modalSrc).not.toMatch(/\{sessionName\}.*t\(\s*['"]history\.delete\.description['"]\s*\)/);
+    it('history delete confirm passes name into t (no outer sessionName + suffix compose)', () => {
+        expect(historySrc).toMatch(/t\(\s*['"]history\.delete\.description['"]\s*,\s*\{\s*name:/);
+        expect(historySrc).not.toMatch(/\{sessionName\}.*t\(\s*['"]history\.delete\.description['"]\s*\)/);
     });
 });
