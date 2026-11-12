@@ -37,8 +37,6 @@ export const liveWindowTitle = (input: {
 export const bbpChargeWaitActive = (bbpActive: boolean, bbpRecording: boolean, awaitingNextCharge: boolean) =>
     (bbpActive && bbpRecording) || awaitingNextCharge;
 
-export const isChargedPhase = (phase: RoastPhase) => phase === 'roasting' || phase === 'ended';
-
 export const profileSelectionEpoch = (
     workspaceOwnerId: string | null | undefined,
     sessionId: string | null | undefined,
@@ -52,8 +50,6 @@ export const replayPointsForProfile = <T>(
     curveLoading: boolean,
     points: T[],
 ): T[] | null => (!targetProfileId ? EMPTY_REPLAY_POINTS : curveLoading ? null : points);
-
-export const isWaitingForCharge = (bbpActive: boolean, charged: boolean) => bbpActive || !charged;
 
 export const isReplayMachineMismatch = (
     referenceKey: string | null,
@@ -70,8 +66,6 @@ export const isReplayMachineMismatch = (
         Boolean(referenceMachineId) &&
         referenceMachineId === currentMachineId
     );
-
-export const latestSampleTime = (points: { t: number }[]) => (points.length > 0 ? points[points.length - 1].t : 0);
 
 export const chargeWaitTempBand = (input: {
     waiting: boolean;

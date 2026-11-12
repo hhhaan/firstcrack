@@ -1,4 +1,4 @@
-import type { BbpPoint, BbpResult, BbpSample, FinalizedBbp } from '../lib/bbp-types';
+import { BBP_MAX_SECONDS, type BbpPoint, type BbpResult, type BbpSample, type FinalizedBbp } from '../lib/bbp-types';
 
 export { bbpPointsToTsv } from '../lib/bbp-archive';
 
@@ -7,10 +7,8 @@ import type { LogEntry } from '@shared/types/roast';
 import { create } from 'zustand';
 import { type BbpCapture, captureBatchBbp, splitBatchBbp } from '../lib/batch-timeline';
 
-/** Rolling FIFO window (seconds) kept immediately before Charge. */
-export const BBP_MAX_SECONDS = 900;
-
 export type { BbpPoint, BbpResult, BbpSample, BbpSummary, FinalizedBbp } from '../lib/bbp-types';
+export { BBP_MAX_SECONDS } from '../lib/bbp-types';
 
 const windowOrigin = (endT: number, windowSeconds = BBP_MAX_SECONDS) => Math.max(0, endT - windowSeconds);
 
@@ -18,13 +16,6 @@ const windowOrigin = (endT: number, windowSeconds = BBP_MAX_SECONDS) => Math.max
 const clipBbpWindow = (points: BbpPoint[], endT: number, windowSeconds = BBP_MAX_SECONDS): BbpPoint[] => {
     const origin = windowOrigin(endT, windowSeconds);
     return points.filter((p) => p.t >= origin && p.t <= endT);
-};
-
-/** Charge-relative copy of the kept window so stored/display t starts near 0. */
-export const rebaseBbpWindow = (points: BbpPoint[], endT: number, windowSeconds = BBP_MAX_SECONDS): BbpPoint[] => {
-    const origin = windowOrigin(endT, windowSeconds);
-    const kept = clipBbpWindow(points, endT, windowSeconds);
-    return origin === 0 ? kept : kept.map((p) => ({ ...p, t: p.t - origin }));
 };
 
 interface BbpState {

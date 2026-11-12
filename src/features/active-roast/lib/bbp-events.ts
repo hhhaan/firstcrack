@@ -1,58 +1,20 @@
 import { formatElapsed } from '@shared/lib/format';
-import type { AppliedRoastControl, LogEntry, RoastNoteControls, StoredRoastEvent } from '@shared/types/roast';
+import type { AppliedRoastControl, LogEntry, RoastNoteControls } from '@shared/types/roast';
 import type { TemperatureUnit } from '../model/settings';
+import { BBP_MAX_SECONDS } from './bbp-types';
 import { hasNoteControl, noteControlFields } from './manual-controls';
-import { serializeRoastEvents } from './serialize-roast-events';
 import { formatTemp } from './temperature';
-
-/** Matches `BBP_MAX_SECONDS`. Kept here so the store can import this module. */
-const BBP_EVENT_WINDOW_SEC = 900;
 
 const BBP_ALLOWED_EVENTS = new Set(['Note', 'Heater', 'Control']);
 
 /** Crack / Drop / Charge stay roast-only. Notes, heat, and control writes can sit on BBP. */
 export const isBbpAllowedEvent = (event: string): boolean => BBP_ALLOWED_EVENTS.has(event);
 
-export const bbpWindowOrigin = (endT: number, windowSeconds = BBP_EVENT_WINDOW_SEC) =>
-    Math.max(0, endT - windowSeconds);
+export const bbpWindowOrigin = (endT: number, windowSeconds = BBP_MAX_SECONDS) => Math.max(0, endT - windowSeconds);
 
 export const bbpDisplayTime = (storedSec: number, origin: number) => storedSec - origin;
 
 export const bbpStoredTime = (displaySec: number, origin: number) => displaySec + origin;
-
-/** At Charge, keep events in the archived BBP interval. Times stay End-relative. */
-export const clipBbpEventsToWindow = (
-    events: readonly LogEntry[],
-    endT: number,
-    windowSeconds = BBP_EVENT_WINDOW_SEC,
-): LogEntry[] => {
-    const origin = bbpWindowOrigin(endT, windowSeconds);
-    return events.filter((entry) => {
-        const timeSec = entry.timeSec;
-        return (
-            timeSec != null &&
-            Number.isFinite(timeSec) &&
-            timeSec >= origin &&
-            timeSec <= endT &&
-            isBbpAllowedEvent(entry.event)
-        );
-    });
-};
-
-/** Same origin shift as `rebaseBbpWindow`, so event times match the kept samples. */
-export const rebaseBbpEvents = (
-    events: readonly LogEntry[],
-    endT: number,
-    windowSeconds = BBP_EVENT_WINDOW_SEC,
-): LogEntry[] => {
-    const origin = bbpWindowOrigin(endT, windowSeconds);
-    const kept = clipBbpEventsToWindow(events, endT, windowSeconds);
-    if (origin === 0) return kept;
-    return kept.map((entry) => {
-        const timeSec = (entry.timeSec ?? 0) - origin;
-        return { ...entry, timeSec, time: formatElapsed(timeSec) };
-    });
-};
 
 /** Live chart times start at the left of the kept window. */
 export const bbpEventsForDisplay = (events: readonly LogEntry[], origin: number): LogEntry[] =>
@@ -68,19 +30,6 @@ export const bbpEventsFromDisplay = (events: readonly LogEntry[], origin: number
         const timeSec = bbpStoredTime(entry.timeSec ?? 0, origin);
         return { ...entry, timeSec };
     });
-
-/** History prefixes BBP at negative time: `t - duration`, same as `combineBbpCurve`. */
-export const bbpCurveDuration = (points: readonly { t: number }[], seconds: number) =>
-    Math.max(seconds, 0, ...points.map((point) => point.t));
-
-export const toChargeRelativeBbpEvents = (
-    events: readonly LogEntry[],
-    points: readonly { t: number }[],
-    seconds: number,
-): StoredRoastEvent[] => {
-    const duration = bbpCurveDuration(points, seconds);
-    return serializeRoastEvents([...events]).map((event) => ({ ...event, time_sec: event.time_sec - duration }));
-};
 
 export const makeBbpLogEntry = (
     event: string,

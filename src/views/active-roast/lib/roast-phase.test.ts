@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getRoastPhaseColor, getRoastPhaseName, waitPhaseAfterRoastReset } from './roast-phase';
-
-describe('waitPhaseAfterRoastReset', () => {
-    it('BBP 구간은 charge 대기(standby), 첫 배치는 Roast Ready(preheating)', () => {
-        expect(waitPhaseAfterRoastReset(true)).toBe('standby');
-        expect(waitPhaseAfterRoastReset(false)).toBe('preheating');
-    });
-});
+import { getRoastPhaseColor, getRoastPhaseName } from './roast-phase';
 
 describe('getRoastPhaseName', () => {
     it('BBP 대기(reset 후)는 READY, ended는 ENDED (#484)', () => {

@@ -86,9 +86,6 @@ export const foldPostDropPointsToBbp = (livePoints: DropCurvePoint[], dropTimeSe
 export const clipRoastPointsAtDrop = (livePoints: DropCurvePoint[], dropTimeSec: number): DropCurvePoint[] =>
     livePoints.filter((p) => Number.isFinite(p.time) && p.time <= dropTimeSec);
 
-export const canCancelDrop = (opts: { nextCharged: boolean; submitted: boolean }): boolean =>
-    !opts.nextCharged && !opts.submitted;
-
 const ensureDropLog = (
     logEntries: LogEntry[],
     dropTimeSec: number,
