@@ -9,6 +9,11 @@ export type OrderLineInsert = Database['public']['Tables']['order_lines']['Inser
 
 export type OrderWithLines = Order & { order_lines: OrderLine[] };
 
+/** `refetchFailed` means create_order committed and the follow-up read did not. */
+export type CreateOrderResult =
+    | { refetchFailed: false; order: OrderWithLines }
+    | { refetchFailed: true; orderId: string };
+
 export interface RoastingRequirements {
     products: {
         product_id: string;
@@ -108,23 +113,30 @@ export const orderApi = {
     /**
      * Manual order entry. `create_order` inserts the header and its lines in one transaction —
      * a failing line rolls the header back too, so no orphan orders (#105).
+     *
+     * The same workspace + platform + `platform_order_id` returns the existing order when the
+     * written payload matches, and raises `order_key_payload_mismatch` when it does not.
+     *
+     * The follow-up select is not the save. If that read fails, the order is still committed:
+     * `refetchFailed` is set so the caller can refresh the list instead of reporting a failed save.
      */
     create: async (
         order: OrderInsert,
         lines: Omit<OrderLineInsert, 'order_id' | 'user_id'>[],
-    ): Promise<OrderWithLines> => {
+    ): Promise<CreateOrderResult> => {
         const { data: orderId, error } = await supabase.rpc('create_order', {
             p_order: order as unknown as Json,
             p_lines: lines as unknown as Json,
         });
         if (error) throw error;
+        if (typeof orderId !== 'string' || orderId.length === 0) throw new Error('create_order_empty');
         const { data, error: readErr } = await supabase
             .from('orders')
             .select(SELECT_WITH_LINES)
             .eq('id', orderId)
             .single();
-        if (readErr) throw readErr;
-        return data;
+        if (readErr || !data) return { refetchFailed: true, orderId };
+        return { refetchFailed: false, order: data };
     },
 
     /**
