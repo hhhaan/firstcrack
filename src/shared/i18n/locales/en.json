@@ -1065,7 +1065,13 @@
                 "addComponent": "+ Add bean",
                 "cancel": "Cancel",
                 "save": "Save",
-                "add": "Add"
+                "add": "Add",
+                "form": {
+                    "nameRequired": "Enter a blend name",
+                    "beanRequired": "Select a green bean",
+                    "componentsMin": "At least one green bean is required",
+                    "ratioSum": "Component ratios must sum to 100%"
+                }
             },
             "componentCount_one": "{{count}} bean",
             "componentCount_other": "{{count}} beans",

@@ -1065,7 +1065,13 @@
                 "addComponent": "+ 生豆を追加",
                 "cancel": "キャンセル",
                 "save": "保存",
-                "add": "追加"
+                "add": "追加",
+                "form": {
+                    "nameRequired": "ブレンド名を入力してください",
+                    "beanRequired": "生豆を選択してください",
+                    "componentsMin": "生豆を1つ以上追加してください",
+                    "ratioSum": "構成比率の合計は100%である必要があります"
+                }
             },
             "componentCount_one": "生豆 {{count}}種",
             "componentCount_other": "生豆 {{count}}種",

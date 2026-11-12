@@ -13,10 +13,10 @@ import { ModalScrollBody } from '@shared/ui/modal-shell/ModalScrollBody';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { BlendComponentRow } from '@widgets/add-blend-modal/ui/BlendComponentRow';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { type BlendForm, blendFormSchema } from '../lib/schema';
+import { type BlendForm, buildBlendFormSchema } from '../lib/schema';
 
 type Props = {
     open: boolean;
@@ -26,6 +26,7 @@ type Props = {
 
 export const AddBlendModal = ({ open, onClose, editing }: Props) => {
     const { t } = useTranslation();
+    const blendFormSchema = useMemo(() => buildBlendFormSchema(t), [t]);
     const { workspaceOwnerId: userId } = useActiveWorkspace();
     const { data: beans = [] } = useBeans(userId);
     const createBlend = useCreateBlend(userId);
