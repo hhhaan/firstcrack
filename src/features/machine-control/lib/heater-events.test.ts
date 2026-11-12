@@ -122,7 +122,7 @@ describe('parseEditTime', () => {
 });
 
 const typeInto = (chars: string) => {
-    let state = { value: '', caret: 0, suppress: false, secondsOpen: false, digits: '' };
+    let state = { value: '', caret: 0, suppress: false, digits: '' };
     for (const ch of chars) {
         const kind = ch === '\b' ? 'backspace' : 'insert';
         state = applyTimeEdit(
@@ -132,7 +132,6 @@ const typeInto = (chars: string) => {
             kind === 'insert' ? ch : '',
             kind,
             state.suppress,
-            state.secondsOpen,
             state.digits,
         );
     }
@@ -166,19 +165,10 @@ describe('applyTimeEdit', () => {
     });
 
     it('네 칸을 왼쪽부터 채운다', () => {
-        let state = { value: '', caret: 0, suppress: false, secondsOpen: false, digits: '' };
+        let state = { value: '', caret: 0, suppress: false, digits: '' };
         const seen: string[] = ['|'];
         for (const ch of '1234') {
-            state = applyTimeEdit(
-                state.value,
-                state.caret,
-                state.caret,
-                ch,
-                'insert',
-                state.suppress,
-                state.secondsOpen,
-                state.digits,
-            );
+            state = applyTimeEdit(state.value, state.caret, state.caret, ch, 'insert', state.suppress, state.digits);
             seen.push(`${state.value.slice(0, state.caret)}|${state.value.slice(state.caret)}`);
         }
         expect(seen.join(' ')).toBe('| 1|0:00 12:|00 12:3|0 12:34|');
@@ -198,26 +188,13 @@ describe('applyTimeEdit', () => {
         expect(typeInto('12a34').value).toBe('12:34');
         expect(typeInto('1234\b').value).toBe('12:30');
         const typed = typeInto('75');
-        expect(applyTimeEdit('7:55', 5, 5, '1', 'insert', typed.suppress, typed.secondsOpen, typed.digits).value).toBe(
-            '7:55',
-        );
+        expect(applyTimeEdit('7:55', 5, 5, '1', 'insert', typed.suppress, typed.digits).value).toBe('7:55');
         const five = typeInto('0530');
-        const erased = applyTimeEdit(
-            five.value,
-            five.caret,
-            five.caret,
-            '',
-            'backspace',
-            five.suppress,
-            false,
-            five.digits,
-        );
+        const erased = applyTimeEdit(five.value, five.caret, five.caret, '', 'backspace', five.suppress, five.digits);
         expect(erased.digits).toBe('053');
         expect(erased.caret).toBe(4);
         const atEnd = typeInto('12');
-        expect(applyTimeEdit(atEnd.value, 5, 5, '', 'backspace', atEnd.suppress, false, atEnd.digits).value).toBe(
-            '10:00',
-        );
+        expect(applyTimeEdit(atEnd.value, 5, 5, '', 'backspace', atEnd.suppress, atEnd.digits).value).toBe('10:00');
     });
 
     it('Delete는 커서 다음 칸을 지우고 일부 선택은 그 칸만 지운다', () => {
@@ -225,7 +202,7 @@ describe('applyTimeEdit', () => {
         expect(deleted).toMatchObject({ value: '05:00', digits: '050', caret: 3 });
 
         const typed = typeInto('0530');
-        expect(applyTimeEdit(typed.value, 3, 3, '', 'delete', typed.suppress, false, typed.digits)).toMatchObject({
+        expect(applyTimeEdit(typed.value, 3, 3, '', 'delete', typed.suppress, typed.digits)).toMatchObject({
             value: '05:00',
             digits: '050',
             caret: 3,

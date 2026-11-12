@@ -1,4 +1,4 @@
-/** Cupping form snapshot. Keep in sync with supabase/functions/_shared/cupping-form.ts and fc-landing/apps/cupping/src/form.ts */
+/** Cupping form snapshot. Keep in sync with src/entities/cupping/lib/form.ts */
 
 export const FORM_SCHEMA_V = 1 as const;
 export const MAX_FORM_FIELDS = 16;

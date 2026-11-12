@@ -11,9 +11,7 @@ export const useTimeEditRoot = (onValue: (key: string, value: string) => void) =
         onValueRef.current = onValue;
     });
     const [root, setRoot] = useState<HTMLElement | null>(null);
-    const timeEdit = useRef(
-        new WeakMap<HTMLInputElement, { suppress: boolean; secondsOpen: boolean; digits: string }>(),
-    );
+    const timeEdit = useRef(new WeakMap<HTMLInputElement, { suppress: boolean; digits: string }>());
     const pasteClaimed = useRef(new WeakMap<HTMLInputElement, boolean>());
     const caretFix = useRef<{ el: HTMLInputElement; caret: number } | null>(null);
 
@@ -45,12 +43,10 @@ export const useTimeEditRoot = (onValue: (key: string, value: string) => void) =
                 text,
                 kind,
                 prior?.suppress ?? false,
-                prior?.secondsOpen ?? false,
                 prior?.digits ?? '',
             );
             timeEdit.current.set(input, {
                 suppress: res.suppress,
-                secondsOpen: res.secondsOpen,
                 digits: res.digits,
             });
             caretFix.current = { el: input, caret: res.caret };
@@ -102,7 +98,7 @@ export const useTimeEditRoot = (onValue: (key: string, value: string) => void) =
             if (committed === event.target.value) return;
             const key = event.target.dataset.timeKey;
             if (!key) return;
-            timeEdit.current.set(event.target, { suppress: false, secondsOpen: false, digits: '' });
+            timeEdit.current.set(event.target, { suppress: false, digits: '' });
             onValueRef.current(key, committed);
         };
         root.addEventListener('beforeinput', onBefore);

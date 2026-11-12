@@ -1,7 +1,6 @@
 import type { CuppingEvent, CuppingFormTemplate, CuppingSample, Json } from '@shared/types/database.types';
 import { type QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-    type AddSampleInput,
     type CreateEventInput,
     type CreateFormTemplateInput,
     type CreateInviteForEventInput,
@@ -13,7 +12,7 @@ import {
     type UpdateSampleInput,
 } from './api';
 import { PRESET_FORMS, SCA_V1_FORM } from './lib/form';
-import { cuppingInviteUrl, generateCuppingToken, resolveCuppingPublicBaseUrl } from './lib/token';
+import { cuppingInviteUrl, cuppingPublicBaseUrl, generateCuppingToken } from './lib/token';
 
 export const cuppingKeys = {
     events: (userId: string) => ['cupping_events', userId] as const,
@@ -383,49 +382,6 @@ export const useAddCuppingSamples = (userId: string, eventId: string) => {
     });
 };
 
-export const useAddCuppingSample = (userId: string, eventId: string) => {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (input: Omit<AddSampleInput, 'userId' | 'eventId'>) =>
-            cuppingApi.addSample({ ...input, userId, eventId }),
-        onMutate: async (input) => {
-            await qc.cancelQueries({ queryKey: cuppingKeys.samples(eventId) });
-            await qc.cancelQueries({ queryKey: cuppingKeys.events(userId) });
-            const prevSamples = qc.getQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId));
-            const prevEvents = qc.getQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId));
-            const tempId = `opt_${crypto.randomUUID()}`;
-            const now = new Date().toISOString();
-            const sortOrder = input.sortOrder ?? prevSamples?.length ?? 0;
-            const optimistic = toSampleWithMeta(
-                {
-                    id: tempId,
-                    user_id: userId,
-                    event_id: eventId,
-                    label: input.label.trim() || 'Sample',
-                    roast_session_id: input.roastSessionId ?? null,
-                    sort_order: sortOrder,
-                    created_at: now,
-                },
-                sortOrder,
-            );
-            qc.setQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId), (old = []) => [...old, optimistic]);
-            qc.setQueryData(cuppingKeys.events(userId), bumpEventSampleCount(prevEvents, eventId, 1));
-            return { prevSamples, prevEvents, tempId };
-        },
-        onError: (_err, _vars, ctx) => {
-            if (ctx?.prevSamples) qc.setQueryData(cuppingKeys.samples(eventId), ctx.prevSamples);
-            if (ctx?.prevEvents) qc.setQueryData(cuppingKeys.events(userId), ctx.prevEvents);
-        },
-        onSuccess: (real, _vars, ctx) => {
-            qc.setQueryData<CuppingSampleWithMeta[]>(cuppingKeys.samples(eventId), (old = []) =>
-                old.map((s) => (s.id === ctx?.tempId ? toSampleWithMeta(real, s.sort_order) : s)),
-            );
-            void qc.invalidateQueries({ queryKey: cuppingKeys.samples(eventId) });
-            void qc.invalidateQueries({ queryKey: cuppingKeys.events(userId) });
-        },
-    });
-};
-
 export const useUpdateCuppingSample = (eventId: string) => {
     const qc = useQueryClient();
     return useMutation({
@@ -543,7 +499,7 @@ export const useCreateEventInvite = (userId: string, eventId: string) => {
             const now = new Date();
             const expires = new Date(now);
             expires.setDate(expires.getDate() + (input?.expiresInDays ?? 7));
-            const base = await resolveCuppingPublicBaseUrl();
+            const base = cuppingPublicBaseUrl();
             const optimistic: CreateInviteResult = {
                 id: tempId,
                 user_id: userId,
@@ -567,10 +523,9 @@ export const useCreateEventInvite = (userId: string, eventId: string) => {
             if (ctx?.prevInvite !== undefined) qc.setQueryData(cuppingKeys.invite(eventId), ctx.prevInvite);
             if (ctx?.prevEvents) qc.setQueryData(cuppingKeys.events(userId), ctx.prevEvents);
         },
-        onSuccess: (real, _vars, ctx) => {
+        onSuccess: (real, _vars, _ctx) => {
             // Always sync real invite (even when skipped optimistic) so list/detail stay aligned
             syncActiveInviteCache(qc, eventId, real, userId);
-            if (ctx?.skipped) return;
         },
     });
 };

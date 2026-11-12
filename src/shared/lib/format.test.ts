@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-    durationDiff,
     formatDate,
     formatDateShort,
     formatDateTimeShort,
@@ -95,13 +94,5 @@ describe('pctChange', () => {
         expect(pctChange(90, 100)).toBe('-10%');
         expect(pctChange(50, 0)).toBe('—');
         expect(pctChange(100, 100)).toBe('+0%');
-    });
-});
-
-describe('durationDiff', () => {
-    it('formats signed duration delta via formatDuration', () => {
-        expect(durationDiff(130, 65)).toBe('+1:05');
-        expect(durationDiff(60, 125)).toBe('-1:05');
-        expect(durationDiff(10, 10)).toBe('+0:00');
     });
 });

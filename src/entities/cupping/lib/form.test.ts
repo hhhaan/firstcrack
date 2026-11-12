@@ -13,13 +13,11 @@ import {
     tallyChoiceFields,
     totalScoreForForm,
 } from './form';
-import { SCA_V1_BASE, totalScoreScaV1 } from './score';
 
 describe('SCA_V1_FORM', () => {
     it('matches classic total', () => {
         const scores = defaultScoresForForm(SCA_V1_FORM, 8);
-        expect(totalScoreForForm(SCA_V1_FORM, scores, 0)).toBe(SCA_V1_BASE + 64);
-        expect(totalScoreForForm(SCA_V1_FORM, scores, 0)).toBe(totalScoreScaV1(scores, 0));
+        expect(totalScoreForForm(SCA_V1_FORM, scores, 0)).toBe(SCA_V1_FORM.scoring.base + 64);
     });
 });
 

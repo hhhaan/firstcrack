@@ -59,8 +59,3 @@ export const pctChange = (current: number, previous: number): string => {
     const diff = ((current - previous) / previous) * 100;
     return `${diff >= 0 ? '+' : ''}${Math.round(diff)}%`;
 };
-
-export const durationDiff = (current: number, previous: number): string => {
-    const diff = Math.round(current - previous);
-    return `${diff >= 0 ? '+' : '-'}${formatDuration(Math.abs(diff))}`;
-};

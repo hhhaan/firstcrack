@@ -1,9 +1,6 @@
 /** Reservation horizon for stock alerts (4 weeks). */
 export const STOCK_HORIZON_DAYS = 28;
 
-/** RRULE preview cap in expandRRule(). */
-export const UI_PREVIEW_DAYS = 365;
-
 export type StockSummaryValues = {
     currentGrams: number;
     availableGrams: number;
