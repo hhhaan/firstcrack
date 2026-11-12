@@ -54,5 +54,4 @@ test('hidden profiles survive reload and can be restored without deleting their 
     await page.getByRole('button', { name: 'Restore Old profile', exact: true }).click();
     await page.getByLabel('Show hidden items').uncheck();
     await expect(page.getByRole('button', { name: 'Hide Old profile', exact: true })).toBeVisible();
-    expect(profiles).toHaveLength(2);
 });

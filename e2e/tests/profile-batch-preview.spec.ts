@@ -9,7 +9,7 @@ import { zipperE2eProfile } from '../fixtures/zipper-profile';
 test('selecting a profile batch previews its curve without changing the reference', async ({
     authedPage: page,
     db,
-}) => {
+}, testInfo) => {
     db.tsvFiles.set('curves/s3.tsv', profilePreviewMiniTsv());
     db.tsvFiles.set('curves/s4.tsv', profilePreviewMiniTsv());
 
@@ -33,7 +33,7 @@ test('selecting a profile batch previews its curve without changing the referenc
     await expect(rows.nth(1)).toContainText('Current reference');
     expect(patches).toEqual([]);
 
-    await page.screenshot({ path: '/opt/cursor/artifacts/profile-batch-preview.png', fullPage: false });
+    await page.screenshot({ path: testInfo.outputPath('profile-batch-preview.png'), fullPage: false });
 
     await rows.nth(1).getByTestId('profile-reference-preview').click();
     await expect(page.getByTestId('profile-curve-session-title')).toHaveText('ZIPPER 3');

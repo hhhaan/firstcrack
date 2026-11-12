@@ -106,8 +106,16 @@ test('machine link notice survives screen changes and re-arms only after a healt
     await notice.getByRole('button', { name: 'Close', exact: true }).click();
     await goNav(page, 'roast');
     await goNav(page, 'machines');
-    await page.waitForTimeout(6500);
-    await expect(notice).toHaveCount(0);
+    const dismissedAt = Date.now();
+    await expect
+        .poll(
+            async () => {
+                if ((await notice.count()) > 0) return false;
+                return Date.now() - dismissedAt >= 6500;
+            },
+            { timeout: 8000, intervals: [250] },
+        )
+        .toBe(true);
 
     const beforeRecovery = liveReadings;
     failing = false;
@@ -119,6 +127,5 @@ test('machine link notice survives screen changes and re-arms only after a healt
     failing = false;
     await expect.poll(() => liveReadings).toBeGreaterThan(beforeRecovery + 1);
     await page.getByRole('button', { name: 'Disconnect', exact: true }).click();
-    await page.waitForTimeout(3500);
-    await expect(notice).toHaveCount(0);
+    await expect.poll(async () => notice.count()).toBe(0);
 });

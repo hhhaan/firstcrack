@@ -147,7 +147,6 @@ test('history keeps display settings and stored ET RoR', async ({
     expect(history?.series.map((s) => s.name)).not.toContain('ET Actual');
     expect(history?.series.find((s) => s.name === 'BT Actual')?.data).toContainEqual([60, 95]);
     expect(history?.series.find((s) => s.name === 'ET RoR')?.data).toContainEqual([300, 4]);
-    await page.screenshot({ path: '/tmp/voc-1105-history.png', fullPage: true });
     await page.evaluate(async () => {
         const path = '/src/features/active-roast/model/settings.ts';
         const { updateRoastSettings } = await import(path);
@@ -209,7 +208,6 @@ test('BBP keeps a fixed fifteen-minute window and preserves the full reference r
             true,
         );
         expect(chart?.x[1]).toEqual(chart?.x[0]);
-        if (elapsed === 180) await page.screenshot({ path: '/tmp/voc-1105-bbp.png', fullPage: true });
     }
 });
 
@@ -296,7 +294,5 @@ test('a saved BBP reference is fully visible from the start and stays fixed as l
                 200,
             ]);
         }
-        if (elapsed === 0) await page.screenshot({ path: '/tmp/voc1105-bbp-reference-initial.png', fullPage: true });
-        if (elapsed === 180) await page.screenshot({ path: '/tmp/voc-1105-bbp.png', fullPage: true });
     }
 });

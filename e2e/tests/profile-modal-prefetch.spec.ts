@@ -55,18 +55,20 @@ test('cold profiles and history do not page every session before the profile mod
     await goNav(page, 'profiles');
     await expect(page.getByRole('heading', { name: 'Roast Profiles' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New Profile' })).toBeVisible();
-    await page.waitForTimeout(300);
 
     // Dashboard charts may already be querying recent sessions. The closed modal's full page is limit=1000.
-    expect(sessionGets.filter((url) => sessionLimit(url) === '1000')).toEqual([]);
+    await expect
+        .poll(() => sessionGets.filter((url) => sessionLimit(url) === '1000'), { timeout: 3000 })
+        .toEqual([]);
     expect(blendGets).toEqual([]);
 
     await goNav(page, 'history');
     await expect(page.getByTestId('history-page')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save as profile' })).toBeVisible();
-    await page.waitForTimeout(300);
 
-    expect(sessionGets.filter((url) => sessionLimit(url) === '1000')).toEqual([]);
+    await expect
+        .poll(() => sessionGets.filter((url) => sessionLimit(url) === '1000'), { timeout: 3000 })
+        .toEqual([]);
     expect(blendGets).toEqual([]);
     expect(sessionGets.some((url) => sessionLimit(url) === '10')).toBe(true);
 

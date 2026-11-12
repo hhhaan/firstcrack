@@ -12,9 +12,9 @@ export default async function globalSetup(_config: FullConfig) {
     } catch (err) {
         const code = (err as NodeJS.ErrnoException).code;
         if (code === 'EADDRINUSE') {
-            // Dev sidecar already running — acceptable for e2e charge path
-            console.warn('[e2e] port 9999 in use; reusing existing sidecar/mock');
-            return;
+            throw new Error(
+                '[e2e] port 9999 is already in use. Stop the dev sidecar (or any process on :9999) before running Playwright.',
+            );
         }
         throw err;
     }

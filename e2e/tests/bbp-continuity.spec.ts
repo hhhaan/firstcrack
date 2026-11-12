@@ -36,7 +36,7 @@ const readChart = async (page: import('@playwright/test').Page) => {
 
 test('BBP stays at fifteen minutes, then expands after Charge while preserving manual zoom on both grids', async ({
     authedPage: page,
-}) => {
+}, testInfo) => {
     await goNav(page, 'roast');
     await expect(page.getByRole('region', { name: /^Temperature curve chart/ })).toBeVisible();
     await page.evaluate(async () => {
@@ -105,5 +105,5 @@ test('BBP stays at fifteen minutes, then expands after Charge while preserving m
     const expanded = await readChart(page);
     expect(expanded?.axes[1]).toEqual(expanded?.axes[0]);
     expect(expanded?.bt.some(([time]) => time === 1200)).toBe(true);
-    await page.screenshot({ path: '/tmp/firstcrack-1048-continuous-chart.png', fullPage: true });
+    await page.screenshot({ path: testInfo.outputPath('bbp-continuous-chart.png'), fullPage: true });
 });
