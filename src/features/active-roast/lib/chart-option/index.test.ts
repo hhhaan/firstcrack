@@ -19,7 +19,6 @@ import type { ChartOptionParams, ControlData } from './types';
 
 const baseParams = (): ChartOptionParams => ({
     xs: [],
-    btTarget: [],
     btActual: [],
     etActual: [],
     rorActual: [],

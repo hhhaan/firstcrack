@@ -171,14 +171,6 @@ export const wrapMarkerLabel = (text: string, width: number, scale = 1): string 
         })
         .join('\n');
 
-export interface MarkerLabelGeometry {
-    x: number;
-    y: number;
-    align: 'left';
-    text: string;
-    rank: number;
-}
-
 export interface CurveLabelItem {
     /** Source identity also used by chart editing; reference events remain read-only. */
     marker?: RoastEventMarker;
@@ -373,29 +365,6 @@ export const layoutCurveLabelBoxes = (
     return items.map((_, index) => byIndex[index]).filter(Boolean);
 };
 
-/** Exact curve-label geometry shared with pointer hit-testing. Coordinates are CSS pixels. */
-export const getMarkerLabelGeometry = ({
-    anchorX,
-    anchorY,
-    rank,
-    text,
-    below = false,
-    scale = 1,
-}: {
-    anchorX: number;
-    anchorY: number;
-    rank: number;
-    text: string;
-    below?: boolean;
-    scale?: number;
-}): MarkerLabelGeometry => ({
-    x: anchorX + scaleChartPx(MARKER_LABEL_X_OFFSET_PX, scale),
-    y: anchorY + markerLabelDy(below, rank, scale),
-    align: 'left',
-    text,
-    rank,
-});
-
 export interface MarkerBuildParams {
     charged: boolean;
     currentTimeSec: number;
@@ -573,14 +542,6 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         guideMarkLines.push({
             xAxis: currentTimeSec,
             lineStyle: nowLineStyle,
-            // label: {
-            //     show: true,
-            //     position: 'insideEndTop' as const,
-            //     formatter: 'NOW',
-            //     color: colors.nowLabel,
-            //     fontSize: 10,
-            //     fontWeight: 700,
-            // },
             label: { show: false },
         });
         controlGuideMarkLines.push({

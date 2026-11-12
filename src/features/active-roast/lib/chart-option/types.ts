@@ -62,7 +62,6 @@ export interface ChartOptionParams {
     /** White paper with a separate, compact control band and aligned timelines. */
     print?: boolean;
     xs: number[];
-    btTarget: (number | null)[];
     btActual: (number | null)[];
     etActual: (number | null)[];
     rorActual: (number | null)[];

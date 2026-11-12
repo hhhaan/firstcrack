@@ -9,8 +9,6 @@ import type { RoastNoteControls } from '@shared/types/roast';
 import { type Ref, useRef, useState } from 'react';
 import { ChartLegend } from './ChartLegend';
 
-const EMPTY_TARGET: number[] = [];
-
 const applyMarkerPointer = (surface: HTMLElement, on: boolean) => {
     const cursor = on ? 'pointer' : '';
     surface.style.cursor = cursor;
@@ -265,7 +263,6 @@ export const RoastChartContainer = ({
             <RoastTempChart
                 ref={chartRef}
                 xs={xs}
-                btTarget={EMPTY_TARGET}
                 targetXs={targetXs}
                 targetBt={targetBt}
                 targetEt={targetEt}

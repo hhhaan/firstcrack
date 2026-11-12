@@ -14,7 +14,6 @@ import {
     clampCurveLabelY,
     estimateLabelWidth,
     eventLabelText,
-    getMarkerLabelGeometry,
     layoutCurveLabelBoxes,
     NOTE_LABEL_TOP_INSET_PX,
     nearestBtAt,
@@ -23,10 +22,7 @@ import { buildCurveLabelSeries } from './series';
 import type { ResolvedChartColors } from './types';
 
 const colors = {
-    phaseLines: '#aaa',
     currentTimeLine: '#bbb',
-    nowLabel: '#ccc',
-    tp: '#ddd',
     markerLabelColor: '#eee',
     eventMark: '#888',
     eventControl: '#c00',
@@ -841,25 +837,6 @@ describe('zoom window (#599)', () => {
         expect(callout.curveLabels[0]).toMatchObject({ y: baseParams.tempYMax, showDot: false });
         expect(result.allMarkLines).toEqual(expect.arrayContaining([expect.objectContaining({ xAxis: 300 })]));
         expect(result.controlGuideMarkLines.some((line) => (line as { xAxis?: number }).xAxis === 300)).toBe(false);
-    });
-});
-
-describe('getMarkerLabelGeometry', () => {
-    it('sits right of the BT anchor and stacks one box per rank', () => {
-        expect(
-            getMarkerLabelGeometry({
-                anchorX: 900,
-                anchorY: 200,
-                rank: 2,
-                text: 'label',
-            }),
-        ).toEqual({
-            x: 900 + MARKER_LABEL_X_OFFSET_PX,
-            y: 200 - MARKER_LABEL_STACK_PX * 2,
-            align: 'left',
-            text: 'label',
-            rank: 2,
-        });
     });
 });
 

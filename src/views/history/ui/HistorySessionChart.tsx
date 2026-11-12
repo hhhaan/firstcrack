@@ -375,7 +375,6 @@ export function HistorySessionChart({
                     etActual={points.map((p) => (p.et == null ? null : toDisplayTemp(p.et, unit)))}
                     rorActual={points.map((p) => (p.ror == null ? null : toDisplayRoR(p.ror, unit)))}
                     rorEtActual={points.map((p) => (p.rorEt == null ? null : toDisplayRoR(p.rorEt, unit)))}
-                    btTarget={[]}
                     targetXs={displayedTarget.xs}
                     targetBt={displayedTarget.bt}
                     targetEt={displayedTarget.et}

@@ -104,7 +104,6 @@ interface Props {
     /** Hide the hover data card while retaining axis pointers. */
     showTooltip?: boolean;
     xs: number[];
-    btTarget: (number | null)[];
     btActual: (number | null)[];
     etActual: (number | null)[];
     rorActual: (number | null)[];
@@ -317,7 +316,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
         report = false,
         showTooltip = true,
         xs,
-        btTarget,
         btActual,
         etActual,
         rorActual,
@@ -483,7 +481,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
                 showTooltip,
                 print,
                 xs,
-                btTarget,
                 btActual,
                 etActual,
                 rorActual,
@@ -542,7 +539,6 @@ export const RoastTempChart = forwardRef<RoastTempChartHandle, Props>(function R
             showTooltip,
             axisSettings,
             xs,
-            btTarget,
             targetXs,
             targetBt,
             targetEt,

@@ -31,7 +31,6 @@ export const PHASE_BAR_FONT_WEIGHT = 600;
 
 // ── Axis label typography ────────────────────────────────────────────────────
 export const AXIS_LABEL_FONT = { fontSize: 14, fontWeight: 500, fontFamily: NUMBER_FONT_FAMILY } as const;
-export const AXIS_LABEL_FONT_SM = { fontSize: 12, fontFamily: NUMBER_FONT_FAMILY } as const;
 
 // ── Event annotations follow BT. Line style, and events with no BT sample, stack from the plot top.
 export const MARKER_LABEL_FONT_SIZE = 12;
@@ -112,23 +111,15 @@ export const getResolvedChartColors = (print = false) => {
     };
 
     return {
-        btTarget: gv('--color-sensor-bt-target', 'oklch(0.502 0.16 263.3 / 0.55)'),
-        btTargetTooltip: gv('--color-sensor-bt-target', 'oklch(0.502 0.16 263.3 / 0.55)'),
         btActual: gv('--color-sensor-bt', '#315dbe'),
         etActual: gv('--color-sensor-et', '#dc4729'),
-        etTarget: gv('--color-sensor-et-target', 'oklch(0.605 0.19 33.2 / 0.55)'),
         etRorActual: gv('--color-sensor-et-ror', '#315dbe'),
         rorActual: gv('--color-sensor-ror', '#dfa62f'),
-        rorTarget: gv('--color-sensor-ror-target', 'oklch(0.759 0.143 80.6 / 0.55)'),
-        tp: gv('--color-event-mark', '#777'),
-        phaseLines: gv('--color-chart-phaseline', 'rgba(0,0,0,0.07)'),
         currentTimeLine: gv('--color-chart-current-line', 'rgba(0,0,0,0.3)'),
-        nowLabel: gv('--color-phase-ready', '#009d4c'),
         gridLine: gv('--color-chart-grid-stroke', print ? '#d1d5db' : 'rgba(0,0,0,0.05)'),
         gridLineMinor: gv('--color-chart-grid', 'rgba(0,0,0,0.05)'),
         axisLabel: gv('--color-chart-axis-label', '#666'),
         axisPointerLine: gv('--color-chart-axis-pointer', '#64748b'),
-        tooltipTimeColor: gv('--color-chart-tooltip-time', '#9ca3af'),
         tooltipBg: gv('--color-chart-tooltip-bg', '#fff'),
         tooltipBorder: gv('--color-chart-tooltip-border', 'rgba(0,0,0,0.08)'),
         markerLabelColor: gv('--color-chart-marker-label', '#444'),
@@ -137,22 +128,15 @@ export const getResolvedChartColors = (print = false) => {
         reference: gv('--color-chart-axis-label', '#666'),
 
         // Phase bar (canvas — CSS vars do not resolve on canvas)
-        phaseBarStroke: gv('--color-chart-phasebar-stroke', 'rgba(0,0,0,0.08)'),
         phaseBarName: gv('--color-chart-phasebar-name', '#444'),
-        phaseBarDuration: gv('--color-chart-phasebar-duration', '#555'),
         phaseBarDrying: gv('--color-chart-phasebar-drying', 'oklch(0.88 0.19 95)'),
         phaseBarMaillard: gv('--color-chart-phasebar-maillard', 'oklch(0.74 0.11 225)'),
         phaseBarDevelopment: gv('--color-chart-phasebar-development', 'oklch(0.74 0.12 155)'),
 
         // Control chart colors
         controlDrum: gv('--color-control-drum', '#2e9566'),
-        controlDrumTarget: gv('--color-control-drum-target', 'oklch(0.598 0.118 159.4 / 0.55)'),
         controlHeat: gv('--color-control-heat', '#dfa62f'),
-        controlHeatTarget: gv('--color-control-heat-target', 'oklch(0.759 0.143 80.6 / 0.55)'),
-        controlHeatArea: gv('--color-control-heat-area', 'oklch(0.759 0.143 80.6 / 0.22)'),
         controlFan: gv('--color-control-fan', '#3e73c9'),
-        controlFanTarget: gv('--color-control-fan-target', 'oklch(0.562 0.145 259.6 / 0.55)'),
-        controlFanArea: gv('--color-control-fan-area', 'oklch(0.562 0.145 259.6 / 0.22)'),
 
         // Event marker categories (resolved for canvas)
         eventMark: gv('--color-event-mark', '#777'),
@@ -182,24 +166,6 @@ export const getResolvedEventColor = (event: string): string => {
     );
 };
 
-// ── Static base colors (for non-ECharts use) ───────────────────────────────
-export const CHART_COLORS = {
-    btTarget: 'var(--color-sensor-bt-target)',
-    btTargetTooltip: 'var(--color-sensor-bt-target-hover)',
-    btActual: 'var(--color-sensor-bt)',
-    etActual: 'var(--color-sensor-et)',
-    rorActual: 'var(--color-sensor-ror)',
-    tp: '#81FBA5',
-    phaseLines: 'var(--color-chart-phaseline)',
-    currentTimeLine: 'var(--color-chart-current-line)',
-    nowLabel: '#81FBA5',
-    gridLine: 'var(--color-chart-grid-stroke)',
-    gridLineMinor: 'var(--color-chart-grid)',
-    axisPointerLine: 'var(--color-chart-axis-pointer)',
-    tooltipTimeColor: 'var(--color-chart-tooltip-time)',
-    markerLabelColor: 'var(--color-chart-marker-label)',
-} as const;
-
 const CHART_EVENT_MARKERS = new Set([
     'Charge',
     'Yellow',
@@ -215,22 +181,5 @@ const CHART_EVENT_MARKERS = new Set([
 export const isChartEventMarker = (event: string): boolean =>
     CHART_EVENT_MARKERS.has(event) || isCustomRoastEvent(event);
 
-export const PHASE_SECS = [180, 300, 630] as const;
 export const ROR_Y_MIN = -5;
 export const ROR_Y_MAX = 20;
-
-// DrumHeatFanChart
-export const DRUM_GRID_LEFT = 36;
-export const DRUM_GRID_RIGHT = 12;
-export const DRUM_GRID_TOP = 20;
-export const DRUM_GRID_BOTTOM = 40;
-export const DRUM_AXIS_LABEL_FONT_SIZE = 12;
-export const DRUM_X_FALLBACK_MIN = 0;
-export const DRUM_X_FALLBACK_MAX = 1200;
-export const DRUM_Y_MIN = 0;
-export const DRUM_Y_MAX_C = 260;
-export const DRUM_Y_MAX_F = 500;
-export const POWER_Y_MIN = 0;
-export const POWER_Y_MAX = 100;
-export const DRUM_LINE_WIDTH = 3;
-export const DRUM_MARK_LINE_WIDTH = 2;
