@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Silent until the main-push CI and React Doctor workflows for one SHA finish.
+# Silent until the main-push CI workflow for one SHA finishes.
 # Prints one stdout line: "DONE: ..." or "FAILED: ...". Diagnostics go to the log file.
 set -u
 SHA=${1:-$(git rev-parse HEAD)}
@@ -15,7 +15,7 @@ while :; do
     result=$(RUNS="$runs" python3 - <<'PY' 2>>"$LOG"
 import json, os, subprocess, sys
 bad = {"failure", "cancelled", "timed_out", "startup_failure", "action_required"}
-wanted = {"CI", "React Doctor"}
+wanted = {"CI"}
 runs = [run for run in json.loads(os.environ["RUNS"]) if run.get("event") == "push" and run.get("name") in wanted]
 latest = {}
 for run in runs:
@@ -47,7 +47,7 @@ for name, run in latest.items():
 if failed:
     print("FAILED: " + ", ".join(failed))
 elif all(run.get("conclusion") == "success" for run in latest.values()):
-    print("DONE: CI and React Doctor succeeded")
+    print("DONE: CI succeeded")
 PY
 )
     case "$result" in

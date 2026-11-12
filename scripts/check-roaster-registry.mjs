@@ -11,7 +11,7 @@
  * back to python3), so it is exact. Only the TS side is text-scanned.
  *
  * Usage: node scripts/check-roaster-registry.mjs
- * Wired as: pnpm check:registry (also via pnpm verify)
+ * Wired as: pnpm check:registry (verify:all / verify:push)
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
