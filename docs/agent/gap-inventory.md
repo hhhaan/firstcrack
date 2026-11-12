@@ -18,7 +18,7 @@
 | 4 | schedule / plan | `src/entities/plan/`, `src/views/schedule/` | none dedicated | — | **HIGH** — recurrence + batch stock | **Wrote** `docs/agent/schedule-plan.md` |
 | 5 | history / profiles | `src/views/history/`, `entities/roast*`, `upload-roast-profile` | integrity EN + history plans | mixed | MED | Deferred (covered partially by active-roast + inventory) |
 | 6 | sidecar / machines | `src-tauri/sidecar/`, `entities/machine`, `shared/lib/sidecar.ts` | `sidecar-api.md` EN | EN + KO registry | MED | Deferred (`sidecar-api.md` sufficient for HTTP) |
-| 7 | auth / org | `features/auth`, `entities/organization`, `features/team-invite`, workspace store | `team-workspaces.md` stale KO | KO | **HIGH** — write identity | **Wrote** `docs/agent/workspace-auth.md` |
+| 7 | auth / org | `features/auth`, `entities/organization`, `features/team-invite`, workspace store | (no prior EN SSoT) | — | **HIGH** — write identity | **Wrote** `docs/agent/workspace-auth.md` |
 | 8 | supabase edge + migrations | `supabase/functions/`, `supabase/migrations/` | scattered KO | KO | **HIGH** — secrets / writers | **Wrote** `supabase/AGENTS.md` |
 | 9 | shared / FSD | `src/shared/`, FSD layers | `AGENTS.md` EN, `data-fetching.md` KO | EN rules / KO fetch | MED fetch | **Wrote** `docs/agent/data-fetching.md` |
 

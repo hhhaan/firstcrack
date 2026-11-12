@@ -9,7 +9,7 @@
 - 하드웨어 연동은 LAN 사이드카 허브(데스크톱 앱이 떠 있는 PC 또는 라즈베리파이)에 HTTP로 접속한다.
   `SIDECAR_BASE`(`src/shared/lib/sidecar.ts`)를 설정값으로 바꾸는 작업이 선행 조건.
 - 데스크톱 전용 코드는 Rust `#[cfg(desktop)]` / Cargo `[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]`로 게이트한다.
-  게이트 누락은 CI `ios-check` 잡(`cargo check --target aarch64-apple-ios`)이 잡는다.
+  게이트 누락은 CI `ios-check` 잡(`cargo check --target aarch64-apple-ios`, `vars.IOS_CHECK == 'true'`일 때만)이 잡는다.
 
 ## 현재 상태 (선구축 완료 항목)
 
@@ -17,7 +17,7 @@
 - [x] `lib.rs` 사이드카 스폰·워치독·좀비킬 `#[cfg(desktop)]` 게이트
 - [x] `externalBin` → `tauri.macos.conf.json` / `tauri.windows.conf.json` 이동 (모바일 번들에서 제외)
 - [x] `capabilities/mobile.json` (shell/updater/process 권한 제외)
-- [x] CI `ios-check` 잡 — 모바일 컴파일 회귀 방지
+- [ ] CI `ios-check` 잡 — `IOS_CHECK=true`일 때만 실행 (iPad 지원 전까지 기본 off; `AGENTS.md`)
 - [x] `release-app.yml` — 모바일 릴리스 파이프라인 (아래 전제 충족 전까지는 gen/ 부재 에러로 실패하는 게 정상)
 
 ### 남은 전제조건 (첫 스토어 업로드 전)

@@ -1,7 +1,7 @@
 # Inventory Architecture — 3-ledger event sourcing
 
 > Last verified: 2026-07-21  
-> Status: green / bulk roasted / finished-goods ledgers in production. Workspace RLS + idempotency hardening applied (`20260721000000_inventory_ledger_fixes.sql`, `20260728010000_inventory_flow_hardening.sql`).
+> Status: green / bulk roasted / finished-goods ledgers in production. Workspace RLS + idempotency hardening applied (`20260720113032_inventory_ledger_fixes.sql`, `20260720124338_inventory_flow_hardening_m1_m2.sql`, `20260720124353_inventory_flow_hardening_m3_m7.sql`).
 
 **Audience:** coding agents. Do not invent stock columns or ad-hoc multi-ledger writes.
 
@@ -65,8 +65,8 @@ Retries must not double-count. Pattern: partial unique + `ON CONFLICT DO NOTHING
 | Ledger | Index | Migration |
 |---|---|---|
 | bean | `(reference_id, bean_id) WHERE reference_id IS NOT NULL` | `20260619000000` |
-| roasted | `(reference_id) WHERE roast_inbound` (one inbound per session; upsert target) | `20260720000000` |
-| roasted | packaging / blend_produce / blend_consume partial uniques | `20260721000000` |
+| roasted | `(reference_id) WHERE roast_inbound` (one inbound per session; upsert target) | `20260720112954` |
+| roasted | packaging / blend_produce / blend_consume partial uniques | `20260720113032` |
 | product | `(reference_id, product_id, event_type) WHERE reference_id IS NOT NULL` | `20260717000000` |
 
 Manual `purchase` / adjust with `reference_id` null has **no** DB idempotency — client submit guards only.

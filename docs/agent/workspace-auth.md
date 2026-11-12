@@ -2,7 +2,7 @@
 
 **Audience:** coding agents  
 **Date:** 2026-07-21  
-**Note:** `docs/team-workspaces.md` is a **stale Korean design** (header still says pre-implementation). Prefer this file + live code.
+**Note:** Prefer this file + live code for workspace identity.
 
 ---
 
@@ -90,4 +90,4 @@ Owner: one org per owner (`organizations.owner_id` unique). Plan SSoT remains `p
 
 - Add `org_id` columns "for clarity" without an explicit migration program
 - Fall back to auth user while `activeOwnerId` is foreign and memberships still loading
-- Trust stale `docs/team-workspaces.md` status line ("not implemented")
+- Assume workspace features are unimplemented without reading this doc and migrations
