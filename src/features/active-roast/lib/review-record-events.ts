@@ -1,9 +1,7 @@
 import type { Json } from '@shared/types/database.types';
 import type { LogEntry } from '@shared/types/roast';
 import { isBbpAllowedEvent } from './bbp-events';
-import { isToggleableLogEvent } from './constants';
 import { isCustomRoastEvent } from './event-buttons';
-import { getFcDualStage } from './fc-dual-mark';
 import { hasNoteControl, noteControlFields, virtualFromUnknown } from './manual-controls';
 import { logEntryTimeSec } from './serialize-roast-events';
 
@@ -12,8 +10,6 @@ const ADDABLE_MARKS = new Set(['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End
 
 /** Rows the record RPC refuses to delete. Phase marks, End, notes, and custom names may go. */
 const UNDELETABLE_MARKS = new Set(['Charge', 'Drop', 'Now', 'Control']);
-
-const NOT_A_REVIEW_MARK = new Set(['Charge', 'Drop', 'End', 'Heater', 'Now', 'Control']);
 
 const MARK_RANK: Record<string, number> = {
     Charge: 0,
@@ -74,37 +70,6 @@ export const isReviewEditableEvent = (event: string): boolean =>
 /** Saved-curve review may remove phase marks, heater log rows, notes, and custom names. Boundary marks and the turning point stay. */
 export const isReviewDeletableEvent = (event: string): boolean =>
     event !== 'TP' && (event === 'Note' || event === 'Heater' || ADDABLE_MARKS.has(event) || isCustomRoastEvent(event));
-
-export type ReviewMarkAction = { kind: 'add'; event: string } | { kind: 'remove'; event: string };
-
-/**
- * Side-panel press on a saved curve.
- * A second press removes a toggleable mark. Dual FC follows the live cycle, including unwind.
- * Drop and End are not buttons here.
- */
-export const reviewMarkAction = (
-    entries: readonly Pick<LogEntry, 'event'>[],
-    event: string,
-    dualFc: boolean,
-    unwind: boolean,
-): ReviewMarkAction | null => {
-    if (NOT_A_REVIEW_MARK.has(event)) return null;
-    if (event === 'FC Start' && dualFc) {
-        const hasStart = entries.some((entry) => entry.event === 'FC Start');
-        const hasRolling = entries.some((entry) => entry.event === 'FC Rolling');
-        if (!hasStart && hasRolling) return { kind: 'remove', event: 'FC Rolling' };
-        const stage = getFcDualStage(entries);
-        if (stage === 2) return { kind: 'remove', event: 'FC Rolling' };
-        if (stage === 1 && unwind) return { kind: 'remove', event: 'FC Start' };
-        if (stage === 1) return { kind: 'add', event: 'FC Rolling' };
-        return { kind: 'add', event: 'FC Start' };
-    }
-    if (isToggleableLogEvent(event) && entries.some((entry) => entry.event === event)) {
-        return { kind: 'remove', event };
-    }
-    if (ADDABLE_MARKS.has(event) || isCustomRoastEvent(event)) return { kind: 'add', event };
-    return null;
-};
 
 /**
  * Side-panel add while a saved curve is on screen.

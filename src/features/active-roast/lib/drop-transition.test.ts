@@ -2,7 +2,6 @@ import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it, vi } from 'vitest';
 import {
     buildDropSummary,
-    canCancelDrop,
     clipRoastPointsAtDrop,
     type DropCurvePoint,
     dropBbpStartMs,
@@ -70,14 +69,6 @@ describe('clipRoastPointsAtDrop', () => {
         expect(clipRoastPointsAtDrop([pt(599, 205), pt(600, 204), pt(601, 150)], 600).map((p) => p.time)).toEqual([
             599, 600,
         ]);
-    });
-});
-
-describe('canCancelDrop', () => {
-    it('allows cancel only before next Charge and before server save', () => {
-        expect(canCancelDrop({ nextCharged: false, submitted: false })).toBe(true);
-        expect(canCancelDrop({ nextCharged: true, submitted: false })).toBe(false);
-        expect(canCancelDrop({ nextCharged: false, submitted: true })).toBe(false);
     });
 });
 

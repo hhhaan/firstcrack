@@ -1,7 +1,7 @@
 import { formatSignedElapsed } from '@shared/lib/format';
 import type { LiveRoastPoint, LogEntry } from '@shared/types/roast';
 import { bbpPointsToTsv } from './bbp-archive';
-import type { BbpPoint, BbpResult } from './bbp-types';
+import { BBP_MAX_SECONDS, type BbpPoint, type BbpResult } from './bbp-types';
 import { serializeRoastEvents } from './serialize-roast-events';
 
 /** Original wait coordinates and the confirmed boundary belong to one batch. */
@@ -56,7 +56,7 @@ export const bbpPointToLive = (point: BbpPoint, time = point.t): LiveRoastPoint 
 });
 
 /** Split before rounding or serialization, including auto-Charge's already observed tail. */
-export const splitBatchBbp = (capture: BbpCapture, windowSeconds = 900) => {
+export const splitBatchBbp = (capture: BbpCapture, windowSeconds = BBP_MAX_SECONDS) => {
     const cutoff = (capture.chargeMs - capture.startMs) / 1000;
     const origin = Math.max(0, cutoff - windowSeconds);
     const before = capture.points.filter((point) => point.t >= origin && point.t < cutoff);

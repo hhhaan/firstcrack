@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
     isRoastChargeShortcutEnabled,
     isRoastEventMarkEnabled,
-    isRoastMarkShortcutEnabled,
     isRoastRefreshBlocked,
     isRoastReturnToChargeWaitShortcutEnabled,
     isRoastShortcutBaseEnabled,
@@ -138,31 +137,5 @@ describe('isRoastReturnToChargeWaitShortcutEnabled', () => {
             false,
         );
         expect(isRoastReturnToChargeWaitShortcutEnabled({ ...base, reviewing: true, chargeLocked: true })).toBe(false);
-    });
-});
-
-describe('isRoastMarkShortcutEnabled', () => {
-    it('enabled only while phase is roasting', () => {
-        expect(isRoastMarkShortcutEnabled({ ...base, phase: 'roasting' })).toBe(true);
-        expect(isRoastMarkShortcutEnabled({ ...base, phase: 'standby' })).toBe(false);
-        expect(isRoastMarkShortcutEnabled({ ...base, phase: 'preheating' })).toBe(false);
-        expect(isRoastMarkShortcutEnabled({ ...base, phase: 'idle' })).toBe(false);
-    });
-
-    it('modals still disable mark shortcuts during roasting', () => {
-        expect(
-            isRoastMarkShortcutEnabled({
-                ...base,
-                phase: 'roasting',
-                showEndRoastModal: true,
-            }),
-        ).toBe(false);
-        expect(
-            isRoastMarkShortcutEnabled({
-                ...base,
-                phase: 'roasting',
-                showContinueModal: true,
-            }),
-        ).toBe(false);
     });
 });

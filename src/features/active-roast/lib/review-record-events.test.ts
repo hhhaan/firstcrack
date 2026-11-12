@@ -1,6 +1,6 @@
 import type { LogEntry } from '@shared/types/roast';
 import { describe, expect, it } from 'vitest';
-import { reviewEventsFromLog, reviewMarkAction, reviewMarkToAdd } from './review-record-events';
+import { reviewEventsFromLog, reviewMarkToAdd } from './review-record-events';
 
 const entry = (partial: Pick<LogEntry, 'id' | 'event' | 'timeSec'> & Partial<LogEntry>): LogEntry => ({
     time: '0:00',
@@ -268,25 +268,6 @@ describe('reviewEventsFromLog', () => {
             ok: false,
             reason: 'conflict',
         });
-    });
-});
-
-describe('reviewMarkAction', () => {
-    it('toggles a phase mark off and cycles dual first crack', () => {
-        const yellow = entry({ id: 'y', event: 'Yellow', timeSec: 1 });
-        const start = entry({ id: 's', event: 'FC Start', timeSec: 2 });
-        const rolling = entry({ id: 'r', event: 'FC Rolling', timeSec: 3 });
-        expect(reviewMarkAction([], 'Yellow', false, false)).toEqual({ kind: 'add', event: 'Yellow' });
-        expect(reviewMarkAction([yellow], 'Yellow', false, false)).toEqual({ kind: 'remove', event: 'Yellow' });
-        expect(reviewMarkAction([yellow], '시바', false, false)).toEqual({ kind: 'add', event: '시바' });
-        expect(reviewMarkAction([yellow], 'Drop', false, false)).toBeNull();
-        expect(reviewMarkAction([], 'FC Start', true, false)).toEqual({ kind: 'add', event: 'FC Start' });
-        expect(reviewMarkAction([start], 'FC Start', true, false)).toEqual({ kind: 'add', event: 'FC Rolling' });
-        expect(reviewMarkAction([start, rolling], 'FC Start', true, false)).toEqual({
-            kind: 'remove',
-            event: 'FC Rolling',
-        });
-        expect(reviewMarkAction([start], 'FC Start', true, true)).toEqual({ kind: 'remove', event: 'FC Start' });
     });
 });
 

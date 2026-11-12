@@ -1,6 +1,9 @@
 import type { StoredRoastEvent } from '@shared/types/roast';
 import type { ExtraSensorReading, TemperatureProcessing } from '@shared/types/sidecar';
 
+/** Rolling FIFO window (seconds) kept immediately before Charge. */
+export const BBP_MAX_SECONDS = 900;
+
 export interface BbpSample {
     bt: number;
     btRaw?: number | null;

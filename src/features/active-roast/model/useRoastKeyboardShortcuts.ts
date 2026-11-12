@@ -85,20 +85,6 @@ export function isRoastRefreshBlocked(phase: string, awaitingNextCharge: boolean
     return phase === 'roasting' || phase === 'ended' || awaitingNextCharge;
 }
 
-/**
- * Event-marking hotkeys (Yellow / FC / Drop) only while roasting.
- * Standby/preheating must not create Drop etc. (disarms alerts).
- */
-export function isRoastMarkShortcutEnabled(p: {
-    isActive: boolean;
-    showEndRoastModal: boolean;
-    showSummaryModal: boolean;
-    showContinueModal?: boolean;
-    phase: string;
-}): boolean {
-    return isRoastShortcutBaseEnabled(p) && isRoastEventMarkEnabled(p.phase);
-}
-
 /** Summary popup only — closes without starting the next batch. */
 export function isRoastSummaryCloseShortcutEnabled(p: {
     isActive: boolean;

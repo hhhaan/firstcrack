@@ -18,7 +18,3 @@ export function getRemainingDayBatches(
     if (!preferred) return remaining;
     return [preferred, ...remaining.filter((b) => b.id !== preferId)];
 }
-
-export function shouldOfferNextRoast(remaining: PlanBatchWithProgress[]): boolean {
-    return remaining.length > 0;
-}
