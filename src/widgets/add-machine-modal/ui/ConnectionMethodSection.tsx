@@ -7,7 +7,6 @@ import { inputCls, labelCls, selectCls } from '@shared/ui/form-styles';
 import { ChevronDown, Lock } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MachineModalTab } from '../model/types';
 
 const ROASTERS_BY_BRAND = groupRoastersByBrand(ROASTER_REGISTRY);
 const PROTOCOLS = listProtocols(ROASTER_REGISTRY);
@@ -210,8 +209,6 @@ function RoasterModelSelect({
 type Props = {
     isEdit: boolean;
     isCustom: boolean;
-    tab: MachineModalTab;
-    switchTab: (next: MachineModalTab) => void;
     selectedKey: string;
     selectRoaster: (key: string) => void;
     customName: string;
@@ -239,23 +236,6 @@ export const ConnectionMethodSection = ({
 
     return (
         <>
-            {/* 기타 / 직접 입력 탭 임시 숨김
-            {!isEdit && (
-                <div className="flex bg-surface p-1 rounded-2xl shadow-(--shadow-inset)">
-                    <button
-                        type="button"
-                        onClick={() => switchTab('supported')}
-                        className={tabCls(tab === 'supported')}
-                    >
-                        {t('addMachine.tabSupported')}
-                    </button>
-                    <button type="button" onClick={() => switchTab('custom')} className={tabCls(tab === 'custom')}>
-                        {t('addMachine.tabCustom')}
-                    </button>
-                </div>
-            )}
-            */}
-
             {/* Connection method: known roaster model */}
             {!isCustom && (
                 <div>

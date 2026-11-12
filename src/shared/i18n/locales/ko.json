@@ -299,14 +299,6 @@
                 "description": "앱 전반의 기본 화면과 단위를 설정합니다.",
                 "interfaceTitle": "인터페이스",
                 "interfaceDescription": "테마·언어 등 화면 표시 옵션입니다.",
-                "theme": "화면 모드",
-                "themeDescription": "앱 화면 스타일을 선택합니다. 시스템은 OS 설정을 따릅니다.",
-                "themeLight": "라이트",
-                "themeLightDescription": "밝고 깔끔한 화면",
-                "themeDark": "다크",
-                "themeDarkDescription": "눈이 편한 어두운 화면",
-                "themeSystem": "시스템",
-                "themeSystemDescription": "OS 설정 따르기",
                 "language": "앱 언어",
                 "languageDescription": "앱 표시 언어를 선택합니다.",
                 "defaultLandingView": "기본 시작 화면",
@@ -2549,15 +2541,5 @@
         "showHidden": "숨긴 항목 보기",
         "hide": "{{name}} 숨기기",
         "restore": "{{name}} 복원"
-    },
-    "themeSelect": {
-        "title": "테마를 선택하세요",
-        "description": "워크스페이스 설정에서 언제든지 변경할 수 있습니다.",
-        "light": "라이트",
-        "lightDesc": "밝고 깔끔한 화면",
-        "dark": "다크",
-        "darkDesc": "눈이 편안한 화면",
-        "system": "시스템",
-        "systemDesc": "OS 설정을 따름"
     }
 }

@@ -63,8 +63,6 @@ export const AddMachineModal = ({ open, onClose, onAdd, editing, onEdit }: AddMa
                 <ConnectionMethodSection
                     isEdit={form.isEdit}
                     isCustom={form.isCustom}
-                    tab={form.tab}
-                    switchTab={form.switchTab}
                     selectedKey={form.selectedKey}
                     selectRoaster={form.selectRoaster}
                     customName={form.customName}

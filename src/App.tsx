@@ -41,9 +41,6 @@ import { PendingRoastRecovery } from './widgets/pending-roast-recovery';
 import { type RoastSettingsGroup, roastSettingsGroups, type SettingsTabId } from './widgets/settings/ui/tabConfig';
 import { Sidebar } from './widgets/sidebar/ui/Sidebar';
 
-// VOC: restore first-run theme picker
-// import { ThemeSelectModal } from './widgets/theme-select-modal/ui/ThemeSelectModal';
-
 const COMPARE_PLANS_URL = 'https://firstcrackiscoming.com/compare-plans';
 
 export const App = () => {
@@ -293,7 +290,6 @@ const AppShell = () => {
     return (
         <ErrorBoundary fallback={appShellFallback}>
             <div className="flex h-screen flex-col overflow-hidden bg-shell-bg">
-                {/* VOC: restore first-run theme picker — {theme === null && <ThemeSelectModal />} */}
                 <PendingRoastRecovery
                     onReview={(ownerId, sessionId) => {
                         setRoastSummaryRequest({ ownerId, sessionId });

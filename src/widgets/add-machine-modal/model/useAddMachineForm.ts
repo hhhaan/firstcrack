@@ -83,22 +83,6 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
         setCustomProtocol,
     });
 
-    const switchTab = (next: MachineModalTab) => {
-        if (next === tab) return;
-        setTab(next);
-        setError('');
-        setConnectionTest({ status: 'idle' });
-        setParams({});
-        if (next === 'supported') {
-            setSelectedKey('');
-            setCustomName('');
-            setCustomBrand('');
-            setCustomProtocol('');
-        } else {
-            setSelectedKey('');
-        }
-    };
-
     const selectedDef: RoasterDef | null = useMemo(() => {
         if (isCustom) {
             if (editingIsCustom && editing) return buildProtocolRoasterDef(editing.protocol);
@@ -188,8 +172,6 @@ export const useAddMachineForm = ({ open, onClose, onAdd, editing, onEdit }: Add
 
     return {
         isEdit,
-        tab,
-        switchTab,
         selectedKey,
         selectRoaster,
         params,

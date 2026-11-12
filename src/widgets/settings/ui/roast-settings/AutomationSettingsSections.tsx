@@ -20,19 +20,6 @@ import {
 import { SettingsSection } from '../SettingsSection';
 import { NumberInput } from './RoastSettingsFields';
 
-// PID 미사용. 나중에 넣을 때 주석 해제.
-// const pidDropBehaviorOptions: { value: PidDropBehavior; labelKey: string; descKey: string }[] = [
-//     {
-//         value: 'hold',
-//         labelKey: 'settings.tabs.roast.pidDropHold',
-//         descKey: 'settings.tabs.roast.pidDropHoldDescription',
-//     },
-//     {
-//         value: 'zero',
-//         labelKey: 'settings.tabs.roast.pidDropZero',
-//         descKey: 'settings.tabs.roast.pidDropZeroDescription',
-//     },
-// ];
 export const AutomationSettingsSections = () => {
     const { t } = useTranslation();
     const roastSettings = useRoastSettings();
@@ -173,25 +160,6 @@ export const AutomationSettingsSections = () => {
                 </SettingsSection.Body>
             </SettingsSection>
 
-            {/* PID 미사용. 나중에 넣을 때 주석 해제.
-<SettingsSection group="automation">
-    <SettingsSection.Header title={tk('pidDropBehavior')} description={tk('pidDropBehaviorDescription')} />
-    <SettingsSection.Body className="grid gap-1.5">
-        {pidDropBehaviorOptions.map(({ value, labelKey, descKey }) => (
-            <SettingsCheckRow
-                key={value}
-                type="radio"
-                name="pidDropBehavior"
-                checked={roastSettings.pidDropBehavior === value}
-                label={t(labelKey)}
-                description={t(descKey)}
-                onChange={() => updateRoastSettings({ pidDropBehavior: value })}
-            />
-        ))}
-    </SettingsSection.Body>
-</SettingsSection>
-*/}
-
             {canReplay && (
                 <SettingsSection group="automation">
                     <SettingsSection.Header title={tk('replay')} description={tk('replayDescription')} />
@@ -217,14 +185,6 @@ export const AutomationSettingsSections = () => {
                             updateRoastSettings({ bbpEnabled: !roastSettings.bbpEnabled });
                         }}
                     />
-                    {/* 투입 후 BBP 이음은 기본 끔. 다시 넣을 때 주석 해제.
-        <SettingsCheckRow
-            checked={roastSettings.bbpJoinCharge}
-            label={tk('bbpJoinCharge')}
-            description={tk('bbpJoinChargeDescription')}
-            onChange={() => updateRoastSettings({ bbpJoinCharge: !roastSettings.bbpJoinCharge })}
-        />
-        */}
                 </SettingsSection.Body>
             </SettingsSection>
 

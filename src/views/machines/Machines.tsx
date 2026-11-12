@@ -300,7 +300,6 @@ export const Machines = ({
                                 )}
 
                                 {sidecarStatus?.error && sidecarStatus.roaster === selected.roasterKey && (
-                                    // TODO: 에러 메시지 하단에 "문의하기" 링크 추가 (예: 이메일 or 카카오 채널)
                                     <div className="flex items-center gap-2 bg-[rgba(192,57,43,0.07)] rounded-lg px-3.5 py-2.5 mb-4 text-[12px] text-[#c0392b]">
                                         <AlertCircle size={14} />
                                         {sidecarStatus.error}

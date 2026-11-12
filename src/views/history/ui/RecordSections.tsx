@@ -31,7 +31,7 @@ const Section = ({ title, action, children, testId }: SectionProps) => (
 
 const rowCls = 'flex items-baseline justify-between gap-3 border-t border-border-subtle py-3 first:border-t-0';
 
-/** Key marks + Heat set steps of a saved record, each with its edit entry (PR 1 save path). */
+/** Key marks + Heat set steps of a saved record, each with its edit entry. */
 export const RecordSections = ({ session }: { session: RoastSessionWithRelations }) => {
     const { t } = useTranslation();
     const unit = useRoastSettings().temperatureUnit;
