@@ -17,8 +17,6 @@ import { type BeanSourceGroup, BeanSourceMenu } from './BeanSourceMenu';
 import { RoastTitleEditor } from './RoastTitleEditor';
 import { TargetMenu } from './TargetMenu';
 
-// ─── Utility ──────────────────────────────────────────────────────────────────
-
 const joinDisplay = (parts: (string | null | undefined)[], sep = ' · ') => parts.filter(Boolean).join(sep);
 
 type BeanOptionDisplay = (bean: {
@@ -31,9 +29,7 @@ type BeanOptionDisplay = (bean: {
 
 const beanOptionDisplay: BeanOptionDisplay = (b) => joinDisplay([b.origin, b.region, b.farm, b.variety]) || b.name;
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export const RoastHeader = ({
-    phase: _phase,
     targetProfileId,
     selectedBeanId: currentBeanId,
     selectedBlendId: currentBlendId = null,
@@ -42,13 +38,11 @@ export const RoastHeader = ({
     fallbackBeanName: currentBeanName,
     onTargetProfileChange,
     onBeanChange,
-    onOpenRoastSettings,
     historyReferenceName = null,
     historyReferenceFailed = false,
     onChooseHistoryReference,
     onClearHistoryReference,
 }: {
-    phase: string;
     targetProfileId: string | null;
     selectedBeanId: string | null;
     selectedBlendId?: string | null;
@@ -57,13 +51,11 @@ export const RoastHeader = ({
     fallbackBeanName?: string | null;
     onTargetProfileChange: (id: string | null) => void;
     onBeanChange: (id: string | null, name?: string | null) => void;
-    onOpenRoastSettings?: () => void;
     historyReferenceName?: string | null;
     historyReferenceFailed?: boolean;
     onChooseHistoryReference?: () => void;
     onClearHistoryReference?: () => void;
 }) => {
-    // ─── Store state ─────────────────────────────────────────────────────────
     const { t } = useTranslation();
     const review = useRoastingStore(selectReviewSnapshot);
     const selectedBeanId = review ? review.selection.beanId : currentBeanId;
@@ -227,8 +219,6 @@ export const RoastHeader = ({
             if (b.id === defaultProfileId) return 1;
             return 0;
         });
-    void onOpenRoastSettings;
-
     return (
         <div className="flex items-end justify-between">
             <div>
@@ -288,9 +278,6 @@ export const RoastHeader = ({
                     </div>
                 )}
 
-                {/* ─── Bean secondary info: farm · variety · process ───── */}
-
-                {/* ─── Target profile selector ───────────────────────────── */}
                 <div className="flex flex-wrap items-center gap-1">
                     {beanSecondary && (
                         <p className="text-[13px] text-muted tracking-[-0.1px] mb-0.5">{beanSecondary} / </p>
@@ -312,24 +299,6 @@ export const RoastHeader = ({
                     )}
                 </div>
             </div>
-
-            {/* ─── Right side: settings (hidden for now) ───────────────── */}
-            {/*
-            <div className="flex items-start gap-3">
-                {onOpenRoastSettings && (
-                    <button
-                        type="button"
-                        data-tour="active-roast-settings"
-                        onClick={onOpenRoastSettings}
-                        aria-label="Open roast settings"
-                        title="Roast settings"
-                        className="w-8.5 h-8.5 rounded-md border border-transparent bg-main-bg dark:bg-surface-elevated text-secondary dark:text-primary flex items-center justify-center cursor-pointer shrink-0 mt-1.5 hover:bg-surface-hover transition"
-                    >
-                        <Settings2 size={15} strokeWidth={1.9} />
-                    </button>
-                )}
-            </div>
-            */}
         </div>
     );
 };

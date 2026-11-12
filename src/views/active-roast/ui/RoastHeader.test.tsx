@@ -75,7 +75,6 @@ const buttonNamed = (text: string) =>
     [...document.querySelectorAll('button')].find((button) => button.textContent?.includes(text));
 
 const props = {
-    phase: 'roasting',
     targetProfileId: null,
     selectedBeanId: null,
     onTargetProfileChange: () => {},
