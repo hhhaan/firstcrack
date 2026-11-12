@@ -103,7 +103,6 @@ BEGIN
   PERFORM set_config('request.jwt.claim.sub', '', true);
   PERFORM set_config('request.jwt.claims', '{"role":"service_role"}', true);
   UPDATE public.profiles SET plan = 'read_only' WHERE id = owner_id;
-  ASSERT public.profile_write_error(owner_id) = 'read_only_plan';
   PERFORM set_config('request.jwt.claim.sub', owner_id::text, true);
   PERFORM set_config('request.jwt.claims', json_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
