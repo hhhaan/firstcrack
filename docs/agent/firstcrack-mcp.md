@@ -79,8 +79,8 @@ gets a DB credential or JWT usable by Auth/PostgREST/legacy write RPCs. There is
 service-role Supabase client in this flow. Server credentials still require normal
 secret protection; the issuer credential is the authority to issue grants.
 
-The inherited `firstcrack-reader.sql` and `firstcrack-oauth-token-hook.sql` proposals
-are **superseded experimental material. Do not activate them**. Restrictive database
+Do not apply experimental superseded SQL outside
+`supabase/migrations/20261026120000_firstcrack_mcp_read_issuer.sql`. Restrictive database
 roles/scopes on native tokens do not isolate managed Auth account mutation APIs.
 `_shared/auth.ts` continues to reject integration JWTs on existing privileged handlers;
 its verified subject must match the live native Auth identity.

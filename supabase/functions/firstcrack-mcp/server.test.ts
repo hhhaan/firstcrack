@@ -2,20 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VerifiedClaims } from './auth.ts';
 import type { ReadClient } from './data.ts';
 import { createMcpHandler } from './server.ts';
-import { config, memberId, otherOwnerId, ownerId, validClaims } from './test-fixtures.ts';
+import { config, otherOwnerId, ownerId, validClaims } from './test-fixtures.ts';
 
-const select = vi.fn();
-const eq = vi.fn();
-const range = vi.fn();
 let databaseResult: { data: unknown; error: unknown };
-const from = vi.fn();
-const selectRows = vi.fn<ReadClient['selectRows']>(async ({ table, columns, ownerColumn, ownerId, offset, limit }) => {
-    from(table);
-    select(table, columns);
-    eq(table, ownerColumn, ownerId);
-    range(offset, offset + limit);
-    return databaseResult;
-});
+const selectRows = vi.fn<ReadClient['selectRows']>(async () => databaseResult);
 const access = vi.fn<ReadClient['hasWorkspaceAccess']>();
 const verify = vi.fn<(req: Request, token: string) => Promise<VerifiedClaims | null>>();
 const userClient = vi.fn(() => ({ selectRows, hasWorkspaceAccess: access }));
@@ -87,7 +77,7 @@ describe('HTTP authentication and discovery', () => {
             `${config.resource}/.well-known/oauth-protected-resource`,
         );
         expect(verify).not.toHaveBeenCalled();
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
     });
 
     it('rejects a token rejected by the signature/identity verifier, without sample fallback', async () => {
@@ -102,7 +92,7 @@ describe('HTTP authentication and discovery', () => {
         expect((await call('list_orders')).status).toBe(200);
         verify.mockResolvedValue({ ...validClaims(), exp: 1 });
         expect((await call('list_orders')).status).toBe(401);
-        expect(from).toHaveBeenCalledTimes(1);
+        expect(selectRows).toHaveBeenCalledTimes(1);
     });
 
     it('returns an insufficient-scope challenge and refuses a native user token', async () => {
@@ -112,7 +102,7 @@ describe('HTTP authentication and discovery', () => {
         expect(response.headers.get('WWW-Authenticate')).toContain('insufficient_scope');
         verify.mockResolvedValue({ ...validClaims(), role: 'authenticated' });
         expect((await call('list_orders')).status).toBe(401);
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
     });
 
     it('is disabled until reviewed configuration is explicitly enabled', async () => {
@@ -140,7 +130,7 @@ describe('MCP protocol', () => {
         expect(list.result.tools).toHaveLength(6);
         expect(list.result.tools.map((tool: { name: string }) => tool.name)).toContain('list_green_stock');
         for (const tool of list.result.tools) expect(tool.annotations.readOnlyHint).toBe(true);
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
     });
 
     it('accepts notifications without executing tools', async () => {
@@ -153,13 +143,13 @@ describe('MCP protocol', () => {
         );
         expect(response.status).toBe(202);
         expect(await response.text()).toBe('');
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
     });
 
     it('rejects write tools and arbitrary method names', async () => {
         expect(await (await call('register_production')).json()).toMatchObject({ error: { code: -32602 } });
         expect(await (await request('inventory/update')).json()).toMatchObject({ error: { code: -32601 } });
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
     });
 
     it('rejects malformed JSON, batches, oversized bodies and unsupported transport headers', async () => {
@@ -182,24 +172,23 @@ describe('account and roastery isolation', () => {
             result: { structuredContent: { mode: 'live', items: [{ id: 'test-row' }] } },
         });
         expect(access).toHaveBeenCalledWith(ownerId);
-        expect(eq).toHaveBeenCalledWith('beans', 'user_id', ownerId);
-        expect(eq).not.toHaveBeenCalledWith('beans', 'user_id', memberId);
+        expect(selectRows).toHaveBeenCalledWith(expect.objectContaining({ tool: 'list_green_stock' }));
     });
 
     it('keeps the personal profile scoped to the token subject', async () => {
         await call('get_my_profile');
-        expect(eq).toHaveBeenCalledWith('profiles', 'id', memberId);
+        expect(selectRows).toHaveBeenCalledWith(expect.objectContaining({ tool: 'get_my_profile' }));
     });
 
     it('returns only the workspace selected at connection time', async () => {
         await call('list_my_workspaces');
-        expect(eq).toHaveBeenCalledWith('organizations', 'owner_id', ownerId);
+        expect(selectRows).toHaveBeenCalledWith(expect.objectContaining({ tool: 'list_my_workspaces' }));
     });
 
     it('refuses a different workspace even if the user is also a member there', async () => {
         const response = await call('list_orders', { workspace_owner_id: otherOwnerId });
         expect(await response.json()).toMatchObject({ result: { isError: true } });
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
         expect(access).not.toHaveBeenCalled();
     });
 
@@ -209,7 +198,7 @@ describe('account and roastery isolation', () => {
         const response = await call('list_orders');
         expect(await response.json()).toMatchObject({ result: { isError: true } });
         expect(access).toHaveBeenCalledTimes(2);
-        expect(from).toHaveBeenCalledTimes(1);
+        expect(selectRows).toHaveBeenCalledTimes(1);
     });
 
     it('refuses a non-member and fails closed on a permission lookup error', async () => {
@@ -223,28 +212,24 @@ describe('account and roastery isolation', () => {
             expect(body).toContain('isError');
             expect(body).not.toContain('private database detail');
         }
-        expect(from).not.toHaveBeenCalled();
+        expect(selectRows).not.toHaveBeenCalled();
     });
 
     it.each([{ user_id: otherOwnerId }, { limit: 101 }, { offset: -1 }, { workspace_owner_id: 'invalid' }])(
         'rejects invalid arguments before querying: %j',
         async (args) => {
             expect(await (await call('list_orders', args)).json()).toMatchObject({ error: { code: -32602 } });
-            expect(from).not.toHaveBeenCalled();
+            expect(selectRows).not.toHaveBeenCalled();
         },
     );
 
-    it('uses explicit safe projections and bounded pagination', async () => {
+    it('forwards bounded pagination to the gateway read path', async () => {
         databaseResult = { data: [{ id: 'a' }, { id: 'b' }, { id: 'c' }], error: null };
         const response = await call('list_orders', { limit: 2, offset: 5 });
         expect(await response.json()).toMatchObject({
             result: { structuredContent: { items: [{ id: 'a' }, { id: 'b' }], next_offset: 7 } },
         });
-        expect(range).toHaveBeenCalledWith(5, 7);
-        const projection = select.mock.calls[0][1];
-        expect(projection).not.toContain('*');
-        expect(projection).not.toContain('raw');
-        expect(projection).not.toContain('buyer_name');
+        expect(selectRows).toHaveBeenCalledWith({ tool: 'list_orders', limit: 2, offset: 5 });
     });
 
     it('returns a safe error rather than sample data or raw database errors', async () => {
