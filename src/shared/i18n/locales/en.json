@@ -1374,7 +1374,6 @@
         },
         "replay": {
             "label": "Replay profile heat",
-            "syncOnStart": "Starting or resuming applies the reference heat for the current point.",
             "next": "Next: {{condition}} → {{heater}}",
             "done": "All events replayed",
             "missingHeatSet": "No heat plan is available for Replay.",

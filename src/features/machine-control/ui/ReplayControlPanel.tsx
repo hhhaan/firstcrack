@@ -146,8 +146,6 @@ const ReplayPanelMessages = ({
     const { t } = useTranslation();
     return (
         <>
-            {/* <p className="text-[11px] leading-snug text-secondary">{t('activeRoast.replay.syncOnStart')}</p> */}
-
             {(!replay.active || replay.stopReason === 'dischargeAttempted') && stopText && (
                 <p className="text-[11px] leading-snug text-amber-600 dark:text-amber-500" role="status">
                     {stopText}

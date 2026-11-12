@@ -435,30 +435,6 @@ class S7Adapter:
             extra_readings=extra_readings,
         )
 
-    async def read_raw_channel(self, role: str) -> float | None:
-        """읽기 채널 하나만 조회. heater 피드백(Giesen DB2.48)처럼 Reading에 담기지 않는
-        값을 PID engage/release 시점에 확인하는 용도. 미연결/미매핑이면 None."""
-        ch = next((c for c in self._channels if c.get("role") == role), None)
-        if ch is None or self._plc is None:
-            return None
-
-        deadline = time.monotonic() + config.S7_READ_BUDGET_S
-        diagnostics = S7Diagnostics("read_raw")
-
-        def _read_one() -> float:
-            if not diagnostics.call("lock", self._io_lock.acquire, timeout=config.S7_IO_LOCK_TIMEOUT_S):
-                raise TimeoutError("S7 I/O 락 획득 실패 — 이전 요청이 아직 진행 중입니다.")
-            try:
-                # 락 밖의 사전 검사와 여기 사이에 disconnect가 끼어들 수 있다
-                plc = self._plc
-                if plc is None:
-                    raise ConnectionError("S7 PLC가 연결되지 않음")
-                return self._read_channel_sync(ch, plc, deadline, diagnostics=diagnostics)
-            finally:
-                self._io_lock.release()
-
-        return await diagnostics.run(_read_one)
-
     async def door_probe(self, write: int | None, *, is_current: Callable[[], bool] | None = None) -> dict[str, Any]:
         if write is None:
             return await self._read_actuator_probe("discharge_open", 2, 82, 6)

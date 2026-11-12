@@ -12,7 +12,7 @@ const setup = () => {
     const onError = vi.fn();
     const onCommitted = vi.fn();
     const sender = createControlSender({ send, onApplied, onError, onCommitted });
-    sender.setManualHeaterRetryEpoch(7);
+    sender.setManualRetryEpoch('heater', 7);
     return { sender, send, onApplied, onError, onCommitted };
 };
 
@@ -171,8 +171,8 @@ describe('manual heater delivery', () => {
             const pending = sender.commitNow();
             await vi.advanceTimersByTimeAsync(100);
             if (boundary === 'dispose') sender.dispose();
-            if (boundary === 'connection') sender.setManualHeaterRetryEpoch(8);
-            if (boundary === 'unsupported') sender.setManualHeaterRetryEpoch(undefined);
+            if (boundary === 'connection') sender.setManualRetryEpoch('heater', 8);
+            if (boundary === 'unsupported') sender.setManualRetryEpoch('heater', undefined);
             if (boundary === 'owner') sender.cancelManualHeaterRetry();
             await expect(pending).resolves.toBeNull();
             await vi.advanceTimersByTimeAsync(60_000);
@@ -207,7 +207,7 @@ describe('manual heater delivery', () => {
         const first = sender.commitNow();
         sender.queue('heater', 50);
         const old = sender.commitNow();
-        sender.setManualHeaterRetryEpoch(epoch);
+        sender.setManualRetryEpoch('heater', epoch);
         finish({ fan: 70 });
         await first;
         await expect(old).resolves.toBeNull();
@@ -218,7 +218,7 @@ describe('manual heater delivery', () => {
     it.each(['unsupported', 'fan', 'replay', 'safety'] as const)('does not add manual retries to %s', async (kind) => {
         const { sender, send } = setup();
         send.mockRejectedValue(new Error('write failed'));
-        if (kind === 'unsupported') sender.setManualHeaterRetryEpoch(undefined);
+        if (kind === 'unsupported') sender.setManualRetryEpoch('heater', undefined);
         sender.queue(kind === 'fan' ? 'fan' : 'heater', 50);
         const pending = sender.commitNow(kind === 'replay' ? 'replay' : kind === 'safety' ? 'safety' : 'manual');
         await expect(pending).resolves.toBeNull();

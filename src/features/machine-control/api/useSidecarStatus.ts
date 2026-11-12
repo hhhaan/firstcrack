@@ -4,13 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 
 export const sidecarStatusKey = ['sidecar', 'status'] as const;
 
-export const fetchSidecarStatus = (): Promise<SidecarStatus> => sidecar.getStatus();
-
 /** One-shot `/status` for heater bounds. No polling — each editor open is a fresh read. */
 export const useSidecarStatus = (enabled: boolean) =>
     useQuery({
         queryKey: sidecarStatusKey,
-        queryFn: fetchSidecarStatus,
+        queryFn: (): Promise<SidecarStatus> => sidecar.getStatus(),
         enabled,
         retry: false,
         staleTime: 0,

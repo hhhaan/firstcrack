@@ -32,7 +32,6 @@ def envelopes(monkeypatch):
     previous = sentry_sdk.get_global_scope().client
     original_init = sentry_sdk.init
     monkeypatch.setattr(sentry_sdk, "init", lambda **kwargs: original_init(**kwargs, transport=MemoryTransport))
-    monkeypatch.setattr("slack_notify.notify_hardware_error", lambda **kwargs: None)
     with sentry_sdk.isolation_scope(), sentry_sdk.new_scope():
         sentry_config.init({"SIDECAR_SENTRY_SMOKE": "1", "SIDECAR_VERSION": "1.3.13"})
         client = sentry_sdk.get_client()

@@ -383,27 +383,6 @@ class TestStartResetEndpoints:
 
 
 # ---------------------------------------------------------------------------
-# GET /roasters
-# ---------------------------------------------------------------------------
-
-class TestRoastersEndpoint:
-    async def test_roasters_returns_dict(self, client):
-        resp = await client.get("/roasters")
-        assert resp.status == 200
-        data = await resp.json()
-        assert isinstance(data, dict)
-        assert len(data) > 0
-
-    async def test_roasters_virtual_entry_has_fields(self, client):
-        resp = await client.get("/roasters")
-        data = await resp.json()
-        assert "virtual" in data
-        entry = data["virtual"]
-        for key in ("display_name", "brand", "protocol", "capabilities"):
-            assert key in entry
-
-
-# ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
 

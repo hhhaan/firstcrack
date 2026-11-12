@@ -4,7 +4,6 @@ main.py — First Crack sidecar HTTP server
 aiohttp 기반. Tauri 프론트엔드와 HTTP로 통신.
 
 엔드포인트:
-  GET  /roasters      → 지원 로스터 목록 + 프로토콜별 폼 필드
   GET  /serial-ports  → 로컬 시리얼 포트 목록
   GET  /scan-network  → ?protocol=s7|modbus_tcp|kaleido|probat_ws → 열린 host 목록
   GET  /status        → 현재 연결 상태
@@ -126,32 +125,6 @@ logging.getLogger("aiohttp.access").addFilter(_SilencePolling())
 # ---------------------------------------------------------------------------
 # Route handlers
 # ---------------------------------------------------------------------------
-
-
-async def handle_roasters(request: web.Request) -> web.Response:
-    INTERNAL_KEYS = {
-        "channels",
-        "channel_nodes",
-        "pid_db",
-        "pid_sv_register",
-        "modbus_registers",
-    }
-    result: dict[str, Any] = {}
-    for key, reg in ROASTER_REGISTRY.items():
-        protocol = reg["protocol"]
-        result[key] = {
-            "display_name": reg["display_name"],
-            "brand": reg["brand"],
-            "models": reg["models"],
-            "protocol": protocol,
-            "capabilities": reg["capabilities"],
-            "pid": reg.get("pid"),
-            "form_fields": reg.get("form_fields", PROTOCOL_FORM_FIELDS.get(protocol, [])),
-            "default_params": {
-                k: v for k, v in reg["default_params"].items() if k not in INTERNAL_KEYS
-            },
-        }
-    return web.json_response(result)
 
 
 async def handle_status(request: web.Request) -> web.Response:
@@ -555,9 +528,6 @@ def create_app() -> web.Application:
     app.on_startup.append(_start_watchdog)
     app.on_cleanup.append(_cleanup_on_app_exit)
 
-    # 클라이언트는 src/entities/machine/roasterRegistry.ts (정적 복사본)를 사용.
-    # GET /roasters는 현재 호출되지 않음 — 향후 단일화 시 활성화.
-    app.router.add_get("/roasters", handle_roasters)
     app.router.add_get("/serial-ports", handle_serial_ports)
     app.router.add_get("/scan-network", handle_scan_network)
     app.router.add_get("/status", handle_status)

@@ -1751,7 +1751,6 @@
         },
         "replay": {
             "label": "프로파일 화력 재생",
-            "syncOnStart": "켜거나 다시 켜면 현재 기준의 레퍼런스 화력이 적용됩니다.",
             "next": "다음: {{condition}} → {{heater}}",
             "done": "모든 이벤트 재생 완료",
             "missingHeatSet": "재생할 화력 계획이 없습니다.",

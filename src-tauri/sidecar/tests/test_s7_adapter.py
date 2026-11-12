@@ -162,10 +162,6 @@ class TestScalingAndEncoding:
         cell = (1001, 42) if key == "giesen_w6a_pro" else (2, 14)
         assert (db, offset, get_int(payload, 0)) == (*cell, raw)
         assert adapter._plc.db_write.call_count == 1
-        adapter._plc.db_read.return_value = _int_bytes(72)
-        assert await adapter.read_raw_channel("heater") == 72.0
-        feedback = next(ch for ch in defaults["channels"] if ch["role"] == "heater")
-        assert adapter._plc.db_read.call_args.args[:2] == (feedback["db"], feedback["offset"])
 
     @pytest.mark.parametrize("value_offset", [True, "1", None, float("nan"), float("inf")])
     async def test_rejects_invalid_value_offset(self, adapter, value_offset):
@@ -220,21 +216,6 @@ class TestScalingAndEncoding:
         a._min_interval = 0.0
         await a.control(heater=250.0)
         assert get_int(_written(a._plc)[2], 0) == 250
-
-
-class TestReadRawChannel:
-    async def test_returns_decoded_feedback(self, adapter):
-        adapter._plc.db_read.return_value = _int_bytes(72)
-        value = await adapter.read_raw_channel("heater")
-        assert value == 72.0
-        assert adapter._plc.db_read.call_args.args[:2] == (2, 48)
-
-    async def test_returns_none_for_unmapped_role(self, adapter):
-        assert await adapter.read_raw_channel("pressure") is None
-
-    async def test_returns_none_when_disconnected(self, adapter):
-        adapter._plc = None
-        assert await adapter.read_raw_channel("heater") is None
 
 
 class TestIoSerialization:
@@ -367,7 +348,7 @@ class TestReadBudget:
         """get_cpu_state()는 네트워크 왕복 — 읽기 예산의 20%를 낭비하던 주범."""
         adapter._plc.db_read.side_effect = _slow_ok_read(0.0)
         await adapter.read()
-        await adapter.read_raw_channel("heater")
+        await adapter.read()
         adapter._plc.get_cpu_state.assert_not_called()
 
 class TestBudgetRelation:

@@ -5,8 +5,9 @@ roaster_registry.py
 
 새 로스터 추가 방법:
   1. 아래 ROASTER_REGISTRY에 항목 추가
-  2. 새 프로토콜인 경우에만 main.py에 Adapter 클래스 추가
-  → 프론트엔드 코드 수정 불필요 (GET /roasters로 자동 반영)
+  2. src/entities/machine/roasterRegistry.ts 에 동일 항목 추가
+  3. 새 프로토콜인 경우에만 adapters/ 에 Adapter 클래스 추가
+  → pnpm check:registry 로 TS/Python 레지스트리 동기화 검증
 
 프로토콜별 사용 브랜드 레퍼런스 (확장 시 참고)
   s7          → Giesen (W1A~W140A, WxA/WxA+), Probat G/UG (S7 모델), Bühler Roastmaster (read-only)
@@ -41,7 +42,7 @@ _comport_placeholder = {"Darwin": "/dev/cu.usbserial-XXXX", "Windows": "COM3"}.g
 
 # ---------------------------------------------------------------------------
 # 프로토콜별 프론트엔드 폼 필드 정의
-# GET /roasters 응답에 포함 → AddMachineModal 동적 렌더링
+# src/entities/machine/roasterRegistry.ts 와 동기 유지 (pnpm check:registry)
 # ---------------------------------------------------------------------------
 
 # 시리얼 공통 폼 필드 (kaleido/modbus 공유) — TS SERIAL_FORM_FIELDS와 미러.
@@ -348,7 +349,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             # Client must supply modbus_registers on connect
             "modbus_registers": {},
         },
@@ -399,7 +399,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
         },
         "pid": {"Kp": 15, "Ki": 0.07, "Kd": 0.06},
         "capabilities": ["heater", "fan", "drum"],
@@ -1029,7 +1028,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 12392,
@@ -1061,7 +1059,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 12392,
@@ -1105,7 +1102,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
         },
         "pid": {"Kp": 15, "Ki": 0.07, "Kd": 0.06},
         "capabilities": ["heater", "fan", "drum"],
@@ -1137,7 +1133,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1181,7 +1176,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1262,7 +1256,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 2,
-            "interval": 1,
             "word_order": "big",
             "modbus_registers": {
                 "BT": {
@@ -1302,7 +1295,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 3,
@@ -1347,7 +1339,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 2,
-            "interval": 1,
             "word_order": "big",
             "modbus_registers": {
                 "BT": {
@@ -1387,7 +1378,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "word_order": "big",
             "modbus_registers": {
                 "BT": {
@@ -1432,7 +1422,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 2,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -1471,7 +1460,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 1,
@@ -1509,7 +1497,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 2,
-            "interval": 0.5,
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -1544,7 +1531,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 0.5,
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1579,7 +1565,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 2,
-            "interval": 0.5,
             "modbus_registers": {
                 "BT": {
                     "register": 1000,
@@ -1611,7 +1596,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "mode": "tcp",
             "host": "192.168.10.220",
             "port": 502,
-            "interval": 0.5,
             "modbus_registers": {
                 "BT": {
                     "register": 19,
@@ -1743,7 +1727,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 768,
@@ -1821,7 +1804,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 768,
@@ -1908,7 +1890,6 @@ ROASTER_REGISTRY: dict[str, dict[str, Any]] = {
             "bytesize": 8,
             "parity": "N",
             "stopbits": 1,
-            "interval": 1,
             "modbus_registers": {
                 "BT": {
                     "register": 0,
@@ -1973,7 +1954,6 @@ def _modbus_net(
         "bytesize": 8,
         "parity": "N",
         "stopbits": 1,
-        "interval": 1,
         "modbus_registers": registers,
     }
     if word_order is not None:
