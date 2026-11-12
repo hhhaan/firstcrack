@@ -18,11 +18,9 @@ describe('query key factories', () => {
     it('planKeys compose from planQueryRoots (stable string prefixes)', () => {
         expect(planKeys.dayBatches('u1', '2026-07-01')).toEqual([...planQueryRoots.dayBatches, 'u1', '2026-07-01']);
         expect(planKeys.dayBatches('u1', '2026-07-01')[0]).toBe('day_batches');
-        expect(planKeys.batches('p1')[0]).toBe('plan_batches');
-        expect(planKeys.recurrenceRules('u1')).toEqual([...planQueryRoots.recurrenceRules, 'u1']);
         // root prefixes enable partial invalidation without raw strings
         expect(planKeys.dayBatchesRoot).toBe(planQueryRoots.dayBatches);
-        expect(planKeys.batchesRoot).toEqual(['plan_batches']);
+        expect(planKeys.rangeBatchesRoot).toBe(planQueryRoots.rangeBatches);
     });
 
     it('stock + alert keys share inventoryQueryRoots', () => {

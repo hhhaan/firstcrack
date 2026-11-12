@@ -152,7 +152,6 @@ export const useCuppingEvents = (userId: string, enabled = true) => {
             writeThroughInvitesFromEvents(qc, events);
             return events;
         },
-        staleTime: Infinity,
         enabled: !!userId && enabled,
         throwOnError: false,
     });
@@ -162,7 +161,6 @@ export const useCuppingEvent = (eventId: string, enabled = true) =>
     useQuery({
         queryKey: cuppingKeys.event(eventId),
         queryFn: () => cuppingApi.getEvent(eventId),
-        staleTime: Infinity,
         enabled: !!eventId && enabled,
         throwOnError: false,
     });
@@ -171,7 +169,6 @@ export const useCuppingSamples = (eventId: string, enabled = true) =>
     useQuery({
         queryKey: cuppingKeys.samples(eventId),
         queryFn: () => cuppingApi.listSamples(eventId),
-        staleTime: Infinity,
         enabled: !!eventId && enabled,
         throwOnError: false,
     });
@@ -187,7 +184,6 @@ export const useEventInvite = (eventId: string, enabled = true, isEnded = false)
     return useQuery({
         queryKey: cuppingKeys.invite(eventId),
         queryFn: () => cuppingApi.getActiveInviteForEvent(eventId),
-        staleTime: Infinity,
         enabled: !!eventId && enabled && !isEnded,
         throwOnError: false,
         // Seed only when invite key empty — list/write-through/mutations own the value thereafter
@@ -214,7 +210,6 @@ export const useCuppingScoresBySample = (sampleId: string, enabled = true) =>
     useQuery({
         queryKey: cuppingKeys.scores(sampleId),
         queryFn: () => cuppingApi.listScoresBySample(sampleId),
-        staleTime: Infinity,
         enabled: !!sampleId && enabled,
         throwOnError: false,
     });
@@ -602,7 +597,6 @@ export const useCuppingFormTemplates = (userId: string, enabled = true) =>
     useQuery({
         queryKey: cuppingKeys.forms(userId),
         queryFn: () => cuppingApi.listFormTemplates(userId),
-        staleTime: Infinity,
         enabled: !!userId && enabled,
         throwOnError: false,
     });

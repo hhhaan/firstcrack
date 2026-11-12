@@ -29,10 +29,4 @@ export const dayPlanApi = {
         if (error) throw error;
         return data;
     },
-
-    updateNotes: async (id: string, notes: string): Promise<DayPlan> => {
-        const { data, error } = await supabase.from('roast_day_plans').update({ notes }).eq('id', id).select().single();
-        if (error) throw error;
-        return data;
-    },
 };

@@ -8,7 +8,6 @@ describe('plan mutation invalidation', () => {
         const keys = scheduledBatchInvalidationKeys();
         expect(keys).toContainEqual(planQueryRoots.dayBatches);
         expect(keys).toContainEqual(planQueryRoots.rangeBatches);
-        expect(keys).toContainEqual(planQueryRoots.rangeSummary);
         expect(keys).toContainEqual(planQueryRoots.weekSummary);
         expect(keys).toContainEqual(planQueryRoots.monthSummary);
         expect(keys).toContainEqual(inventoryQueryRoots.beanStockSummaries);
@@ -16,14 +15,13 @@ describe('plan mutation invalidation', () => {
         expect(planKeys.dayBatchesRoot).toEqual(planQueryRoots.dayBatches);
     });
 
-    it('invalidateAfterCreatePlanBatch hits plan batches + all schedule roots', () => {
+    it('invalidateAfterCreatePlanBatch hits all schedule roots', () => {
         const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
         const spy = vi.spyOn(qc, 'invalidateQueries');
 
-        invalidateAfterCreatePlanBatch(qc, 'plan-1');
+        invalidateAfterCreatePlanBatch(qc);
 
         const keys = spy.mock.calls.map((c) => (c[0] as { queryKey?: readonly unknown[] })?.queryKey);
-        expect(keys).toContainEqual(planKeys.batches('plan-1'));
         for (const root of scheduledBatchInvalidationKeys()) {
             expect(keys).toContainEqual(root);
         }

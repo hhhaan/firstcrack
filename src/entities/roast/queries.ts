@@ -110,8 +110,6 @@ export const useRoastSessions = (userId: string, status?: RoastSession['status']
     useQuery({
         queryKey: status ? roastSessionKeys.byStatus(userId, status) : roastSessionKeys.all(userId),
         queryFn: () => roastSessionApi.list(userId, status),
-        staleTime: Infinity,
-        refetchOnMount: true,
         enabled: !!userId && (options?.enabled ?? true),
     });
 
@@ -119,8 +117,6 @@ export const useRoastSessionFilterMeta = (userId: string) =>
     useQuery({
         queryKey: roastSessionKeys.filterMeta(userId),
         queryFn: () => roastSessionApi.listFilterMeta(userId),
-        staleTime: Infinity,
-        refetchOnMount: true,
         enabled: !!userId,
     });
 
@@ -189,9 +185,6 @@ export const useRoastSessionsPaginated = (params: {
     const query = useQuery({
         queryKey: pageKey(params.page),
         queryFn: () => roastSessionApi.listPaginated(params),
-        staleTime: Infinity,
-        // Remount after save must not reuse stale cached pages (staleTime Infinity).
-        refetchOnMount: true,
         // Same as Orders: keep previous rows on page/filter key changes instead of a skeleton.
         placeholderData: (prev) => prev,
         enabled,
@@ -201,8 +194,6 @@ export const useRoastSessionsPaginated = (params: {
     useQuery({
         queryKey: pageKey(nextPage),
         queryFn: () => roastSessionApi.listPaginated({ ...params, page: nextPage }),
-        staleTime: Infinity,
-        refetchOnMount: true,
         enabled: shouldPrefetchNextPage({
             enabled,
             page: params.page,
@@ -233,8 +224,6 @@ export const useRoastSessionsInfinite = (userId: string, status?: RoastSession['
         initialPageParam: 1,
         getNextPageParam: (lastPage, _pages, pageParam) =>
             pageParam * INFINITE_PAGE_SIZE >= lastPage.total ? undefined : pageParam + 1,
-        staleTime: Infinity,
-        refetchOnMount: true,
         enabled: !!userId && enabled,
     });
 

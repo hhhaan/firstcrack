@@ -3,7 +3,6 @@ import type {
     PlanBatch,
     PlanBatchInsert,
     PlanBatchUpdate,
-    PlanBatchWithProgress,
     RecurrenceRule,
     RecurrenceRuleInsert,
 } from '@shared/types/database.types';
@@ -12,29 +11,10 @@ import { listForDateRange } from './list-for-date-range';
 import { materializePlanBatch } from './materialize';
 import { mergeRecurrenceRuleMaster, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './recurrence-rule';
 import { resolveForRoast, startForRoast, syncRoastProgress, updateRoastStatus } from './resolve-for-roast';
-import { countSessionsByBatch } from './session-counts';
-
 export const planBatchApi = {
     updateRoastStatus,
     startForRoast,
     syncRoastProgress,
-    list: async (planId: string): Promise<PlanBatchWithProgress[]> => {
-        const batchesResult = await supabase
-            .from('roast_plan_batches')
-            .select('*')
-            .eq('plan_id', planId)
-            .order('order_index');
-        if (batchesResult.error) throw batchesResult.error;
-
-        const batches = batchesResult.data ?? [];
-        const countMap = await countSessionsByBatch(batches.map((b) => b.id));
-
-        return batches.map((row) => ({
-            ...row,
-            completed_sessions: countMap.get(row.id) ?? 0,
-        }));
-    },
-
     create: async (batch: PlanBatchInsert): Promise<PlanBatch> => {
         const { data, error } = await supabase.from('roast_plan_batches').insert(batch).select().single();
         if (error) throw error;
