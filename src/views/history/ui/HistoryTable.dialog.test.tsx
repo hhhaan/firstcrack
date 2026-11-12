@@ -12,9 +12,6 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('./OutputWeightEditor', () => ({ OutputWeightEditor: () => null }));
 vi.mock('./SessionScorecard', () => ({ SessionScorecard: () => null }));
 vi.mock('./HistorySessionChart', () => ({ HistorySessionChart: () => null }));
-vi.mock('../hooks/useRoastStockRecorded', () => ({
-    useRoastStockRecorded: () => ({ data: false, isPending: false }),
-}));
 vi.mock('../hooks/useRoastRecordSave', () => ({
     useRoastRecordSave: () => ({
         canWrite: true,
@@ -53,6 +50,7 @@ vi.mock('@entities/roast', async (importOriginal) => {
         useSetChargeWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetOutputWeight: () => ({ mutateAsync: vi.fn(), isPending: false }),
         useSetRoastLevel: () => ({ mutateAsync: vi.fn(), isPending: false }),
+        useRoastStockRecorded: () => ({ data: false, isPending: false }),
     };
 });
 

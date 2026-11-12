@@ -12,7 +12,7 @@ import { PillButton } from '@shared/ui/PillButton';
 import { useMachinesPageState } from '@widgets/add-machine-modal/model/useMachinesPageState';
 import { AddMachineModal } from '@widgets/add-machine-modal/ui/AddMachineModal';
 import { Activity, AlertCircle, Cpu, Flame, Pencil, Plus, Trash2, Wifi, WifiOff } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { disconnectMachineWithRoastGuard } from './lib/roastDisconnectConfirm';
 import { MachineConnectionDetails } from './ui/MachineConnectionDetails';
@@ -28,8 +28,7 @@ export const Machines = ({
     const removeMachine = useMachines((state) => state.removeMachine);
     const machines = useVisibleMachines();
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    /** Bridges page-state modalOpen into sidecar poll gate (hook order). */
-    const [modalOpenForPoll, setModalOpenForPoll] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
 
     const {
         sidecarStatus,
@@ -42,13 +41,12 @@ export const Machines = ({
         handleDisconnect,
     } = useMachineSidecarConnection({
         isActive,
-        modalOpen: modalOpenForPoll,
+        modalOpen,
         machines,
         onConnectedMachineId: setSelectedId,
     });
 
     const {
-        modalOpen,
         editingMachine,
         openAddModal,
         openEditModal,
@@ -61,11 +59,7 @@ export const Machines = ({
         realMachineCount,
         limitBlocked,
         dismissLimitBlocked,
-    } = useMachinesPageState({ sidecarStatus, setSidecarStatus, setTemps });
-
-    useEffect(() => {
-        setModalOpenForPoll(modalOpen);
-    }, [modalOpen]);
+    } = useMachinesPageState({ sidecarStatus, setSidecarStatus, setTemps, modalOpen, setModalOpen });
 
     const selected = machines.find((m) => m.id === selectedId) ?? null;
 

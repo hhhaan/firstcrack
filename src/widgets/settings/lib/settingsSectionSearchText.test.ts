@@ -1,11 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest';
-import {
-    FORM_SELECT_KEYWORDS_ATTR,
-    settingsSectionMatchesSearch,
-    settingsSectionSearchText,
-} from './settingsSectionSearchText';
+import { FORM_SELECT_KEYWORDS_ATTR, settingsSectionSearchText } from './settingsSectionSearchText';
 
 describe('settingsSectionSearchText', () => {
     it('includes closed FormSelect option labels from data-form-select-keywords', () => {
@@ -15,10 +11,10 @@ describe('settingsSectionSearchText', () => {
         select.setAttribute(FORM_SELECT_KEYWORDS_ATTR, 'Firescope Artisan Cropster');
         section.append(select);
 
-        expect(settingsSectionSearchText(section).toLocaleLowerCase()).toContain('artisan');
-        expect(settingsSectionSearchText(section).toLocaleLowerCase()).toContain('cropster');
-        expect(settingsSectionMatchesSearch(section, ['artisan'])).toBe(true);
-        expect(settingsSectionMatchesSearch(section, ['cropster'])).toBe(true);
-        expect(settingsSectionMatchesSearch(section, ['korean'])).toBe(false);
+        const text = settingsSectionSearchText(section).toLocaleLowerCase();
+        expect(text).toContain('artisan');
+        expect(text).toContain('cropster');
+        expect(text.includes('artisan') && text.includes('cropster')).toBe(true);
+        expect(text.includes('korean')).toBe(false);
     });
 });

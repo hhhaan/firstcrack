@@ -5,6 +5,7 @@ import {
     inventoryQueryRoots,
     roastedStockKeys,
     roastProfileQueryRoots,
+    roastSessionStockKeys,
 } from '@shared/lib/query-keys';
 import { shouldPrefetchNextPage } from '@shared/lib/shouldPrefetchNextPage';
 import type { Bean, RoastSession, RoastSessionWithRelations } from '@shared/types/database.types';
@@ -357,6 +358,19 @@ export const useSetChargeWeight = (userId: string) => {
         },
     });
 };
+
+/**
+ * A roast that already moved stock must not be relinked: the ledger rows keep their original
+ * bean, so rewriting `roast_sessions.bean_id` alone would leave History and inventory disagreeing.
+ * Plan-linked roasts deduct against the batch, so that reference counts too.
+ */
+export const useRoastStockRecorded = (sessionId: string, planBatchId: string | null | undefined) =>
+    useQuery({
+        queryKey: roastSessionStockKeys.bySession(sessionId),
+        queryFn: () => roastSessionApi.stockRecordedForSession(sessionId, planBatchId),
+        enabled: !!sessionId,
+        meta: { feature: 'history-qc', table: 'bean_stock_events' },
+    });
 
 export const useSetRoastLevel = (userId: string) => {
     const qc = useQueryClient();

@@ -332,4 +332,31 @@ export const roastSessionApi = {
         if (error) throw error;
         return data ?? [];
     },
+
+    /** Green roast deduct or roasted inbound for session/plan reference — History relink guard. */
+    stockRecordedForSession: async (sessionId: string, planBatchId: string | null | undefined): Promise<boolean> => {
+        const references = [sessionId, ...(planBatchId ? [planBatchId] : [])];
+        const recorded = await Promise.all(
+            references.map(async (referenceId) => {
+                const [green, roasted] = await Promise.all([
+                    supabase
+                        .from('bean_stock_events')
+                        .select('id')
+                        .eq('reference_id', referenceId)
+                        .eq('event_type', 'roast')
+                        .limit(1),
+                    supabase
+                        .from('roasted_stock_events')
+                        .select('id')
+                        .eq('reference_id', referenceId)
+                        .eq('event_type', 'roast_inbound')
+                        .limit(1),
+                ]);
+                if (green.error) throw green.error;
+                if (roasted.error) throw roasted.error;
+                return (green.data?.length ?? 0) > 0 || (roasted.data?.length ?? 0) > 0;
+            }),
+        );
+        return recorded.some(Boolean);
+    },
 };

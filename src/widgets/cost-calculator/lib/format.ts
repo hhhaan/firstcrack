@@ -16,13 +16,10 @@ export const currencySymbol = (lang?: string): string => {
     return '$';
 };
 
-export const formatCurrency = (value: number, lang?: string): string => {
+export const formatKrw = (value: number, lang?: string): string => {
     if (!Number.isFinite(value) || value <= 0) return '—';
     return `${currencySymbol(lang)}${formatAmount(value, lang)}`;
 };
-
-/** @deprecated Prefer formatCurrency — kept for existing call sites. */
-export const formatKrw = formatCurrency;
 
 export const normalizePct = (value: number, _lang?: string): number => {
     if (!Number.isFinite(value)) return 0;

@@ -19,9 +19,6 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 vi.mock('@features/update-roast-bean-origin', () => ({
     useUpdateRoastBeanOrigin: () => ({ mutateAsync: updateBean, isPending: false }),
 }));
-vi.mock('../hooks/useRoastStockRecorded', () => ({
-    useRoastStockRecorded: () => ({ data: stockRecorded.value, isPending: false }),
-}));
 vi.mock('@entities/organization', () => ({
     useActiveWorkspace: () => ({ workspaceOwnerId: 'owner', isWorkspaceReady: true }),
 }));
@@ -46,10 +43,15 @@ vi.mock('@shared/store/catalog-visibility', () => ({
 vi.mock('@entities/roast-profile', () => ({
     useRoastProfiles: () => ({ data: [{ id: 'p1', name: 'Washed' }] }),
 }));
-vi.mock('@entities/roast', () => ({
-    useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
-    useSetRoastLevel: () => ({ mutateAsync: setRoastLevel, isPending: false }),
-}));
+vi.mock('@entities/roast', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@entities/roast')>();
+    return {
+        ...actual,
+        useRoastStockRecorded: () => ({ data: stockRecorded.value, isPending: false }),
+        useUpdateRoastSession: () => ({ mutateAsync: updateSession, isPending: false }),
+        useSetRoastLevel: () => ({ mutateAsync: setRoastLevel, isPending: false }),
+    };
+});
 
 const session = {
     id: 's1',
