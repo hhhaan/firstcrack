@@ -174,7 +174,7 @@ await asUser(ordinary,async()=> {
     await assert.rejects(()=>db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[ordinary]),/trial_batch_cap/);
 });
 await db.query("UPDATE profiles SET created_at=now()-interval '15 days' WHERE id=$1",[ordinary]);
-assert.equal(await scalar('SELECT profile_write_error($1)',[ordinary]),'trial_expired');
+await assert.rejects(()=>db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[ordinary]),/trial_expired/);
 await asUser(tester,async()=> { for(let i=0;i<101;i++) await db.query('INSERT INTO roast_sessions(user_id) VALUES($1)',[tester]); });
 assert.equal(await scalar('SELECT count(*)::int FROM trial_event_grants WHERE user_id=$1',[tester]),0);
 // Existing ordinary trials retain completed-history usage and then count Charge,
