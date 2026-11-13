@@ -48,6 +48,31 @@ describe('curve annotations', () => {
         }
     });
 
+    it.each([
+        [true, 1],
+        [false, 1],
+        [true, 2],
+        [false, 2],
+    ])('keeps a Charge label on the left axis inside the plot (callout %s, scale %s)', (callout, scale) => {
+        const charge: CurveLabelItem = {
+            timeSec: plot.x,
+            y: 40,
+            text: 'Charge|00:00|210.1°C',
+            color: '#123456',
+            below: !callout,
+            showDot: false,
+            showLeader: callout,
+            labelAtTop: !callout,
+        };
+        const [box] = projectCurveLabels([charge, item(220)], (point) => point, plot, scale);
+        expect(box.item).toBe(charge);
+        expect(box.text).toBe(charge.text);
+        expect(box.left).toBeGreaterThanOrEqual(plot.x);
+        expect(box.right).toBeLessThanOrEqual(plot.x + plot.width);
+        expect(box.top).toBeGreaterThanOrEqual(plot.y);
+        expect(box.bottom).toBeLessThanOrEqual(plot.y + plot.height);
+    });
+
     it('keeps source identity after filtering invalid or off-screen anchors', () => {
         const valid = item(200);
         const items = [item(20), item(100, 300), item(120, Number.NaN), valid];

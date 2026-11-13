@@ -239,6 +239,10 @@ export const RoastChartContainer = ({
         endChartDrag(event);
     };
 
+    // Charge sits on the left axis once the batch is charged, so its label carries the charge temperature.
+    // Before Charge there is no such mark to name (#493); a recorded BBP keeps its own joined Charge.
+    const hideChargeLabel = !bbpRange && !charged && !savedReview;
+
     return (
         <ChartZoomSurface
             chartAreaRef={chartAreaRef}
@@ -278,7 +282,7 @@ export const RoastChartContainer = ({
                 charged={charged}
                 eventMarkerStyle={eventMarkerStyle}
                 eventMarkers={eventMarkers}
-                hideChargeLabel={!bbpRange}
+                hideChargeLabel={hideChargeLabel}
                 turningPoints={turningPoints}
                 height={mainChartHeight}
                 onCursorIdx={onCursorIdx}

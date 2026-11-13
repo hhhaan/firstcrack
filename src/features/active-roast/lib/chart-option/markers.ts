@@ -552,7 +552,7 @@ export const buildMarkers = (params: MarkerBuildParams): MarkerBuildResult => {
         fontScale = 1,
     } = params;
 
-    // Charge: t=0 = 좌단 축 (#451). 세로선 없음. 라이브는 라벨도 숨김.
+    // Charge: t=0 = 좌단 축 (#451). 세로선 없음. 라벨은 투입 뒤에만 그린다 (hideChargeLabel).
     // NOW: 세로 markLine 가이드 (항상)
     // 라벨은 custom series로 표시한다. 이벤트 점 렌더링은 비활성화 상태로 유지한다.
     // tempLine: 온도 차트만. line: 온도 차트와 컨트롤 차트.

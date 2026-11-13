@@ -916,6 +916,22 @@ describe('Charge marker (#451)', () => {
         expect(allMarkLines.some((l) => (l as { xAxis?: number }).xAxis === 0)).toBe(false);
     });
 
+    it.each(['line', 'tempLine', 'callout'] as const)(
+        '%s style: Charge label reads the recorded charge temperature, not the nearby curve',
+        (eventMarkerStyle) => {
+            const { curveLabels } = buildMarkers({
+                ...baseParams,
+                xs: [0, 60],
+                btActual: [208.4, 200],
+                eventMarkerStyle,
+                eventMarkers: [{ ...chargeMarker, tempC: 210.1 }],
+            });
+            expect(curveLabels).toEqual([
+                expect.objectContaining({ timeSec: 0, text: 'Charge|00:00|210.1°C', y: 208.4 }),
+            ]);
+        },
+    );
+
     it('hides Charge curve label when hideChargeLabel, keeps other events', () => {
         const { curveLabels, allMarkLines } = buildMarkers({
             ...baseParams,
