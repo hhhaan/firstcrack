@@ -444,3 +444,35 @@ beforeEach(() => {
     mocks.targetSource = 'session';
     mocks.settingsOverrides = {};
 });
+
+it('ends the drawn record at a Drop moved earlier and leaves the stored samples alone', async () => {
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    const point = (t: number): TsvPoint => ({ t, bt: 150, et: null, ror: null, heater: null, fan: null, drum: null });
+    const stored = [point(0), point(300), point(540), point(600)];
+    mocks.roast.points = stored;
+    mocks.query.data = [];
+    mocks.target = [];
+    const session = (events: unknown) =>
+        ({
+            id: 'cropped-session',
+            user_id: 'owner',
+            tsv_path: 'saved.tsv',
+            duration_seconds: 540,
+            events,
+        }) as ComponentProps<typeof HistorySessionChart>['session'];
+    const render = async (events: unknown) => {
+        await act(async () =>
+            root.render(<HistorySessionChart session={session(events)} exportContainer={container} />),
+        );
+    };
+    await render([{ id: 'd', type: 'Drop', time_sec: 540 }]);
+    expect(mocks.chart).toHaveBeenLastCalledWith(expect.objectContaining({ xs: [0, 300, 540], xViewMax: 540 }));
+    await render([
+        { id: 'd', type: 'Drop', time_sec: 540 },
+        { id: 'e', type: 'End', time_sec: 600 },
+    ]);
+    expect(mocks.chart).toHaveBeenLastCalledWith(expect.objectContaining({ xs: [0, 300, 540, 600] }));
+    expect(stored).toHaveLength(4);
+    await act(async () => root.unmount());
+});

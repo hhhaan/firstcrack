@@ -12,6 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow';
 import { chargeWaitTempBand } from '../lib/active-roast-screen';
 import { resolveLiveChartView } from '../lib/live-chart-view';
+import { reviewPointsThroughDrop } from '../lib/review-curve';
 import { createTimelineEditing, dropWaitOffsetFor, type TimelineRoastState } from '../lib/timeline-editing';
 import { useChartPipeline } from './useChartPipeline';
 
@@ -110,7 +111,13 @@ export const useDisplayedRoastTimeline = (params: Params) => {
     const { bbpEnabled, settings, reference, reviewEntries } = params;
     const roast = useRoastingStore(useShallow(selectRoast));
     const bbp = useBbpStore(useShallow(selectBbp));
-    const snapshot = roast.snapshot;
+    const storedSnapshot = roast.snapshot;
+    // The review draws the saved record: its curve ends at the record's Drop mark.
+    const snapshot = useMemo(() => {
+        if (!storedSnapshot) return storedSnapshot;
+        const livePoints = reviewPointsThroughDrop(storedSnapshot.livePoints, reviewEntries);
+        return livePoints === storedSnapshot.livePoints ? storedSnapshot : { ...storedSnapshot, livePoints };
+    }, [storedSnapshot, reviewEntries]);
     const charged = isChargedPhase(roast.phase);
     const unit = settings.temperatureUnit;
     const curvePoints = snapshot?.livePoints ?? roast.livePoints;

@@ -109,6 +109,21 @@ it('shows every recorded channel with history display units and keeps gaps witho
     expect(props?.onAddNote).toBeUndefined();
 });
 
+it('draws the source curve to a Drop moved earlier and keeps the whole span for a record with End', () => {
+    const stored = [sample, { ...sample, t: 300 }, { ...sample, t: 540 }, { ...sample, t: 600 }];
+    render({ points: stored, events: [{ type: 'Drop', time_sec: 540 }] });
+    expect(mocks.chart).toHaveBeenLastCalledWith(expect.objectContaining({ xs: [0, 300, 540] }));
+    render({
+        points: stored,
+        events: [
+            { type: 'Drop', time_sec: 540 },
+            { type: 'End', time_sec: 600 },
+        ],
+    });
+    expect(mocks.chart).toHaveBeenLastCalledWith(expect.objectContaining({ xs: [0, 300, 540, 600] }));
+    expect(stored).toHaveLength(4);
+});
+
 it('switches the source curve and BBP identity even when the next source has the same point count', () => {
     render();
     render({

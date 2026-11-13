@@ -1,4 +1,5 @@
 import { fetchTsvFromR2 } from '@shared/lib/r2';
+import { toNumericRoastEvents } from '@shared/lib/roast-delta';
 import { parseTsv, type TsvPoint } from '@shared/lib/tsv';
 
 /** Shared R2 TSV curve cache — History + Profiles share one namespace per path. */
@@ -32,4 +33,22 @@ export function combineBbpCurve(roast: TsvPoint[], bbp: TsvPoint[], seconds?: nu
         points: [...beforeCharge, ...roast],
         bbpRange: { start: -duration, end: 0 },
     };
+}
+
+/**
+ * Where a saved roast's drawn curve stops. A roast that ended at Drop stops at its Drop mark,
+ * so samples after a Drop that was moved earlier are not drawn. A record with an End mark
+ * keeps its whole recorded span. Null leaves the curve as stored.
+ */
+export const savedCurveEndSec = (events: unknown): number | null => {
+    const marks = toNumericRoastEvents(events);
+    if (marks.some((mark) => mark.type === 'End')) return null;
+    return marks.find((mark) => mark.type === 'Drop')?.time_sec ?? null;
+};
+
+/** Display only: the stored TSV keeps every sample. Returns the same array when nothing is cut. */
+export function curveThroughDrop<T extends { t: number }>(points: T[], events: unknown): T[] {
+    const end = savedCurveEndSec(events);
+    if (end == null || !points.some((point) => point.t > end)) return points;
+    return points.filter((point) => !(point.t > end));
 }

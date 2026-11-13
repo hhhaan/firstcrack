@@ -17,12 +17,15 @@ export type RecordSummary = {
 
 /**
  * Session summary columns after an event edit — same precedence as the save path.
- * duration_seconds is the record End; it only moves when End itself was moved.
+ * duration_seconds is the record end: the End mark, or Drop when the roast ended at Drop.
+ * It only moves when that mark itself was moved.
  */
 export const recordSummary = (session: SessionForSummary, nextEvents: unknown): RecordSummary => {
-    const prevEnd = parseStoredRoastEvents(session.events).find((e) => e.type === 'End')?.time_sec;
+    const prev = parseStoredRoastEvents(session.events);
     const next = parseStoredRoastEvents(nextEvents);
-    const nextEnd = next.find((e) => e.type === 'End')?.time_sec;
+    const endMark = next.some((e) => e.type === 'End') ? 'End' : 'Drop';
+    const prevEnd = prev.find((e) => e.type === endMark)?.time_sec;
+    const nextEnd = next.find((e) => e.type === endMark)?.time_sec;
     const durationSeconds = nextEnd != null && nextEnd !== prevEnd ? Math.round(nextEnd) : session.duration_seconds;
     const { fc_time_sec: _fc, ...profileSummary } = summarizeSessionEvents(next, {
         duration_seconds: durationSeconds,

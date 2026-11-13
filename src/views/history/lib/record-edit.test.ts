@@ -428,7 +428,7 @@ describe('history event edits use the live curve rule', () => {
         expect((clamped.events as typeof stored)[5]).toBe(stored[5]);
     });
 
-    it('shows the linked field while typing and leaves Charge and Drop fixed', () => {
+    it('shows the linked field while typing and leaves Charge fixed', () => {
         const fc = toEventDrafts(stored, 'C').find((row) => row.type === 'FC Start');
         if (!fc) throw new Error('missing FC');
         expect(linkEventDraft(fc, 'time', '7:50', curve, 'C').draft).toMatchObject({
@@ -464,11 +464,11 @@ describe('history event edits use the live curve rule', () => {
         expect(linkEventDraft(moved.draft, 'time', '8:00', curve, 'C', opened).draft).toEqual(padded);
         unchanged({ index: 0, type: 'FC Start', time: '8:00', temp: '190', edited: 'time' });
         unchanged({ index: 0, type: 'FC Start', time: '8:00', temp: '193.0', edited: 'temp' });
+        const charge = toEventDrafts(stored, 'C')[0];
+        expect(linkEventDraft(charge, 'time', '1:00', curve, 'C')).toEqual({ draft: charge, error: null });
         const fixed = applyEventDrafts(
             stored,
-            edited('Charge', { time: '1:00', temp: '100', edited: 'time' }).map((row) =>
-                row.type === 'Drop' ? { ...row, time: '12:00', temp: '180', edited: 'temp' as const } : row,
-            ),
+            edited('Charge', { time: '1:00', temp: '100', edited: 'time' }),
             'C',
             curve,
         );
@@ -510,5 +510,130 @@ describe('history event edits use the live curve rule', () => {
             null,
         );
         expect(saved).toMatchObject({ ok: true, changed: true, events: [{ time_sec: 470, temp_c: 193 }] });
+    });
+});
+
+describe('Drop boundary moves along the measured curve', () => {
+    // Drop-terminated record: no End mark, and the saved curve ends at Drop.
+    const dropRecord = stored.filter((event) => event.type !== 'End' && event.type !== 'Mystery');
+    const session = { events: dropRecord, duration_seconds: 600, drop_temp_celsius: 210, charge_temp_celsius: 198 };
+    const dropDraft = () => {
+        const row = toEventDrafts(dropRecord, 'C').find((draft) => draft.type === 'Drop');
+        if (!row) throw new Error('missing Drop');
+        return row;
+    };
+    const editedDrop = (patch: Partial<EventDraft>) => edited('Drop', patch, dropRecord);
+    const dropOf = (events: unknown) => (events as typeof stored).find((event) => event.type === 'Drop');
+
+    it('moves Drop earlier to a measured sample and ends every derived value at it', () => {
+        expect(linkEventDraft(dropDraft(), 'time', '8:10', curve, 'C').draft).toMatchObject({
+            time: '8:10',
+            temp: '200',
+            edited: 'time',
+        });
+        const res = applyEventDrafts(dropRecord, editedDrop({ time: '8:10', edited: 'time' }), 'C', curve);
+        if (!res.ok) throw new Error('expected ok');
+        expect(res.changed).toBe(true);
+        expect(dropOf(res.events)).toEqual({ id: 'd', type: 'Drop', time_sec: 490, temp_c: 200 });
+        // Every other row, including the Heater set after the new Drop, is the stored object.
+        for (const event of dropRecord.filter((row) => row.type !== 'Drop')) {
+            expect(res.events as typeof stored).toContain(event);
+        }
+        expect(samples).toHaveLength(9);
+        expect(samples[8]).toEqual({ time: 600, bt: 210 });
+
+        const summary = recordSummary(session, res.events);
+        expect(summary.durationSeconds).toBe(490);
+        expect(summary.dropTempCelsius).toBe(200);
+        expect(summary.profileSummary).toEqual({
+            charge_temp_celsius: 200,
+            drop_temp_celsius: 200,
+            duration_sec: 490,
+            dev_time_sec: 10,
+            dev_pct: 2,
+        });
+
+        const reopened = toEventDrafts(res.events, 'C');
+        expect(reopened.find((row) => row.type === 'Drop')).toMatchObject({ time: '8:10', temp: '200' });
+        expect(applyEventDrafts(res.events, reopened, 'C', curve)).toMatchObject({ ok: true, changed: false });
+    });
+
+    it('moves Drop to the closest earlier crossing when its temperature is corrected', () => {
+        const linked = linkEventDraft(dropDraft(), 'temp', '198', curve, 'C');
+        expect(linked).toMatchObject({ draft: { time: '8:05', temp: '198', edited: 'temp' }, error: null });
+        const res = applyEventDrafts(dropRecord, editedDrop({ temp: '198', edited: 'temp' }), 'C', curve);
+        if (!res.ok) throw new Error('expected ok');
+        expect(dropOf(res.events)).toMatchObject({ time_sec: 485, temp_c: 198 });
+        expect(recordSummary(session, res.events)).toMatchObject({ durationSeconds: 485, dropTempCelsius: 198 });
+    });
+
+    it('never moves Drop past the last measured sample or to a temperature the curve lacks', () => {
+        const late = applyEventDrafts(dropRecord, editedDrop({ time: '12:00', edited: 'time' }), 'C', curve);
+        expect(late).toMatchObject({ ok: true, changed: false });
+        expect(dropOf(late.ok ? late.events : null)).toBe(dropRecord[5]);
+        expect(linkEventDraft(dropDraft(), 'time', '12:00', curve, 'C').draft).toMatchObject({
+            time: '10:00',
+            temp: '210.2',
+        });
+        const hot = applyEventDrafts(dropRecord, editedDrop({ temp: '230', edited: 'temp' }), 'C', curve);
+        expect(hot.ok).toBe(false);
+        if (!hot.ok) expect(hot.errors[5]).toBe('temp');
+    });
+
+    it('rejects a Drop before an earlier key mark, and one that lands in a gap of the curve', () => {
+        const beforeFc = applyEventDrafts(dropRecord, editedDrop({ time: '7:50', edited: 'time' }), 'C', curve);
+        expect(beforeFc.ok).toBe(false);
+        if (!beforeFc.ok) expect(beforeFc.errors[5]).toBe('order');
+
+        const gapRecord = [
+            { id: 'c', type: 'Charge', time_sec: 0, temp_c: 200 },
+            { id: 'd', type: 'Drop', time_sec: 600, temp_c: 210 },
+        ];
+        const gapped = applyEventDrafts(
+            gapRecord,
+            edited('Drop', { time: '5:00', edited: 'time' }, gapRecord as typeof stored),
+            'C',
+            curve,
+        );
+        expect(gapped.ok).toBe(false);
+        if (!gapped.ok) expect(gapped.errors[1]).toBe('time');
+    });
+
+    it('leaves Drop as saved without a measured curve or without a linked edit', () => {
+        const noCurve = applyEventDrafts(dropRecord, editedDrop({ time: '8:10', temp: '200', edited: 'time' }), 'C');
+        expect(noCurve).toMatchObject({ ok: true, changed: false });
+        expect(linkEventDraft(dropDraft(), 'time', '8:10', null, 'C')).toEqual({ draft: dropDraft(), error: null });
+        // Both fields typed with no driver: a free pair is not a curve reading.
+        const freePair = applyEventDrafts(dropRecord, editedDrop({ time: '8:10', temp: '150' }), 'C', curve);
+        expect(freePair).toMatchObject({ ok: true, changed: false });
+        // A Drop row dropped from the drafts stays on the record.
+        const removed = applyEventDrafts(
+            dropRecord,
+            toEventDrafts(dropRecord, 'C').filter((row) => row.type !== 'Drop'),
+            'C',
+            curve,
+        );
+        expect(removed).toMatchObject({ ok: true, changed: false });
+    });
+
+    it('restores a cropped Drop inside the samples, and keeps duration on End when the record has one', () => {
+        const cropped = dropRecord.map((event) =>
+            event.type === 'Drop' ? { id: 'd', type: 'Drop', time_sec: 490, temp_c: 200 } : event,
+        );
+        const res = applyEventDrafts(cropped, edited('Drop', { time: '10:00', edited: 'time' }, cropped), 'C', curve);
+        if (!res.ok) throw new Error('expected ok');
+        expect(dropOf(res.events)).toMatchObject({ time_sec: 600, temp_c: 210 });
+        expect(recordSummary({ ...session, events: cropped, duration_seconds: 490 }, res.events).durationSeconds).toBe(
+            600,
+        );
+
+        const withEnd = applyEventDrafts(stored, edited('Drop', { time: '8:10', edited: 'time' }), 'C', curve);
+        if (!withEnd.ok) throw new Error('expected ok');
+        const summary = recordSummary(
+            { events: stored, duration_seconds: 641, drop_temp_celsius: 210, charge_temp_celsius: 198 },
+            withEnd.events,
+        );
+        expect(summary.durationSeconds).toBe(641);
+        expect(summary.profileSummary).toMatchObject({ duration_sec: 490, drop_temp_celsius: 200 });
     });
 });

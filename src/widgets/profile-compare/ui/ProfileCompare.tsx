@@ -4,6 +4,7 @@ import { formatTemp, useRoastSettings } from '@features/active-roast';
 import { generateProfileCurve } from '@shared/data/roast-profiles';
 import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDuration } from '@shared/lib/format';
+import { curveThroughDrop } from '@shared/lib/roast-curve';
 import type { SeriesData } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { ProfileCurveChart } from '@widgets/profile-curve-chart/ui/ProfileCurveChart';
 import { useProfileTableRows } from '@widgets/profile-detail/model/useProfileTableRows';
@@ -36,7 +37,7 @@ export const ProfileCompare = ({
     );
 
     const chartSeries: SeriesData[] = compareProfiles.map((p, i) => {
-        const real = compareQueries[i]?.data ?? [];
+        const real = curveThroughDrop(compareQueries[i]?.data ?? [], resolveSourceSession(p.source_session)?.events);
         const curve =
             real.length > 0
                 ? real.map((pt) => ({ t: pt.t, bt: pt.bt }))

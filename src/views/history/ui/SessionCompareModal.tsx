@@ -15,6 +15,7 @@ import { ChartZoomSurface } from '@features/active-roast/ui/ChartZoomSurface';
 import { editedHeatSet, profileHeaterBounds, withEditedHeaterLog } from '@features/machine-control/lib/heater-events';
 import { COMPARE_COLORS } from '@shared/lib/compare-style';
 import { formatDateShort } from '@shared/lib/format';
+import { curveThroughDrop } from '@shared/lib/roast-curve';
 import { deriveRoastMetrics } from '@shared/lib/roast-delta';
 import { sessionRoastTitle } from '@shared/lib/sessionRoastTitle';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -57,6 +58,11 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
     );
 
     const isLoading = curveQueries.some((q) => q.isLoading);
+    /** Each record's curve as drawn: through its Drop mark when the roast ended at Drop. */
+    const curves = useMemo(
+        () => sessions.map((s, i) => curveThroughDrop(curveQueries[i]?.data ?? [], s.events)),
+        [sessions, curveQueries],
+    );
 
     const eventsBySession = useMemo(
         () => sessions.map((s) => withEditedHeaterLog(parseStoredRoastEvents(s.events), s.heater_events, '')),
@@ -66,7 +72,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
     const items: CompareSessionItem[] = useMemo(
         () =>
             sessions.map((s, i) => {
-                const points = curveQueries[i]?.data ?? [];
+                const points = curves[i];
                 const first = points.length ? points[0] : undefined;
                 const last = points.length ? points[points.length - 1] : undefined;
                 const events = eventsBySession[i];
@@ -88,13 +94,13 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     visible: !hiddenIds.has(s.id),
                 };
             }),
-        [sessions, curveQueries, eventsBySession, hiddenIds, unit],
+        [sessions, curves, eventsBySession, hiddenIds, unit],
     );
 
     const chartSeries: CompareSeries[] = useMemo(
         () =>
             sessions.map((s, i) => {
-                const points = curveQueries[i]?.data ?? [];
+                const points = curves[i];
                 const heatSet = editedHeatSet(points, sessionDropTime(s), s.heater_events);
                 const heaterUnit = profileHeaterBounds(s, machines, ROASTER_REGISTRY).unit;
                 const profileBatch = s.profile_batch_number != null ? `#${s.profile_batch_number}` : null;
@@ -118,7 +124,7 @@ export const SessionCompareModal = ({ sessions, onClose }: SessionCompareModalPr
                     visible: !hiddenIds.has(s.id),
                 };
             }),
-        [sessions, curveQueries, eventsBySession, hiddenIds, machines],
+        [sessions, curves, eventsBySession, hiddenIds, machines],
     );
 
     const channels = useMemo(() => compareChannels(chartSeries, unit), [chartSeries, unit]);

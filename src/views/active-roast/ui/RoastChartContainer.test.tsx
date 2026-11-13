@@ -123,8 +123,20 @@ describe('RoastChartContainer pointer ownership', () => {
         vi.restoreAllMocks();
     });
 
-    it('hides Charge labels on the live chart', () => {
+    it('shows the Charge label once the batch is charged, with no BBP range', () => {
+        expect(marker.props?.hideChargeLabel).toBe(false);
+    });
+
+    it('hides the Charge label before Charge when no BBP is drawn', () => {
+        render({ charged: false });
         expect(marker.props?.hideChargeLabel).toBe(true);
+    });
+
+    it('keeps the Charge label on a saved-curve review and on a drawn BBP', () => {
+        render({ charged: false, savedReview: true });
+        expect(marker.props?.hideChargeLabel).toBe(false);
+        render({ charged: false, bbpRange: { start: -120, end: 0 } });
+        expect(marker.props?.hideChargeLabel).toBe(false);
     });
 
     it('keeps automatic BBP bounds exact when subsecond measurements do not provide axis sentinels', () => {

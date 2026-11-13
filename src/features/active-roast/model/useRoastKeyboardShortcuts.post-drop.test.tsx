@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { effectiveCustomShortcuts } from '@features/active-roast/lib/event-buttons';
 import {
-    isRoastSummaryCloseShortcutEnabled,
+    isRoastSummaryShortcutEnabled,
     useRoastKeyboardShortcuts,
 } from '@features/active-roast/model/useRoastKeyboardShortcuts';
 import { hydrateShortcutBindings, SHORTCUTS, useShortcutStore } from '@shared/store/keyboard-shortcuts';
@@ -15,12 +15,11 @@ type ShortcutHostProps = Parameters<typeof useRoastKeyboardShortcuts>[0];
 
 const defaultTaken = () => SHORTCUTS.flatMap(({ defaultKeys }) => [...defaultKeys]);
 
-const closeSummaryKey = (ctrlKey: boolean, init: KeyboardEventInit = {}) => ({
-    key: '6',
-    code: 'Digit6',
+const saveSummaryKey = (ctrlKey: boolean, init: KeyboardEventInit = {}) => ({
+    key: 's',
+    code: 'KeyS',
     ctrlKey,
     metaKey: !ctrlKey,
-    shiftKey: true,
     bubbles: true,
     cancelable: true,
     ...init,
@@ -88,33 +87,24 @@ describe('post-drop keyboard flow', () => {
         host.remove();
     });
 
-    const pressClose = (target?: EventTarget) =>
+    const pressSave = (target?: EventTarget) =>
         act(() => {
             const node = target ?? document;
-            node.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
+            node.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
         });
 
-    it('closes the summary popup then allows Charge for the next batch', () => {
-        const onCloseRoastSummary = vi.fn();
+    it('saves the summary popup then allows Charge for the next batch', () => {
+        const onSaveRoastSummary = vi.fn();
         const onManualCharge = vi.fn();
         const onMarkDrop = vi.fn();
-        let showSummaryModal = true;
 
-        renderShortcuts({
-            showSummaryModal,
-            onManualCharge,
-            onMarkDrop,
-            onCloseRoastSummary: () => {
-                showSummaryModal = false;
-                onCloseRoastSummary();
-            },
-        });
+        renderShortcuts({ showSummaryModal: true, onManualCharge, onMarkDrop, onSaveRoastSummary });
 
-        pressClose();
-        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
+        pressSave();
+        expect(onSaveRoastSummary).toHaveBeenCalledTimes(1);
         expect(onMarkDrop).not.toHaveBeenCalled();
 
-        renderShortcuts({ showSummaryModal, onManualCharge, onMarkDrop, onCloseRoastSummary });
+        renderShortcuts({ showSummaryModal: false, onManualCharge, onMarkDrop, onSaveRoastSummary });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', chargeKey(true)));
@@ -122,71 +112,54 @@ describe('post-drop keyboard flow', () => {
         expect(onManualCharge).toHaveBeenCalledTimes(1);
     });
 
-    it('does not close the summary while a memo field is focused without a mod chord', () => {
+    const escapeKey = (init: KeyboardEventInit = {}) => ({
+        key: 'Escape',
+        code: 'Escape',
+        bubbles: true,
+        cancelable: true,
+        ...init,
+    });
+
+    it('Escape cancels Drop while undo is still allowed, like the header X', () => {
         const onCloseRoastSummary = vi.fn();
-        const input = document.createElement('input');
+        const onCancelRoastSummary = vi.fn();
+        const onSaveRoastSummary = vi.fn();
+
+        renderShortcuts({
+            showSummaryModal: true,
+            canCancelRoastSummary: true,
+            onCloseRoastSummary,
+            onCancelRoastSummary,
+            onSaveRoastSummary,
+        });
+
+        act(() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', escapeKey()));
+            document.dispatchEvent(new KeyboardEvent('keydown', escapeKey({ repeat: true })));
+        });
+        expect(onCancelRoastSummary).toHaveBeenCalledTimes(1);
+        expect(onCloseRoastSummary).not.toHaveBeenCalled();
+        expect(onSaveRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('Escape only closes the summary once Drop can no longer be undone, also from a focused field', () => {
+        const onCloseRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
+        const input = document.createElement('textarea');
         document.body.appendChild(input);
         input.focus();
 
-        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary });
+        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary, onCancelRoastSummary });
 
-        pressClose(input);
-        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
-
-        onCloseRoastSummary.mockClear();
         act(() => {
-            input.dispatchEvent(
-                new KeyboardEvent('keydown', {
-                    key: '6',
-                    code: 'Digit6',
-                    bubbles: true,
-                    target: input,
-                } as KeyboardEventInit),
-            );
+            input.dispatchEvent(new KeyboardEvent('keydown', escapeKey()));
         });
-        expect(onCloseRoastSummary).not.toHaveBeenCalled();
+        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
         input.remove();
     });
 
-    it('ignores key repeat for close and return-to-wait shortcuts', () => {
-        const onCloseRoastSummary = vi.fn();
-        const onDismissReview = vi.fn();
-
-        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary });
-
-        act(() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true, { repeat: true })));
-        });
-        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
-
-        renderShortcuts({ reviewing: true, onDismissReview });
-
-        act(() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true)));
-            document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true, { repeat: true })));
-        });
-        expect(onDismissReview).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not close the summary while save preparation or submit is in flight', () => {
-        const onCloseRoastSummary = vi.fn();
-        expect(
-            isRoastSummaryCloseShortcutEnabled({
-                isActive: true,
-                showSummaryModal: true,
-                showEndRoastModal: false,
-                roastSummarySaving: true,
-            }),
-        ).toBe(false);
-
-        renderShortcuts({ showSummaryModal: true, roastSummarySaving: true, onCloseRoastSummary });
-
-        pressClose();
-        expect(onCloseRoastSummary).not.toHaveBeenCalled();
-    });
-
-    it('routes close to Drop cancel when undo is still allowed', () => {
+    it('leaves an Escape that an open list or an IME composition already used', () => {
         const onCloseRoastSummary = vi.fn();
         const onCancelRoastSummary = vi.fn();
 
@@ -197,9 +170,134 @@ describe('post-drop keyboard flow', () => {
             onCancelRoastSummary,
         });
 
-        pressClose();
-        expect(onCancelRoastSummary).toHaveBeenCalledTimes(1);
+        act(() => {
+            const used = new KeyboardEvent('keydown', escapeKey());
+            used.preventDefault();
+            document.dispatchEvent(used);
+            document.dispatchEvent(new KeyboardEvent('keydown', escapeKey({ isComposing: true })));
+        });
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
         expect(onCloseRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('ignores Escape without the summary popup, while saving, or when the shortcut is switched off', () => {
+        const onCloseRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
+        const props = { canCancelRoastSummary: true, onCloseRoastSummary, onCancelRoastSummary };
+        const press = () =>
+            act(() => {
+                document.dispatchEvent(new KeyboardEvent('keydown', escapeKey()));
+            });
+
+        renderShortcuts({ ...props, showSummaryModal: false });
+        press();
+        renderShortcuts({ ...props, showSummaryModal: true, roastSummarySaving: true });
+        press();
+        act(() => useShortcutStore.getState().setEnabled('dismissRoastSummary', false));
+        renderShortcuts({ ...props, showSummaryModal: true });
+        press();
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
+        expect(onCloseRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('the removed mod+shift+6 chord does nothing while the popup is open', () => {
+        const onSaveRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
+        expect(SHORTCUTS.some(({ id }) => (id as string) === 'closeRoastSummary')).toBe(false);
+
+        renderShortcuts({
+            showSummaryModal: true,
+            canCancelRoastSummary: true,
+            onSaveRoastSummary,
+            onCancelRoastSummary,
+        });
+
+        act(() => {
+            document.dispatchEvent(
+                new KeyboardEvent('keydown', {
+                    key: '6',
+                    code: 'Digit6',
+                    ctrlKey: true,
+                    shiftKey: true,
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            );
+        });
+        expect(onSaveRoastSummary).not.toHaveBeenCalled();
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('ignores key repeat for the return-to-wait shortcut', () => {
+        const onDismissReview = vi.fn();
+
+        renderShortcuts({ reviewing: true, onDismissReview });
+
+        act(() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true)));
+            document.dispatchEvent(new KeyboardEvent('keydown', returnToWaitKey(true, { repeat: true })));
+        });
+        expect(onDismissReview).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the summary shortcut off while save preparation or submit is in flight', () => {
+        expect(
+            isRoastSummaryShortcutEnabled({
+                isActive: true,
+                showSummaryModal: true,
+                showEndRoastModal: false,
+                roastSummarySaving: true,
+            }),
+        ).toBe(false);
+    });
+
+    it('saves the summary once per press and leaves Drop alone', () => {
+        const onSaveRoastSummary = vi.fn();
+        const onMarkDrop = vi.fn();
+
+        renderShortcuts({ showSummaryModal: true, onSaveRoastSummary, onMarkDrop });
+
+        act(() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
+            document.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true, { repeat: true })));
+        });
+        expect(onSaveRoastSummary).toHaveBeenCalledTimes(1);
+        expect(onMarkDrop).not.toHaveBeenCalled();
+    });
+
+    it('saves from a focused memo field with the mod chord only', () => {
+        const onSaveRoastSummary = vi.fn();
+        const input = document.createElement('textarea');
+        document.body.appendChild(input);
+        input.focus();
+
+        renderShortcuts({ showSummaryModal: true, onSaveRoastSummary });
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 's', code: 'KeyS', bubbles: true }));
+        });
+        expect(onSaveRoastSummary).not.toHaveBeenCalled();
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
+        });
+        expect(onSaveRoastSummary).toHaveBeenCalledTimes(1);
+        input.remove();
+    });
+
+    it('does not save without the summary popup, or while a save is in flight', () => {
+        const onSaveRoastSummary = vi.fn();
+
+        renderShortcuts({ showSummaryModal: false, onSaveRoastSummary });
+        act(() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
+        });
+
+        renderShortcuts({ showSummaryModal: true, roastSummarySaving: true, onSaveRoastSummary });
+        act(() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
+        });
+        expect(onSaveRoastSummary).not.toHaveBeenCalled();
     });
 
     it('dismisses saved-curve review back to the charge-wait chart', () => {

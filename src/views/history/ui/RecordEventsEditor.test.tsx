@@ -56,7 +56,7 @@ afterEach(async () => {
 });
 
 describe('RecordEventsEditor', () => {
-    it('leaves Charge and Drop read-only', async () => {
+    it('leaves Charge and Drop read-only when the record has no measured curve', async () => {
         await mount({});
         for (const mark of ['Charge', 'Drop']) {
             expect(
@@ -338,6 +338,47 @@ describe('RecordEventsEditor', () => {
         expect(onSave).not.toHaveBeenCalled();
         expect(onClose).toHaveBeenCalledOnce();
     };
+
+    it('opens Drop for a curve-linked move, without a delete button, and keeps Charge read-only', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        await mount({ onSave, samples: curveSamples });
+        const dropInput = (field: 'time' | 'temp') =>
+            document.querySelector(`input[aria-label="Drop history.edit.${field}"]`) as HTMLInputElement;
+        expect(dropInput('time').readOnly).toBe(false);
+        expect(dropInput('temp').readOnly).toBe(false);
+        expect(document.querySelector('button[aria-label="Drop common.delete"]')).toBeNull();
+        expect(
+            (document.querySelector('input[aria-label="Charge history.edit.time"]') as HTMLInputElement).readOnly,
+        ).toBe(true);
+
+        await type('Drop history.edit.time', '8:00');
+        expect(dropInput('temp').value).toBe('196');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).toHaveBeenCalledWith([
+            events[0],
+            events[1],
+            { id: 'd', type: 'Drop', time_sec: 480, temp_c: 196 },
+        ]);
+    });
+
+    it('snaps a Drop typed past the recorded curve back to the saved Drop and saves nothing', async () => {
+        const onSave = vi.fn().mockResolvedValue(undefined);
+        const onClose = await mount({ onSave, samples: curveSamples });
+        await type('Drop history.edit.time', '12:00');
+        expect((document.querySelector('input[aria-label="Drop history.edit.time"]') as HTMLInputElement).value).toBe(
+            '10:00',
+        );
+        await expectNoSave(onSave, onClose);
+    });
+
+    it('blocks a Drop moved before First Crack without saving', async () => {
+        const onSave = vi.fn();
+        await mount({ onSave, samples: curveSamples });
+        await type('Drop history.edit.time', '7:50');
+        await act(async () => button('history.edit.save')?.click());
+        expect(onSave).not.toHaveBeenCalled();
+        expect(document.querySelector('[role="alert"]')?.textContent).toBe('history.edit.invalidOrder');
+    });
 
     it('updates temperature from the measured curve when time changes', async () => {
         const onSave = vi.fn().mockResolvedValue(undefined);

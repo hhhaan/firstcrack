@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { combineBbpCurve } from './roast-curve';
+import { combineBbpCurve, curveThroughDrop, savedCurveEndSec } from './roast-curve';
 import type { TsvPoint } from './tsv';
 
 vi.mock('@shared/lib/r2', () => ({ fetchTsvFromR2: vi.fn() }));
@@ -33,5 +33,43 @@ describe('combined BBP timeline', () => {
         expect(combined.bbpRange).toEqual({ start: -1200, end: 0 });
         expect(combined.points.map((p) => p.t)).toEqual([-1200, 0, 60]);
         expect(combined.points.find((p) => p.t === 0)?.bt).toBe(190);
+    });
+});
+
+describe('saved curve end', () => {
+    const curve = [point(0), point(300), point(540), point(600)];
+
+    it('ends a Drop-terminated record at its Drop mark and leaves the stored samples alone', () => {
+        const events = [
+            { type: 'Charge', time_sec: 0 },
+            { type: 'Drop', time_sec: 540 },
+        ];
+        expect(savedCurveEndSec(events)).toBe(540);
+        const drawn = curveThroughDrop(curve, events);
+        expect(drawn.map((p) => p.t)).toEqual([0, 300, 540]);
+        expect(drawn[2]).toBe(curve[2]);
+        expect(curve).toHaveLength(4);
+    });
+
+    it('returns the same array when the curve already ends at Drop', () => {
+        expect(curveThroughDrop(curve, [{ type: 'Drop', time_sec: 600 }])).toBe(curve);
+        expect(curveThroughDrop(curve, [{ type: 'Drop', time_sec: 900 }])).toBe(curve);
+    });
+
+    it('keeps the whole recorded span when the record has an End mark or no usable Drop', () => {
+        const withEnd = [
+            { type: 'Drop', time_sec: 540 },
+            { type: 'End', time_sec: 600 },
+        ];
+        expect(savedCurveEndSec(withEnd)).toBeNull();
+        expect(curveThroughDrop(curve, withEnd)).toBe(curve);
+        for (const events of [null, undefined, 'x', [], [{ type: 'Drop' }], [{ type: 'Drop', time_sec: -5 }]]) {
+            expect(curveThroughDrop(curve, events)).toBe(curve);
+        }
+    });
+
+    it('keeps BBP samples before Charge', () => {
+        const joined = [point(-120), point(-1), ...curve];
+        expect(curveThroughDrop(joined, [{ type: 'Drop', time_sec: 300 }]).map((p) => p.t)).toEqual([-120, -1, 0, 300]);
     });
 });

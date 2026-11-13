@@ -98,7 +98,7 @@ import { ReplayProfileChangeModal } from './ui/ReplayProfileChangeModal';
 import { RoastChartContainer } from './ui/RoastChartContainer';
 import { RoastHeader } from './ui/RoastHeader';
 import { RoastSidePanel } from './ui/RoastSidePanel';
-import { RoastSummaryModal } from './ui/RoastSummaryModal';
+import { RoastSummaryModal, type RoastSummaryModalHandle } from './ui/RoastSummaryModal';
 
 interface ActiveRoastProps {
     isActive: boolean;
@@ -383,6 +383,8 @@ export const ActiveRoast = ({
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
     const handleCancelDropRef = useRef<() => void>(() => {});
+    const summaryModalRef = useRef<RoastSummaryModalHandle>(null);
+    const saveRoastSummary = useCallback(() => summaryModalRef.current?.save(), []);
 
     const {
         triggerCharge: startChargeAction,
@@ -721,6 +723,7 @@ export const ActiveRoast = ({
         onMarkEvent: markEvent,
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
+        onSaveRoastSummary: saveRoastSummary,
         onCloseRoastSummary: saveFlow.flow.closeSummary,
         onCancelRoastSummary: () => handleCancelDropRef.current(),
         canCancelRoastSummary: dropCancelable,
@@ -966,7 +969,6 @@ export const ActiveRoast = ({
     useLayoutEffect(() => {
         handleCancelDropRef.current = handleCancelDrop;
     }, [handleCancelDrop]);
-
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {
         const body = noteInput.trim();
@@ -1302,6 +1304,7 @@ export const ActiveRoast = ({
                 onConfirm={confirmEndRoast}
             />
             <RoastSummaryModal
+                ref={summaryModalRef}
                 bbpEnabled={bbpEnabled}
                 open={saveFlow.flow.summaryModal}
                 summaryData={saveFlow.flow.summaryData}
