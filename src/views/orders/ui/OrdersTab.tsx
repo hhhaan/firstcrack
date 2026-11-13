@@ -1,15 +1,19 @@
 import {
+    type FulfillmentHoldShortage,
+    type OrderFulfillmentHold,
     type OrderLine,
     type OrderStatusFilter,
     type OrderWithLines,
     orderKeys,
+    useOpenFulfillmentHolds,
     useOrdersPaginated,
 } from '@entities/order';
 import { type OrderDispatch, orderDispatchKeys, useOrderDispatches } from '@entities/order-dispatch';
 import { useActiveWorkspace } from '@entities/organization';
+import { useProducts } from '@entities/product';
 import { DispatchModal } from '@features/dispatch-order';
 import { LinkOrderLineModal } from '@features/map-channel-product';
-import { orderActionFlags, useCancelOrder, useFulfillOrder } from '@features/order-status';
+import { orderActionFlags, useCancelOrder, useFulfillOrder, useRetryOrderFulfillment } from '@features/order-status';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
 import { FilterDropdown } from '@shared/ui/FilterDropdown';
@@ -52,7 +56,10 @@ export function OrdersTab() {
     const total = page?.total ?? 0;
     const { data: dispatches = [] } = useOrderDispatches(userId);
     const fulfill = useFulfillOrder();
+    const retryFulfillment = useRetryOrderFulfillment();
     const cancel = useCancelOrder();
+    const { data: fulfillmentHolds = [] } = useOpenFulfillmentHolds(userId);
+    const { data: products = [] } = useProducts(userId);
     const [showAdd, setShowAdd] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [dispatchOrderId, setDispatchOrderId] = useState<string | null>(null);
@@ -64,6 +71,18 @@ export function OrdersTab() {
         for (const d of dispatches) m.set(d.order_id, d);
         return m;
     }, [dispatches]);
+
+    const holdByOrder = useMemo(() => {
+        const m = new Map<string, OrderFulfillmentHold>();
+        for (const h of fulfillmentHolds) m.set(h.order_id, h);
+        return m;
+    }, [fulfillmentHolds]);
+
+    const productNameById = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const p of products) m.set(p.id, p.name);
+        return m;
+    }, [products]);
 
     // ponytail: fixed 24-month window instead of deriving from data — the page only holds 20 orders,
     // so the real span isn't available without another query. Widen or query the oldest order if a
@@ -197,10 +216,14 @@ export function OrdersTab() {
                                     key={o.id}
                                     order={o}
                                     dispatch={dispatchByOrder.get(o.id)}
+                                    hold={holdByOrder.get(o.id)}
+                                    productNameById={productNameById}
                                     expanded={expandedId === o.id}
                                     onToggle={() => setExpandedId((id) => (id === o.id ? null : o.id))}
                                     fulfillPending={fulfill.isPending}
+                                    retryPending={retryFulfillment.isPending}
                                     onFulfill={() => fulfill.mutate(o.id)}
+                                    onRetryFulfillment={() => retryFulfillment.mutate(o.id)}
                                     onCancel={async () => {
                                         if (await confirm(t('orders.order.cancelConfirm'))) {
                                             cancel.mutate(o.id);
@@ -240,20 +263,28 @@ export function OrdersTab() {
 function OrderRow({
     order,
     dispatch,
+    hold,
+    productNameById,
     expanded,
     onToggle,
     fulfillPending,
+    retryPending,
     onFulfill,
+    onRetryFulfillment,
     onCancel,
     onDispatch,
     onLinkLine,
 }: {
     order: OrderWithLines;
     dispatch?: OrderDispatch;
+    hold?: OrderFulfillmentHold;
+    productNameById: Map<string, string>;
     expanded: boolean;
     onToggle: () => void;
     fulfillPending: boolean;
+    retryPending: boolean;
     onFulfill: () => void;
+    onRetryFulfillment: () => void;
     onCancel: () => Promise<void>;
     onDispatch: () => void;
     onLinkLine: (line: OrderLine) => void;
@@ -265,6 +296,9 @@ function OrderRow({
     // No product_id ⇒ fulfill_order deducts nothing for that line and it never reaches roasting needs.
     const unmappedCount = activeLines.filter((l) => !l.product_id).length;
     const { cancelled, fulfilled, canFulfill, canDispatch } = orderActionFlags(order, dispatch);
+    const shortages = (hold?.shortages ?? []) as FulfillmentHoldShortage[];
+    const canRetryHold =
+        !!hold && !fulfilled && !cancelled && (order.status === 'shipped' || order.status === 'delivered');
     // Local cancel restores product stock; channel-platform cancellations are synced FROM the platform
     // (webhook and/or poll — Naver has no webhook, cancels arrive via poll claim statuses), so manual-only
     // local cancel avoids double-restoring.
@@ -333,6 +367,11 @@ function OrderRow({
                                       })}
                             </Badge>
                         ) : null}
+                        {hold ? (
+                            <Badge tone="warn" size="sm" icon={<AlertTriangle size={11} strokeWidth={1.75} />}>
+                                {t('orders.order.stockHoldBadge')}
+                            </Badge>
+                        ) : null}
                     </div>
                     {dispatch?.status === 'failed' && dispatch.last_error ? (
                         <p className="mt-1 max-w-[220px] truncate text-[11px] text-red-600 dark:text-red-400">
@@ -342,7 +381,12 @@ function OrderRow({
                 </td>
                 <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-1.5">
-                        {canFulfill ? (
+                        {canRetryHold ? (
+                            <GhostButton onClick={onRetryFulfillment} disabled={retryPending}>
+                                {t('orders.order.retryFulfillment')}
+                            </GhostButton>
+                        ) : null}
+                        {canFulfill && !canRetryHold ? (
                             <GhostButton
                                 onClick={onFulfill}
                                 disabled={fulfillPending}
@@ -365,6 +409,21 @@ function OrderRow({
                 <tr className="border-b border-divider dark:border-border">
                     <td colSpan={6} className="bg-surface/40 px-4 py-3 dark:bg-surface-elevated/20">
                         <p className="mb-2 text-sm font-medium leading-5 text-muted">{t('orders.order.lines')}</p>
+                        {shortages.length > 0 ? (
+                            <ul className="mb-3 space-y-1 text-[12px] text-amber-800 dark:text-amber-300">
+                                {shortages.map((s) => (
+                                    <li key={s.order_line_id}>
+                                        {t('orders.order.stockHoldLine', {
+                                            product:
+                                                productNameById.get(s.product_id) ??
+                                                t('orders.order.stockHoldUnknownProduct'),
+                                            required: s.required_units,
+                                            available: s.available_units,
+                                        })}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : null}
                         {activeLines.length === 0 ? (
                             <p className="text-[12px] text-muted">—</p>
                         ) : (

@@ -16,6 +16,7 @@ const useOrderStatusMutation = (action: 'cancel' | 'fulfill') => {
         },
         onSuccess: (ownerId) => {
             void qc.invalidateQueries({ queryKey: orderKeys.all(ownerId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.fulfillmentHolds(ownerId) });
             void qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
             void qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
         },
@@ -27,3 +28,22 @@ export const useCancelOrder = () => useOrderStatusMutation('cancel');
 
 /** Fulfill via atomic `fulfill_order` RPC (deduct stock + stamp fulfilled_at). */
 export const useFulfillOrder = () => useOrderStatusMutation('fulfill');
+
+export const useRetryOrderFulfillment = () => {
+    const qc = useQueryClient();
+    const { workspaceOwnerId, isWorkspaceReady } = useActiveWorkspace();
+
+    return useMutation({
+        mutationFn: async (orderId: string) => {
+            if (!isWorkspaceReady || !workspaceOwnerId) throw new Error('Workspace is still loading');
+            await orderApi.retryFulfillment(orderId);
+            return workspaceOwnerId;
+        },
+        onSuccess: (ownerId) => {
+            void qc.invalidateQueries({ queryKey: orderKeys.all(ownerId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.fulfillmentHolds(ownerId) });
+            void qc.invalidateQueries({ queryKey: orderKeys.requirements(ownerId) });
+            void qc.invalidateQueries({ queryKey: productStockKeys.byUser(ownerId) });
+        },
+    });
+};

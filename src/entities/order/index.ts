@@ -1,5 +1,7 @@
 export type {
+    FulfillmentHoldShortage,
     Order,
+    OrderFulfillmentHold,
     OrderInsert,
     OrderLine,
     OrderLineInsert,
@@ -13,6 +15,7 @@ export { orderApi } from './api';
 export {
     orderKeys,
     useCreateOrder,
+    useOpenFulfillmentHolds,
     useOrdersPaginated,
     useRoastingRequirements,
     useSetOrderLineProduct,

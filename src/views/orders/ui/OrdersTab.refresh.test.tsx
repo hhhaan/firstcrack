@@ -23,8 +23,12 @@ vi.mock('@entities/order', async (importOriginal) => {
     return {
         ...actual,
         useOrdersPaginated: () => ({ data: { data: [], total: 0 }, isLoading: false }),
+        useOpenFulfillmentHolds: () => ({ data: [] }),
     };
 });
+vi.mock('@entities/product', () => ({
+    useProducts: () => ({ data: [] }),
+}));
 vi.mock('@entities/order-dispatch', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@entities/order-dispatch')>();
     return {
@@ -36,6 +40,7 @@ vi.mock('@features/order-status', () => ({
     orderActionFlags: () => ({ cancelled: false, fulfilled: false, canFulfill: false, canDispatch: false }),
     useCancelOrder: () => ({ mutate: vi.fn(), isPending: false }),
     useFulfillOrder: () => ({ mutate: vi.fn(), isPending: false }),
+    useRetryOrderFulfillment: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock('@features/dispatch-order', () => ({ DispatchModal: () => null }));
 vi.mock('@features/map-channel-product', () => ({ LinkOrderLineModal: () => null }));

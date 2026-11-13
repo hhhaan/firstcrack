@@ -2,7 +2,43 @@ import { describe, expect, it } from 'vitest';
 import { buildProductMap, resolveProductId, upsertCanonicalOrders } from './normalize.ts';
 import type { CanonicalOrder, CanonicalOrderLine } from './types.ts';
 
+type UpsertSupabase = Parameters<typeof upsertCanonicalOrders>[0];
+
+const makeUpsertSupabase = (
+    rpcImpl: (name: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: null }>,
+): UpsertSupabase =>
+    ({
+        from: () => ({
+            select: () => ({
+                eq: () => ({
+                    eq: () => Promise.resolve({ data: [] }),
+                    not: () => Promise.resolve({ data: [] }),
+                }),
+            }),
+        }),
+        rpc: rpcImpl,
+    }) as UpsertSupabase;
+
 describe('sync_channel_orders_batch boundary', () => {
+    const makeSortCaptureSupabase = (upserted: number) => {
+        const payloads: unknown[] = [];
+        const supabase = makeUpsertSupabase((_name, args) => {
+            payloads.push(args.p_orders);
+            return Promise.resolve({
+                data: {
+                    upserted,
+                    cancelledCompensations: 0,
+                    autoFulfillments: 0,
+                    stockEventSkips: [],
+                    held: [],
+                    heldFulfillments: 0,
+                },
+                error: null,
+            });
+        });
+        return { payloads, supabase };
+    };
+
     const order = (i: number): CanonicalOrder => ({
         platformOrderId: `O-${i}`,
         status: 'paid',
@@ -52,6 +88,8 @@ describe('sync_channel_orders_batch boundary', () => {
                         cancelledCompensations: 0,
                         autoFulfillments: 0,
                         stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
                     },
                     error: null,
                 });
@@ -96,6 +134,8 @@ describe('sync_channel_orders_batch boundary', () => {
                         cancelledCompensations: 0,
                         autoFulfillments: 0,
                         stockEventSkips: [],
+                        held: [],
+                        heldFulfillments: 0,
                     },
                     error: null,
                 });
@@ -112,6 +152,128 @@ describe('sync_channel_orders_batch boundary', () => {
         const sent = payloads[0] as Array<CanonicalOrder & { lines: Array<{ productId: string | null }> }>;
         expect(sent.map((item) => item.platformOrderId)).toEqual(['O-1', 'O-1']);
         expect(sent[0]?.lines[0]?.productId).toBe('prod-1');
+    });
+
+    it.each([
+        {
+            label: 'by orderedAt',
+            upserted: 2,
+            input: [
+                { ...order(2), orderedAt: '2026-10-12T00:00:00.000Z' },
+                { ...order(1), orderedAt: '2026-10-10T00:00:00.000Z' },
+            ],
+            expected: ['O-1', 'O-2'],
+        },
+        {
+            label: 'invalid orderedAt last',
+            upserted: 3,
+            input: [
+                { ...order(3), orderedAt: 'not-a-date' },
+                { ...order(1), orderedAt: '2026-10-10T00:00:00.000Z' },
+                { ...order(2), orderedAt: '2026-10-12T00:00:00.000Z' },
+            ],
+            expected: ['O-1', 'O-2', 'O-3'],
+        },
+    ])('sorts orders $label before RPC chunking', async ({ upserted, input, expected }) => {
+        const { payloads, supabase } = makeSortCaptureSupabase(upserted);
+        await upsertCanonicalOrders(
+            supabase,
+            { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+            input,
+        );
+        const sent = payloads[0] as CanonicalOrder[];
+        expect(sent.map((item) => item.platformOrderId)).toEqual(expected);
+    });
+});
+
+describe('parseBatchResult held payloads', () => {
+    const heldOrder = (): CanonicalOrder => ({
+        platformOrderId: 'O-held',
+        status: 'paid',
+        orderedAt: '2026-10-10T00:00:00.000Z',
+        buyerName: null,
+        currency: 'KRW',
+        totalAmount: 1000,
+        raw: {},
+        lines: [
+            {
+                platformLineId: 'L-held',
+                platformProductId: 'P-held',
+                platformVariantId: null,
+                title: 'Coffee',
+                quantity: 1,
+                unitPrice: 1000,
+                status: 'active',
+            },
+        ],
+    });
+
+    it('maps held fulfillments from RPC snake_case', async () => {
+        const supabase = makeUpsertSupabase(() =>
+            Promise.resolve({
+                data: {
+                    upserted: 1,
+                    cancelledCompensations: 0,
+                    autoFulfillments: 0,
+                    stockEventSkips: [],
+                    heldFulfillments: 1,
+                    held: [
+                        {
+                            order_id: 'ord-1',
+                            platform_order_id: 'ext-1',
+                            shortages: [
+                                {
+                                    product_id: 'prod-1',
+                                    order_line_id: 'line-1',
+                                    required_units: 5,
+                                    available_units: 1,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                error: null,
+            }),
+        );
+
+        await expect(
+            upsertCanonicalOrders(
+                supabase,
+                { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+                [heldOrder()],
+            ),
+        ).resolves.toMatchObject({
+            heldFulfillments: 1,
+            fulfillmentHolds: [
+                {
+                    orderId: 'ord-1',
+                    platformOrderId: 'ext-1',
+                    shortages: [{ productId: 'prod-1', requiredUnits: 5, availableUnits: 1 }],
+                },
+            ],
+        });
+    });
+
+    it('defaults missing held fields when RPC predates the hold migration', async () => {
+        const supabase = makeUpsertSupabase(() =>
+            Promise.resolve({
+                data: {
+                    upserted: 0,
+                    cancelledCompensations: 0,
+                    autoFulfillments: 0,
+                    stockEventSkips: [],
+                },
+                error: null,
+            }),
+        );
+
+        await expect(
+            upsertCanonicalOrders(
+                supabase,
+                { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
+                [],
+            ),
+        ).resolves.toMatchObject({ heldFulfillments: 0, fulfillmentHolds: [] });
     });
 });
 
