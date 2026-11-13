@@ -39,6 +39,10 @@ interface UseRoastKeyboardShortcutsParams {
     onMarkDrop: () => void;
     /** Same path as the summary Save button: form validation, then the roast save. */
     onSaveRoastSummary?: () => void;
+    /** Escape, the same as the summary's header X: cancel Drop while undo is still allowed, else close. */
+    onCloseRoastSummary?: () => void;
+    onCancelRoastSummary?: () => void;
+    canCancelRoastSummary?: boolean;
     reviewing?: boolean;
     chargeLocked?: boolean;
     onDismissReview?: () => void;
@@ -97,7 +101,7 @@ export function isRoastMarkShortcutEnabled(p: {
     return isRoastShortcutBaseEnabled(p) && isRoastEventMarkEnabled(p.phase);
 }
 
-/** Summary popup only — save. Close, Drop undo and discard stay on the popup's buttons. */
+/** Summary popup only — save, or Escape for the header X. Neither starts the next batch. */
 export function isRoastSummaryShortcutEnabled(p: {
     isActive: boolean;
     showSummaryModal: boolean;
@@ -143,6 +147,9 @@ export const useRoastKeyboardShortcuts = ({
     onCycleFc,
     onMarkDrop,
     onSaveRoastSummary,
+    onCloseRoastSummary,
+    onCancelRoastSummary,
+    canCancelRoastSummary = false,
     reviewing = false,
     chargeLocked = false,
     onDismissReview,
@@ -159,6 +166,7 @@ export const useRoastKeyboardShortcuts = ({
     const fcEndKeys = useShortcutKeys('fcEnd');
     const dropKeys = useShortcutKeys('drop');
     const saveSummaryKeys = useShortcutKeys('saveRoastSummary');
+    const dismissSummaryKeys = useShortcutKeys('dismissRoastSummary');
     const returnToChargeWaitKeys = useShortcutKeys('returnToChargeWait');
     const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const dropEnabledOnFormTags = dropKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
@@ -335,6 +343,28 @@ export const useRoastKeyboardShortcuts = ({
         },
         [canUseSummaryShortcut, onSaveRoastSummary],
     );
+    const dismissSummaryHotkey = shortcutHotkeys(dismissSummaryKeys);
+    useHotkeys(
+        dismissSummaryHotkey,
+        (e) => {
+            // An open list inside the popup, or an IME composition, already used this Escape.
+            if (e.defaultPrevented || e.isComposing) return;
+            e.preventDefault();
+            if (e.repeat) return;
+            if (canCancelRoastSummary) onCancelRoastSummary?.();
+            else onCloseRoastSummary?.();
+        },
+        {
+            enabled:
+                canUseSummaryShortcut &&
+                dismissSummaryHotkey.length > 0 &&
+                Boolean(onCloseRoastSummary || onCancelRoastSummary),
+            enableOnFormTags: true,
+            ...SHORTCUT_HOTKEY_OPTIONS,
+        },
+        [canUseSummaryShortcut, canCancelRoastSummary, onCloseRoastSummary, onCancelRoastSummary],
+    );
+
     const canReturnToChargeWait =
         shortcutsEnabled &&
         isRoastReturnToChargeWaitShortcutEnabled({

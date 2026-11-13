@@ -150,6 +150,8 @@ export const BeanCombobox = ({
                     }}
                     onKeyDown={(e) => {
                         if (e.key === 'Escape') {
+                            // An open list takes this Escape. The dialog around it must not close on it too.
+                            if (open && !disabled) e.preventDefault();
                             setOpen(false);
                             return;
                         }

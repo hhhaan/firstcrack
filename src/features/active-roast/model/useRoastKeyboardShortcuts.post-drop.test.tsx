@@ -112,12 +112,105 @@ describe('post-drop keyboard flow', () => {
         expect(onManualCharge).toHaveBeenCalledTimes(1);
     });
 
-    it('has no summary close shortcut: the old chord does nothing while the popup is open', () => {
+    const escapeKey = (init: KeyboardEventInit = {}) => ({
+        key: 'Escape',
+        code: 'Escape',
+        bubbles: true,
+        cancelable: true,
+        ...init,
+    });
+
+    it('Escape cancels Drop while undo is still allowed, like the header X', () => {
+        const onCloseRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
         const onSaveRoastSummary = vi.fn();
-        const onMarkDrop = vi.fn();
+
+        renderShortcuts({
+            showSummaryModal: true,
+            canCancelRoastSummary: true,
+            onCloseRoastSummary,
+            onCancelRoastSummary,
+            onSaveRoastSummary,
+        });
+
+        act(() => {
+            document.dispatchEvent(new KeyboardEvent('keydown', escapeKey()));
+            document.dispatchEvent(new KeyboardEvent('keydown', escapeKey({ repeat: true })));
+        });
+        expect(onCancelRoastSummary).toHaveBeenCalledTimes(1);
+        expect(onCloseRoastSummary).not.toHaveBeenCalled();
+        expect(onSaveRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('Escape only closes the summary once Drop can no longer be undone, also from a focused field', () => {
+        const onCloseRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
+        const input = document.createElement('textarea');
+        document.body.appendChild(input);
+        input.focus();
+
+        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary, onCancelRoastSummary });
+
+        act(() => {
+            input.dispatchEvent(new KeyboardEvent('keydown', escapeKey()));
+        });
+        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
+        input.remove();
+    });
+
+    it('leaves an Escape that an open list or an IME composition already used', () => {
+        const onCloseRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
+
+        renderShortcuts({
+            showSummaryModal: true,
+            canCancelRoastSummary: true,
+            onCloseRoastSummary,
+            onCancelRoastSummary,
+        });
+
+        act(() => {
+            const used = new KeyboardEvent('keydown', escapeKey());
+            used.preventDefault();
+            document.dispatchEvent(used);
+            document.dispatchEvent(new KeyboardEvent('keydown', escapeKey({ isComposing: true })));
+        });
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
+        expect(onCloseRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('ignores Escape without the summary popup, while saving, or when the shortcut is switched off', () => {
+        const onCloseRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
+        const props = { canCancelRoastSummary: true, onCloseRoastSummary, onCancelRoastSummary };
+        const press = () =>
+            act(() => {
+                document.dispatchEvent(new KeyboardEvent('keydown', escapeKey()));
+            });
+
+        renderShortcuts({ ...props, showSummaryModal: false });
+        press();
+        renderShortcuts({ ...props, showSummaryModal: true, roastSummarySaving: true });
+        press();
+        act(() => useShortcutStore.getState().setEnabled('dismissRoastSummary', false));
+        renderShortcuts({ ...props, showSummaryModal: true });
+        press();
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
+        expect(onCloseRoastSummary).not.toHaveBeenCalled();
+    });
+
+    it('the removed mod+shift+6 chord does nothing while the popup is open', () => {
+        const onSaveRoastSummary = vi.fn();
+        const onCancelRoastSummary = vi.fn();
         expect(SHORTCUTS.some(({ id }) => (id as string) === 'closeRoastSummary')).toBe(false);
 
-        renderShortcuts({ showSummaryModal: true, onSaveRoastSummary, onMarkDrop });
+        renderShortcuts({
+            showSummaryModal: true,
+            canCancelRoastSummary: true,
+            onSaveRoastSummary,
+            onCancelRoastSummary,
+        });
 
         act(() => {
             document.dispatchEvent(
@@ -132,7 +225,7 @@ describe('post-drop keyboard flow', () => {
             );
         });
         expect(onSaveRoastSummary).not.toHaveBeenCalled();
-        expect(onMarkDrop).not.toHaveBeenCalled();
+        expect(onCancelRoastSummary).not.toHaveBeenCalled();
     });
 
     it('ignores key repeat for the return-to-wait shortcut', () => {

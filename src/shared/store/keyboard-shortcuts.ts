@@ -28,6 +28,7 @@ export const SHORTCUTS = [
     { id: 'fcEnd', defaultKeys: ['mod+3'], group: 'roast', editable: true },
     { id: 'drop', defaultKeys: ['mod+shift+d'], group: 'roast', editable: true },
     { id: 'saveRoastSummary', defaultKeys: ['mod+s'], group: 'roast', editable: true },
+    { id: 'dismissRoastSummary', defaultKeys: ['escape'], group: 'roast', editable: false },
     { id: 'returnToChargeWait', defaultKeys: ['mod+shift+7'], group: 'roast', editable: true },
     { id: 'toggleControl', defaultKeys: ['t'], group: 'roast', editable: true },
     { id: 'zoomIn', defaultKeys: ['+', '='], group: 'chart', editable: true },

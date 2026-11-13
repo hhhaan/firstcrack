@@ -34,6 +34,7 @@
             "fcEnd": "Mark FC End",
             "drop": "Mark Drop",
             "saveRoastSummary": "Save roast summary",
+            "dismissRoastSummary": "Close roast summary / undo Drop",
             "returnToChargeWait": "Return to charge wait",
             "toggleControl": "Toggle machine control",
             "zoomIn": "Zoom in chart",

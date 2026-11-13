@@ -34,6 +34,7 @@
             "fcEnd": "FC End 기록",
             "drop": "배출 기록",
             "saveRoastSummary": "로스트 요약 저장",
+            "dismissRoastSummary": "로스트 요약 닫기 / 배출 취소",
             "returnToChargeWait": "저장 곡선 검토 종료(투입 대기로)",
             "toggleControl": "머신 제어 패널 표시·숨김",
             "zoomIn": "차트 확대",

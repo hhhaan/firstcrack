@@ -225,9 +225,9 @@ export const RoastSummaryModal = ({
                 <button
                     type="button"
                     data-testid="roast-summary-close"
-                    onClick={onClose}
+                    onClick={canCancelDrop ? onCancelDrop : onClose}
                     disabled={isSaving}
-                    aria-label={t('common.close')}
+                    aria-label={t(canCancelDrop ? 'activeRoast.unsaved.cancelDrop' : 'common.close')}
                     className="absolute top-3 end-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     <X size={18} strokeWidth={2.3} />

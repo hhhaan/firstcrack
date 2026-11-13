@@ -318,15 +318,15 @@ it('calls onClose from the header X without discarding', () => {
     unmount();
 });
 
-it('closes from the header X without cancelling Drop while the roast can be restored', () => {
+it('cancels Drop from the header X while the roast can be restored', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();
     const { unmount } = renderModal({ canCancelDrop: true, onClose, onCancelDrop });
     const close = document.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
-    expect(close.getAttribute('aria-label')).toBe('common.close');
+    expect(close.getAttribute('aria-label')).toBe('activeRoast.unsaved.cancelDrop');
     act(() => close.click());
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(onCancelDrop).not.toHaveBeenCalled();
+    expect(onCancelDrop).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
     unmount();
 });
 

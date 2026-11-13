@@ -382,6 +382,7 @@ export const ActiveRoast = ({
     const dropCancelable = useRoastingStore(selectDropCancelable);
 
     const applyDropRef = useRef<(onset?: { timeSec: number; bt: number }) => void>(() => {});
+    const handleCancelDropRef = useRef<() => void>(() => {});
     const summaryModalRef = useRef<RoastSummaryModalHandle>(null);
     const saveRoastSummary = useCallback(() => summaryModalRef.current?.save(), []);
 
@@ -723,6 +724,9 @@ export const ActiveRoast = ({
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
         onSaveRoastSummary: saveRoastSummary,
+        onCloseRoastSummary: saveFlow.flow.closeSummary,
+        onCancelRoastSummary: () => handleCancelDropRef.current(),
+        canCancelRoastSummary: dropCancelable,
         reviewing,
         chargeLocked: chargeLock.locked,
         onDismissReview: dismissReview,
@@ -962,6 +966,9 @@ export const ActiveRoast = ({
         machineControl.replay.restore(restore?.replayActive ?? false);
         saveFlow.flow.closeSummary();
     }, [lifecycle, machineControl.replay, saveFlow.flow]);
+    useLayoutEffect(() => {
+        handleCancelDropRef.current = handleCancelDrop;
+    }, [handleCancelDrop]);
     const [noteInput, setNoteInput] = useState('');
     const handleNoteSubmit = useCallback(() => {
         const body = noteInput.trim();

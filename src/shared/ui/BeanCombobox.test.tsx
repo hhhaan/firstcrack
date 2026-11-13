@@ -84,6 +84,22 @@ describe('BeanCombobox', () => {
         expect(picker.onSelect).toHaveBeenLastCalledWith('blend-1');
     });
 
+    it('takes Escape for its open list only, and leaves the next Escape to the dialog around it', () => {
+        const { input, type, options } = render([{ id: 'bean-1', name: 'Yirg' }]);
+        const pressEscape = () => {
+            const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+            act(() => {
+                input.dispatchEvent(event);
+            });
+            return event.defaultPrevented;
+        };
+        type('Yi');
+        expect(options()).toEqual(['Yirg']);
+        expect(pressEscape()).toBe(true);
+        expect(options()).toEqual([]);
+        expect(pressEscape()).toBe(false);
+    });
+
     it('keeps typed free text when it unlinks the selected bean', () => {
         const { input, type, onSelect } = render(items);
         type('Sample bag');

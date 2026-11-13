@@ -34,6 +34,7 @@
             "fcEnd": "FC Endを記録",
             "drop": "排出を記録",
             "saveRoastSummary": "ローストサマリーを保存",
+            "dismissRoastSummary": "ローストサマリーを閉じる／排出を取り消す",
             "returnToChargeWait": "保存カーブの確認を終了（投入待ちへ）",
             "toggleControl": "マシン制御パネルの表示切替",
             "zoomIn": "チャートを拡大",
