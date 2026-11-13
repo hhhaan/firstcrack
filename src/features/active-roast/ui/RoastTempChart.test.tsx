@@ -64,7 +64,6 @@ vi.mock('echarts', () => ({
 
 const baseProps = {
     xs: [0, 60],
-    btTarget: [],
     btActual: [180, 185],
     etActual: [200, 205],
     rorActual: [5, 5],

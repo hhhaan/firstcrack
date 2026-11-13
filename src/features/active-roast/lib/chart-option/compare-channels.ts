@@ -165,21 +165,6 @@ export const compareChannelValue = (
           : value;
 };
 
-/** Recorded samples are chronological; never interpolate commands or carry values beyond the recording. */
-export const comparePointAtTime = (points: ComparePoint[], timeSec: number): ComparePoint | undefined => {
-    if (!points.length || timeSec < points[0].t || timeSec > points[points.length - 1].t) return undefined;
-    let low = 0;
-    let high = points.length - 1;
-    while (low < high) {
-        const mid = Math.ceil((low + high) / 2);
-        if (points[mid].t <= timeSec) low = mid;
-        else high = mid - 1;
-    }
-    return points[low];
-};
-
 export const compareOtherUnits = (channels: CompareChannel[]): string[] => [
     ...new Set(channels.filter((c) => c.kind === 'other').map((c) => c.unit)),
 ];
-
-export const compareExtraAxisWidth = (channels: CompareChannel[]): number => compareOtherUnits(channels).length * 48;

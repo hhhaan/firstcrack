@@ -29,7 +29,6 @@ const activeRoastMeasuredParams = (): ChartOptionParams => ({
     etActual: [110, 125, 145, 160],
     rorActual: [null, 12, 10, 8],
     rorEtActual: [null, 11, 9, 7],
-    btTarget: [],
     currentTimeSec: 120,
     charged: true,
     eventMarkerStyle: 'callout',

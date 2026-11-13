@@ -111,7 +111,6 @@ export function ProfileRoastChart({
                     etActual={points.map((point) => (point.et == null ? null : toDisplayTemp(point.et, unit)))}
                     rorActual={points.map((point) => (point.ror == null ? null : toDisplayRoR(point.ror, unit)))}
                     rorEtActual={points.map((point) => (point.rorEt == null ? null : toDisplayRoR(point.rorEt, unit)))}
-                    btTarget={[]}
                     showTargetCurve={false}
                     showTooltip={false}
                     currentTimeSec={0}

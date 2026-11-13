@@ -458,21 +458,6 @@ export const buildCurveLabelSeries = (
                     style: { stroke: box.color, lineWidth: 1, opacity: box.opacity },
                 });
             }
-            /*
-            const { y: plotY, height: plotHeight } = params.coordSys;
-            if (box.showDot && box.anchorY >= plotY && box.anchorY <= plotY + plotHeight) {
-                children.push({
-                    type: 'circle',
-                    shape: { cx: box.anchorX, cy: box.anchorY, r: scaleChartPx(1.5, scale) },
-                    style: {
-                        fill: _dotColor ?? box.color,
-                        stroke: _dotColor ?? box.color,
-                        lineWidth: 1,
-                        opacity: box.opacity,
-                    },
-                });
-            }
-            */
             children.push({
                 type: 'text',
                 x: box.x,

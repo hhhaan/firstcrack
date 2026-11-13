@@ -1,12 +1,6 @@
 import { assert, describe, expect, it } from 'vitest';
 import { CSS_CURVE_TOKENS, DEFAULT_CURVE_STYLES, resolveCurveStyles } from '../curve-style';
-import {
-    type ComparePoint,
-    compareChannels,
-    compareChannelValue,
-    compareCurveStyle,
-    comparePointAtTime,
-} from './compare-channels';
+import { type ComparePoint, compareChannels, compareChannelValue, compareCurveStyle } from './compare-channels';
 
 const point = (label: string, unit: string, value: number): ComparePoint => ({
     t: 0,
@@ -74,20 +68,6 @@ describe('recorded Gas commands and cursor', () => {
         expect(channels.map((c) => compareChannelValue(pressure, c, 'F'))).toEqual([null, 12]);
         expect(channels.map((c) => compareChannelValue(legacy, c, 'F'))).toEqual([null, null]);
         expect(compareChannels([{ points: [legacy] }], 'C').some((c) => c.source === 'heaterSet')).toBe(false);
-    });
-
-    it('reads the last recorded sample without interpolating steps, filling gaps or extending a batch', () => {
-        const points = [
-            { ...point('Inlet', 'C', 100), t: 0, heaterSet: 70 },
-            { ...point('Inlet', 'C', 100), t: 5, heaterSet: null, et: null },
-            { ...point('Inlet', 'C', 100), t: 10, heaterSet: 45 },
-        ];
-        expect(comparePointAtTime(points, 4)?.heaterSet).toBe(70);
-        expect(comparePointAtTime(points, 9)).toBe(points[1]);
-        expect(comparePointAtTime(points, 10)?.heaterSet).toBe(45);
-        expect(comparePointAtTime(points, -1)).toBeUndefined();
-        expect(comparePointAtTime(points, 11)).toBeUndefined();
-        expect(comparePointAtTime([], 0)).toBeUndefined();
     });
 });
 
