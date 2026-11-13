@@ -11,21 +11,6 @@ const statusTone: Record<string, BadgeTone> = {
     skipped: 'muted',
 };
 
-const STATUS_EN: Record<string, string> = {
-    pending: 'Pending',
-    done: 'Done',
-    skipped: 'Skipped',
-};
-
-const RECURRENCE_EN: Record<string, string> = {
-    daily: 'Daily',
-    weekly: 'Weekly',
-    biweekly: 'Biweekly',
-    monthly: 'Monthly',
-    repeat: 'Repeat',
-    none: 'None',
-};
-
 export const BatchCard = ({
     batch,
     index,
@@ -53,6 +38,13 @@ export const BatchCard = ({
 }) => {
     const { t } = useTranslation();
     const status = batchStatus(batch);
+    const recurrenceKey = getRecurrenceLabel(batch.rrule) || 'repeat';
+    const statusText =
+        status === 'in-progress'
+            ? t('schedule.status.inProgressWith', {
+                  progress: `${batch.completed_sessions}/${batch.batch_count}`,
+              })
+            : t(`schedule.status.${status}`);
     const isActive = status === 'pending' || status === 'in-progress';
     const isRecurring = !!batch.recurrence_rule_id;
     const canReorder = !isOverdue && !isRecurring;
@@ -70,12 +62,12 @@ export const BatchCard = ({
                     <span className="text-[14px] font-semibold text-primary">{batch.bean_name}</span>
                     {isOverdue && (
                         <Badge size="sm" tone="warn" icon={<Clock size={9} strokeWidth={2.5} />}>
-                            Overdue
+                            {t('schedule.overdue.badge')}
                         </Badge>
                     )}
                     {isRecurring && (
                         <Badge size="sm" tone="lavender">
-                            {RECURRENCE_EN[getRecurrenceLabel(batch.rrule)] ?? 'Repeat'}
+                            {t(`schedule.recurrence.${recurrenceKey}`)}
                         </Badge>
                     )}
                 </div>
@@ -84,9 +76,7 @@ export const BatchCard = ({
                         tone={statusTone[status] ?? 'neutral'}
                         className={`px-1.5${status === 'done' ? '' : ' rounded-md'}${status === 'skipped' ? ' line-through' : ''}`}
                     >
-                        {status === 'in-progress'
-                            ? `In Progress ${batch.completed_sessions}/${batch.batch_count}`
-                            : (STATUS_EN[status] ?? status)}
+                        {statusText}
                     </Badge>
                     {isActive && (
                         <button

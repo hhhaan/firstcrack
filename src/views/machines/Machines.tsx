@@ -173,7 +173,7 @@ export const Machines = ({
                                                 tone={isConnected ? 'good' : 'bad'}
                                                 className={isConnected ? undefined : 'px-1.75'}
                                             >
-                                                {isConnected ? 'Live' : 'Offline'}
+                                                {isConnected ? t('common.live') : t('common.offline')}
                                             </Badge>
                                         </div>
                                         <div className="flex gap-2.5">

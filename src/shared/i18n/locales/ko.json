@@ -1444,7 +1444,13 @@
                 "addComponent": "+ 생두 추가",
                 "cancel": "취소",
                 "save": "저장",
-                "add": "추가"
+                "add": "추가",
+                "form": {
+                    "nameRequired": "블렌드 이름을 입력하세요",
+                    "beanRequired": "생두를 선택하세요",
+                    "componentsMin": "최소 1개의 생두가 필요합니다",
+                    "ratioSum": "구성 비율 합계가 100%여야 합니다"
+                }
             },
             "componentCount_one": "생두 {{count}}종",
             "componentCount_other": "생두 {{count}}종",

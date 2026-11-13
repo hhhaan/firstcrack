@@ -1066,7 +1066,13 @@
                 "addComponent": "+ 添加生豆",
                 "cancel": "取消",
                 "save": "保存",
-                "add": "添加"
+                "add": "添加",
+                "form": {
+                    "nameRequired": "请输入拼配名称",
+                    "beanRequired": "请选择生豆",
+                    "componentsMin": "至少需要一种生豆",
+                    "ratioSum": "成分比例合计必须为100%"
+                }
             },
             "componentCount_one": "{{count}}支生豆",
             "componentCount_other": "{{count}}支生豆",
