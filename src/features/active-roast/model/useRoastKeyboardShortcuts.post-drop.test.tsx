@@ -15,17 +15,6 @@ type ShortcutHostProps = Parameters<typeof useRoastKeyboardShortcuts>[0];
 
 const defaultTaken = () => SHORTCUTS.flatMap(({ defaultKeys }) => [...defaultKeys]);
 
-const closeSummaryKey = (ctrlKey: boolean, init: KeyboardEventInit = {}) => ({
-    key: '6',
-    code: 'Digit6',
-    ctrlKey,
-    metaKey: !ctrlKey,
-    shiftKey: true,
-    bubbles: true,
-    cancelable: true,
-    ...init,
-});
-
 const saveSummaryKey = (ctrlKey: boolean, init: KeyboardEventInit = {}) => ({
     key: 's',
     code: 'KeyS',
@@ -98,33 +87,24 @@ describe('post-drop keyboard flow', () => {
         host.remove();
     });
 
-    const pressClose = (target?: EventTarget) =>
+    const pressSave = (target?: EventTarget) =>
         act(() => {
             const node = target ?? document;
-            node.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
+            node.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
         });
 
-    it('closes the summary popup then allows Charge for the next batch', () => {
-        const onCloseRoastSummary = vi.fn();
+    it('saves the summary popup then allows Charge for the next batch', () => {
+        const onSaveRoastSummary = vi.fn();
         const onManualCharge = vi.fn();
         const onMarkDrop = vi.fn();
-        let showSummaryModal = true;
 
-        renderShortcuts({
-            showSummaryModal,
-            onManualCharge,
-            onMarkDrop,
-            onCloseRoastSummary: () => {
-                showSummaryModal = false;
-                onCloseRoastSummary();
-            },
-        });
+        renderShortcuts({ showSummaryModal: true, onManualCharge, onMarkDrop, onSaveRoastSummary });
 
-        pressClose();
-        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
+        pressSave();
+        expect(onSaveRoastSummary).toHaveBeenCalledTimes(1);
         expect(onMarkDrop).not.toHaveBeenCalled();
 
-        renderShortcuts({ showSummaryModal, onManualCharge, onMarkDrop, onCloseRoastSummary });
+        renderShortcuts({ showSummaryModal: false, onManualCharge, onMarkDrop, onSaveRoastSummary });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', chargeKey(true)));
@@ -132,43 +112,31 @@ describe('post-drop keyboard flow', () => {
         expect(onManualCharge).toHaveBeenCalledTimes(1);
     });
 
-    it('does not close the summary while a memo field is focused without a mod chord', () => {
-        const onCloseRoastSummary = vi.fn();
-        const input = document.createElement('input');
-        document.body.appendChild(input);
-        input.focus();
+    it('has no summary close shortcut: the old chord does nothing while the popup is open', () => {
+        const onSaveRoastSummary = vi.fn();
+        const onMarkDrop = vi.fn();
+        expect(SHORTCUTS.some(({ id }) => (id as string) === 'closeRoastSummary')).toBe(false);
 
-        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary });
+        renderShortcuts({ showSummaryModal: true, onSaveRoastSummary, onMarkDrop });
 
-        pressClose(input);
-        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
-
-        onCloseRoastSummary.mockClear();
         act(() => {
-            input.dispatchEvent(
+            document.dispatchEvent(
                 new KeyboardEvent('keydown', {
                     key: '6',
                     code: 'Digit6',
+                    ctrlKey: true,
+                    shiftKey: true,
                     bubbles: true,
-                    target: input,
-                } as KeyboardEventInit),
+                    cancelable: true,
+                }),
             );
         });
-        expect(onCloseRoastSummary).not.toHaveBeenCalled();
-        input.remove();
+        expect(onSaveRoastSummary).not.toHaveBeenCalled();
+        expect(onMarkDrop).not.toHaveBeenCalled();
     });
 
-    it('ignores key repeat for close and return-to-wait shortcuts', () => {
-        const onCloseRoastSummary = vi.fn();
+    it('ignores key repeat for the return-to-wait shortcut', () => {
         const onDismissReview = vi.fn();
-
-        renderShortcuts({ showSummaryModal: true, onCloseRoastSummary });
-
-        act(() => {
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true)));
-            document.dispatchEvent(new KeyboardEvent('keydown', closeSummaryKey(true, { repeat: true })));
-        });
-        expect(onCloseRoastSummary).toHaveBeenCalledTimes(1);
 
         renderShortcuts({ reviewing: true, onDismissReview });
 
@@ -179,8 +147,7 @@ describe('post-drop keyboard flow', () => {
         expect(onDismissReview).toHaveBeenCalledTimes(1);
     });
 
-    it('does not close the summary while save preparation or submit is in flight', () => {
-        const onCloseRoastSummary = vi.fn();
+    it('keeps the summary shortcut off while save preparation or submit is in flight', () => {
         expect(
             isRoastSummaryShortcutEnabled({
                 isActive: true,
@@ -189,26 +156,19 @@ describe('post-drop keyboard flow', () => {
                 roastSummarySaving: true,
             }),
         ).toBe(false);
-
-        renderShortcuts({ showSummaryModal: true, roastSummarySaving: true, onCloseRoastSummary });
-
-        pressClose();
-        expect(onCloseRoastSummary).not.toHaveBeenCalled();
     });
 
-    it('saves the summary once per press and leaves close and Drop alone', () => {
+    it('saves the summary once per press and leaves Drop alone', () => {
         const onSaveRoastSummary = vi.fn();
-        const onCloseRoastSummary = vi.fn();
         const onMarkDrop = vi.fn();
 
-        renderShortcuts({ showSummaryModal: true, onSaveRoastSummary, onCloseRoastSummary, onMarkDrop });
+        renderShortcuts({ showSummaryModal: true, onSaveRoastSummary, onMarkDrop });
 
         act(() => {
             document.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true)));
             document.dispatchEvent(new KeyboardEvent('keydown', saveSummaryKey(true, { repeat: true })));
         });
         expect(onSaveRoastSummary).toHaveBeenCalledTimes(1);
-        expect(onCloseRoastSummary).not.toHaveBeenCalled();
         expect(onMarkDrop).not.toHaveBeenCalled();
     });
 

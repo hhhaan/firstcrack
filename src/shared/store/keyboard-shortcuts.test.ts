@@ -210,74 +210,57 @@ describe('keyboard shortcuts', () => {
         expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 3);
     });
 
-    it('moves superseded summary defaults off the custom-event digit pool', async () => {
+    it('moves the superseded charge-wait default off the custom-event digit pool', async () => {
         await hydrateStoredBindings({
-            closeRoastSummary: ['mod+6'],
             returnToChargeWait: ['mod+7'],
             yellow: ['mod+5'],
         });
 
-        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual(['mod+shift+6']);
         expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+shift+7']);
         expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+5']);
         expect(settingsSet).toHaveBeenCalledWith('keyboard.bindingsVersion', 3);
     });
 
-    it.each([
-        ['closeRoastSummary', 'mod+shift+x'],
-        ['returnToChargeWait', 'mod+shift+y'],
-    ] as const)('leaves a user-chosen %s binding on the upgrade path', async (id, custom) => {
-        await hydrateStoredBindings({ [id]: [custom] });
-        expect(useShortcutStore.getState().bindings[id]).toEqual([custom]);
+    it('leaves a user-chosen returnToChargeWait binding on the upgrade path', async () => {
+        await hydrateStoredBindings({ returnToChargeWait: ['mod+shift+y'] });
+        expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+shift+y']);
     });
 
-    it.each([
-        ['closeRoastSummary', 'mod+6'],
-        ['returnToChargeWait', 'mod+7'],
-    ] as const)('keeps a re-recorded %s digit after bindingsVersion 3', async (id, digit) => {
-        await hydrateStoredBindings({ [id]: [digit] }, 3);
-        expect(useShortcutStore.getState().bindings[id]).toEqual([digit]);
+    it('keeps a re-recorded returnToChargeWait digit after bindingsVersion 3', async () => {
+        await hydrateStoredBindings({ returnToChargeWait: ['mod+7'] }, 3);
+        expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+7']);
         expect(settingsSet).not.toHaveBeenCalledWith('keyboard.bindings', expect.anything());
     });
 
-    it('keeps a version 2 Drop choice and migrates a free summary chord', async () => {
-        await hydrateStoredBindings(
-            {
-                drop: ['mod+d'],
-                closeRoastSummary: ['mod+6'],
-                returnToChargeWait: ['mod+7'],
-            },
-            2,
-        );
+    it('keeps a version 2 Drop choice and migrates a free charge-wait chord', async () => {
+        await hydrateStoredBindings({ drop: ['mod+d'], returnToChargeWait: ['mod+7'] }, 2);
 
         expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+d']);
-        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual(['mod+shift+6']);
         expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+shift+7']);
     });
 
-    it('keeps a customized chord instead of giving it to closeRoastSummary', async () => {
-        await hydrateStoredBindings({ yellow: ['mod+shift+6'], fcStart: ['mod+shift+7'] });
+    it('keeps a customized chord instead of giving it to a later default', async () => {
+        await hydrateStoredBindings({ yellow: ['mod+s'], fcStart: ['mod+shift+7'] });
 
-        expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+shift+6']);
+        expect(useShortcutStore.getState().bindings.yellow).toEqual(['mod+s']);
         expect(useShortcutStore.getState().bindings.fcStart).toEqual(['mod+shift+7']);
-        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual([]);
+        expect(useShortcutStore.getState().bindings.saveRoastSummary).toEqual([]);
         expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual([]);
     });
 
     it('does not upgrade a stored version 3 map again', async () => {
-        await hydrateStoredBindings(
-            {
-                drop: ['mod+d'],
-                closeRoastSummary: ['mod+6'],
-                returnToChargeWait: ['mod+7'],
-            },
-            3,
-        );
+        await hydrateStoredBindings({ drop: ['mod+d'], returnToChargeWait: ['mod+7'] }, 3);
 
         expect(useShortcutStore.getState().bindings.drop).toEqual(['mod+d']);
-        expect(useShortcutStore.getState().bindings.closeRoastSummary).toEqual(['mod+6']);
         expect(useShortcutStore.getState().bindings.returnToChargeWait).toEqual(['mod+7']);
         expect(settingsSet).not.toHaveBeenCalledWith('keyboard.bindings', expect.anything());
+    });
+
+    it('ignores a stored binding for the removed summary close shortcut', async () => {
+        await hydrateStoredBindings({ closeRoastSummary: ['mod+s'] }, 3);
+
+        expect(useShortcutStore.getState().bindings).not.toHaveProperty('closeRoastSummary');
+        expect(useShortcutStore.getState().bindings.saveRoastSummary).toEqual(['mod+s']);
     });
 
     it('keeps a Drop key the user records again after the upgrade ran', async () => {

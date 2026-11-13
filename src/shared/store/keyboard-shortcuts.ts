@@ -28,7 +28,6 @@ export const SHORTCUTS = [
     { id: 'fcEnd', defaultKeys: ['mod+3'], group: 'roast', editable: true },
     { id: 'drop', defaultKeys: ['mod+shift+d'], group: 'roast', editable: true },
     { id: 'saveRoastSummary', defaultKeys: ['mod+s'], group: 'roast', editable: true },
-    { id: 'closeRoastSummary', defaultKeys: ['mod+shift+6'], group: 'roast', editable: true },
     { id: 'returnToChargeWait', defaultKeys: ['mod+shift+7'], group: 'roast', editable: true },
     { id: 'toggleControl', defaultKeys: ['t'], group: 'roast', editable: true },
     { id: 'zoomIn', defaultKeys: ['+', '='], group: 'chart', editable: true },
@@ -50,7 +49,8 @@ const STORE_KEY = 'keyboard.bindings';
 const DISABLED_STORE_KEY = 'keyboard.disabled';
 const VERSION_STORE_KEY = 'keyboard.bindingsVersion';
 /** 2: Drop moved to `mod+shift+d` and became an OS-level shortcut (#936).
- *  3: Summary / charge-wait shortcuts moved off the custom-event digit pool (#1137). */
+ *  3: The charge-wait shortcut moved off the custom-event digit pool (#1137).
+ *  The summary close shortcut of that version is gone (#1162); its stored binding is ignored. */
 const BINDINGS_VERSION = 3;
 const EMPTY_KEYS: string[] = [];
 const DEFAULT_BINDINGS = Object.fromEntries(
@@ -64,7 +64,7 @@ const pressToken = (key: string): string | null => {
 };
 
 /** Defaults added after users could already bind the same chord. The older binding keeps it. */
-const YIELD_DEFAULT_TO_CUSTOM = new Set<ShortcutId>(['saveRoastSummary', 'closeRoastSummary', 'returnToChargeWait']);
+const YIELD_DEFAULT_TO_CUSTOM = new Set<ShortcutId>(['saveRoastSummary', 'returnToChargeWait']);
 
 export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings> {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
@@ -126,7 +126,6 @@ export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings>
  */
 const SUPERSEDED_DEFAULTS: Partial<Record<ShortcutId, { since: number; keys: readonly string[] }>> = {
     drop: { since: 2, keys: ['mod+d'] },
-    closeRoastSummary: { since: 3, keys: ['mod+6'] },
     returnToChargeWait: { since: 3, keys: ['mod+7'] },
 };
 

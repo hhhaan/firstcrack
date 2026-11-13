@@ -34,7 +34,6 @@
             "fcEnd": "记录 FC End",
             "drop": "记录排出",
             "saveRoastSummary": "保存烘焙摘要",
-            "closeRoastSummary": "关闭烘焙摘要弹窗（不保存、不撤销出豆）",
             "returnToChargeWait": "结束已保存曲线查看（返回投豆等待）",
             "toggleControl": "显示或隐藏机器控制面板",
             "zoomIn": "放大图表",

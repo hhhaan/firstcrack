@@ -723,7 +723,6 @@ export const ActiveRoast = ({
         onCycleFc: cycleFcWhenEnabled(fcDualMarkEnabled, cycleFc),
         onMarkDrop: markDrop,
         onSaveRoastSummary: saveRoastSummary,
-        onCloseRoastSummary: saveFlow.flow.closeSummary,
         reviewing,
         chargeLocked: chargeLock.locked,
         onDismissReview: dismissReview,
