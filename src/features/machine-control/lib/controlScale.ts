@@ -1,4 +1,4 @@
-/** Heater feedback tolerance for display settling and Drop-zero retries. */
+/** Heater feedback tolerance for display settling (matches control sender settle check). */
 
 const DEFAULT_HEATER_MAX = 100;
 const CONVERGE_RATIO = 0.01;

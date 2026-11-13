@@ -16,9 +16,6 @@ export interface CancelUnsentMatch {
     role: ControlRole;
 }
 
-/** 기기 실측이 지시값에 이만큼 근접하면 "따라왔다"고 본다 (채널 단위) */
-export const CONVERGE_TOLERANCE = 1;
-
 /**
  * 기기가 지시값을 따라잡은 role 목록.
  *

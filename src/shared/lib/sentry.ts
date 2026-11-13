@@ -390,6 +390,24 @@ export const captureSidecarRequestFailure = (input: {
     });
 };
 
+/** Same-version relaunch loop after a failed apply — stable fingerprint, no version strings in the message. */
+export const captureUpdaterLoopGuard = (input: {
+    currentVersion: string;
+    availableVersion: string;
+    attempts: number;
+}) => {
+    Sentry.captureMessage('updater loop-guard triggered', {
+        level: 'warning',
+        fingerprint: ['updater', 'loop-guard'],
+        tags: { feature: 'updater' },
+        extra: {
+            current_version: input.currentVersion,
+            available_version: input.availableVersion,
+            attempts: input.attempts,
+        },
+    });
+};
+
 /** One terminal readiness failure per outage; the shared readiness wait owns dedupe. */
 export const captureSidecarReadinessFailure = (input: {
     episode: number;

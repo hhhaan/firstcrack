@@ -1,5 +1,6 @@
 import * as Sentry from '@sentry/react';
 import { logger } from '@shared/lib/logger';
+import { captureUpdaterLoopGuard } from '@shared/lib/sentry';
 import { invoke } from '@tauri-apps/api/core';
 import { platform } from '@tauri-apps/plugin-os';
 import type { DownloadEvent } from '@tauri-apps/plugin-updater';
@@ -174,13 +175,10 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
                     const attempts = readRetryAttempts();
                     if (attempts >= MAX_RETRY_ATTEMPTS) {
                         const msg = 'updater.loopGuardError';
-                        Sentry.captureMessage('[updater] loop-guard triggered', {
-                            level: 'warning',
-                            extra: {
-                                currentVersion: update.currentVersion,
-                                availableVersion: update.version,
-                                attempts,
-                            },
+                        captureUpdaterLoopGuard({
+                            currentVersion: update.currentVersion,
+                            availableVersion: update.version,
+                            attempts,
                         });
                         statusRef.current = 'error';
                         setState({ status: 'error', version: update.version, progress: 0, error: msg });

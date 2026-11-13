@@ -1,6 +1,5 @@
 import type { Machine, SidecarStatus, TemperatureReading } from '@entities/machine';
 import { canConnectRoaster, isSameSidecarStatus } from '@entities/machine';
-import * as Sentry from '@sentry/react';
 import { isOpaqueNetworkError } from '@shared/lib/errorMessage';
 import { emitExplicitMachineDisconnect } from '@shared/lib/explicitMachineDisconnect';
 import { useAccountPlan } from '@shared/lib/features/useAccountPlan';
@@ -158,20 +157,14 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                 endMachineConnectAttempt(status.connected);
                 if (status.connected) {
                     observeMachineLink({ connected: true, reconnecting: Boolean(status.reconnecting) });
-                    Sentry.addBreadcrumb({
-                        category: 'hardware.connection',
-                        message: `로스터 연결 성공: ${machine.name}`,
-                        level: 'info',
-                        data: { roasterKey: machine.roasterKey, protocol: machine.protocol },
-                    });
                 } else if (status.error) {
-                    Sentry.addBreadcrumb({
-                        category: 'hardware.connection',
-                        message: `로스터 연결 실패: ${machine.name}`,
-                        level: 'error',
-                        data: { roasterKey: machine.roasterKey, protocol: machine.protocol, error: status.error },
+                    logger.capture(new Error('roaster connect failed'), {
+                        feature: 'machine-connection',
+                        context: 'connect_status',
+                        roasterKey: machine.roasterKey,
+                        protocol: machine.protocol,
+                        error: status.error,
                     });
-                    Sentry.captureMessage(`로스터 연결 실패: ${machine.name} — ${status.error}`, 'warning');
                     sendOsNotification(
                         '연결 실패',
                         `「${machine.name}」로스터에 연결할 수 없습니다. 연결 정보와 네트워크 상태를 확인해 주세요.`,
@@ -186,13 +179,8 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
                 void sidecar.disconnect().catch(() => null);
                 // sidecar가 아직 bind 전일 때의 Load failed는 재시도로 흡수하고, 소진돼도
                 // 프로세스 사망은 Rust sidecar-dead가 남긴다. 401 등만 이슈로 남긴다.
-                if (!isOpaqueNetworkError(e)) logger.capture(e, { context: 'machine connect' });
-                Sentry.addBreadcrumb({
-                    category: 'hardware.connection',
-                    message: `로스터 연결 중 예외: ${machine.name}`,
-                    level: 'error',
-                    data: { roasterKey: machine.roasterKey, error: String(e) },
-                });
+                if (!isOpaqueNetworkError(e))
+                    logger.capture(e, { feature: 'machine-connection', context: 'machine connect' });
                 const validationMessage = isSidecarHttpError(e) && e.status === 400 && e.message ? e.message : null;
                 const detail =
                     validationMessage ??
@@ -225,25 +213,13 @@ export const useMachineSidecarConnection = ({ isActive, modalOpen, machines, onC
 
     const handleDisconnect = useCallback(async () => {
         noteUserMachineDisconnect();
-        const prevStatus = sidecarStatus;
         const status = await sidecar.disconnect().catch(() => null);
         const released = status?.connected === false;
         settleUserMachineDisconnect(released);
         if (released) emitExplicitMachineDisconnect();
         if (status) setSidecarStatus(status);
         setTemps(null);
-        if (prevStatus?.connected) {
-            Sentry.addBreadcrumb({
-                category: 'hardware.connection',
-                message: '로스터 연결 해제',
-                level: 'info',
-                data: {
-                    prevRoaster: prevStatus.roaster,
-                    uptimeSec: prevStatus.uptime,
-                },
-            });
-        }
-    }, [sidecarStatus]);
+    }, []);
 
     return {
         sidecarStatus,
