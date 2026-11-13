@@ -6,7 +6,7 @@ use std::{
 
 use serde_json::{json, Map, Value};
 
-use super::ImportError;
+use super::{empty, ImportError, Product};
 
 const LIMIT: usize = 32 * 1024 * 1024;
 type Result<T> = std::result::Result<T, ImportError>;
@@ -75,64 +75,6 @@ impl<'a> Reader<'a> {
         } else {
             Err(corrupt("trailing-data"))
         }
-    }
-
-    #[cfg(any())]
-    fn scanner_source(home: &Path) -> std::path::PathBuf {
-        let source =
-            home.join("Library/Application Support/Firescope/IndexedDB/file__0.indexeddb.leveldb");
-        fs::create_dir_all(&source).unwrap();
-        let fixture = snapshot(&[(graph_key(), Some(envelope(&hex(GRAPH))))]);
-        for entry in fs::read_dir(fixture.path()).unwrap() {
-            let entry = entry.unwrap();
-            fs::copy(entry.path(), source.join(entry.file_name())).unwrap();
-        }
-        source
-    }
-
-    #[cfg(any())]
-    fn scanner_preserves_source_and_rejects_symlinks_and_size_limits() {
-        use std::os::unix::fs::symlink;
-        let home = tempfile::tempdir().unwrap();
-        let source = scanner_source(home.path());
-        let contents = |path: &Path| -> BTreeMap<_, _> {
-            fs::read_dir(path)
-                .unwrap()
-                .map(|e| {
-                    let e = e.unwrap();
-                    (e.file_name(), fs::read(e.path()).unwrap())
-                })
-                .collect()
-        };
-        let before = contents(&source);
-        assert_eq!(scan(home.path())["status"], "found");
-        assert_eq!(contents(&source), before);
-
-        let linked_home = tempfile::tempdir().unwrap();
-        let parent = linked_home
-            .path()
-            .join("Library/Application Support/Firescope/IndexedDB");
-        fs::create_dir_all(&parent).unwrap();
-        symlink(&source, parent.join("file__0.indexeddb.leveldb")).unwrap();
-        assert_eq!(scan(linked_home.path())["reason"], "database-files");
-
-        let oversized_home = tempfile::tempdir().unwrap();
-        let oversized = scanner_source(oversized_home.path());
-        fs::File::create(oversized.join("oversized"))
-            .unwrap()
-            .set_len(LIMIT as u64 + 1)
-            .unwrap();
-        assert_eq!(scan(oversized_home.path())["reason"], "size-limit");
-
-        let total_home = tempfile::tempdir().unwrap();
-        let total = scanner_source(total_home.path());
-        for n in 0..5 {
-            fs::File::create(total.join(format!("large-{n}")))
-                .unwrap()
-                .set_len(27 * 1024 * 1024)
-                .unwrap();
-        }
-        assert_eq!(scan(total_home.path())["reason"], "size-limit");
     }
 }
 
@@ -1095,13 +1037,6 @@ fn decode(path: &Path) -> Result<Decoded> {
     Ok((settings, history))
 }
 
-fn response(status: &str, reason: Option<&str>) -> Value {
-    let mut v = json!({"status":status,"source":{"product":"Firescope","version":null},"graph":null,"graphTemperatureUnit":null,"indicator":null,"global":null,"machines":[]});
-    if let Some(x) = reason {
-        v["reason"] = Value::String(x.into())
-    }
-    v
-}
 fn fields(v: &Value, allowed: &[&str]) -> Result<Value> {
     let obj = v.as_object().ok_or_else(|| unsupported("settings-shape"))?;
     let mut out = Map::new();
@@ -1205,9 +1140,13 @@ fn machine(v: &Value) -> Result<Value> {
 pub(super) fn extract(path: &Path) -> Result<Value> {
     let (settings, history) = decode(path)?;
     if settings.is_empty() && history.is_empty() {
-        return Ok(response("not-found", Some("settings-not-found")));
+        return Ok(empty(
+            Product::Firescope,
+            "not-found",
+            Some("settings-not-found"),
+        ));
     }
-    let mut result = response("found", None);
+    let mut result = empty(Product::Firescope, "found", None);
     for (k, a) in [
         (
             "graph",
@@ -1321,7 +1260,7 @@ pub(super) fn extract(path: &Path) -> Result<Value> {
 
 #[cfg(not(target_os = "macos"))]
 pub(super) fn scan(_home: &Path) -> Value {
-    response("unsupported", Some("platform"))
+    empty(Product::Firescope, "unsupported", Some("platform"))
 }
 
 #[cfg(target_os = "macos")]
@@ -1352,14 +1291,22 @@ pub(super) fn scan(home: &Path) -> Value {
         let source =
             home.join("Library/Application Support/Firescope/IndexedDB/file__0.indexeddb.leveldb");
         if !source.exists() {
-            return Ok(response("not-found", Some("database-not-found")));
+            return Ok(empty(
+                Product::Firescope,
+                "not-found",
+                Some("database-not-found"),
+            ));
         }
         super::reject_symlinks(home, &source).map_err(|error| match error {
             ImportError::Unsupported(_) => unsupported("database-files"),
             error => error,
         })?;
         if super::process_running(&["-x", "Firescope|Firescope Helper.*"])? {
-            return Ok(response("needs-app-closed", Some("app-running")));
+            return Ok(empty(
+                Product::Firescope,
+                "needs-app-closed",
+                Some("app-running"),
+            ));
         }
         let lock = super::open_read(&source.join("LOCK"))?;
         let mut flock = libc::flock {
@@ -1373,7 +1320,11 @@ pub(super) fn scan(home: &Path) -> Value {
         if unsafe { libc::fcntl(lock.as_raw_fd(), libc::F_SETLK, &mut flock) } == -1 {
             let error = std::io::Error::last_os_error();
             if error.kind() == std::io::ErrorKind::WouldBlock {
-                return Ok(response("needs-app-closed", Some("database-locked")));
+                return Ok(empty(
+                    Product::Firescope,
+                    "needs-app-closed",
+                    Some("database-locked"),
+                ));
             }
             return Err(error.into());
         }
@@ -1391,24 +1342,40 @@ pub(super) fn scan(home: &Path) -> Value {
         if super::process_running(&["-x", "Firescope|Firescope Helper.*"])?
             || inventory(&source)? != before
         {
-            return Ok(response("needs-app-closed", Some("database-changed")));
+            return Ok(empty(
+                Product::Firescope,
+                "needs-app-closed",
+                Some("database-changed"),
+            ));
         }
         for (name, digest) in &hashes {
             let id = before.iter().find(|x| x.0 == *name).unwrap();
             if Sha256::digest(super::read_stable(&source.join(name), &id.1, LIMIT as u64)?)
                 != *digest
             {
-                return Ok(response("needs-app-closed", Some("database-changed")));
+                return Ok(empty(
+                    Product::Firescope,
+                    "needs-app-closed",
+                    Some("database-changed"),
+                ));
             }
         }
         if inventory(&source)? != before {
-            return Ok(response("needs-app-closed", Some("database-changed")));
+            return Ok(empty(
+                Product::Firescope,
+                "needs-app-closed",
+                Some("database-changed"),
+            ));
         }
         let result = extract(temp.path())?;
         if inventory(&source)? != before
             || super::process_running(&["-x", "Firescope|Firescope Helper.*"])?
         {
-            return Ok(response("needs-app-closed", Some("database-changed")));
+            return Ok(empty(
+                Product::Firescope,
+                "needs-app-closed",
+                Some("database-changed"),
+            ));
         }
         drop(lock);
         Ok(result)
@@ -1416,11 +1383,21 @@ pub(super) fn scan(home: &Path) -> Value {
     match inner(home) {
         Ok(v) => v,
         Err(ImportError::Unsupported("settings-files")) => {
-            response("unsupported", Some("database-files"))
+            empty(Product::Firescope, "unsupported", Some("database-files"))
         }
-        Err(ImportError::Unsupported(reason)) => response("unsupported", Some(reason)),
-        Err(ImportError::Changed) => response("needs-app-closed", Some("database-changed")),
-        Err(_) => response("unreadable", Some("database-unreadable")),
+        Err(ImportError::Unsupported(reason)) => {
+            empty(Product::Firescope, "unsupported", Some(reason))
+        }
+        Err(ImportError::Changed) => empty(
+            Product::Firescope,
+            "needs-app-closed",
+            Some("database-changed"),
+        ),
+        Err(_) => empty(
+            Product::Firescope,
+            "unreadable",
+            Some("database-unreadable"),
+        ),
     }
 }
 
