@@ -18,6 +18,3 @@ export const resolveCurveColorCommit = (
     if (theme === picked) return { kind: 'set', color: null };
     return { kind: 'set', color: picked };
 };
-
-export const shouldCommitCurveColor = (hex: string, stored: string | null, themeFallback?: string | null): boolean =>
-    resolveCurveColorCommit(hex, stored, themeFallback).kind === 'set';

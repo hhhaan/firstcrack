@@ -1,7 +1,8 @@
 import { useBeans } from '@entities/bean';
 import { useBlends } from '@entities/blend';
 import { useActiveWorkspace } from '@entities/organization';
-import { useSetRoastLevel, useUpdateRoastSession } from '@entities/roast';
+import { ROAST_LEVELS } from '@entities/profile';
+import { useRoastStockRecorded, useSetRoastLevel, useUpdateRoastSession } from '@entities/roast';
 import { useUpdateRoastBeanOrigin } from '@features/update-roast-bean-origin';
 import { useAuthStore } from '@shared/store/auth';
 import { useCatalogVisibility } from '@shared/store/catalog-visibility';
@@ -10,9 +11,6 @@ import { BeanCombobox } from '@shared/ui/BeanCombobox';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useRoastStockRecorded } from '../hooks/useRoastStockRecorded';
-
-const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
 const labelCls = 'mb-1 block text-[11px] font-medium tracking-[0.3px] text-muted';
 

@@ -7,9 +7,3 @@ export function settingsSectionSearchText(section: HTMLElement, groupText = ''):
         .join(' ');
     return `${groupText} ${keywords} ${section.textContent ?? ''}`.replace(/\s+/g, ' ').trim();
 }
-
-export function settingsSectionMatchesSearch(section: HTMLElement, terms: string[], groupText = ''): boolean {
-    if (!terms.length) return true;
-    const text = settingsSectionSearchText(section, groupText).toLocaleLowerCase();
-    return terms.every((term) => text.includes(term));
-}

@@ -7,7 +7,7 @@ export interface ProfileFormState {
     target_level: string;
 }
 
-export const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
+export { ROAST_LEVELS } from '@entities/profile';
 
 export const INITIAL_PROFILE_FORM: ProfileFormState = {
     name: '',

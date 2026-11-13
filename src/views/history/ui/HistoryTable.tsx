@@ -30,7 +30,6 @@ const levelBg: Record<string, string> = {
     Medium: 'color-mix(in srgb, var(--color-palette-blue) 12%, transparent)',
     'Medium-Dark': 'color-mix(in srgb, var(--color-palette-purple) 12%, transparent)',
     Dark: 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
-    'Dark-Light': 'color-mix(in srgb, var(--color-palette-violet) 12%, transparent)',
 };
 
 /** Row actions stay visible (not hover-only) and pinned right when the table scrolls horizontally. */

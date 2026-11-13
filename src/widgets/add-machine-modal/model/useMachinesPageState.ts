@@ -12,13 +12,14 @@ type Args = {
     sidecarStatus: SidecarStatus | null;
     setSidecarStatus: Dispatch<SetStateAction<SidecarStatus | null>>;
     setTemps: Dispatch<SetStateAction<TemperatureReading | null>>;
+    modalOpen: boolean;
+    setModalOpen: Dispatch<SetStateAction<boolean>>;
 };
 
-export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps }: Args) => {
+export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps, modalOpen, setModalOpen }: Args) => {
     const { addMachine, updateMachine, machines } = useMachines();
     const plan = useEffectivePlan();
     const accountPlan = useAccountPlan();
-    const [modalOpen, setModalOpen] = useState(false);
     const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
     const [limitBlocked, setLimitBlocked] = useState(false);
 
@@ -91,19 +92,22 @@ export const useMachinesPageState = ({ sidecarStatus, setSidecarStatus, setTemps
         setLimitBlocked(false);
         setEditingMachine(null);
         setModalOpen(true);
-    }, [plan, realMachineCount]);
+    }, [plan, realMachineCount, setModalOpen]);
 
     const dismissLimitBlocked = useCallback(() => setLimitBlocked(false), []);
 
-    const openEditModal = useCallback((machine: Machine) => {
-        setEditingMachine(machine);
-        setModalOpen(true);
-    }, []);
+    const openEditModal = useCallback(
+        (machine: Machine) => {
+            setEditingMachine(machine);
+            setModalOpen(true);
+        },
+        [setModalOpen],
+    );
 
     const closeModal = useCallback(() => {
         setModalOpen(false);
         setEditingMachine(null);
-    }, []);
+    }, [setModalOpen]);
 
     return {
         modalOpen,

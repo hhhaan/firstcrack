@@ -1,4 +1,5 @@
 import { useActiveWorkspace } from '@entities/organization';
+import { ROAST_LEVELS } from '@entities/profile';
 import {
     useDeleteRoastSession,
     useRoastSessionFilterMeta,
@@ -30,8 +31,6 @@ import { HistorySessionDetail } from './ui/HistorySessionDetail';
 import { HistorySkeleton } from './ui/HistorySkeleton';
 import { HistoryTable } from './ui/HistoryTable';
 import { SessionCompareModal } from './ui/SessionCompareModal';
-
-const ROAST_LEVELS = ['Light', 'Medium-Light', 'Medium', 'Medium-Dark', 'Dark'] as const;
 
 const PAGE_SIZE = 10;
 

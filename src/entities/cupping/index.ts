@@ -83,6 +83,7 @@ export {
     useDeleteCuppingFormTemplate,
     useDeleteCuppingSample,
     useEndCuppingEvent,
+    useEnsureResultsToken,
     useEventInvite,
     useReorderCuppingSamples,
     useRevokeCuppingInvite,

@@ -19,6 +19,7 @@ export {
     useRoastSessions,
     useRoastSessionsInfinite,
     useRoastSessionsPaginated,
+    useRoastStockRecorded,
     useSetChargeWeight,
     useSetOutputWeight,
     useSetRoastLevel,

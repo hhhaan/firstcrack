@@ -641,3 +641,17 @@ export const useDeleteCuppingFormTemplate = (userId: string) => {
         },
     });
 };
+
+export const useEnsureResultsToken = (userId: string) => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: cuppingApi.ensureResultsToken,
+        meta: { feature: 'cupping', table: 'cupping_events' },
+        onSuccess: (event) => {
+            qc.setQueryData(cuppingKeys.event(event.id), event);
+            qc.setQueryData<CuppingEventSummary[]>(cuppingKeys.events(userId), (old) =>
+                old?.map((row) => (row.id === event.id ? { ...row, results_token: event.results_token } : row)),
+            );
+        },
+    });
+};
