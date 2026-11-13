@@ -21,7 +21,7 @@ import { modalPanel } from '@shared/ui/modal-shell/modalPanel';
 import { Spinner } from '@shared/ui/Spinner';
 import { ask } from '@tauri-apps/plugin-dialog';
 import { Check, Coffee, X } from 'lucide-react';
-import { useMemo } from 'react';
+import { type Ref, useImperativeHandle, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RoastSummaryData } from '../model/useRoastCompletionFlow';
 import { useRoastSummaryForm } from '../model/useRoastSummaryForm';
@@ -30,7 +30,13 @@ import { RoastSummaryLiveStatus } from './RoastSummaryLiveStatus';
 
 export type { RoastSummaryData };
 
+export interface RoastSummaryModalHandle {
+    /** The Save button's path: validate the form as it stands, then `onSave`. */
+    save: () => void;
+}
+
 interface RoastSummaryModalProps {
+    ref?: Ref<RoastSummaryModalHandle>;
     open: boolean;
     summaryData: RoastSummaryData | null;
     onClose: () => void;
@@ -68,6 +74,7 @@ const batchOptionLabel = (b: PlanBatchWithProgress) =>
 const sectionLabelClass = 'text-[11px] font-semibold text-muted uppercase tracking-[0.4px] mb-1.5';
 
 export const RoastSummaryModal = ({
+    ref,
     open,
     summaryData,
     onClose,
@@ -182,6 +189,18 @@ export const RoastSummaryModal = ({
         [beans, blends, formBeanId, selectedBeanId, hiddenBeans, t],
     );
 
+    const submit = handleSubmit((data: RoastSummaryForm) => onSave(data));
+    const canSubmit = open && summaryData != null && !isSaving;
+    useImperativeHandle(
+        ref,
+        () => ({
+            save: () => {
+                if (canSubmit) void submit();
+            },
+        }),
+        [canSubmit, submit],
+    );
+
     if (!open || !summaryData) {
         return null;
     }
@@ -206,9 +225,9 @@ export const RoastSummaryModal = ({
                 <button
                     type="button"
                     data-testid="roast-summary-close"
-                    onClick={canCancelDrop ? onCancelDrop : onClose}
+                    onClick={onClose}
                     disabled={isSaving}
-                    aria-label={t(canCancelDrop ? 'activeRoast.unsaved.cancelDrop' : 'common.close')}
+                    aria-label={t('common.close')}
                     className="absolute top-3 end-3 z-10 w-9 h-9 rounded-xl border-none bg-transparent text-muted flex items-center justify-center cursor-pointer transition-colors hover:text-primary hover:bg-surface dark:hover:bg-surface-elevated disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                     <X size={18} strokeWidth={2.3} />
@@ -628,7 +647,7 @@ export const RoastSummaryModal = ({
                         <button
                             type="button"
                             data-testid="roast-summary-save"
-                            onClick={handleSubmit((data: RoastSummaryForm) => onSave(data))}
+                            onClick={submit}
                             disabled={isSaving}
                             className="min-w-32 px-6 py-2.5 rounded-lg border-none bg-[rgba(220,252,231,0.9)] dark:bg-[rgba(22,163,74,0.15)] text-[#16a34a] dark:text-[#4be08c] text-sm font-medium tracking-[0.14px] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >

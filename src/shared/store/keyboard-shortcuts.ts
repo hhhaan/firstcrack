@@ -27,6 +27,7 @@ export const SHORTCUTS = [
     { id: 'fcStart', defaultKeys: ['mod+2'], group: 'roast', editable: true },
     { id: 'fcEnd', defaultKeys: ['mod+3'], group: 'roast', editable: true },
     { id: 'drop', defaultKeys: ['mod+shift+d'], group: 'roast', editable: true },
+    { id: 'saveRoastSummary', defaultKeys: ['mod+s'], group: 'roast', editable: true },
     { id: 'closeRoastSummary', defaultKeys: ['mod+shift+6'], group: 'roast', editable: true },
     { id: 'returnToChargeWait', defaultKeys: ['mod+shift+7'], group: 'roast', editable: true },
     { id: 'toggleControl', defaultKeys: ['t'], group: 'roast', editable: true },
@@ -63,7 +64,7 @@ const pressToken = (key: string): string | null => {
 };
 
 /** Defaults added after users could already bind the same chord. The older binding keeps it. */
-const YIELD_DEFAULT_TO_CUSTOM = new Set<ShortcutId>(['closeRoastSummary', 'returnToChargeWait']);
+const YIELD_DEFAULT_TO_CUSTOM = new Set<ShortcutId>(['saveRoastSummary', 'closeRoastSummary', 'returnToChargeWait']);
 
 export function parseShortcutBindings(value: unknown): Partial<ShortcutBindings> {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return {};

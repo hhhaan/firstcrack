@@ -3,10 +3,10 @@ import { useBbpStore } from '@features/active-roast/model/bbp';
 import { getRoastSettings, updateRoastSettings } from '@features/active-roast/model/settings';
 import { useRoastingStore } from '@features/active-roast/model/status';
 import type { PlanBatchHandoff } from '@shared/types/database.types';
-import { act, createElement } from 'react';
+import { act, createElement, createRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, expect, it, vi } from 'vitest';
-import { RoastSummaryModal } from './RoastSummaryModal';
+import { RoastSummaryModal, type RoastSummaryModalHandle } from './RoastSummaryModal';
 
 vi.mock('@entities/blend', () => ({ useBlends: () => ({ data: [{ id: 'blend-1', name: 'Modern' }] }) }));
 vi.mock('@entities/roast-profile', () => ({
@@ -318,16 +318,49 @@ it('calls onClose from the header X without discarding', () => {
     unmount();
 });
 
-it('cancels Drop from the header X while the roast can be restored', () => {
+it('closes from the header X without cancelling Drop while the roast can be restored', () => {
     const onClose = vi.fn();
     const onCancelDrop = vi.fn();
     const { unmount } = renderModal({ canCancelDrop: true, onClose, onCancelDrop });
     const close = document.querySelector('[data-testid="roast-summary-close"]') as HTMLButtonElement;
-    expect(close.getAttribute('aria-label')).toBe('activeRoast.unsaved.cancelDrop');
+    expect(close.getAttribute('aria-label')).toBe('common.close');
     act(() => close.click());
-    expect(onCancelDrop).toHaveBeenCalledTimes(1);
-    expect(onClose).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onCancelDrop).not.toHaveBeenCalled();
     unmount();
+});
+
+it('saves through the handle with the form as edited, the same as the Save button', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const ref = createRef<RoastSummaryModalHandle>();
+    const { unmount } = renderModal({ ref, onSave, summaryData: { ...summaryData, batchName: 'Morning roast' } });
+    const title = document.querySelector('[data-testid="roast-summary-title"]') as HTMLInputElement;
+    act(() => setInputValue(title, 'Renamed roast'));
+    await act(async () => ref.current?.save());
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ batchName: 'Renamed roast' }));
+    unmount();
+});
+
+it('does not save through the handle when the form is invalid, saving, or closed', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const ref = createRef<RoastSummaryModalHandle>();
+    const invalid = renderModal({ ref, onSave });
+    const weight = document.querySelector('[data-testid="roast-summary-weight"]') as HTMLInputElement;
+    act(() => setInputValue(weight, '-1'));
+    await act(async () => ref.current?.save());
+    expect(onSave).not.toHaveBeenCalled();
+    invalid.unmount();
+
+    const saving = renderModal({ ref, onSave, isSaving: true });
+    await act(async () => ref.current?.save());
+    expect(onSave).not.toHaveBeenCalled();
+    saving.unmount();
+
+    const closed = renderModal({ ref, onSave, open: false });
+    await act(async () => ref.current?.save());
+    expect(onSave).not.toHaveBeenCalled();
+    closed.unmount();
 });
 
 it('cancels Drop from the summary only while it can be restored', () => {

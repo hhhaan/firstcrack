@@ -37,10 +37,10 @@ interface UseRoastKeyboardShortcutsParams {
     /** When set, mod+2 uses dual-mark cycle instead of toggle FC Start. */
     onCycleFc?: () => void;
     onMarkDrop: () => void;
+    /** Same path as the summary Save button: form validation, then the roast save. */
+    onSaveRoastSummary?: () => void;
+    /** Hides the popup only. The unsaved roast and its Drop stay as they are. */
     onCloseRoastSummary?: () => void;
-    /** Matches the summary close button: cancel Drop while undo is still allowed. */
-    onCancelRoastSummary?: () => void;
-    canCancelRoastSummary?: boolean;
     reviewing?: boolean;
     chargeLocked?: boolean;
     onDismissReview?: () => void;
@@ -99,8 +99,8 @@ export function isRoastMarkShortcutEnabled(p: {
     return isRoastShortcutBaseEnabled(p) && isRoastEventMarkEnabled(p.phase);
 }
 
-/** Summary popup only — closes without starting the next batch. */
-export function isRoastSummaryCloseShortcutEnabled(p: {
+/** Summary popup only — save or close. Neither starts the next batch nor cancels Drop. */
+export function isRoastSummaryShortcutEnabled(p: {
     isActive: boolean;
     showSummaryModal: boolean;
     showEndRoastModal: boolean;
@@ -144,9 +144,8 @@ export const useRoastKeyboardShortcuts = ({
     onMarkEvent,
     onCycleFc,
     onMarkDrop,
+    onSaveRoastSummary,
     onCloseRoastSummary,
-    onCancelRoastSummary,
-    canCancelRoastSummary = false,
     reviewing = false,
     chargeLocked = false,
     onDismissReview,
@@ -162,10 +161,12 @@ export const useRoastKeyboardShortcuts = ({
     const fcStartKeys = useShortcutKeys('fcStart');
     const fcEndKeys = useShortcutKeys('fcEnd');
     const dropKeys = useShortcutKeys('drop');
+    const saveSummaryKeys = useShortcutKeys('saveRoastSummary');
     const closeSummaryKeys = useShortcutKeys('closeRoastSummary');
     const returnToChargeWaitKeys = useShortcutKeys('returnToChargeWait');
     const chargeEnabledOnFormTags = chargeKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const dropEnabledOnFormTags = dropKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
+    const saveSummaryOnFormTags = saveSummaryKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const closeSummaryOnFormTags = closeSummaryKeys.every((key) => /^(?:mod|ctrl|alt)(?:\+|$)/.test(key));
     const onMarkDropRef = useRef(onMarkDrop);
     const lastDropShortcutAt = useRef(0);
@@ -316,9 +317,9 @@ export const useRoastKeyboardShortcuts = ({
         [canMark, markDropFromShortcut],
     );
 
-    const canCloseSummary =
+    const canUseSummaryShortcut =
         shortcutsEnabled &&
-        isRoastSummaryCloseShortcutEnabled({
+        isRoastSummaryShortcutEnabled({
             isActive,
             showSummaryModal,
             showEndRoastModal,
@@ -326,19 +327,33 @@ export const useRoastKeyboardShortcuts = ({
             roastSummarySaving,
         });
     useBoundShortcut(
+        saveSummaryKeys,
+        (e) => {
+            e.preventDefault();
+            if (e.repeat) return;
+            onSaveRoastSummary?.();
+        },
+        {
+            enabled: canUseSummaryShortcut && Boolean(onSaveRoastSummary),
+            enableOnFormTags: saveSummaryOnFormTags,
+            preventDefault: true,
+        },
+        [canUseSummaryShortcut, onSaveRoastSummary],
+    );
+    // Close never cancels Drop: undo resumes the roast and Replay, so it stays an explicit button.
+    useBoundShortcut(
         closeSummaryKeys,
         (e) => {
             e.preventDefault();
             if (e.repeat) return;
-            if (canCancelRoastSummary) onCancelRoastSummary?.();
-            else onCloseRoastSummary?.();
+            onCloseRoastSummary?.();
         },
         {
-            enabled: canCloseSummary && Boolean(onCloseRoastSummary || onCancelRoastSummary),
+            enabled: canUseSummaryShortcut && Boolean(onCloseRoastSummary),
             enableOnFormTags: closeSummaryOnFormTags,
             preventDefault: true,
         },
-        [canCloseSummary, canCancelRoastSummary, onCloseRoastSummary, onCancelRoastSummary],
+        [canUseSummaryShortcut, onCloseRoastSummary],
     );
 
     const canReturnToChargeWait =

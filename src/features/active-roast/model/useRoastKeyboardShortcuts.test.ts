@@ -6,7 +6,7 @@ import {
     isRoastRefreshBlocked,
     isRoastReturnToChargeWaitShortcutEnabled,
     isRoastShortcutBaseEnabled,
-    isRoastSummaryCloseShortcutEnabled,
+    isRoastSummaryShortcutEnabled,
 } from './useRoastKeyboardShortcuts';
 import shortcutsSrc from './useRoastKeyboardShortcuts.ts?raw';
 
@@ -97,23 +97,21 @@ describe('isRoastEventMarkEnabled', () => {
     });
 });
 
-describe('isRoastSummaryCloseShortcutEnabled', () => {
+describe('isRoastSummaryShortcutEnabled', () => {
     it('is enabled only while the summary popup is open', () => {
         const base = {
             isActive: true,
             showEndRoastModal: false,
             showContinueModal: false,
         };
-        expect(isRoastSummaryCloseShortcutEnabled({ ...base, showSummaryModal: true })).toBe(true);
-        expect(isRoastSummaryCloseShortcutEnabled({ ...base, showSummaryModal: false })).toBe(false);
-        expect(isRoastSummaryCloseShortcutEnabled({ ...base, showSummaryModal: true, showEndRoastModal: true })).toBe(
-            false,
-        );
+        expect(isRoastSummaryShortcutEnabled({ ...base, showSummaryModal: true })).toBe(true);
+        expect(isRoastSummaryShortcutEnabled({ ...base, showSummaryModal: false })).toBe(false);
+        expect(isRoastSummaryShortcutEnabled({ ...base, showSummaryModal: true, showEndRoastModal: true })).toBe(false);
     });
 
     it('stays off while the summary save path is busy', () => {
         expect(
-            isRoastSummaryCloseShortcutEnabled({
+            isRoastSummaryShortcutEnabled({
                 isActive: true,
                 showSummaryModal: true,
                 showEndRoastModal: false,
