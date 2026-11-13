@@ -37,7 +37,7 @@ import {
     withEditedHeaterLog,
 } from '@features/machine-control/lib/heater-events';
 import { formatDuration } from '@shared/lib/format';
-import { combineBbpCurve } from '@shared/lib/roast-curve';
+import { combineBbpCurve, curveThroughDrop } from '@shared/lib/roast-curve';
 import { sessionRoastMetrics } from '@shared/lib/roast-delta';
 import { useThemeStore } from '@shared/store/theme';
 import type { RoastSessionWithRelations } from '@shared/types/database.types';
@@ -159,7 +159,12 @@ export function HistorySessionChart({
     const { data: profiles = [] } = useRoastProfiles(session.user_id);
     const profile = profileForSession(profiles, session);
     const source = resolveSourceSession(profile?.source_session);
-    const { points: resolvedTargetPoints, source: targetSource } = useResolvedProfileCurve(profile);
+    const { points: profileCurvePoints, source: targetSource } = useResolvedProfileCurve(profile);
+    // A recorded curve is drawn to its Drop mark. A synthetic one has no record behind it.
+    const resolvedTargetPoints = useMemo(
+        () => (targetSource === 'session' ? curveThroughDrop(profileCurvePoints, source?.events) : profileCurvePoints),
+        [profileCurvePoints, targetSource, source?.events],
+    );
     const targetPoints = targetSource === 'synthetic' ? [] : resolvedTargetPoints;
     const targetBbp = useBbpCurve(session.user_id, orNull(profile?.source_session_id), source?.bbp_tsv_path);
     const hasBbpSource = Boolean(session.bbp_tsv_path || source?.bbp_tsv_path);
@@ -167,11 +172,11 @@ export function HistorySessionChart({
         (!bbp.isLoading && !bbp.isError && Boolean(bbp.data?.length)) ||
         (!targetBbp.isLoading && !targetBbp.isError && Boolean(targetBbp.data?.length));
     const actual = useMemo(() => {
-        const points = roast.isError ? [] : roast.points;
+        const points = roast.isError ? [] : curveThroughDrop(roast.points, session.events);
         return joinBbp
             ? combineBbpCurve(points, bbp.isError ? [] : (bbp.data ?? []), session.bbp_seconds)
             : { points, bbpRange: undefined };
-    }, [roast.points, roast.isError, bbp.data, bbp.isError, session.bbp_seconds, joinBbp]);
+    }, [roast.points, roast.isError, session.events, bbp.data, bbp.isError, session.bbp_seconds, joinBbp]);
     const target = useMemo(() => {
         const bbpPoints = targetBbp.isError ? [] : (targetBbp.data ?? []);
         return joinBbp

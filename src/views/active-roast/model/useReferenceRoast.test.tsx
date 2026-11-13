@@ -130,6 +130,34 @@ describe('reference roast read composition', () => {
         },
     );
 
+    it('draws the reference to its Drop mark and hands Replay the stored samples', async () => {
+        const stored = [...points, { t: 340, bt: 176, heaterSet: 40 }, { t: 400, bt: 181, heaterSet: 10 }];
+        const source = { ...profile.source_session, events: [{ type: 'Drop', time_sec: 340 }] };
+        client.setQueryData(roastProfileKeys.all('owner'), [{ ...profile, source_session: [source] }]);
+        client.setQueryData(roastCurveKeys.byPath('source.tsv'), stored);
+        await render();
+        expect(current().replayDropTime).toBe(340);
+        expect(current().backgroundCurvePoints.map((point) => point.t)).toEqual([90, 300, 340]);
+        expect(current().referenceTimeline.roast).toBe(current().backgroundCurvePoints);
+        expect(current().replayPoints).toEqual(stored);
+        // The plan is cut by the Drop mark, as before: the drawn curve does not decide it.
+        expect(
+            resolveReplayPlan({
+                points: current().replayPoints,
+                dropTime: current().replayDropTime,
+                profileEvents: current().heatEvents,
+            }).plan?.events,
+        ).toEqual([
+            { t: 90, bt: 120, heater: 70 },
+            { t: 300, bt: 170, heater: 40 },
+        ]);
+
+        client.setQueryData(roastCurveKeys.byPath('history.tsv'), stored);
+        await render({ historyReference: { ...history, events: [{ type: 'Drop', time_sec: 300 }] } });
+        expect(current().backgroundCurvePoints.map((point) => point.t)).toEqual([90, 300]);
+        expect(current().replayPoints).toEqual(stored);
+    });
+
     it('uses source marks, machine and BBP while retaining memoized roast-only outputs on live renders', async () => {
         const machineSnapshot = {
             machine_id: 'source-machine',

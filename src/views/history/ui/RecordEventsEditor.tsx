@@ -18,6 +18,7 @@ import {
     compareEventDrafts,
     type EventDraft,
     type EventDraftError,
+    isFixedEventDraft,
     linkEventDraft,
     measuredCurve,
     nextAddableEvent,
@@ -36,7 +37,10 @@ type Props = {
     onClose: () => void;
 };
 
-/** Key mark time/temp of a saved record. Missing TP/Yellow/FC marks can be added. Charge and Drop stay as saved. */
+/**
+ * Key mark time/temp of a saved record. Missing TP/Yellow/FC marks can be added. Charge stays as saved.
+ * Drop moves along the measured curve only; the record's metrics and drawn curve then end at it.
+ */
 export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, onClose }: Props) => {
     const { t } = useTranslation();
     const [drafts, setDrafts] = useState<EventDraft[]>(() => toEventDrafts(events, unit));
@@ -53,7 +57,7 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
 
     const editField = (index: number, field: 'time' | 'temp', value: string) => {
         const row = draftsRef.current.find((d) => d.index === index);
-        if (!row || row.type === 'Charge' || row.type === 'Drop') return;
+        if (!row || isFixedEventDraft(row.type, curve)) return;
         const opened = openedRef.current.find((d) => d.index === index);
         const linked = linkEventDraft(row, field, value, curve, unit, opened);
         const next = draftsRef.current.map((d) => (d.index === index ? linked.draft : d));
@@ -195,7 +199,11 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
                                     const error = errors[d.index];
                                     const errorId = `record-event-error-${d.index}`;
                                     const added = d.index < 0;
-                                    const fixed = d.type === 'Charge' || d.type === 'Drop';
+                                    const boundary = d.type === 'Charge' || d.type === 'Drop';
+                                    const fixed = isFixedEventDraft(d.type, curve);
+                                    const fixedTitle = fixed
+                                        ? t(d.type === 'Drop' ? 'history.edit.dropFixed' : 'history.edit.chargeFixed')
+                                        : undefined;
                                     const taken = new Set(
                                         drafts.filter((row) => row.index !== d.index).map((row) => row.type),
                                     );
@@ -239,7 +247,7 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
                                                     data-time-key={d.index}
                                                     value={d.time}
                                                     readOnly={fixed}
-                                                    title={fixed ? t('history.edit.chargeFixed') : undefined}
+                                                    title={fixedTitle}
                                                     onChange={(e) => {
                                                         if (fixed || !isPartialTime(e.target.value)) {
                                                             e.target.value = d.time;
@@ -260,7 +268,7 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
                                                 <input
                                                     value={d.temp}
                                                     readOnly={fixed}
-                                                    title={fixed ? t('history.edit.chargeFixed') : undefined}
+                                                    title={fixedTitle}
                                                     onChange={(e) => {
                                                         if (fixed || !isDecimalDraft(e.target.value, 1)) {
                                                             e.target.value = d.temp;
@@ -278,7 +286,7 @@ export const RecordEventsEditor = ({ events, unit, samples, onSave, errorText, o
                                                 />
                                             </td>
                                             <td className="py-1 pl-1">
-                                                {!fixed && (
+                                                {!boundary && (
                                                     <button
                                                         type="button"
                                                         aria-label={`${roastEventLabel(d.type)} ${t('common.delete')}`}

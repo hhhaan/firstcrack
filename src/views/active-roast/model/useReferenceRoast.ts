@@ -9,6 +9,7 @@ import {
 import { parseStoredRoastEvents } from '@features/active-roast/lib/serialize-roast-events';
 import type { TemperatureUnit } from '@features/active-roast/model/settings';
 import { profileHeatTarget } from '@features/machine-control/lib/heater-events';
+import { curveThroughDrop } from '@shared/lib/roast-curve';
 import type { HistoryReference } from '@widgets/history-reference/model/reference';
 import { useMemo } from 'react';
 import { isReplayMachineMismatch, replayPointsForProfile } from '../lib/active-roast-screen';
@@ -104,15 +105,20 @@ export const useReferenceRoast = ({
         if (!reference && !targetProfile) return undefined;
         return profileHeatTarget(selected.points, replayDropTime, heatEvents, referenceTpTime);
     }, [reference, targetProfile, selected.points, replayDropTime, heatEvents, referenceTpTime]);
+    // Drawn reference only. Replay and the heat target read the stored samples, cut by `replayDropTime`.
+    const drawnPoints = useMemo(
+        () => curveThroughDrop(selected.points, selected.events),
+        [selected.points, selected.events],
+    );
     const referenceTimeline = useMemo(
-        () => ({ roast: selected.points, bbp: bbp.data ?? [], bbpError: bbp.isError }),
-        [selected.points, bbp.data, bbp.isError],
+        () => ({ roast: drawnPoints, bbp: bbp.data ?? [], bbpError: bbp.isError }),
+        [drawnPoints, bbp.data, bbp.isError],
     );
     return {
         reference,
         referenceId,
         historyReferenceFailed: Boolean(reference && selected.error),
-        backgroundCurvePoints: selected.points,
+        backgroundCurvePoints: drawnPoints,
         referenceTimeline,
         referenceLog,
         heatTarget,

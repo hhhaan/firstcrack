@@ -1,18 +1,31 @@
 import { fromDisplayTemp, type TemperatureUnit, toDisplayTemp } from '@features/active-roast';
+import { NEAREST_BT_MAX_SEC } from '@features/active-roast/lib/chart-option/markers';
 import { isCustomRoastEvent } from '@features/active-roast/lib/event-buttons';
-import { linkedEventReading, type MarkerDragLivePoint } from '@features/active-roast/lib/event-marker-drag';
+import {
+    linkedEventReading,
+    type MarkerDragLivePoint,
+    nearestLivePointAt,
+} from '@features/active-roast/lib/event-marker-drag';
 import { formatElapsed } from '@shared/lib/format';
 import type { Json } from '@shared/types/database.types';
 
 /** Editable key marks in Charge-relative order. Equal times are allowed (FC Start = FC Rolling). */
 export const KEY_EVENT_ORDER = ['Charge', 'TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End', 'Drop', 'End'];
 
-/** Missing marks the History editor may insert. Charge/Drop/End stay the roast boundaries. */
+/** Missing marks the History editor may insert. Charge/Drop/End are never inserted. */
 export const ADDABLE_KEY_EVENTS = ['TP', 'Yellow', 'FC Start', 'FC Rolling', 'FC End'] as const;
 
-/** Recorded boundaries. Time, temperature, and the row itself stay as saved. */
-const FIXED_MARKS = new Set(['Charge', 'Drop']);
-const isFixedMark = (type: string) => FIXED_MARKS.has(type);
+/** Roast boundaries. The row is never deleted, and a typed time/temperature pair is never stored as-is. */
+const BOUNDARY_MARKS = new Set(['Charge', 'Drop']);
+const isBoundaryMark = (type: string) => BOUNDARY_MARKS.has(type);
+
+/**
+ * Charge stays as saved. Drop moves only along the measured curve: its time stays inside the
+ * recorded samples and its temperature is that curve's reading, so no measurement is invented.
+ * Without samples Drop stays as saved too.
+ */
+export const isFixedEventDraft = (type: string, curve: MeasuredCurve | null) =>
+    type === 'Charge' || (type === 'Drop' && !curve);
 
 /** FC Start first — that is the mark a saved roast is most often missing. */
 const ADD_PREFERENCE = ['FC Start', 'Yellow', 'FC Rolling', 'FC End', 'TP'] as const;
@@ -189,15 +202,24 @@ const resolveDraft = (
     const parsedTemp = parseTempC(draft.temp, unit);
     if (source === 'time' && parsedTime == null) return 'time';
     if (source === 'temp' && parsedTemp == null) return 'temp';
-    return (
-        linkedEventReading(
-            { event: type, timeSec: source === 'temp' ? (parsedTime ?? anchorTime) : anchorTime, tempC: anchorTemp },
-            source === 'time' ? { timeSec: parsedTime ?? undefined } : { tempC: parsedTemp ?? undefined },
-            curve.points,
-            unit,
-            curve.maxTimeSec,
-        ) ?? source
+    const reading = linkedEventReading(
+        { event: type, timeSec: source === 'temp' ? (parsedTime ?? anchorTime) : anchorTime, tempC: anchorTemp },
+        source === 'time' ? { timeSec: parsedTime ?? undefined } : { tempC: parsedTemp ?? undefined },
+        curve.points,
+        unit,
+        curve.maxTimeSec,
     );
+    if (!reading) return source;
+    if (type === 'Drop') {
+        // A time clamped back onto the saved second is not a move: Drop keeps its recorded reading.
+        if (source === 'time' && formatElapsed(reading.timeSec) === formatElapsed(anchorTime)) {
+            return { timeSec: anchorTime, tempC: anchorTemp };
+        }
+        // The Drop boundary needs a sample at its new time. A gap in the curve is not a reading.
+        const sample = nearestLivePointAt(curve.points, reading.timeSec);
+        if (!sample || Math.abs(sample.time - reading.timeSec) > NEAREST_BT_MAX_SEC) return source;
+    }
+    return reading;
 };
 
 /** Update the other field while typing. Incomplete input stays as typed; a rejected temperature does not move time. */
@@ -209,7 +231,7 @@ export const linkEventDraft = (
     unit: TemperatureUnit,
     opened?: { time: string; temp: string },
 ): { draft: EventDraft; error: EventDraftError | null } => {
-    if (isFixedMark(draft.type)) return { draft, error: null };
+    if (isFixedEventDraft(draft.type, curve)) return { draft, error: null };
     // Pair restore is only for a linked curve edit. Without samples the other field is independent.
     const backToOpened =
         curve &&
@@ -252,8 +274,9 @@ export const linkEventDraft = (
  * Apply form rows onto the stored events array. Existing listed marks only change time_sec/temp_c
  * and keep their id and unknown fields. A listed mark missing from the drafts is deleted,
  * except Charge and Drop. Negative-index rows are new TP/Yellow/FC marks, or custom names.
- * The same custom name may be added more than once. Charge and Drop stay as saved.
- * With a measured curve, the last edited field uses the live log's time↔BT rule.
+ * The same custom name may be added more than once. Charge stays as saved.
+ * With a measured curve, the last edited field uses the live log's time↔BT rule. Drop moves
+ * only by that rule, inside the recorded samples; the stored curve itself is not rewritten.
  */
 export const applyEventDrafts = (
     raw: unknown,
@@ -281,7 +304,7 @@ export const applyEventDrafts = (
             let time = orig.time_sec as number;
             let temp = orig.temp_c;
             let rowChanged = false;
-            const source = isFixedMark(init.type) ? null : draftSource(d, init, curve, unit);
+            const source = isFixedEventDraft(init.type, curve) ? null : draftSource(d, init, curve, unit);
             if (curve && source) {
                 const anchorTemp = typeof temp === 'number' && Number.isFinite(temp) ? temp : null;
                 const resolved = resolveDraft(init.type, time, anchorTemp, d, source, curve, unit);
@@ -305,7 +328,7 @@ export const applyEventDrafts = (
                 continue;
             }
             // Draft type is ignored — an existing mark cannot be renamed.
-            if (!isFixedMark(init.type) && d.time.trim() !== init.time) {
+            if (!isBoundaryMark(init.type) && d.time.trim() !== init.time) {
                 const parsed = parseTime(d.time);
                 if (parsed == null) {
                     errors[d.index] = 'time';
@@ -316,7 +339,7 @@ export const applyEventDrafts = (
                     rowChanged = true;
                 }
             }
-            if (!isFixedMark(init.type) && d.temp.trim() !== init.temp) {
+            if (!isBoundaryMark(init.type) && d.temp.trim() !== init.temp) {
                 const parsed = parseTempC(d.temp, unit);
                 if (parsed == null) {
                     errors[d.index] = 'temp';
@@ -384,7 +407,7 @@ export const applyEventDrafts = (
         const e = src[index];
         if (seen.has(index)) continue;
         if (typeof e.type !== 'string' || !isListed(e.type) || typeof e.time_sec !== 'number') continue;
-        if (isFixedMark(e.type)) {
+        if (isBoundaryMark(e.type)) {
             times.push({ index, type: e.type, t: e.time_sec });
             continue;
         }

@@ -187,8 +187,8 @@ An operator's correction to an already saved roast's charge weight, measured out
 _Avoid_: A new roast save, a rewrite of the recorded measurement series, or a Saved-record edit.
 
 **Saved-record edit**:
-An operator's change to an already saved roast's phase marks, notes, airflow, drum speed, or recorded Heater rows and their Heat set. A review edit and a history edit are both Saved-record edits.
-_Avoid_: Saved-roast correction. A new roast save. A rewrite of the probe measurement series.
+An operator's change to an already saved roast's phase marks, notes, airflow, drum speed, or recorded Heater rows and their Heat set. A review edit and a history edit are both Saved-record edits. Charge stays as recorded. A history edit can move the Drop mark to a measured sample of the saved curve; the roast time, development and drawn curve of a roast that ended at Drop then end at that mark, and the probe measurement series keeps every sample.
+_Avoid_: Saved-roast correction. A new roast save. A rewrite of the probe measurement series. A Drop placed where the curve has no sample.
 
 **Development time**:
 1차 크랙 이후 배출까지의 시간.

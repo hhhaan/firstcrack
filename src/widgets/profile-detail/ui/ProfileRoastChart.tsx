@@ -5,7 +5,7 @@ import { savedChartPresentation } from '@features/active-roast/lib/saved-chart-p
 import { parseStoredRoastEvents, storedEventsToMarkers } from '@features/active-roast/lib/serialize-roast-events';
 import { RoastTempChart } from '@features/active-roast/ui/RoastTempChart';
 import { SavedCurveLegend } from '@features/active-roast/ui/SavedCurveLegend';
-import { combineBbpCurve } from '@shared/lib/roast-curve';
+import { combineBbpCurve, curveThroughDrop } from '@shared/lib/roast-curve';
 import type { TsvPoint } from '@shared/lib/tsv';
 import { ChartNoAxesCombined } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -46,11 +46,11 @@ export function ProfileRoastChart({
     const source = resolveSourceSession(profile.source_session);
     const bbp = useBbpCurve(profile.user_id, profile.source_session_id, source?.bbp_tsv_path);
     const actual = useMemo(() => {
-        const points = isError ? [] : recordedPoints;
+        const points = isError ? [] : curveThroughDrop(recordedPoints, events);
         return settings.bbpJoinCharge !== false
             ? combineBbpCurve(points, bbp.isError ? [] : (bbp.data ?? []), source?.bbp_seconds)
             : { points, bbpRange: undefined };
-    }, [recordedPoints, isError, bbp.data, bbp.isError, source?.bbp_seconds, settings.bbpJoinCharge]);
+    }, [recordedPoints, events, isError, bbp.data, bbp.isError, source?.bbp_seconds, settings.bbpJoinCharge]);
     const { points } = actual;
     const storedEvents = useMemo(() => parseStoredRoastEvents(events), [events]);
     const eventMarkers = useMemo(
