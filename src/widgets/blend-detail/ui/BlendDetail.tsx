@@ -3,11 +3,11 @@ import type { BlendWithComponents } from '@entities/blend';
 import { blendSegmentsFromComponents, blendTotalRatio } from '@entities/blend/lib';
 import type { BlendRoastableResult } from '@shared/lib/blend-stock';
 import { Badge } from '@shared/ui/Badge';
+import { DangerDeleteConfirmModal } from '@shared/ui/DangerDeleteConfirmModal';
 import { BlendCompositionBar, coloredSegmentsFromSources } from '@widgets/blend-list/ui/BlendCompositionBar';
 import { Edit3, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DeleteBlendModal } from './DeleteBlendModal';
 
 export type BlendDetailProps = {
     blend: BlendWithComponents | null;
@@ -52,9 +52,13 @@ export const BlendDetail = ({ blend, roastable, stockSummaries = {}, onEdit, onD
 
     return (
         <div className="bg-main-bg rounded-2xl border border-border px-8 py-7 h-fit relative">
-            <DeleteBlendModal
+            <DangerDeleteConfirmModal
                 open={confirmId === blend.id}
-                blendName={blend.name}
+                titleId="delete-blend-modal-title"
+                title={t('beans.blend.deleteConfirm.title')}
+                description={t('beans.blend.deleteConfirm.description', { name: blend.name })}
+                cancelLabel={t('beans.blend.deleteConfirm.cancel')}
+                confirmLabel={t('beans.blend.deleteConfirm.confirm')}
                 onClose={() => setConfirmId(null)}
                 onConfirm={() => {
                     const id = blend.id;

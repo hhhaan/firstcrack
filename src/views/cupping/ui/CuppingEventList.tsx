@@ -7,6 +7,7 @@ import {
 } from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
+import { DangerDeleteConfirmModal } from '@shared/ui/DangerDeleteConfirmModal';
 import { FormSelect } from '@shared/ui/FormSelect';
 import { ModalShell } from '@shared/ui/modal-shell/ModalShell';
 import { PageHeader } from '@shared/ui/PageHeader';
@@ -18,7 +19,6 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { eventFormLabel } from '../lib/formLabel';
 import { CuppingEventListSkeleton } from './CuppingSkeleton';
-import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
 type CuppingEventListProps = {
     userId: string;
@@ -268,11 +268,18 @@ export const CuppingEventList = ({
                 </ModalShell>
             ) : null}
 
-            <DeleteCuppingEventModal
+            <DangerDeleteConfirmModal
                 open={deleting != null}
-                sessionTitle={deleting?.title ?? ''}
+                titleId="cupping-delete-event-title"
+                title={t('cupping.deleteEvent')}
+                description={t('cupping.deleteEventConfirm', { name: deleting?.title ?? '' })}
+                cancelLabel={t('cupping.cancel')}
+                confirmLabel={t('cupping.deleteEvent')}
+                pendingLabel={t('cupping.deletingEvent')}
                 isLoading={deleteEvent.isPending}
                 error={deleteEvent.error ? t('cupping.deleteEventFailed') : null}
+                data-testid="cupping-delete-event-modal"
+                confirmButtonTestId="cupping-delete-confirm"
                 onClose={() => {
                     setDeleting(null);
                     deleteEvent.reset();

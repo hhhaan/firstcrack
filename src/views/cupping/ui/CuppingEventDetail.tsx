@@ -8,6 +8,7 @@ import {
 } from '@entities/cupping';
 import { formatDateShort } from '@shared/lib/format';
 import { Badge } from '@shared/ui/Badge';
+import { DangerDeleteConfirmModal } from '@shared/ui/DangerDeleteConfirmModal';
 import { PageHeader } from '@shared/ui/PageHeader';
 import { PageLayout } from '@shared/ui/PageLayout';
 import { SurfaceButton } from '@shared/ui/SurfaceButton';
@@ -20,7 +21,6 @@ import { CuppingAddSamplesForm } from './CuppingAddSamplesForm';
 import { CuppingResultsShare } from './CuppingResultsShare';
 import { CuppingSampleSummary } from './CuppingSampleSummary';
 import { CuppingSessionInvite } from './CuppingSessionInvite';
-import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
 type CuppingEventDetailProps = {
     eventId: string;
@@ -180,11 +180,18 @@ export const CuppingEventDetail = ({ eventId, event, userId, onBack, onDeleted }
                 />
             ) : null}
 
-            <DeleteCuppingEventModal
+            <DangerDeleteConfirmModal
                 open={deletingTitle != null}
-                sessionTitle={deletingTitle ?? ''}
+                titleId="cupping-delete-event-title"
+                title={t('cupping.deleteEvent')}
+                description={t('cupping.deleteEventConfirm', { name: deletingTitle ?? '' })}
+                cancelLabel={t('cupping.cancel')}
+                confirmLabel={t('cupping.deleteEvent')}
+                pendingLabel={t('cupping.deletingEvent')}
                 isLoading={deleteEvent.isPending}
                 error={deleteEvent.error ? t('cupping.deleteEventFailed') : null}
+                data-testid="cupping-delete-event-modal"
+                confirmButtonTestId="cupping-delete-confirm"
                 onClose={() => {
                     setDeletingTitle(null);
                     deleteEvent.reset();

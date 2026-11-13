@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 
 import type { CuppingEventSummary } from '@entities/cupping';
+import { DangerDeleteConfirmModal } from '@shared/ui/DangerDeleteConfirmModal';
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { CuppingEventDetail } from './CuppingEventDetail';
 import { CuppingEventList } from './CuppingEventList';
-import { DeleteCuppingEventModal } from './DeleteCuppingEventModal';
 
 const mutate = vi.fn();
 const mutateAsync = vi.fn();
@@ -132,9 +132,13 @@ it('shows a delete failure in the confirm dialog', () => {
     const root = createRoot(host);
     act(() =>
         root.render(
-            createElement(DeleteCuppingEventModal, {
+            createElement(DangerDeleteConfirmModal, {
                 open: true,
-                sessionTitle: 'Cupping session',
+                titleId: 'cupping-delete-event-title',
+                title: 'cupping.deleteEvent',
+                description: 'cupping.deleteEventConfirm',
+                cancelLabel: 'cupping.cancel',
+                confirmLabel: 'cupping.deleteEvent',
                 error: 'cupping.deleteEventFailed',
                 onClose: () => {},
                 onConfirm: () => {},

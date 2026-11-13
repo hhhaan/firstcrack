@@ -27,8 +27,8 @@ describe('Tauri confirmation dialogs', () => {
     });
 
     it('cupping session delete uses an in-app modal, not plugin-dialog confirm', () => {
-        expect(cuppingEventList).toContain('DeleteCuppingEventModal');
-        expect(cuppingEventDetail).toContain('DeleteCuppingEventModal');
+        expect(cuppingEventList).toContain('DangerDeleteConfirmModal');
+        expect(cuppingEventDetail).toContain('DangerDeleteConfirmModal');
         expect(cuppingEventList).not.toMatch(/await confirm\(t\('cupping.deleteEventConfirm'/);
         expect(cuppingEventDetail).not.toMatch(/await confirm\(t\('cupping.deleteEventConfirm'/);
     });
