@@ -29,6 +29,7 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -61,10 +62,12 @@ docs/*
 !docs/research/
 docs/research/*
 !docs/research/cropster-firescope-import-feasibility.md
+!docs/research/artisan-settings-import-feasibility.md
+!docs/research/auto-discharge-spike-filter-findings.md
+!docs/research/rust-roasting-settings-import-assessment.md
 !docs/MOBILE.md
-!docs/abstraction-roi.md
-!docs/domain-architecture-code-review.md
 !docs/inventory-architecture.md
+!docs/roasting-settings-import.md
 !docs/phidget-driver-setup.md
 !docs/replay-assist-guide.md
 !docs/sidecar-api.md
@@ -90,12 +93,15 @@ artifacts/
 
 # Cline / Claude configuration
 .claude/
+!.claude/settings.json
 .clinerules/
 
 .pnpm-store/
 
 
 .cursor/
+!.cursor/hooks.json
+!.cursor/settings.json
 
 # Agent/local tooling
 .commandcode/

@@ -24,7 +24,7 @@ Package manager is **pnpm only**. Do not use npm/yarn.
 |------|---------|
 | Test | `pnpm test` (vitest) / `pnpm test:e2e` (playwright) / `pnpm verify:sidecar` (pytest) |
 | Lint / types | `pnpm check` (biome) / `pnpm lint` (eslint) / `pnpm typecheck` |
-| Full verify | `pnpm verify:all` — required before push |
+| Full verify | `pnpm verify:all` (local full gate); push hook runs `pnpm verify:push` (scoped; docs-only often skips) — see `AGENTS.md` |
 | Release build | `pnpm build:sidecar && pnpm tauri build` |
 | Version release | `pnpm release patch\|minor\|major` or `pnpm release <x.y.z>` — sync-bump 3 manifests + tag + push |
 | Regenerate DB types | `pnpm types:gen` — required after schema migrations |
@@ -61,6 +61,5 @@ Dev rules (FSD layers, SRP, commit hooks, secrets policy): [AGENTS.md](AGENTS.md
 - [sidecar-api.md](docs/sidecar-api.md) — Sidecar HTTP API reference
 - [phidget-driver-setup.md](docs/phidget-driver-setup.md) — Phidget system driver install
 - [MOBILE.md](docs/MOBILE.md) — Mobile strategy
-- [abstraction-roi.md](docs/abstraction-roi.md) — Abstraction ROI guide
 
-Other files under `docs/` are local working notes (gitignored): deploy/release (RELEASE, DEPLOY, UPDATER, SENTRY), architecture notes (registry-and-connection, simulator-architecture), domain/integration planning (order-status-sync, cafe24-oauth-setup, cupping, team-workspaces, db-cost-*, pricing/, research/). Force-track with `git add -f` when sharing.
+Other files under `docs/` are local working notes (gitignored): deploy/release (RELEASE, DEPLOY, UPDATER, SENTRY), architecture notes (registry-and-connection, simulator-architecture), domain/integration planning (order-status-sync, cafe24-oauth-setup, cupping, db-cost-*, pricing/, research/). Force-track with `git add -f` when sharing.

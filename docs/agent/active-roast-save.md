@@ -2,7 +2,7 @@
 
 **Audience:** coding agents  
 **Date:** 2026-07-21  
-**Related:** `docs/inventory-architecture.md`, `docs/superpowers/specs/roast-data-integrity-tracks.md`, `docs/agent/schedule-plan.md`
+**Related:** `docs/inventory-architecture.md`, `docs/agent/schedule-plan.md`
 
 ---
 

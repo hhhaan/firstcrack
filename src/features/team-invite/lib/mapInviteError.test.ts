@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { mapInviteError } from './mapInviteError';
 
-// TDD red: mapInviteError.ts 구현 전. 계약은 docs/team-workspaces.md 2a의 RPC RAISE 코드.
+// TDD red: mapInviteError.ts 구현 전. 계약은 docs/agent/workspace-auth.md 및 invite RPC RAISE 코드.
 describe('mapInviteError', () => {
     it('maps RPC raise codes from postgrest error message', () => {
         expect(mapInviteError(new Error('invite_expired'))).toBe('expired');

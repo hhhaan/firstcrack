@@ -814,8 +814,8 @@ const BASE = 'http://127.0.0.1:9999';
 프로덕션 배포 시 Python 런타임 없이 동작하도록 PyInstaller로 단일 바이너리를 빌드한다.
 
 ```bash
-npm run build:sidecar   # → src-tauri/binaries/sidecar-aarch64-apple-darwin
-npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
+pnpm build:sidecar   # → src-tauri/binaries/sidecar-aarch64-apple-darwin
+pnpm tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 ```
 
 빌드 관련 파일:
@@ -828,7 +828,7 @@ npm run tauri build     # Tauri가 위 바이너리를 앱 번들에 포함
 
 Rust Sentry는 `apply_defaults`로 전송 기능을 활성화한다. 사이드카 최초 실행 실패와 재시도 소진은 `runtime=tauri` 오류로 보고한다. 재시도 중 종료 코드(10진수·16진수), 시그널, 생존 시간, 이전 실패 횟수는 같은 Hub의 breadcrumb에 모아 최종 오류에 첨부한다. 프로세스 감시 오류와 종료 상태 없이 이벤트 스트림이 닫힌 경우도 구분해서 기록한다.
 
-바이너리(`src-tauri/binaries/sidecar-*`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `npm run build:sidecar`를 먼저 실행해야 한다.
+바이너리(`src-tauri/binaries/sidecar-*`)는 `.gitignore`에 등록되어 있으므로 배포 전 반드시 `pnpm build:sidecar`를 먼저 실행해야 한다.
 
 ## Known Behavior To Preserve
 
