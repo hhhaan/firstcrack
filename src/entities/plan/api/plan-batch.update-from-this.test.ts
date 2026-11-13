@@ -6,7 +6,6 @@ vi.mock('@shared/lib/supabase', () => ({
     supabase: { rpc: (...args: unknown[]) => rpc(...args) },
 }));
 vi.mock('./list-for-date-range', () => ({ listForDateRange: vi.fn() }));
-vi.mock('./materialize', () => ({ materializePlanBatch: vi.fn() }));
 vi.mock('./session-counts', () => ({ countSessionsByBatch: vi.fn() }));
 vi.mock('./recurrence-rule', () => ({
     recurrenceRuleApi: { get: vi.fn() },

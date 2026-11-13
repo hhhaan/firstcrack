@@ -1,5 +1,5 @@
 import { supabase } from '@shared/lib/supabase';
-import type { PlanBatch } from '@shared/types/database.types';
+import type { PlanBatch, PlanBatchUpdate } from '@shared/types/database.types';
 import { dayPlanApi } from './day-plan';
 
 type MaterializePatch = {
@@ -27,6 +27,18 @@ type MaterializePatch = {
  */
 export type MaterializeConflict = 'update' | 'read';
 
+type ModifiedExceptionContext = {
+    planId: string;
+    ruleId: string;
+    scheduledDate: string;
+    originalDate: string;
+    orderIndex: number;
+};
+
+type ModifiedExceptionWrite =
+    | { kind: 'single-edit'; patch: PlanBatchUpdate }
+    | { kind: 'materialize'; patch: MaterializePatch; conflict: MaterializeConflict };
+
 export async function materializePlanBatch(
     userId: string,
     ruleId: string,
@@ -47,13 +59,24 @@ export async function materializePlanBatch(
     }
     const plan = await dayPlanApi.getOrCreate(userId, scheduledDate);
 
+    return persistModifiedException(
+        { planId: plan.id, ruleId, scheduledDate, originalDate, orderIndex: 0 },
+        { kind: 'materialize', patch, conflict: options?.conflict ?? 'update' },
+    );
+}
+
+export async function persistModifiedException(
+    context: ModifiedExceptionContext,
+    write: ModifiedExceptionWrite,
+): Promise<PlanBatch> {
+    const { patch } = write;
     const { data, error } = await supabase
         .from('roast_plan_batches')
         .insert({
-            plan_id: plan.id,
-            recurrence_rule_id: ruleId,
-            scheduled_date: scheduledDate,
-            original_date: originalDate,
+            plan_id: context.planId,
+            recurrence_rule_id: context.ruleId,
+            scheduled_date: context.scheduledDate,
+            original_date: context.originalDate,
             exception_type: 'modified',
             bean_name: patch.bean_name ?? '',
             batch_size_kg: patch.batch_size_kg ?? 0,
@@ -65,7 +88,7 @@ export async function materializePlanBatch(
             batch_type: patch.batch_type ?? 'Single Origin',
             notes: patch.notes ?? '',
             yield_pct: patch.yield_pct ?? 0.82,
-            order_index: 0,
+            order_index: context.orderIndex,
             status: patch.status ?? 'pending',
             green_lot: patch.green_lot ?? '',
         })
@@ -76,12 +99,12 @@ export async function materializePlanBatch(
 
     // Start/Continue/save/recovery pass conflict:'read' so a concurrent materialize
     // does not overwrite the existing exception with a stale snapshot.
-    if ((options?.conflict ?? 'update') === 'read') {
+    if (write.kind === 'materialize' && write.conflict === 'read') {
         const { data: existing, error: readError } = await supabase
             .from('roast_plan_batches')
             .select()
-            .eq('recurrence_rule_id', ruleId)
-            .eq('original_date', originalDate)
+            .eq('recurrence_rule_id', context.ruleId)
+            .eq('original_date', context.originalDate)
             .single();
         if (readError) throw readError;
         return existing;
@@ -89,17 +112,22 @@ export async function materializePlanBatch(
 
     // The exception row already exists — apply only the caller's explicit fields
     // (plus scheduling context) so a partial patch does not reset the row to defaults.
-    const definedPatch = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined));
+    const definedPatch = Object.fromEntries(
+        Object.entries(patch).filter(
+            ([key, value]) =>
+                (write.kind !== 'single-edit' || (key !== 'id' && key !== 'batch_count')) && value !== undefined,
+        ),
+    );
     const { data: existing, error: updateError } = await supabase
         .from('roast_plan_batches')
         .update({
             ...definedPatch,
-            plan_id: plan.id,
-            scheduled_date: scheduledDate,
+            plan_id: context.planId,
+            scheduled_date: context.scheduledDate,
             exception_type: 'modified',
         })
-        .eq('recurrence_rule_id', ruleId)
-        .eq('original_date', originalDate)
+        .eq('recurrence_rule_id', context.ruleId)
+        .eq('original_date', context.originalDate)
         .select()
         .single();
     if (updateError) throw updateError;
