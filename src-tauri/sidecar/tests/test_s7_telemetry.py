@@ -66,7 +66,7 @@ async def test_connect_error_is_one_classified_event(envelopes):
     event = envelopes[0]
     assert event["tags"]["event"] == "connect_failed"
     assert event["tags"]["roaster"] == "giesen_w45a_w60a"
-    assert event["fingerprint"] == ["hardware", "connect_failed"]
+    assert event["fingerprint"] == ["hardware", "connect_failed", "s7", "tcp_probe", "timeout"]
     facts = event["contexts"]["s7_operation"]
     assert facts["stage"] == "tcp_probe"
     assert facts["status"] == "failed"
@@ -403,3 +403,25 @@ def test_logentry_and_nested_diagnostics_are_scrubbed(envelopes):
     assert "2001:db8" not in repr(clean)
     assert "synthetic-secret" not in repr(clean)
     assert clean["contexts"]["s7_operation"]["steps"][0]["elapsed_ms"] == 150
+
+
+async def test_recovery_is_an_info_event_with_matching_incident_and_no_device_address(envelopes, monkeypatch):
+    from tests.conftest import FakeAdapter, make_reading
+
+    manager = RoasterManager()
+    adapter = FakeAdapter([make_reading(bt=0), make_reading()])
+    manager._adapter, manager._connected = adapter, True
+    manager._roaster_key, manager._protocol = "giesen_w1", "s7"
+    manager._merged_params = {"host": "192.0.2.1", "comport": "COM3"}
+    monkeypatch.setattr(config, "RECONNECT_BACKOFFS", [0])
+    await manager.read_temperatures()
+    await manager._reconnect_task
+    assert len(envelopes) == 1  # Handshake alone does not report recovery.
+    await manager.read_temperatures()
+    assert len(envelopes) == 2
+    failure, recovery = envelopes
+    assert recovery["level"] == "info"
+    assert recovery["tags"]["event"] == "connection_recovered"
+    assert recovery["fingerprint"] == ["hardware", "connection_recovered", "s7", "validate_bt", "invalid_bt"]
+    assert recovery["contexts"]["connection_incident"]["incident_id"] == failure["contexts"]["connection_incident"]["incident_id"]
+    assert "192.0.2.1" not in repr(envelopes) and "COM3" not in repr(envelopes)

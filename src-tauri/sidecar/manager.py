@@ -14,6 +14,10 @@ import config
 from adapters import WRITABLE_PROTOCOLS, make_adapter
 from adapters.modbus import is_modbus_write_spec
 from control_guard import ControlRangeError, ControlUnavailable, clamp_command
+from hardware_diagnostics import (
+    ConnectionIncident, SensorReadError, failure_tags,
+    hardware_fingerprint as _hardware_sentry_fingerprint, s7_diagnostics,
+)
 from pid import PidGains
 from pid_runner import STOP_HOLD, STOP_ZERO, PidRunner, PvSample
 from roaster_registry import ROASTER_REGISTRY
@@ -29,10 +33,6 @@ _REDACT_ADDRESS_TUPLE = re.compile(
     r"|"
     r"\(\s*['\"]?\d{1,3}(?:\.\d{1,3}){3}['\"]?\s*,\s*\d+\s*\)"
 )
-
-
-def _hardware_sentry_fingerprint(event: str, _extra_tags: dict[str, str]) -> list[str]:
-    return ["hardware", event]
 
 
 def _scrub_exception_message(msg: str) -> str:
@@ -78,15 +78,6 @@ class ConnectCancelled(Exception):
 
     _error를 세우지 않는 것이 핵심이다. 취소를 연결 실패로 기록하면 UI에
     "연결 실패" 배너가 떠 사용자가 하지 않은 일에 대한 오답을 보게 된다.
-    """
-
-
-class SensorReadError(RuntimeError):
-    """어댑터가 예외 없이 반환했지만 값이 센서 고장/분리를 뜻할 때 발생한다.
-
-    실패를 -1.0 같은 센티넬 값으로 인코딩하는 어댑터(Phidget 분리, Kaleido
-    핸드셰이크 유실, Probat 노드 누락)를 공통 read 경로에서 잡아, manager의
-    stale → 재연결 계약으로 되돌리기 위한 예외다.
     """
 
 
@@ -418,6 +409,8 @@ class RoasterManager:
         self._resetting: bool = False
         # once=True 캡처가 이미 나간 event. 성공/disconnect 때 비운다.
         self._hw_alerts_sent: set[str] = set()
+        self._connection_failures_sent: set[tuple[str, ...]] = set()
+        self._connection_incident: ConnectionIncident | None = None
 
     def _capture_hardware_error(
         self,
@@ -429,12 +422,17 @@ class RoasterManager:
     ) -> None:
         """하드웨어 에러를 Sentry/Slack에 캡처 — 프로토콜/로스터 정보 포함.
 
-        once=True면 같은 event는 성공할 때까지 한 번만 쏜다. /pid/off 자동
+        once=True면 같은 event는 성공할 때까지 한 번만 쏜다.
+        연결 오류는 원인·단계별로 한 번씩, 정상 읽기까지 같은 사고로 묶는다. /pid/off 자동
         재시도가 5초마다 같은 쓰기를 반복해도 채널을 채우지 않게 한다.
         반복분은 breadcrumb만 남겨 다음 실사고에 붙는다.
         """
         try:
-            if once and event in self._hw_alerts_sent:
+            tags = {**extra_tags, **failure_tags(exc, event), "protocol": self._protocol}
+            fingerprint = _hardware_sentry_fingerprint(event, tags)
+            connection_failure = event in {"first_read_failed", "read_failed_disconnected", "reconnect_failed"}
+            duplicate = tuple(fingerprint) in self._connection_failures_sent if connection_failure else event in self._hw_alerts_sent
+            if once and duplicate:
                 sentry_sdk.add_breadcrumb(
                     category="hardware",
                     message=f"{event} (duplicate suppressed)",
@@ -442,7 +440,7 @@ class RoasterManager:
                     data={
                         "roaster": self._roaster_key,
                         "protocol": self._protocol,
-                        "type": type(exc).__name__,
+                        **tags,
                     },
                 )
                 return
@@ -451,7 +449,7 @@ class RoasterManager:
                 scope.set_tag("roaster", self._roaster_key)
                 scope.set_tag("protocol", self._protocol)
                 scope.set_tag("event", event)
-                for key, value in extra_tags.items():
+                for key, value in tags.items():
                     scope.set_tag(key, value)
                 scope.set_context(
                     "sidecar",
@@ -463,23 +461,22 @@ class RoasterManager:
                         "reconnect_attempt": self._reconnect_attempt,
                     },
                 )
-                cause: BaseException | None = exc
-                for _ in range(8):
-                    if cause is None:
-                        break
-                    diagnostics = getattr(cause, "s7_diagnostics", None)
-                    if isinstance(diagnostics, dict):
-                        scope.set_context("s7_operation", diagnostics)
-                        break
-                    cause = cause.__cause__ or cause.__context__
+                diagnostics = s7_diagnostics(exc)
+                if diagnostics:
+                    scope.set_context("s7_operation", diagnostics)
+                if self._connection_incident is not None:
+                    scope.set_context("connection_incident", self._connection_incident.context())
                 # host/comport는 남기지 않는다 — 연결 대상 자체가 식별정보이고, 어느
                 # 장비에서 났는지는 roaster/protocol/mode로 이미 좁혀진다.
                 if self._merged_params:
                     scope.set_tag("mode", self._merged_params.get("mode"))
-                scope.fingerprint = _hardware_sentry_fingerprint(event, extra_tags)
+                scope.fingerprint = fingerprint
                 scope.capture_exception(scrubbed)
             if once:
-                self._hw_alerts_sent.add(event)
+                if connection_failure:
+                    self._connection_failures_sent.add(tuple(fingerprint))
+                else:
+                    self._hw_alerts_sent.add(event)
             try:
                 from slack_notify import notify_hardware_error
 
@@ -499,6 +496,42 @@ class RoasterManager:
         except Exception:
             _log.exception("_capture_hardware_error failed (event=%s)", event)
             pass
+
+    def _begin_connection_incident(self, exc: Exception, event: str) -> None:
+        if self._connection_incident is None:
+            tags = failure_tags(exc, event)
+            self._connection_incident = ConnectionIncident(
+                event, tags["failure_stage"], tags["failure_reason"],
+            )
+        else:
+            self._connection_incident.transport_restored_at = None
+
+    def _record_connection_recovery(self) -> None:
+        # A handshake alone is not recovery: emit only after a fresh, validated read.
+        incident = self._connection_incident
+        if incident is None:
+            return
+        self._connection_incident = None
+        self._connection_failures_sent.clear()
+        try:
+            facts = {**incident.context(), "fresh_read_validated": True}
+            with sentry_sdk.new_scope() as scope:
+                tags = {
+                    "event": "connection_recovered", "protocol": self._protocol,
+                    "roaster": self._roaster_key, "failure_stage": incident.initial_stage,
+                    "failure_reason": incident.initial_reason,
+                }
+                for key, value in tags.items():
+                    scope.set_tag(key, value)
+                scope.set_context("connection_incident", facts)
+                scope.fingerprint = _hardware_sentry_fingerprint("connection_recovered", tags)
+                scope.capture_message("Hardware readings recovered", level="info")
+            sentry_sdk.add_breadcrumb(
+                category="hardware", message="Hardware readings recovered", level="info", data=facts,
+            )
+        except Exception:
+            # Observability must never interrupt readings or create another error event.
+            _log.warning("connection recovery recording failed", exc_info=True)
 
     async def _run_adapter_connect(self, adapter: Any) -> None:
         """adapter.connect() **한 줄만** 취소 가능한 태스크로 감싼다.
@@ -652,6 +685,8 @@ class RoasterManager:
         self._protocol = ""
         self._merged_params = {}
         self._hw_alerts_sent.clear()
+        self._connection_failures_sent.clear()
+        self._connection_incident = None
         self._reset_probe_filters()
         self._consecutive_errors = 0
         self._last_good = None
@@ -679,6 +714,8 @@ class RoasterManager:
                     try:
                         _log.info("자동 재연결 시도 (%d): %s", attempt, self._roaster_key)
                         self._connection_epoch += 1
+                        if self._connection_incident is not None:
+                            self._connection_incident.reconnect_attempts += 1
                         try:
                             await self._adapter.disconnect()
                         except Exception:
@@ -690,7 +727,8 @@ class RoasterManager:
                         self._error = None
                         self._reset_probe_filters()
                         self._ror_warmup = config.ROR_WARMUP_READS
-                        self._hw_alerts_sent.discard("reconnect_failed")
+                        if self._connection_incident is not None:
+                            self._connection_incident.transport_restored_at = time.monotonic()
                         _log.info("자동 재연결 성공: %s", self._roaster_key)
                         sentry_sdk.add_breadcrumb(
                             category="hardware",
@@ -715,8 +753,12 @@ class RoasterManager:
                             message=f"reconnect failed ({attempt}): {exc}",
                             level="error",
                         )
-                        # 무한 재시도 루프다 — 사고 1건에 이슈 1건. 나머지 시도는
-                        # 위 breadcrumb만 남는다. 재연결 성공 시 다시 열린다.
+                        # 무한 재시도는 같은 원인·단계만 억제한다. 원인이 바뀌면
+                        # 별도 캡처하고, 정상 읽기를 확인할 때 사고를 닫는다.
+                        if self._connection_incident is None:
+                            self._begin_connection_incident(exc, "reconnect_failed")
+                            self._connection_incident.reconnect_attempts = attempt
+                        self._connection_incident.reconnect_failures += 1
                         self._capture_hardware_error(exc, "reconnect_failed", once=True)
         finally:
             self._reconnect_attempt = 0
@@ -783,6 +825,7 @@ class RoasterManager:
         reconnecting = self._reconnecting()
         # await 도중 disconnect/재연결로 self._adapter가 교체될 수 있어 스냅샷을 잡는다 (H4)
         adapter = self._adapter
+        epoch = self._connection_epoch
         if not self._connected or adapter is None:
             return self._null_payload(reconnecting)
         try:
@@ -796,7 +839,7 @@ class RoasterManager:
                 if value is not None and not math.isfinite(value):
                     raise ValueError(f"Non-finite {role} feedback")
         except Exception as exc:
-            if self._adapter is not adapter:
+            if self._adapter is not adapter or self._connection_epoch != epoch:
                 # 읽는 도중 disconnect/재연결됨 — 사라진 어댑터의 실패는 조용히 버린다 (H4)
                 return self._null_payload(self._reconnecting())
             self._consecutive_errors += 1
@@ -840,12 +883,13 @@ class RoasterManager:
                 message=f"{event}: {self._roaster_key} ({self._protocol}) — {exc}",
                 level="error",
             )
-            self._capture_hardware_error(exc, event)
+            self._begin_connection_incident(exc, event)
+            self._capture_hardware_error(exc, event, once=True)
             if self._reconnect_task is None or self._reconnect_task.done():
                 self._reconnect_task = asyncio.create_task(self._reconnect_loop())
             return self._null_payload(reconnecting=True)
 
-        if self._adapter is not adapter:
+        if self._adapter is not adapter or self._connection_epoch != epoch:
             # 성공 응답이 disconnect 이후에 도착 — _last_good/에러 카운터를 오염시키지 않는다 (H4)
             return self._null_payload(self._reconnecting())
 
@@ -856,6 +900,7 @@ class RoasterManager:
                 level="info",
             )
         self._consecutive_errors = 0
+        self._record_connection_recovery()
 
         if reading.bt > 0:
             self._add_to_ror_window(reading.timestamp, reading.bt)
@@ -1280,6 +1325,7 @@ class RoasterManager:
                     exc, self._protocol, self._merged_params
                 )
                 _log.error("reset 재연결 실패: %s", exc, exc_info=True)
+                self._begin_connection_incident(exc, "reset_failed")
                 self._capture_hardware_error(exc, "reset_failed")
                 # _refresh_reading은 _connected=False면 재연결을 안 띄운다.
                 # 루프는 sleep 후 lock을 잡으므로 여기서 spawn해도 데드락 없음.
