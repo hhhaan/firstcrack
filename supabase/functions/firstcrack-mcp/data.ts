@@ -3,10 +3,6 @@ import { type Principal, READ_SCOPE, UUID } from './auth.ts';
 type QueryResult = { data: unknown; error: unknown };
 export type ReadSelection = {
     tool: string;
-    table: string;
-    columns: string;
-    ownerColumn: string;
-    ownerId: string;
     offset: number;
     limit: number;
 };
@@ -44,47 +40,28 @@ const workspaceProperties = {
 const catalog = {
     get_my_profile: {
         description: '로그인한 본인의 이름과 사업장 정보를 조회합니다.',
-        table: 'profiles',
-        ownerColumn: 'id',
-        columns: 'id,display_name,business_name,country_code',
         workspace: false,
     },
     list_my_workspaces: {
         description: '현재 연결에 동의한 로스터리를 조회합니다.',
-        table: 'organizations',
-        ownerColumn: 'owner_id',
-        columns: 'id,owner_id,name',
         workspace: false,
     },
     list_green_stock: {
         description:
             '허용된 로스터리의 생두 잔량을 그램으로 조회합니다. 입고 예정은 빼지 않습니다. 재고 수정은 하지 않습니다.',
-        table: 'beans',
-        ownerColumn: 'user_id',
-        columns: 'id,name,origin,low_stock_threshold_grams,on_hand_grams',
         workspace: true,
     },
     list_roasted_stock: {
         description: '허용된 로스터리의 벌크 원두 잔량을 그램으로 조회합니다. 재고 수정은 하지 않습니다.',
-        table: 'roasted_stock_events',
-        ownerColumn: 'user_id',
-        columns: 'bean_id,blend_id,on_hand_grams',
         workspace: true,
     },
     list_product_stock: {
         description: '허용된 로스터리의 완제품 잔량을 개수로 조회합니다. 재고 수정은 하지 않습니다.',
-        table: 'products',
-        ownerColumn: 'user_id',
-        columns: 'id,name,sku,is_active,on_hand_units',
         workspace: true,
     },
     list_orders: {
         description:
             '허용된 로스터리의 주문과 배송 상태를 조회합니다. status가 배송 단계이고 fulfilled_at은 재고 차감 시각입니다. 송장, 구매자, 금액은 포함하지 않습니다.',
-        table: 'orders',
-        ownerColumn: 'user_id',
-        columns:
-            'id,platform,platform_order_id,status,ordered_at,fulfilled_at,order_lines(id,product_id,title,quantity,status)',
         workspace: true,
     },
 } as const;
@@ -140,15 +117,7 @@ export async function readTool(client: ReadClient, principal: Principal, name: s
     if (access.error) throw new BackendFailure('로스터리 권한을 확인할 수 없습니다.', access.error);
     if (access.data !== true) throw new ToolFailure('이 로스터리를 조회할 권한이 없습니다.');
 
-    const { data, error } = await client.selectRows({
-        tool: name,
-        table: spec.table,
-        columns: spec.columns,
-        ownerColumn: spec.ownerColumn,
-        ownerId: name === 'get_my_profile' ? principal.userId : ownerId,
-        offset,
-        limit,
-    });
+    const { data, error } = await client.selectRows({ tool: name, offset, limit });
     if (error) throw new BackendFailure('정보를 조회할 수 없습니다. 잠시 후 다시 시도해 주세요.', error);
     if (!Array.isArray(data))
         throw new BackendFailure('정보 조회 응답을 확인할 수 없습니다.', new Error('Invalid read result shape'));
