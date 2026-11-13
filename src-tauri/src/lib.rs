@@ -7,6 +7,7 @@ mod webview_environment;
 mod roast_monitor;
 #[cfg(desktop)]
 mod poll_clock;
+mod scrub_util;
 mod sentry_config;
 #[cfg(any(desktop, test))]
 mod sidecar_diagnostics;
@@ -407,6 +408,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
         let mut attempts: usize = if current_rx.is_some() { 0 } else { 1 };
         let mut spawned_at = Instant::now();
         let mut stderr = sidecar_diagnostics::StderrDiagnostics::default();
+        let mut last_stderr_tail = String::new();
 
         loop {
             if let Some(rx) = current_rx.as_mut() {
@@ -426,6 +428,10 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                                 "[sidecar] terminated: code={:?} signal={:?}",
                                 payload.code, payload.signal,
                             );
+                            let stderr_evidence = stderr.take();
+                            if let Some(tail) = stderr_evidence["sidecar_stderr_tail"].as_str() {
+                                last_stderr_tail = tail.to_string();
+                            }
                             // 이슈로 만들지 않는다 — 정상 종료·앱 종료·재시작으로 회복되는
                             // 경우가 대부분이다. 조치가 필요한 건 아래 sidecar-dead뿐이고,
                             // 그 이벤트에 이 breadcrumb들이 붙어 경위를 보여준다.
@@ -449,7 +455,7 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                                         serde_json::json!(spawned_at.elapsed().as_millis() as u64),
                                     ),
                                     ("previous_failures".into(), serde_json::json!(attempts)),
-                                    ("stderr".into(), stderr.take()),
+                                    ("stderr".into(), stderr_evidence),
                                 ].into_iter().collect(),
                                 ..Default::default()
                             });
@@ -467,11 +473,15 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                     }
                 }
                 if !saw_termination {
+                    let stderr_evidence = stderr.take();
+                    if let Some(tail) = stderr_evidence["sidecar_stderr_tail"].as_str() {
+                        last_stderr_tail = tail.to_string();
+                    }
                     sidecar_hub.add_breadcrumb(sentry::Breadcrumb {
                         category: Some("sidecar".into()),
                         level: sentry::Level::Error,
                         message: Some("event stream closed without a termination status".into()),
-                        data: [("stderr".into(), stderr.take())].into_iter().collect(),
+                        data: [("stderr".into(), stderr_evidence)].into_iter().collect(),
                         ..Default::default()
                     });
                 }
@@ -490,6 +500,12 @@ fn spawn_and_watch_sidecar(app: &tauri::App) {
                     "[sidecar-restart] {}회 재시작 모두 실패 — 사이드카 복구 포기",
                     RESTART_BACKOFFS_SECS.len()
                 );
+                sidecar_hub.configure_scope(|scope| {
+                    scope.set_extra(
+                        "sidecar_stderr_tail",
+                        last_stderr_tail.clone().into(),
+                    );
+                });
                 sidecar_hub.capture_message(
                     &format!(
                         "[sidecar-dead] {}회 재시작 모두 실패 — 복구 포기",
