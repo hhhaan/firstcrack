@@ -21,7 +21,6 @@
         // 로컬 프리뷰. 앱 그래프 밖.
         "output/**",
         // 연결 전 코드. 지우거나 다시 붙이면 이 목록에서 뺀다.
-        "src/shared/store/dismissedAlerts.ts",
         "src/widgets/blend-detail/index.ts",
         "src/widgets/blend-list/index.ts",
         // App.tsx에서 첫 실행 테마 선택은 주석으로 꺼 둔 상태.
