@@ -8,7 +8,7 @@ export const organizationKeys = {
     memberships: (userId: string) => [...organizationKeys.all, 'memberships', userId] as const,
 };
 
-export function invalidateOrganizationQueries(qc: ReturnType<typeof useQueryClient>, _userId?: string) {
+export function invalidateOrganizationQueries(qc: ReturnType<typeof useQueryClient>) {
     // Prefix invalidation covers mine + memberships (and future org keys).
     void qc.invalidateQueries({ queryKey: organizationKeys.all });
 }
@@ -30,40 +30,40 @@ export const useMyMemberships = (userId: string) =>
 /** Team settings map every failure to an inline message (`mapInviteError`) — no global toast. */
 const inlineErrorMeta = { silentError: true } as const;
 
-export const useCreateOrgInvite = (userId: string) => {
+export const useCreateOrgInvite = () => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (token: string) => organizationApi.createInvite(token),
         meta: inlineErrorMeta,
-        onSuccess: () => invalidateOrganizationQueries(qc, userId),
+        onSuccess: () => invalidateOrganizationQueries(qc),
     });
 };
 
-export const useRedeemOrgInvite = (userId: string) => {
+export const useRedeemOrgInvite = () => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (token: string) => organizationApi.redeemInvite(token),
         meta: inlineErrorMeta,
-        onSuccess: () => invalidateOrganizationQueries(qc, userId),
+        onSuccess: () => invalidateOrganizationQueries(qc),
     });
 };
 
-export const useRemoveOrgMember = (userId: string) => {
+export const useRemoveOrgMember = () => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ orgId, memberId }: { orgId: string; memberId: string }) =>
             organizationApi.removeMember(orgId, memberId),
         meta: inlineErrorMeta,
-        onSuccess: () => invalidateOrganizationQueries(qc, userId),
+        onSuccess: () => invalidateOrganizationQueries(qc),
     });
 };
 
-export const useRevokeOrgInvite = (userId: string) => {
+export const useRevokeOrgInvite = () => {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (inviteId: string) => organizationApi.revokeInvite(inviteId),
         meta: inlineErrorMeta,
-        onSuccess: () => invalidateOrganizationQueries(qc, userId),
+        onSuccess: () => invalidateOrganizationQueries(qc),
     });
 };
 

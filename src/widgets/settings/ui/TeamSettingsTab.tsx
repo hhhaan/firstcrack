@@ -26,7 +26,7 @@ export function TeamSettingsTab() {
     const { create, isPending: creating } = useCreateInvite();
     const { redeem, isPending: redeeming } = useRedeemInvite();
     const { remove, isPending: removing } = useRemoveMember();
-    const revokeInvite = useRevokeOrgInvite(userId);
+    const revokeInvite = useRevokeOrgInvite();
 
     const [lastToken, setLastToken] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
