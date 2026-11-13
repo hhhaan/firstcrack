@@ -85,7 +85,6 @@ class ModbusAdapter:
         bytesize: int = 8,
         parity: str = "N",
         stopbits: float = 1,
-        interval: float = 1.0,
         word_order: str = "little",
         byte_order: str = "big",
         modbus_registers: dict[str, Any] | None = None,
@@ -100,7 +99,6 @@ class ModbusAdapter:
         self._bytesize = bytesize
         self._parity = parity
         self._stopbits = int(stopbits)
-        self._interval = interval
         self._word_order = word_order.lower() if isinstance(word_order, str) else ""
         self._byte_order = byte_order.lower() if isinstance(byte_order, str) else ""
         self._regs: dict[str, Any] = modbus_registers or {}

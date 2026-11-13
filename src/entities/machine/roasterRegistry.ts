@@ -65,7 +65,6 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
         { key: 'host', label: 'IP Address', type: 'text', required: false, placeholder: '127.0.0.1' },
         { key: 'port', label: 'Port', type: 'number', required: false, placeholder: '80' },
         ...SERIAL_FORM_FIELDS,
-        // { key: 'interval', label: 'Sampling Interval', type: 'number', required: false, options: INTERVAL_OPTIONS },
     ],
     probat_ws: [
         { key: 'host', label: 'IP Address', type: 'text', required: true, placeholder: '127.0.0.1' },
@@ -91,7 +90,6 @@ export const PROTOCOL_FORM_FIELDS: Record<string, RoasterDef['form_fields']> = {
         { key: 'bytesize', label: 'Byte Size', type: 'number', required: false, options: BYTESIZE_OPTIONS },
         { key: 'parity', label: 'Parity', type: 'select', required: false, options: PARITY_OPTIONS },
         { key: 'stopbits', label: 'Stop Bits', type: 'number', required: false, options: STOPBITS_OPTIONS },
-        // { key: 'interval', label: 'Sampling Interval', type: 'number', required: false, options: INTERVAL_OPTIONS },
     ],
     phidget: [
         {
@@ -181,7 +179,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     custom_s7: {
@@ -218,7 +215,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     custom_probat_ws: {
@@ -439,7 +435,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     probat_probatone_7: {
@@ -458,7 +453,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // ── Kaleido ───────────────────────────────────────────────────────────────
@@ -478,7 +472,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // ── Diedrich ──────────────────────────────────────────────────────────────
@@ -498,7 +491,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     diedrich_dr: {
@@ -517,7 +509,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     diedrich_phidget_4ch: {
@@ -555,7 +546,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 2,
-            interval: 1,
         },
     },
     easyster_smart: {
@@ -574,7 +564,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // ── Proaster ──────────────────────────────────────────────────────────────
@@ -594,7 +583,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 2,
-            interval: 1,
         },
     },
     proaster_thcr01a: {
@@ -613,7 +601,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // ── Trinitas ──────────────────────────────────────────────────────────────
@@ -633,7 +620,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 2,
-            interval: 1,
         },
     },
     trinitas_t7: {
@@ -652,7 +638,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // ── Buja Roaster ──────────────────────────────────────────────────────────
@@ -670,7 +655,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 2,
-            interval: 0.5,
         },
     },
     buja_manual_hanyoung_nux: {
@@ -687,7 +671,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 0.5,
         },
     },
     buja_manual_autonics: {
@@ -704,7 +687,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 2,
-            interval: 0.5,
         },
     },
     buja_smart_gas: {
@@ -718,7 +700,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             mode: 'tcp',
             host: '192.168.10.220',
             port: 502,
-            interval: 0.5,
         },
     },
     // ── Phidget ───────────────────────────────────────────────────────────────
@@ -775,7 +756,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     loring_smart_roast_auto: {
@@ -794,7 +774,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // Toper/PLC.aset — TKM-SX and Cafemino. Read only. Not USB, not PLC_Control.
@@ -814,7 +793,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     // Artisan Machines/IMF, Petroncini, Neuhaus Neotec. Read maps live in the sidecar.
@@ -834,7 +812,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     imf_rm_auto: {
@@ -853,7 +830,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     imf_rm_control: {
@@ -872,7 +848,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     imf_rm_legacy: {
@@ -891,7 +866,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     petroncini_asem: {
@@ -910,7 +884,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     petroncini_maestro: {
@@ -956,7 +929,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
     neuhaus_rfb: {
@@ -975,7 +947,6 @@ const REGISTRY: Record<string, RegistryEntry> = {
             bytesize: 8,
             parity: 'N',
             stopbits: 1,
-            interval: 1,
         },
     },
 };

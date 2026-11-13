@@ -77,63 +77,6 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[cfg(any())]
-    fn scanner_source(home: &Path) -> std::path::PathBuf {
-        let source =
-            home.join("Library/Application Support/Firescope/IndexedDB/file__0.indexeddb.leveldb");
-        fs::create_dir_all(&source).unwrap();
-        let fixture = snapshot(&[(graph_key(), Some(envelope(&hex(GRAPH))))]);
-        for entry in fs::read_dir(fixture.path()).unwrap() {
-            let entry = entry.unwrap();
-            fs::copy(entry.path(), source.join(entry.file_name())).unwrap();
-        }
-        source
-    }
-
-    #[cfg(any())]
-    fn scanner_preserves_source_and_rejects_symlinks_and_size_limits() {
-        use std::os::unix::fs::symlink;
-        let home = tempfile::tempdir().unwrap();
-        let source = scanner_source(home.path());
-        let contents = |path: &Path| -> BTreeMap<_, _> {
-            fs::read_dir(path)
-                .unwrap()
-                .map(|e| {
-                    let e = e.unwrap();
-                    (e.file_name(), fs::read(e.path()).unwrap())
-                })
-                .collect()
-        };
-        let before = contents(&source);
-        assert_eq!(scan(home.path())["status"], "found");
-        assert_eq!(contents(&source), before);
-
-        let linked_home = tempfile::tempdir().unwrap();
-        let parent = linked_home
-            .path()
-            .join("Library/Application Support/Firescope/IndexedDB");
-        fs::create_dir_all(&parent).unwrap();
-        symlink(&source, parent.join("file__0.indexeddb.leveldb")).unwrap();
-        assert_eq!(scan(linked_home.path())["reason"], "database-files");
-
-        let oversized_home = tempfile::tempdir().unwrap();
-        let oversized = scanner_source(oversized_home.path());
-        fs::File::create(oversized.join("oversized"))
-            .unwrap()
-            .set_len(LIMIT as u64 + 1)
-            .unwrap();
-        assert_eq!(scan(oversized_home.path())["reason"], "size-limit");
-
-        let total_home = tempfile::tempdir().unwrap();
-        let total = scanner_source(total_home.path());
-        for n in 0..5 {
-            fs::File::create(total.join(format!("large-{n}")))
-                .unwrap()
-                .set_len(27 * 1024 * 1024)
-                .unwrap();
-        }
-        assert_eq!(scan(total_home.path())["reason"], "size-limit");
-    }
 }
 
 fn crc32c(data: &[u8]) -> u32 {

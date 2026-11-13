@@ -34,8 +34,6 @@ export interface UseUpdateCheckerReturn {
     checkAndDownload: () => Promise<void>;
     /** 다운로드한 업데이트 설치 후 앱 재시작 */
     applyAndRelaunch: () => Promise<void>;
-    /** DEV 전용: ready 상태를 강제로 만들어 dialog/UI 미리보기 */
-    mockReady: (version: string) => void;
 }
 
 const INITIAL_STATE: UpdateState = {
@@ -72,17 +70,6 @@ const incrementRetryAttempts = () => {
 const clearRetryAttempts = () => {
     localStorage.removeItem(RETRY_ATTEMPTS_KEY);
 };
-// 시스템 알림: floating 버튼이 이미 존재하므로 비활성화
-// let permissionReady: Promise<boolean> | null = null;
-// const ensurePermission = async (): Promise<boolean> => {
-//     if (permissionReady) return permissionReady;
-//     permissionReady = (async () => {
-//         if (await isPermissionGranted()) return true;
-//         const result = await requestPermission();
-//         return result === 'granted';
-//     })();
-//     return permissionReady;
-// };
 
 export const useUpdateChecker = (): UseUpdateCheckerReturn => {
     const [state, setState] = useState<UpdateState>(INITIAL_STATE);
@@ -216,16 +203,6 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
 
                 statusRef.current = 'ready';
                 setState((prev) => ({ ...prev, status: 'ready', progress: 100 }));
-
-                // 시스템 알림: floating 버튼이 이미 강제 수단이므로 비활성화
-                // ensurePermission().then((granted) => {
-                //     if (granted) {
-                //         sendNotification({
-                //             title: 'First Crack 업데이트 준비 완료',
-                //             body: `v${update.version} — 앱을 재시작하면 적용됩니다.`,
-                //         });
-                //     }
-                // });
             } catch (error) {
                 const msg = error instanceof Error ? error.message : 'updater.checkError';
                 logger.capture(error, { context: 'updater' });
@@ -252,10 +229,5 @@ export const useUpdateChecker = (): UseUpdateCheckerReturn => {
         }
     }, []);
 
-    const mockReady = useCallback((version: string) => {
-        if (!import.meta.env.DEV) return;
-        setState({ status: 'ready', version, progress: 100, error: null });
-    }, []);
-
-    return { state, checkForUpdate, checkAndDownload, applyAndRelaunch, mockReady };
+    return { state, checkForUpdate, checkAndDownload, applyAndRelaunch };
 };

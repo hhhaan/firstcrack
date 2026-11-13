@@ -10,7 +10,7 @@ import { useToastStore } from '@shared/store/toast';
  * A repeated device clock (`retransmit`) is still a received temperature.
  */
 
-export const LINK_FAULT_THRESHOLD = 3;
+const LINK_FAULT_THRESHOLD = 3;
 
 export type LinkReadingQuality = 'valid' | 'stale' | 'retransmit' | 'null' | 'spike' | 'poll_error' | 'reconnecting';
 

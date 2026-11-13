@@ -88,7 +88,6 @@ class VirtualMachineAdapter:
 
     def __init__(
         self,
-        mode: str = "C",
         write_map: dict[str, dict[str, Any]] | None = None,
         **_: Any,
     ) -> None:

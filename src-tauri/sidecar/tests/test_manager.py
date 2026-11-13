@@ -1385,10 +1385,7 @@ class TestSafetyAfterReconnect:
         failure = OSError("write failed")
         fake.control = AsyncMock(side_effect=[failure, failure, None, failure])
         scope = MagicMock()
-        with (
-            patch("manager.sentry_sdk.new_scope") as new_scope,
-            patch("slack_notify.notify_hardware_error"),
-        ):
+        with patch("manager.sentry_sdk.new_scope") as new_scope:
             new_scope.return_value.__enter__.return_value = scope
             for _ in range(2):
                 await manager._safety_after_reconnect()

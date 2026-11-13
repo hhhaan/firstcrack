@@ -78,16 +78,6 @@ export const replayCommand = (p: ReplayPoint): number | null => {
 };
 
 /**
- * Charge 이후·Drop 이전에 지시 샘플이 하나라도 있는가.
- * 재생 계획 유효성(양수 이벤트·PID 폭증)과 별개 — 기록 없음 UI에 쓴다.
- */
-export const hasHeatSetRecord = (points: ReplayPoint[] | null | undefined, dropTime?: number | null): boolean => {
-    if (points == null || points.length === 0) return false;
-    const cutoff = dropTime ?? Number.POSITIVE_INFINITY;
-    return points.some((p) => p.t >= 0 && p.t < cutoff && replayCommand(p) != null);
-};
-
-/**
  * 이벤트가 이보다 많으면 PID가 기록한 배치로 판정하고 재생을 거부한다.
  * PID는 duty를 매 tick 미세 조정하므로 델타 필터로는 못 거른다 — 그런 기록을
  * 수백 번 따라 쓰는 것은 재생이 아니라 열화된 PID다. 필요하면 PID를 켜는 게 맞다.

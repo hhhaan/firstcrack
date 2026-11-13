@@ -2,14 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseTsv } from '@shared/lib/tsv';
 import { describe, expect, it } from 'vitest';
-import {
-    eventTrigger,
-    extractReplayEvents,
-    hasHeatSetRecord,
-    judgeReplay,
-    type ReplayPoint,
-    resolveReferenceTpTime,
-} from './replay';
+import { eventTrigger, extractReplayEvents, judgeReplay, type ReplayPoint, resolveReferenceTpTime } from './replay';
 
 /** charge 180° → TP 95°(t=60) → 상승 → drop 205° 형태의 레퍼런스 */
 const curve = (heaterAt: Record<number, number>): ReplayPoint[] => {
@@ -86,7 +79,6 @@ describe('extractReplayEvents', () => {
         );
         expect(points.every((p) => p.heaterSet == null)).toBe(true);
         expect(extractReplayEvents(points)).toBeNull();
-        expect(hasHeatSetRecord(points)).toBe(false);
     });
 
     it('#310 실데이터: TP는 실제 골짜기, 시간축 5 + BT 2로 분류되고 7건 전부 순서대로 발화한다', () => {
@@ -233,7 +225,6 @@ describe('extractReplayEvents', () => {
 
     it('실측 heater만 있고 Heat set이 없으면 추출하지 않는다', () => {
         const pts = curve({ 0: 80, 120: 60 }).map((p) => ({ ...p, heater: p.heaterSet ?? null, heaterSet: null }));
-        expect(hasHeatSetRecord(pts)).toBe(false);
         expect(extractReplayEvents(pts)).toBeNull();
     });
 
@@ -251,8 +242,7 @@ describe('extractReplayEvents', () => {
         ]);
     });
 
-    it('0은 결측이 아니다 — 양수 뒤의 0은 이벤트로 남고, 기록 있음으로 센다', () => {
-        expect(hasHeatSetRecord(curve({ 0: 0 }))).toBe(true);
+    it('0은 결측이 아니다 — 양수 뒤의 0은 이벤트로 남고', () => {
         expect(extractReplayEvents(curve({ 0: 0 }))).toBeNull();
         const plan = extractReplayEvents(curve({ 0: 80, 200: 0 }));
         expect(plan?.events.map((e) => e.heater)).toEqual([80, 0]);

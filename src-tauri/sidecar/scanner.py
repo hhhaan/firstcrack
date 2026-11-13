@@ -102,7 +102,7 @@ async def _probe(host: str, port: int, sem: asyncio.Semaphore) -> str | None:
         except Exception:
             # Normal path: most hosts in a /24 sweep refuse or time out on this
             # port — a per-host breadcrumb only, not worth Sentry noise.
-            _log.warning("scanner: TCP probe failed for %s:%d", host, port)
+            _log.debug("scanner: TCP probe failed for %s:%d", host, port)
             return None
 
 

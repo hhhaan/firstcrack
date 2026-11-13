@@ -480,22 +480,6 @@ class RoasterManager:
                 scope.capture_exception(scrubbed)
             if once:
                 self._hw_alerts_sent.add(event)
-            try:
-                from slack_notify import notify_hardware_error
-
-                # Sync HTTP — do not block aiohttp event loop during reconnect/temp reads.
-                asyncio.get_running_loop().run_in_executor(
-                    None,
-                    lambda: notify_hardware_error(
-                        event=event,
-                        roaster=self._roaster_key,
-                        protocol=self._protocol,
-                        exc=exc,
-                    ),
-                )
-            except Exception:
-                _log.exception("Slack hardware error notify scheduling failed (event=%s)", event)
-                pass
         except Exception:
             _log.exception("_capture_hardware_error failed (event=%s)", event)
             pass

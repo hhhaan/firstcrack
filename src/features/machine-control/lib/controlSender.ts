@@ -337,9 +337,6 @@ export const createControlSender = ({ send, observer, onCommitted, onApplied, on
             sendObserver = observer;
         },
         setManualRetryEpoch,
-        setManualHeaterRetryEpoch(epoch: number | undefined): void {
-            setManualRetryEpoch('heater', epoch);
-        },
         cancelManualHeaterRetry(): void {
             revisions.heater += 1;
             manualDeliveries.heater?.abort();
