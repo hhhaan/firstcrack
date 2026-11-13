@@ -15,7 +15,6 @@ on:
       - 'supabase/tests/polar-database-types.ts'
       - 'src/shared/types/database.types.ts'
       - 'src/shared/types/database*.ts'
-      - 'supabase/tests/polar-database-types.ts'
       - '.github/workflows/polar-billing-tests.yml'
   push:
     branches: [main]
@@ -31,6 +30,7 @@ on:
       - 'supabase/tests/polar-cutover.test.ts'
       - 'supabase/tests/polar-database-types.ts'
       - 'src/shared/types/database.types.ts'
+      - 'src/shared/types/database*.ts'
       - '.github/workflows/polar-billing-tests.yml'
   workflow_dispatch:
 permissions:
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: '22'
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
         with:
           deno-version: v2.x
