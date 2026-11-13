@@ -13,7 +13,7 @@ import {
 } from '../_shared/auth.ts';
 import { getAdapter } from '../_shared/channels/adapters.ts';
 import { upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
-import { reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
+import { acquireRunLock, reclaimStaleRuns } from '../_shared/channels/run-lock.ts';
 import { loadSecretsSession } from '../_shared/channels/secrets-session.ts';
 import type { Platform, PollCursor } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
@@ -51,31 +51,14 @@ async function syncOne(
     /** #109 EF-path guard: stock events the batch RPC refused (terminal orders) — never silent. */
     stockEventSkips?: Array<{ referenceId: string; orderId: string; orderStatus: string; reason: string }>;
 }> {
-    // The insert is the lock: a partial unique index allows one 'running' row per connection for
-    // cron/manual/dispatch triggers. Webhook runs are outside it — see the migration for why.
-    const { data: run, error: runErr } = await admin
-        .from('order_sync_runs')
-        .insert({
-            connection_id: conn.id,
-            user_id: conn.user_id,
-            trigger,
-            status: 'running',
-        })
-        .select('id')
-        .single();
-    if (runErr || !run) {
-        if (runErr?.code === '23505') {
-            await admin.from('order_sync_runs').insert({
-                connection_id: conn.id,
-                user_id: conn.user_id,
-                trigger,
-                status: 'skipped',
-                finished_at: new Date().toISOString(),
-                error_message: 'another run in progress',
-            });
-            return { ok: true, upserted: 0, skipped: true };
-        }
-        return { ok: false, upserted: 0, error: runErr?.message ?? 'run insert failed' };
+    const lock = await acquireRunLock(admin, {
+        connectionId: conn.id,
+        userId: conn.user_id,
+        trigger,
+    });
+    if (!lock.ok) {
+        if (lock.conflict) return { ok: true, upserted: 0, skipped: true };
+        return { ok: false, upserted: 0, error: lock.error };
     }
 
     try {
@@ -92,7 +75,6 @@ async function syncOne(
                 userId: conn.user_id,
                 connectionId: conn.id,
                 platform: conn.platform as Platform,
-                autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
             },
             orders,
         );
@@ -122,7 +104,7 @@ async function syncOne(
                     ? { error_message: `stock events skipped: ${JSON.stringify(stockEventSkips).slice(0, 900)}` }
                     : {}),
             })
-            .eq('id', run.id);
+            .eq('id', lock.runId);
         if (runError) throw new Error('Failed to finish sync run', { cause: runError });
 
         return { ok: true, upserted, ...(stockEventSkips.length ? { stockEventSkips } : {}) };
@@ -157,7 +139,7 @@ async function syncOne(
                 finished_at: now,
                 error_message: msg.slice(0, 1000),
             })
-            .eq('id', run.id);
+            .eq('id', lock.runId);
 
         return { ok: false, upserted: 0, error: msg };
     }

@@ -14,14 +14,14 @@ import { mapCafe24Order } from '../_shared/channels/cafe24.ts';
 import { cafe24WebhookEventKey, isCafe24Uninstall } from '../_shared/channels/cafe24-webhook.ts';
 import { gidToId, lineQuantity, lineStatusOf, upsertCanonicalOrders } from '../_shared/channels/normalize.ts';
 import { classifyShopifyTopic } from '../_shared/channels/shopify-webhook.ts';
+import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
+import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
 import {
     claimWebhookEventRun,
     completeWebhookEventRun,
     releaseWebhookEventClaim,
     type WebhookEventRunClient,
 } from '../_shared/channels/webhook-event-run.ts';
-import { shopifyToCanonical } from '../_shared/channels/status-map.ts';
-import type { CanonicalOrder, CanonicalOrderLine, Platform } from '../_shared/channels/types.ts';
 import { captureEdgeException, serveWithSentry } from '../_shared/sentry.ts';
 import { verifySharedSecret, verifyShopifyHmac } from '../_shared/webhook-auth.ts';
 
@@ -212,7 +212,6 @@ serveWithSentry('order-webhook', async (req) => {
                         userId: conn.user_id,
                         connectionId: conn.id,
                         platform: 'shopify',
-                        autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
                     },
                     [order],
                 );
@@ -347,7 +346,6 @@ serveWithSentry('order-webhook', async (req) => {
                     userId: conn.user_id,
                     connectionId: conn.id,
                     platform: 'cafe24',
-                    autoFulfillOnShipped: conn.auto_fulfill_on_shipped === true,
                 },
                 [order],
             );

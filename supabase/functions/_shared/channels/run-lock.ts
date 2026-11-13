@@ -74,27 +74,22 @@ export async function reclaimStaleRuns(admin: RunLockClient): Promise<void> {
     }
 }
 
-export type AcquireDispatchRunLockResult =
+export type AcquireRunLockResult =
     | { ok: true; runId: string }
     | { ok: false; conflict: true }
     | { ok: false; conflict: false; error: string };
 
-/**
- * Take the same per-connection lock order-sync uses, with `trigger: 'dispatch'`.
- * Reclaims stale cron/manual/dispatch runs first so a dead row cannot block us.
- */
-export async function acquireDispatchRunLock(
+/** Insert the running row, or record a skipped run when the connection is locked. */
+export async function acquireRunLock(
     admin: RunLockClient,
-    args: { connectionId: string; userId: string },
-): Promise<AcquireDispatchRunLockResult> {
-    await reclaimStaleRuns(admin);
-
+    args: { connectionId: string; userId: string; trigger: 'cron' | 'manual' | 'dispatch' },
+): Promise<AcquireRunLockResult> {
     const { data: run, error: runErr } = await admin
         .from('order_sync_runs')
         .insert({
             connection_id: args.connectionId,
             user_id: args.userId,
-            trigger: 'dispatch',
+            trigger: args.trigger,
             status: 'running',
         })
         .select('id')
@@ -105,7 +100,7 @@ export async function acquireDispatchRunLock(
             await admin.from('order_sync_runs').insert({
                 connection_id: args.connectionId,
                 user_id: args.userId,
-                trigger: 'dispatch',
+                trigger: args.trigger,
                 status: 'skipped',
                 finished_at: new Date().toISOString(),
                 error_message: 'another run in progress',
@@ -116,6 +111,15 @@ export async function acquireDispatchRunLock(
     }
 
     return { ok: true, runId: run.id };
+}
+
+/** Reclaim stale runs before taking the dispatch lock, including token rotation. */
+export async function acquireDispatchRunLock(
+    admin: RunLockClient,
+    args: { connectionId: string; userId: string },
+): Promise<AcquireRunLockResult> {
+    await reclaimStaleRuns(admin);
+    return acquireRunLock(admin, { ...args, trigger: 'dispatch' });
 }
 
 export type ReleaseRunLockOutcome = {
