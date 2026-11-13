@@ -16,13 +16,6 @@ export const beanApi = {
         return data || [];
     },
 
-    get: async (id: string): Promise<Bean> => {
-        refuseOptimisticBeanId(id);
-        const { data, error } = await supabase.from('beans').select('*').eq('id', id).single();
-        if (error) throw error;
-        return data;
-    },
-
     create: async (bean: BeanInsert): Promise<Bean> => {
         const { data, error } = await supabase.from('beans').insert(bean).select().single();
         if (error) throw error;

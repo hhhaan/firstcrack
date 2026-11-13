@@ -52,13 +52,6 @@ export const recurrenceRuleApi = {
         return data;
     },
 
-    /** Update a recurrence rule (e.g., change rrule or until) */
-    update: async (id: string, patch: Partial<RecurrenceRuleInsert>): Promise<RecurrenceRule> => {
-        const { data, error } = await supabase.from('recurrence_rules').update(patch).eq('id', id).select().single();
-        if (error) throw error;
-        return data;
-    },
-
     /** List all active recurrence rules for a user */
     listActive: async (userId: string): Promise<RecurrenceRule[]> => {
         const { data, error } = await supabase

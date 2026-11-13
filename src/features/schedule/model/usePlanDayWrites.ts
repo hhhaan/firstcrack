@@ -143,7 +143,6 @@ export const usePlanDayWrites = ({
             const dateChanged = newDateKey !== dateKey;
             const isBlendType = data.batchType === 'Pre-roast Blend' || data.batchType === 'Post-roast Blend';
             let targetPlanId = editing.plan_id;
-            const oldPlanId = editing.plan_id;
 
             if (dateChanged) {
                 const newPlan = await dayPlanApi.getOrCreate(userId, newDateKey);
@@ -171,8 +170,6 @@ export const usePlanDayWrites = ({
             });
 
             if (dateChanged) {
-                void qc.invalidateQueries({ queryKey: planKeys.batches(oldPlanId) });
-                void qc.invalidateQueries({ queryKey: planKeys.batches(targetPlanId) });
                 void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, dateKey) });
                 void qc.invalidateQueries({ queryKey: planKeys.dayBatches(userId, newDateKey) });
             }

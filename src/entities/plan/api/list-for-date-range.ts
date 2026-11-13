@@ -1,3 +1,4 @@
+import { expandRRuleInRange, mergeRecurrenceExceptions } from '@shared/lib/rrule';
 import { calcPlanBatchCount } from '@shared/lib/stock-calc';
 import { supabase } from '@shared/lib/supabase';
 import type { PlanBatch, PlanBatchWithProgress } from '@shared/types/database.types';
@@ -51,29 +52,22 @@ export async function listForDateRange(
     }
 
     // Sessions for progress — scoped to concrete batch ids only (no full-table scan).
-    const batchIds = [...(exceptions ?? []), ...(oneOffBatches ?? [])].map((b) => b.id);
+    const batchIds = [...(exceptions ?? []), ...oneOffBatches].map((b) => b.id);
     const sessionCountMap = await countSessionsByBatch(batchIds);
 
     // Build result from one-off batches.
     // One-off rows never store scheduled_date (recurrence-exception column) —
     // derive it from the owning plan's date so date-keyed consumers see them.
-    const result: PlanBatchWithProgress[] = (oneOffBatches ?? []).map((row) => ({
+    const result: PlanBatchWithProgress[] = oneOffBatches.map((row) => ({
         ...row,
         scheduled_date: row.scheduled_date ?? planIdToDate.get(row.plan_id) ?? null,
         completed_sessions: sessionCountMap.get(row.id) ?? 0,
     }));
 
-    // 5. For each active recurrence rule, expand and merge with exceptions
     const rangeStart = new Date(`${startDate}T00:00:00`);
     const rangeEnd = new Date(`${endDate}T23:59:59`);
 
-    // Dynamic import to avoid circular dependency
-    const { expandRRuleInRange, mergeRecurrenceExceptions } = await import('@shared/lib/rrule');
-
     for (const rule of rules) {
-        if (rule.status !== 'active') continue;
-
-        // Check if rule is within range
         const ruleStart = new Date(`${rule.dtstart}T00:00:00`);
         if (rule.until && new Date(`${rule.until}T23:59:59`) < rangeStart) continue;
 
