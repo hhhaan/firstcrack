@@ -105,7 +105,6 @@ interface ActiveRoastProps {
     summaryRequest?: { ownerId: string; sessionId: string } | null;
     onSummaryRequestHandled?: () => void;
     onShowMain?: () => void;
-    onOpenRoastSettings?: () => void;
     onPlanBatchComplete?: () => void;
 }
 
@@ -117,7 +116,6 @@ export const ActiveRoast = ({
     summaryRequest,
     onSummaryRequestHandled,
     onShowMain,
-    onOpenRoastSettings,
     onPlanBatchComplete,
 }: ActiveRoastProps) => {
     const { t, i18n } = useTranslation();
@@ -1116,7 +1114,6 @@ export const ActiveRoast = ({
             }`}
         >
             <RoastHeader
-                phase={roastPhaseName}
                 targetProfileId={targetProfileId}
                 selectedBeanId={selectedBeanId}
                 selectedBlendId={selectedBlendId}
@@ -1129,7 +1126,6 @@ export const ActiveRoast = ({
                     });
                 }}
                 onBeanChange={setSelectedBeanId}
-                onOpenRoastSettings={onOpenRoastSettings}
                 historyReferenceName={reference?.name ?? null}
                 historyReferenceFailed={historyReferenceFailed}
                 onChooseHistoryReference={() => setReferencePickerOpen(true)}

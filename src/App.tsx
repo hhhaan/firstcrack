@@ -356,7 +356,6 @@ const AppShell = () => {
                                     summaryRequest={roastSummaryRequest}
                                     onSummaryRequestHandled={clearRoastSummaryRequest}
                                     onShowMain={() => showView('roast')}
-                                    onOpenRoastSettings={() => openSettings('roast')}
                                     onPlanBatchComplete={handlePlanBatchComplete}
                                 />
                             </ViewErrorBoundary>

@@ -1,6 +1,6 @@
 import { useBoundShortcut } from '@shared/lib/useDoubleShortcut';
 import { formatShortcut, useShortcutKeys, useShortcutStore } from '@shared/store/keyboard-shortcuts';
-import { Maximize2, Settings2 } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useActiveRoastOnboardingStore } from '../model/onboarding';
@@ -11,7 +11,7 @@ const SHOW_DELAY_MS = 500;
 const RETRY_MS = 200;
 const MAX_RETRIES = 20;
 
-type TourStepId = 'fullscreen' | 'settings';
+type TourStepId = 'fullscreen';
 
 interface TourStepDef {
     id: TourStepId;
@@ -29,13 +29,6 @@ const STEPS: TourStepDef[] = [
         icon: Maximize2,
         stagePadding: 6,
         stageRadius: 10,
-    },
-    {
-        id: 'settings',
-        selector: '[data-tour="active-roast-settings"]',
-        icon: Settings2,
-        stagePadding: 8,
-        stageRadius: 8,
     },
 ];
 
@@ -119,9 +112,6 @@ export const ActiveRoastOnboarding = ({ isActive }: { isActive: boolean }) => {
             if (!next) {
                 if (retries++ < MAX_RETRIES) {
                     timeoutId = window.setTimeout(sync, RETRY_MS);
-                } else if (stepIndex < STEPS.length - 1) {
-                    // Missing target (e.g. settings button not mounted) → skip ahead
-                    setStepIndex((i) => i + 1);
                 } else {
                     dismissSession();
                 }
