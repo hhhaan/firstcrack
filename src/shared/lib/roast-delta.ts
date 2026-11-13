@@ -16,15 +16,6 @@ export type RoastMetrics = {
     endSource: RoastMetricsEndSource | null;
 };
 
-export interface SessionDevMetrics {
-    /** FC Start → roast end (canonical DTR). */
-    devTimeSec: number | null;
-    devPct: number | null;
-    /** FC Rolling → roast end; null unless FC Start ≤ Rolling < roast end. */
-    rollingDevTimeSec: number | null;
-    rollingDevPct: number | null;
-}
-
 export const isValidTimeSec = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
 const firstValidTime = (events: NumericRoastEvent[], type: string): number | undefined => {
@@ -108,17 +99,6 @@ export const sessionRoastMetrics = (
         durationFallback: session.duration_seconds,
         liveElapsed,
     });
-
-/** 세션 행에는 dev 필드가 없어 events에서 파생: FC Start/Rolling → Drop(없으면 End/duration). */
-export const deriveSessionDevMetrics = (events: StoredRoastEvent[], durationSec: number | null): SessionDevMetrics => {
-    const m = deriveRoastMetrics(events, { durationFallback: durationSec });
-    return {
-        devTimeSec: m.devTimeSec,
-        devPct: m.dtrPct,
-        rollingDevTimeSec: m.rollingDevTimeSec,
-        rollingDevPct: m.rollingDevPct,
-    };
-};
 
 /** 양쪽 값이 있을 때만 actual − target. */
 export const deltaOrNull = (actual: number | null | undefined, target: number | null | undefined): number | null =>

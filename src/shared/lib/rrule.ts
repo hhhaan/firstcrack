@@ -1,5 +1,4 @@
 import { Frequency, RRule } from 'rrule';
-import { UI_PREVIEW_DAYS } from './stock-calc';
 
 /**
  * Recurrence interval types mapped to RFC 5545 FREQ values.
@@ -44,41 +43,6 @@ export function buildRRule(interval: RecurrenceInterval, options?: { until?: Dat
     // Convert to RFC 5545 string via RRule helper
     // optionsToString returns "RULE:FREQ=..." — strip the "RULE:" prefix
     return RRule.optionsToString(rruleOptions).replace(/^RULE:/, '');
-}
-
-/**
- * Expand an RFC 5545 RRULE string into an array of Date occurrences.
- *
- * @param rruleStr - RFC 5545 RRULE string (e.g. "FREQ=WEEKLY;INTERVAL=2;COUNT=4")
- * @param dtstart - The start date to anchor the recurrence
- * @returns Array of Date objects in local time, normalized to 00:00:00
- */
-export function expandRRule(rruleStr: string, dtstart: Date): Date[] {
-    const dtstartLocal = new Date(dtstart);
-    dtstartLocal.setHours(0, 0, 0, 0);
-
-    const rule = rruleWithDtstart(rruleStr, dtstartLocal);
-    const allDates = rule
-        .between(
-            dtstartLocal,
-            new Date(dtstartLocal.getTime() + UI_PREVIEW_DAYS * 24 * 60 * 60 * 1000),
-            true, // inclusive
-        )
-        .map((d) => {
-            // Normalize to local midnight
-            const local = new Date(d);
-            local.setHours(0, 0, 0, 0);
-            return local;
-        });
-
-    // Deduplicate by date string
-    const seen = new Set<string>();
-    return allDates.filter((d) => {
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-    });
 }
 
 /**
@@ -145,7 +109,7 @@ export interface RecurrenceInstance {
  * - modified → instance data is overridden by the exception row
  * - no exception → normal instance
  *
- * @param expandedDates - Array of Date objects from expandRRule / expandRRuleInRange
+ * @param expandedDates - Array of Date objects from expandRRuleInRange
  * @param exceptions - Array of exception rows from DB
  * @returns Merged instances (cancelled ones filtered out)
  */
@@ -209,16 +173,6 @@ export function formatDateLocal(d: Date): string {
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
-}
-
-/**
- * Preview recurrence: return a human-readable list of dates
- * based on the given interval and dtstart.
- */
-export function previewRecurrenceDates(interval: RecurrenceInterval | null, dtstart: Date, limit: number = 5): Date[] {
-    if (!interval) return [];
-    const rruleStr = buildRRule(interval, { count: limit });
-    return expandRRule(rruleStr, dtstart).slice(0, limit);
 }
 
 /** Parse an RRULE string back to a RecurrenceInterval label (UI pre-fill). */

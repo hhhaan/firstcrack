@@ -15,13 +15,10 @@ export function useWriteAccess(): boolean {
     const authUserId = user?.id ?? '';
     const activeOwnerId = useWorkspaceStore((s) => s.activeOwnerId);
     const ownerPlanById = useWorkspaceStore((s) => s.ownerPlanById);
-    // Same-shape resolution as useEffectivePlan; foreign workspace still needs the raw
-    // ownerPlanById lookup below since it bypasses personal-plan resolution entirely.
     const plan = useEffectivePlan();
 
     const membershipOwnerIds = Object.keys(ownerPlanById);
     const workspaceOwnerId = resolveWorkspaceOwnerId(activeOwnerId, authUserId, membershipOwnerIds);
-    const isForeignWorkspace = !!authUserId && !!workspaceOwnerId && workspaceOwnerId !== authUserId;
     const trial = plan === 'trial' || plan === 'trial-event';
     const { data: usage } = useRoastChargeUsage(workspaceOwnerId, plan, trial);
     const now = useExpiryClock(usage?.period_end);
@@ -31,12 +28,6 @@ export function useWriteAccess(): boolean {
             now < new Date(usage.period_end).getTime() &&
             usage.used_batches < (usage.batch_cap ?? Infinity)
         );
-    }
-
-    // Shared org workspace → admin/host plan only (unified R/W on owner account).
-    if (isForeignWorkspace) {
-        const hostPlan = ownerPlanById[workspaceOwnerId] ?? '';
-        return isWritablePlan(hostPlan);
     }
 
     if (!isWritablePlan(plan)) return false;

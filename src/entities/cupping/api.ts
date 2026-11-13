@@ -6,13 +6,10 @@ import type {
     CuppingFormTemplate,
     CuppingInvite,
     CuppingSample,
-    Database,
     Json,
 } from '@shared/types/database.types';
 import { type CuppingFormSchema, PRESET_FORMS, parseFormSchema } from './lib/form';
-import { cuppingInviteUrl, generateCuppingToken, resolveCuppingPublicBaseUrl } from './lib/token';
-
-type CuppingInsert = Database['public']['Tables']['cuppings']['Insert'];
+import { cuppingInviteUrl, cuppingPublicBaseUrl, generateCuppingToken } from './lib/token';
 
 export type CuppingEventSummary = CuppingEvent & {
     sample_count: number;
@@ -158,7 +155,7 @@ async function loadActiveInviteForEvent(eventId: string): Promise<(CuppingInvite
 
     const inv = (invites ?? []).find((i) => i.used_count < i.max_uses) ?? null;
     if (!inv) return null;
-    const base = await resolveCuppingPublicBaseUrl();
+    const base = cuppingPublicBaseUrl();
     return { ...inv, url: cuppingInviteUrl(inv.token, base) };
 }
 
@@ -225,7 +222,7 @@ export const cuppingApi = {
             }
         }
 
-        const base = await resolveCuppingPublicBaseUrl();
+        const base = cuppingPublicBaseUrl();
         return events.map((ev) => {
             const sids = samplesByEvent.get(ev.id) ?? [];
             const allScores: number[] = [];
@@ -584,7 +581,7 @@ export const cuppingApi = {
             .select()
             .single();
         if (error) throw error;
-        const base = await resolveCuppingPublicBaseUrl();
+        const base = cuppingPublicBaseUrl();
         return { ...data, url: cuppingInviteUrl(data.token, base) };
     },
 
@@ -595,12 +592,6 @@ export const cuppingApi = {
             .eq('id', inviteId)
             .select()
             .single();
-        if (error) throw error;
-        return data;
-    },
-
-    createOwnerCupping: async (row: CuppingInsert): Promise<Cupping> => {
-        const { data, error } = await supabase.from('cuppings').insert(row).select().single();
         if (error) throw error;
         return data;
     },

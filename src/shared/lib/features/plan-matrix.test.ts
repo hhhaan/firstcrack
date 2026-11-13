@@ -10,8 +10,6 @@ import {
     planHasFeature,
     planMaxBatchesPerMonth,
     planMaxMachines,
-    TRIAL_DURATION_DAYS,
-    trialEndsAt,
 } from './plan-matrix';
 import { resolveFeature } from './resolve';
 
@@ -97,11 +95,6 @@ describe('plan state helpers', () => {
         for (const key of Object.values(FEATURE)) {
             expect(planHasFeature('pro', key)).toBe(pro[key]);
         }
-    });
-
-    it('trialEndsAt adds 14 days', () => {
-        const end = trialEndsAt('2026-07-01T00:00:00Z');
-        expect(end.toISOString()).toBe(`2026-07-${1 + TRIAL_DURATION_DAYS}T00:00:00.000Z`);
     });
 });
 

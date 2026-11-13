@@ -9,8 +9,6 @@ export type TimeEdit = {
     caret: number;
     /** 이 입력 세션이 칸 수를 직접 갖고 있다. 비어 있어도 기존 시각으로 되돌리지 않는다. */
     suppress: boolean;
-    /** 초의 십 자리만 들어온 상태. 고정 마스크에서는 쓰지 않는다. */
-    secondsOpen: boolean;
     /** 왼쪽부터 채운 숫자. `0530` → `05:30`. */
     digits: string;
 };
@@ -39,7 +37,6 @@ const showSlots = (slots: string): TimeEdit => {
         value: `${padded.slice(0, 2)}:${padded.slice(2)}`,
         caret: caretFor(slots.length),
         suppress: true,
-        secondsOpen: false,
         digits: slots,
     };
 };
@@ -114,7 +111,6 @@ const applyUnsignedTimeEdit = (
     text: string,
     kind: TimeEditKind,
     suppress = false,
-    _secondsOpen = false,
     digits = '',
 ): TimeEdit => {
     const from = clampIndex(prev, start);
@@ -126,7 +122,6 @@ const applyUnsignedTimeEdit = (
         value: prev,
         caret: from,
         suppress,
-        secondsOpen: false,
         digits: suppress ? digits : '',
     });
 
@@ -181,7 +176,6 @@ export const applyTimeEdit = (
     text: string,
     kind: TimeEditKind,
     suppress = false,
-    secondsOpen = false,
     digits = '',
 ): TimeEdit => {
     const offset = prev.startsWith('-') ? 1 : 0;
@@ -200,7 +194,6 @@ export const applyTimeEdit = (
         insertingSign ? text.trim().slice(1) : text,
         removingSign && kind !== 'insert' && to <= 1 ? 'insert' : kind,
         suppress,
-        secondsOpen,
         digits,
     );
     return negative ? { ...edit, value: `-${edit.value}`, caret: edit.caret + 1 } : edit;

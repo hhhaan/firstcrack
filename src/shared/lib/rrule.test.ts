@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
     buildRRule,
-    expandRRule,
     expandRRuleInRange,
     formatDateLocal,
     mergeRecurrenceExceptions,
     parseRruleToInterval,
-    previewRecurrenceDates,
 } from './rrule';
 
 describe('buildRRule / parseRruleToInterval', () => {
@@ -75,25 +73,6 @@ describe('expandRRuleInRange dtstart anchor', () => {
         const rangeEnd = new Date(2026, 3, 30);
         const dates = expandRRuleInRange('FREQ=MONTHLY', dtstart, rangeStart, rangeEnd).map(formatDateLocal);
         expect(dates).toEqual(['2026-01-15', '2026-02-15', '2026-03-15', '2026-04-15']);
-    });
-});
-
-describe('expandRRule / previewRecurrenceDates', () => {
-    it('expandRRule with COUNT limits occurrences', () => {
-        const dtstart = new Date(2026, 0, 5);
-        const dates = expandRRule(buildRRule('weekly', { count: 3 }), dtstart);
-        expect(dates).toHaveLength(3);
-        expect(dates.map(formatDateLocal)).toEqual(['2026-01-05', '2026-01-12', '2026-01-19']);
-    });
-
-    it('previewRecurrenceDates returns empty without interval', () => {
-        expect(previewRecurrenceDates(null, new Date(2026, 0, 1))).toEqual([]);
-    });
-
-    it('previewRecurrenceDates respects limit', () => {
-        const dates = previewRecurrenceDates('daily', new Date(2026, 0, 1), 3);
-        expect(dates).toHaveLength(3);
-        expect(dates.map(formatDateLocal)).toEqual(['2026-01-01', '2026-01-02', '2026-01-03']);
     });
 });
 

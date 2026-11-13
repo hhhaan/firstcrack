@@ -5,7 +5,6 @@ export type FeatureContext = {
     plan: string;
     /** Optional per-user force on/off (profile_feature_flags later). */
     profileOverrides?: ReadonlyMap<string, boolean>;
-    countryCode?: string | null;
 };
 
 /**

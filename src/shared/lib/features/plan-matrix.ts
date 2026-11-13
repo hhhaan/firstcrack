@@ -73,10 +73,6 @@ export const TRIAL_BATCH_CAP = 20;
 export const TRIAL_EVENT_DURATION_DAYS = 90;
 export const TRIAL_EVENT_BATCH_CAP = 100;
 
-export function trialEndsAt(signupAt: string | Date): Date {
-    return new Date(new Date(signupAt).getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
-}
-
 export function planMaxBatchesPerMonth(plan: string): number | null {
     if (PRO_PLUS_PLANS.has(plan)) return null;
     if (plan === 'read_only') return 0;
