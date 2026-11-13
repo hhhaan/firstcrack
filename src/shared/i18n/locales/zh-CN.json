@@ -300,14 +300,6 @@
                 "description": "设置应用全局默认界面与单位。",
                 "interfaceTitle": "界面",
                 "interfaceDescription": "主题、语言等显示选项。",
-                "theme": "外观",
-                "themeDescription": "选择应用显示样式。系统会跟随操作系统设置。",
-                "themeLight": "浅色",
-                "themeLightDescription": "明亮清爽",
-                "themeDark": "深色",
-                "themeDarkDescription": "护眼暗色",
-                "themeSystem": "系统",
-                "themeSystemDescription": "跟随系统设置",
                 "language": "应用语言",
                 "languageDescription": "选择应用显示语言。",
                 "defaultLandingView": "默认起始视图",
@@ -2551,15 +2543,5 @@
         "showHidden": "显示隐藏项目",
         "hide": "隐藏{{name}}",
         "restore": "恢复{{name}}"
-    },
-    "themeSelect": {
-        "title": "选择主题",
-        "description": "可随时在工作区设置中更改。",
-        "light": "浅色",
-        "lightDesc": "明亮简洁的界面",
-        "dark": "深色",
-        "darkDesc": "对眼睛更友好",
-        "system": "跟随系统",
-        "systemDesc": "跟随操作系统设置"
     }
 }

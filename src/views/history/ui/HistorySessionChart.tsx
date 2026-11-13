@@ -104,32 +104,6 @@ function ChartMeta({
     );
 }
 
-// Temporarily hidden under the history chart.
-// function PhaseShare({ phases }: { phases: PhaseSegment[] }) {
-//     const { t } = useTranslation();
-//     if (phases.length <= 1) return null;
-//     return (
-//         <div className="mt-4 border-t border-border-subtle pt-4">
-//             <div aria-hidden="true" className="mb-3 flex h-1.5 gap-0.5 overflow-hidden rounded-full">
-//                 {phases.map((phase) => (
-//                     <span key={phase.name} style={{ flex: phase.durationSec, backgroundColor: phase.color }} />
-//                 ))}
-//             </div>
-//             <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${phases.length}, minmax(0, 1fr))` }}>
-//                 {phases.map((phase) => (
-//                     <div key={phase.name} className="min-w-0">
-//                         <div className="mb-1 text-[11px] text-muted">{t(`history.compare.phase${phase.name}`)}</div>
-//                         <div className="flex flex-wrap items-baseline gap-x-2 font-mono text-[13px] text-primary">
-//                             {formatDuration(phase.durationSec)}
-//                             <span className="text-[11px] text-muted">{phase.pct}%</span>
-//                         </div>
-//                     </div>
-//                 ))}
-//             </div>
-//         </div>
-//     );
-// }
-
 export function HistorySessionChart({
     session,
     exportContainer,
@@ -426,7 +400,6 @@ export function HistorySessionChart({
                     {t(roastStatus || 'history.compare.noCurveData')}
                 </div>
             )}
-            {/* <PhaseShare phases={phases} /> */}
         </section>
     );
 }

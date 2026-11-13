@@ -300,14 +300,6 @@
                 "description": "アプリ全体の基本画面と単位を設定します。",
                 "interfaceTitle": "インターフェース",
                 "interfaceDescription": "テーマ・言語など表示オプションです。",
-                "theme": "外観",
-                "themeDescription": "アプリの表示スタイルを選択します。システムはOS設定に従います。",
-                "themeLight": "ライト",
-                "themeLightDescription": "明るくクリーンな画面",
-                "themeDark": "ダーク",
-                "themeDarkDescription": "目に優しい暗い画面",
-                "themeSystem": "システム",
-                "themeSystemDescription": "OS設定に合わせる",
                 "language": "アプリの言語",
                 "languageDescription": "アプリの表示言語を選択します。",
                 "defaultLandingView": "既定の開始画面",
@@ -2551,15 +2543,5 @@
         "showHidden": "非表示の項目を表示",
         "hide": "{{name}}を非表示",
         "restore": "{{name}}を再表示"
-    },
-    "themeSelect": {
-        "title": "テーマを選択してください",
-        "description": "ワークスペース設定からいつでも変更できます。",
-        "light": "ライト",
-        "lightDesc": "明るくすっきりした画面",
-        "dark": "ダーク",
-        "darkDesc": "目に優しい画面",
-        "system": "システム",
-        "systemDesc": "OS設定に合わせる"
     }
 }
