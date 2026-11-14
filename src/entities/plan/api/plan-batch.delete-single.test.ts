@@ -8,9 +8,8 @@ vi.mock('@shared/lib/supabase', () => ({
     },
 }));
 
-// plan-batch imports list/materialize/recurrence — stub heavy deps
+// Stub unrelated list/recurrence dependencies.
 vi.mock('./list-for-date-range', () => ({ listForDateRange: vi.fn() }));
-vi.mock('./materialize', () => ({ materializePlanBatch: vi.fn() }));
 vi.mock('./recurrence-rule', () => ({
     recurrenceRuleApi: {},
     mergeRecurrenceRuleMaster: vi.fn(),

@@ -9,7 +9,7 @@ import type {
 } from '@shared/types/database.types';
 import { format } from 'date-fns';
 import { listForDateRange } from './list-for-date-range';
-import { materializePlanBatch } from './materialize';
+import { materializePlanBatch, persistModifiedException } from './materialize';
 import { mergeRecurrenceRuleMaster, type RecurrenceRuleMasterPatch, recurrenceRuleApi } from './recurrence-rule';
 import { resolveForRoast, startForRoast, syncRoastProgress, updateRoastStatus } from './resolve-for-roast';
 import { countSessionsByBatch } from './session-counts';
@@ -52,52 +52,16 @@ export const planBatchApi = {
         meta?: { recurrenceRuleId?: string; originalDate?: string },
     ): Promise<PlanBatch> => {
         if (meta?.recurrenceRuleId && meta?.originalDate) {
-            // Recurring batch → insert exception row (modified).
-            // (rule, original_date) is unique. PostgREST cannot upsert on that partial
-            // index, so a second edit (23505) updates the existing exception.
-            const row = {
-                plan_id: patch.plan_id ?? '', // Required — caller must provide
-                recurrence_rule_id: meta.recurrenceRuleId,
-                scheduled_date: patch.scheduled_date ?? meta.originalDate,
-                original_date: meta.originalDate,
-                exception_type: 'modified' as const,
-                bean_name: patch.bean_name ?? '',
-                batch_size_kg: patch.batch_size_kg ?? 0,
-                target_roasted_kg: patch.target_roasted_kg ?? 0,
-                machine_id: patch.machine_id ?? null,
-                bean_id: patch.bean_id ?? null,
-                blend_id: patch.blend_id ?? null,
-                roast_profile_id: patch.roast_profile_id ?? null,
-                batch_type: patch.batch_type ?? 'Single Origin',
-                notes: patch.notes ?? '',
-                yield_pct: patch.yield_pct ?? 0.82,
-                order_index: patch.order_index ?? 0,
-                status: patch.status ?? 'pending',
-                green_lot: patch.green_lot ?? '',
-            };
-            const { data, error } = await supabase.from('roast_plan_batches').insert(row).select().single();
-            if (!error) return data;
-            if (error.code !== '23505') throw error;
-
-            const definedPatch = Object.fromEntries(
-                Object.entries(patch).filter(
-                    ([key, value]) => key !== 'id' && key !== 'batch_count' && value !== undefined,
-                ),
+            return persistModifiedException(
+                {
+                    planId: patch.plan_id ?? '', // Required — caller must provide
+                    ruleId: meta.recurrenceRuleId,
+                    scheduledDate: patch.scheduled_date ?? meta.originalDate,
+                    originalDate: meta.originalDate,
+                    orderIndex: patch.order_index ?? 0,
+                },
+                { kind: 'single-edit', patch },
             );
-            const { data: existing, error: updateError } = await supabase
-                .from('roast_plan_batches')
-                .update({
-                    ...definedPatch,
-                    plan_id: row.plan_id,
-                    scheduled_date: row.scheduled_date,
-                    exception_type: 'modified',
-                })
-                .eq('recurrence_rule_id', meta.recurrenceRuleId)
-                .eq('original_date', meta.originalDate)
-                .select()
-                .single();
-            if (updateError) throw updateError;
-            return existing;
         }
 
         // One-off batch → update directly
