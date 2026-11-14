@@ -1,10 +1,8 @@
 import { useRedeemOrgInvite } from '@entities/organization';
-import { useAuthStore } from '@shared/store/auth';
 import { mapInviteError } from './lib/mapInviteError';
 
 export function useRedeemInvite() {
-    const userId = useAuthStore((s) => s.user?.id ?? '');
-    const mutation = useRedeemOrgInvite(userId);
+    const mutation = useRedeemOrgInvite();
 
     return {
         ...mutation,

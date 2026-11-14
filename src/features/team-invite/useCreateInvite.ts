@@ -1,11 +1,9 @@
 import { useCreateOrgInvite } from '@entities/organization';
 import { generateToken } from '@shared/lib/token';
-import { useAuthStore } from '@shared/store/auth';
 import { mapInviteError } from './lib/mapInviteError';
 
 export function useCreateInvite() {
-    const userId = useAuthStore((s) => s.user?.id ?? '');
-    const mutation = useCreateOrgInvite(userId);
+    const mutation = useCreateOrgInvite();
 
     return {
         ...mutation,
