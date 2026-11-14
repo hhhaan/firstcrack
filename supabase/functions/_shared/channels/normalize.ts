@@ -11,7 +11,6 @@ export interface UpsertContext {
     userId: string;
     connectionId: string;
     platform: Platform;
-    autoFulfillOnShipped?: boolean;
 }
 
 /** One stock event the batch RPC refused to insert (#109 EF-path terminal guard). */

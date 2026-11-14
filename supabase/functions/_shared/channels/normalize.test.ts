@@ -64,11 +64,24 @@ describe('sync_channel_orders_batch boundary', () => {
                 { userId: 'user-1', connectionId: 'connection-1', platform: 'shopify' },
                 Array.from({ length: count }, (_, i) => order(i)),
             ),
-        ).resolves.toMatchObject({ upserted: count });
+        ).resolves.toEqual({ upserted: count, cancelledCompensations: 0, autoFulfillments: 0, stockEventSkips: [] });
         expect(reads).toBe(2);
         expect(calls).toHaveLength(rpcCount);
         expect(calls.every((call) => call.name === 'sync_channel_orders_batch')).toBe(true);
         expect(calls.every((call) => (call.args.p_orders as CanonicalOrder[]).length <= 100)).toBe(true);
+        expect(calls).toEqual(
+            Array.from({ length: rpcCount }, (_, batch) => ({
+                name: 'sync_channel_orders_batch',
+                args: {
+                    p_user_id: 'user-1',
+                    p_connection_id: 'connection-1',
+                    p_orders: Array.from({ length: Math.min(100, count - batch * 100) }, (_, offset) => {
+                        const input = order(batch * 100 + offset);
+                        return { ...input, lines: input.lines.map((line) => ({ ...line, productId: null })) };
+                    }),
+                },
+            })),
+        );
     });
 
     it('passes resolved product candidates and preserves repeated order ids', async () => {

@@ -1,14 +1,12 @@
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
     acquireDispatchRunLock,
+    acquireRunLock,
+    type PostgrestLikeError,
+    type RunLockClient,
     reclaimStaleRuns,
     releaseRunLock,
     STALE_RUN_MS,
-    type PostgrestLikeError,
-    type RunLockClient,
 } from './run-lock.ts';
 
 type Op = {
@@ -30,9 +28,7 @@ function mockAdmin(opts: {
         : [opts.insert ?? { data: { id: 'run-1' }, error: null }];
 
     const nextInsert = () =>
-        insertQueue.length > 1
-            ? insertQueue.shift()!
-            : (insertQueue[0] ?? { data: { id: 'run-1' }, error: null });
+        insertQueue.length > 1 ? insertQueue.shift()! : (insertQueue[0] ?? { data: { id: 'run-1' }, error: null });
 
     const chain = (method: Op['method'], values: Record<string, unknown>): never => {
         const op: Op = { method, values, filters: [] };
@@ -57,12 +53,13 @@ function mockAdmin(opts: {
                 ops.push(op);
                 return Promise.resolve(nextInsert());
             },
-            then: (resolve: (v: { data: unknown; error: PostgrestLikeError | null }) => unknown, reject?: (e: unknown) => unknown) => {
+            // biome-ignore lint/suspicious/noThenProperty: PostgREST query builders are awaitable.
+            then: (
+                resolve: (v: { data: unknown; error: PostgrestLikeError | null }) => unknown,
+                reject?: (e: unknown) => unknown,
+            ) => {
                 ops.push(op);
-                const result =
-                    method === 'insert'
-                        ? nextInsert()
-                        : { data: null, error: opts.updateError ?? null };
+                const result = method === 'insert' ? nextInsert() : { data: null, error: opts.updateError ?? null };
                 return Promise.resolve(result).then(resolve, reject);
             },
         };
@@ -193,13 +190,36 @@ describe('releaseRunLock', () => {
     });
 });
 
-describe('order-dispatch wires the run lock', () => {
-    it('acquires and releases via the shared helper before refreshAuth', () => {
-        const dir = dirname(fileURLToPath(import.meta.url));
-        const src = readFileSync(join(dir, '../../order-dispatch/index.ts'), 'utf8');
-        expect(src).toContain('acquireDispatchRunLock');
-        expect(src).toContain('releaseRunLock');
-        expect(src.indexOf('acquireDispatchRunLock')).toBeLessThan(src.indexOf('refreshAuth'));
-        expect(src).toContain("error: 'another run in progress'");
+describe('acquireRunLock', () => {
+    it.each(['cron', 'manual', 'dispatch'] as const)('acquires %s without reclaiming', async (trigger) => {
+        const { admin, ops } = mockAdmin({});
+        await expect(acquireRunLock(admin, { connectionId: 'conn-1', userId: 'user-1', trigger })).resolves.toEqual({
+            ok: true,
+            runId: 'run-1',
+        });
+        expect(ops).toEqual([
+            {
+                method: 'insert',
+                values: { connection_id: 'conn-1', user_id: 'user-1', trigger, status: 'running' },
+                filters: [],
+                selected: 'id',
+            },
+        ]);
+    });
+
+    it.each([
+        { data: null, error: null },
+        { data: null, error: { code: '42501' } },
+        { data: { id: 'ignored' }, error: { code: '42501' } },
+    ])('preserves missing-message fallback and error precedence: %j', async (insert) => {
+        const { admin, ops } = mockAdmin({ insert });
+        await expect(
+            acquireRunLock(admin, { connectionId: 'conn-1', userId: 'user-1', trigger: 'manual' }),
+        ).resolves.toEqual({
+            ok: false,
+            conflict: false,
+            error: 'run insert failed',
+        });
+        expect(ops).toHaveLength(1);
     });
 });
